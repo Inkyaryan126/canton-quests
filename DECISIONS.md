@@ -81,3 +81,14 @@ Each entry follows the standard ADR structure:
 - **Alternatives Evaluated**: Folder with spaces (`Canton Quests`).
 - **Consequences**: Directory operations use `canton-quests`; code metadata (`package.json`) uses `"name": "canton-quests"`.
 - **Status**: **ACCEPTED**
+
+---
+
+## ADR-008: Playable Core Game Engine & Verification Ledger
+- **Date**: 2026-08-09
+- **Decision**: Phase 1 implements a lightweight hybrid game engine supporting Supabase PostgreSQL with PostGIS extensions & RLS policies, paired with an integrated local storage fallback so the full game loop (event discovery, player setup, quest detail, 5 proof verification types, score ledger, leaderboard, QR gateway, admin control room) is immediately playable, testable, and persistable out-of-the-box.
+- **Reason**: Ensures frictionless zero-credential local development and continuous automated testing without blocking core game development on external database credentials.
+- **Alternatives Evaluated**: Blocking development until remote Supabase instance credentials are explicitly supplied.
+- **Consequences**: Production migration SQL (`supabase/migrations/20260809000000_phase1_playable_core.sql`) is stored for remote deployments while dev engine handles instant local state.
+- **Status**: **ACCEPTED**
+
