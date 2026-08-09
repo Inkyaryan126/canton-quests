@@ -1,512 +1,483 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import Header from '@/components/Header';
-import { QuestEvent, Quest, QuestSubmission, ProofVerificationType, QuestCategory, QuestDifficulty } from '@/lib/types';
+import {
+  QuestEvent,
+  Quest,
+  QuestSubmission,
+  Team,
+  TeamMember,
+  EventActivityItem,
+} from '@/lib/types';
 import {
   getEvents,
-  updateEventStatus,
-  createEvent,
   getQuestsForEvent,
-  createQuest,
-  updateQuest,
   getAllSubmissions,
   reviewSubmission,
+  updateQuest,
+  updateEventStatus,
+  triggerFlashQuest,
+  getTeamLeaderboardForEvent,
+  getActivityLog,
 } from '@/lib/game-engine';
 
-export default function AdminControlPage() {
+export default function AdminPage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const [selectedEvent, setSelectedEvent] = useState<QuestEvent | null>(null);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [submissions, setSubmissions] = useState<QuestSubmission[]>([]);
-  const [activeTab, setActiveTab] = useState<'submissions' | 'quests' | 'events'>('submissions');
+  const [teams, setTeams] = useState<any[]>([]);
+  const [activityLog, setActivityLog] = useState<EventActivityItem[]>([]);
 
-  // New Quest Form State
-  const [showNewQuestModal, setShowNewQuestModal] = useState(false);
-  const [qTitle, setQTitle] = useState('');
-  const [qDescription, setQDescription] = useState('');
-  const [qInstructions, setQInstructions] = useState('');
-  const [qPoints, setQPoints] = useState(100);
-  const [qDifficulty, setQDifficulty] = useState<QuestDifficulty>('medium');
-  const [qCategory, setQCategory] = useState<QuestCategory>('exploration');
-  const [qVerificationType, setQVerificationType] = useState<ProofVerificationType>('checkin');
-  const [qTargetCode, setQTargetCode] = useState('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'flash' | 'quests' | 'submissions' | 'teams'>('overview');
+  const [feedbackInput, setFeedbackInput] = useState<Record<string, string>>({});
+  const [flashDuration, setFlashDuration] = useState<number>(30);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  // New Event Form State
-  const [showNewEventModal, setShowNewEventModal] = useState(false);
-  const [eTitle, ETitle] = useState('');
-  const [eSlug, ESlug] = useState('');
-  const [eDesc, EDesc] = useState('');
+  const refreshData = useCallback(() => {
+    const allEvents = getEvents();
+    setEvents(allEvents);
+    const activeEvt = allEvents[0] || null;
+    setSelectedEvent(activeEvt);
 
-  const refreshAdminData = useCallback(() => {
-    const evts = getEvents();
-    setEvents(evts);
-
-    const active = evts.find((e) => e.status === 'active') || evts[0];
-    const targetEvtId = selectedEventId || (active ? active.id : '');
-    setSelectedEventId(targetEvtId);
-
-    if (targetEvtId) {
-      setQuests(getQuestsForEvent(targetEvtId));
+    if (activeEvt) {
+      setQuests(getQuestsForEvent(activeEvt.id));
+      setTeams(getTeamLeaderboardForEvent(activeEvt.id));
     }
     setSubmissions(getAllSubmissions());
-  }, [selectedEventId]);
+    setActivityLog(getActivityLog());
+  }, []);
 
   useEffect(() => {
-    refreshAdminData();
-  }, [refreshAdminData]);
+    refreshData();
+  }, [refreshData]);
 
-  const handleStatusChange = (eventId: string, newStatus: QuestEvent['status']) => {
-    updateEventStatus(eventId, newStatus);
-    refreshAdminData();
+  const showNotification = (msg: string) => {
+    setActionMessage(msg);
+    setTimeout(() => setActionMessage(null), 3000);
+  };
+
+  const handleReview = (subId: string, status: 'verified' | 'rejected') => {
+    const fb = feedbackInput[subId] || '';
+    reviewSubmission(subId, status, fb);
+    showNotification(`Submission ${status === 'verified' ? 'Approved' : 'Rejected'}!`);
+    refreshData();
+  };
+
+  const handleTriggerFlash = (questId: string) => {
+    triggerFlashQuest(questId, flashDuration);
+    showNotification(`⚡ Flash Quest Activated for ${flashDuration} minutes!`);
+    refreshData();
   };
 
   const handleToggleQuestStatus = (quest: Quest) => {
     const nextStatus = quest.status === 'active' ? 'inactive' : 'active';
     updateQuest(quest.id, { status: nextStatus });
-    refreshAdminData();
+    showNotification(`Quest "${quest.title}" status changed to ${nextStatus.toUpperCase()}`);
+    refreshData();
   };
 
-  const handleReview = (subId: string, action: 'verified' | 'rejected') => {
-    reviewSubmission(subId, action, action === 'verified' ? 'Approved by Game Master' : 'Rejected');
-    refreshAdminData();
+  const handleUpdateEventStatus = (status: QuestEvent['status']) => {
+    if (!selectedEvent) return;
+    updateEventStatus(selectedEvent.id, status);
+    showNotification(`Event status updated to ${status.toUpperCase()}`);
+    refreshData();
   };
 
-  const handleCreateQuestSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEventId || !qTitle.trim()) return;
-
-    createQuest({
-      eventId: selectedEventId,
-      title: qTitle.trim(),
-      slug: qTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      description: qDescription.trim(),
-      instructions: qInstructions.trim(),
-      pointValue: Number(qPoints),
-      difficulty: qDifficulty,
-      category: qCategory,
-      verificationType: qVerificationType,
-      targetCode: qTargetCode.trim(),
-      proofRequirement: qInstructions.trim(),
-      isFlash: qCategory === 'flash',
-      status: 'active',
-      sortOrder: quests.length + 1,
-    });
-
-    setShowNewQuestModal(false);
-    setQTitle('');
-    setQDescription('');
-    setQInstructions('');
-    setQTargetCode('');
-    refreshAdminData();
-  };
-
-  const handleCreateEventSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!eTitle.trim() || !eSlug.trim()) return;
-
-    createEvent({
-      cityId: 'city-canton-oh',
-      title: eTitle.trim(),
-      slug: eSlug.trim(),
-      description: eDesc.trim(),
-      status: 'active',
-      basicInstructions: 'Follow quest instructions and earn points.',
-    });
-
-    setShowNewEventModal(false);
-    ETitle('');
-    ESlug('');
-    EDesc('');
-    refreshAdminData();
-  };
-
-  const selectedEvent = events.find((e) => e.id === selectedEventId);
   const pendingSubmissions = submissions.filter((s) => s.status === 'pending');
+  const verifiedSubmissions = submissions.filter((s) => s.status === 'verified');
 
   return (
     <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
       <Header />
 
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-[var(--border-subtle)] pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="badge badge-medium bg-purple-500/20 text-purple-300 border-purple-500/40 font-mono">
-                CONTROL ROOM
+        {/* Game Master Control Room Banner */}
+        <div className="glass-panel p-5 md:p-6 mb-6 border-amber-500/40 glow-amber relative">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+            <span className="badge badge-medium bg-amber-500/20 text-amber-300 border-amber-500/40 font-mono">
+              👑 GAME MASTER CONTROL ROOM
+            </span>
+            {selectedEvent && (
+              <span className="text-xs font-mono text-emerald-400 bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-800/40">
+                ● STATUS: {selectedEvent.status.toUpperCase()}
               </span>
-              <span className="text-xs font-mono text-gray-400">Canton Operations</span>
-            </div>
-            <h1 className="text-2xl font-extrabold text-white">🕹️ Game Master Admin Console</h1>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
-            {selectedEvent && (
-              <Link
-                href={`/events/${selectedEvent.slug}`}
-                className="btn btn-secondary text-xs py-2 px-3 font-mono"
-              >
-                👁️ View Live Event Hub
-              </Link>
-            )}
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">
+            Canton Quests Field Command
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-300">
+            Control live event mechanics, trigger pop-up flash drops, review submissions, and manage teams.
+          </p>
+        </div>
+
+        {actionMessage && (
+          <div className="p-3.5 bg-emerald-950/50 border border-emerald-500 text-emerald-300 text-xs font-mono rounded-xl mb-6 animate-fade-in font-bold">
+            ✅ {actionMessage}
+          </div>
+        )}
+
+        {/* Quick Command Stat Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="glass-card p-3 text-center border-purple-500/30">
+            <span className="text-[10px] font-mono text-gray-400 uppercase block">Pending Reviews</span>
+            <span className="font-display font-extrabold text-2xl text-purple-400">
+              {pendingSubmissions.length}
+            </span>
+          </div>
+
+          <div className="glass-card p-3 text-center border-red-500/30">
+            <span className="text-[10px] font-mono text-gray-400 uppercase block">Active Flash Quests</span>
+            <span className="font-display font-extrabold text-2xl text-red-400">
+              {quests.filter((q) => q.isFlash && q.status === 'active').length}
+            </span>
+          </div>
+
+          <div className="glass-card p-3 text-center border-cyan-500/30">
+            <span className="text-[10px] font-mono text-gray-400 uppercase block">Registered Squads</span>
+            <span className="font-display font-extrabold text-2xl text-cyan-400">
+              {teams.length}
+            </span>
+          </div>
+
+          <div className="glass-card p-3 text-center border-emerald-500/30">
+            <span className="text-[10px] font-mono text-gray-400 uppercase block">Total Verified Proofs</span>
+            <span className="font-display font-extrabold text-2xl text-emerald-400">
+              {verifiedSubmissions.length}
+            </span>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex border-b border-[var(--border-subtle)] mb-6 font-display font-bold">
+        {/* Control Room Tabs */}
+        <div className="flex border-b border-[var(--border-subtle)] mb-6 font-display font-bold text-xs sm:text-sm overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex-1 py-3 text-center border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'overview'
+                ? 'border-amber-400 text-amber-400'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            📊 Event Controls & Activity
+          </button>
+          <button
+            onClick={() => setActiveTab('flash')}
+            className={`flex-1 py-3 text-center border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'flash'
+                ? 'border-amber-400 text-amber-400'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            ⚡ Flash Quest Controls
+          </button>
           <button
             onClick={() => setActiveTab('submissions')}
-            className={`py-3 px-4 text-sm border-b-2 transition-all flex items-center gap-2 ${
+            className={`flex-1 py-3 text-center border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'submissions'
                 ? 'border-amber-400 text-amber-400'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            📬 Submissions Review
-            {pendingSubmissions.length > 0 && (
-              <span className="bg-amber-500 text-obsidian text-xs font-bold px-2 py-0.5 rounded-full">
-                {pendingSubmissions.length}
-              </span>
-            )}
+            📋 Submissions ({pendingSubmissions.length})
           </button>
-
           <button
             onClick={() => setActiveTab('quests')}
-            className={`py-3 px-4 text-sm border-b-2 transition-all ${
+            className={`flex-1 py-3 text-center border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'quests'
                 ? 'border-amber-400 text-amber-400'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            ⚡ Manage Quests ({quests.length})
+            🎯 Quest Manager ({quests.length})
           </button>
-
           <button
-            onClick={() => setActiveTab('events')}
-            className={`py-3 px-4 text-sm border-b-2 transition-all ${
-              activeTab === 'events'
+            onClick={() => setActiveTab('teams')}
+            className={`flex-1 py-3 text-center border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'teams'
                 ? 'border-amber-400 text-amber-400'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            🏛️ Events ({events.length})
+            👥 Teams ({teams.length})
           </button>
         </div>
 
-        {/* TAB 1: SUBMISSIONS REVIEW */}
-        {activeTab === 'submissions' && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">Player Proof Queue</h2>
-              <span className="text-xs font-mono text-gray-400">
-                Total Submissions: {submissions.length}
-              </span>
-            </div>
-
-            {submissions.length === 0 ? (
-              <div className="glass-panel p-8 text-center text-gray-400 font-mono text-sm">
-                No submissions logged yet.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {submissions.map((sub) => (
-                  <div
-                    key={sub.id}
-                    className={`glass-panel p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border ${
-                      sub.status === 'pending'
-                        ? 'border-amber-500/40 bg-amber-950/20'
-                        : sub.status === 'verified'
-                        ? 'border-emerald-500/30'
-                        : 'border-gray-800 opacity-60'
+        {/* TAB 1: EVENT CONTROLS & LIVE ACTIVITY */}
+        {activeTab === 'overview' && selectedEvent && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="glass-panel p-5 space-y-4">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                ⚙️ Event Status Controls
+              </h2>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs font-mono text-gray-400">Current Status:</span>
+                {(['draft', 'upcoming', 'active', 'ended'] as const).map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => handleUpdateEventStatus(st)}
+                    className={`text-xs px-3 py-1.5 rounded-xl font-mono uppercase font-bold border transition-all ${
+                      selectedEvent.status === st
+                        ? 'bg-amber-500 text-obsidian border-amber-400 shadow'
+                        : 'bg-card text-gray-300 border-gray-800 hover:border-gray-600'
                     }`}
                   >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`badge ${
-                            sub.status === 'verified'
-                              ? 'badge-easy'
-                              : sub.status === 'pending'
-                              ? 'badge-medium'
-                              : 'badge-hard'
-                          }`}
-                        >
-                          {sub.status.toUpperCase()}
-                        </span>
-                        <span className="text-xs font-mono text-gray-400">
-                          {new Date(sub.submittedAt).toLocaleTimeString()}
-                        </span>
-                        <span className="text-xs font-mono text-cyan-400">
-                          [{sub.proofType}]
-                        </span>
+                    {st}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Activity Stream */}
+            <div className="glass-panel p-5 space-y-3">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                📡 Live Canton Event Activity Stream
+              </h2>
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {activityLog.length === 0 ? (
+                  <div className="text-xs text-gray-400 font-mono">No activity logged yet.</div>
+                ) : (
+                  activityLog.map((act) => (
+                    <div
+                      key={act.id}
+                      className="p-3 bg-obsidian/80 border border-gray-800 rounded-xl text-xs font-mono flex items-start justify-between gap-2"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-amber-400">{act.title}</span>
+                          <span className="text-[10px] text-gray-400">by {act.actorName}</span>
+                        </div>
+                        {act.details && <div className="text-gray-300 text-[11px] pt-0.5">{act.details}</div>}
                       </div>
+                      <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                        {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
-                      <div className="text-sm text-white font-mono">
-                        Agent ID: <strong className="text-amber-400">{sub.playerId}</strong> | Quest ID: {sub.questId}
+        {/* TAB 2: FLASH QUEST CONTROLS */}
+        {activeTab === 'flash' && (
+          <div className="glass-panel p-6 space-y-5 animate-fade-in border-red-500/30">
+            <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                ⚡ Flash Quest Pop-Up Trigger
+              </h2>
+              <p className="text-xs text-gray-400 font-mono">
+                Instantly activate temporary flash missions across Canton with configurable expiration timers!
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 p-3 bg-obsidian/80 rounded-xl border border-gray-800">
+              <label className="text-xs font-mono text-gray-300">Set Flash Duration:</label>
+              {[15, 30, 45, 60, 120].map((dur) => (
+                <button
+                  key={dur}
+                  onClick={() => setFlashDuration(dur)}
+                  className={`text-xs px-3 py-1 rounded-lg font-mono font-bold border ${
+                    flashDuration === dur
+                      ? 'bg-red-600 text-white border-red-500'
+                      : 'bg-card text-gray-400 border-gray-800'
+                  }`}
+                >
+                  {dur}m
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-xs font-mono uppercase text-gray-400">Available Quests to Trigger as Flash Drop:</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {quests.map((q) => (
+                  <div
+                    key={q.id}
+                    className="p-4 bg-obsidian border border-gray-800 rounded-xl flex flex-col justify-between space-y-3"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-bold text-white text-sm">{q.title}</span>
+                        <span className="text-amber-400 font-mono text-xs">+{q.pointValue} XP</span>
                       </div>
-
-                      {sub.submittedContent && (
-                        <p className="text-xs text-gray-300 font-mono bg-obsidian/80 p-2 rounded border border-gray-800">
-                          Content: &quot;{sub.submittedContent}&quot;
-                        </p>
-                      )}
-
-                      {sub.proofUrl && (
-                        <a
-                          href={sub.proofUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-cyan-400 hover:underline block font-mono"
-                        >
-                          🔗 View Submitted Media Proof
-                        </a>
-                      )}
+                      <p className="text-xs text-gray-400 line-clamp-2">{q.description}</p>
                     </div>
 
-                    {sub.status === 'pending' ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleReview(sub.id, 'verified')}
-                          className="btn btn-primary text-xs py-2 px-3"
-                        >
-                          ✓ Approve (+Points)
-                        </button>
-                        <button
-                          onClick={() => handleReview(sub.id, 'rejected')}
-                          className="btn btn-secondary text-xs py-2 px-3 text-red-400 hover:border-red-500"
-                        >
-                          ✕ Reject
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-mono text-gray-400">
-                        Points Awarded: {sub.awardedPoints} XP
-                      </span>
-                    )}
+                    <button
+                      onClick={() => handleTriggerFlash(q.id)}
+                      className="btn btn-primary text-xs py-2 w-full font-bold flex items-center justify-center gap-1"
+                    >
+                      ⚡ TRIGGER {flashDuration}M FLASH DROP
+                    </button>
                   </div>
                 ))}
               </div>
-            )}
-          </section>
+            </div>
+          </div>
         )}
 
-        {/* TAB 2: MANAGE QUESTS */}
-        {activeTab === 'quests' && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">Event Quests</h2>
-              <button
-                onClick={() => setShowNewQuestModal(true)}
-                className="btn btn-primary text-xs py-2 px-3"
-              >
-                + Create New Quest
-              </button>
-            </div>
-
-            {quests.map((q) => (
-              <div
-                key={q.id}
-                className="glass-panel p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border-gray-800"
-              >
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`badge badge-${q.difficulty}`}>{q.difficulty}</span>
-                    <span className="badge badge-medium">{q.category}</span>
-                    <span className="text-xs font-mono text-amber-400 font-bold">
-                      +{q.pointValue} XP
-                    </span>
-                    <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
-                        q.status === 'active'
-                          ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800'
-                          : 'bg-gray-800 text-gray-400 border-gray-700'
+        {/* TAB 3: SUBMISSIONS REVIEW */}
+        {activeTab === 'submissions' && (
+          <div className="space-y-4 animate-fade-in">
+            <h2 className="text-xl font-bold text-white">Media Submissions Queue</h2>
+            {submissions.length === 0 ? (
+              <div className="glass-panel p-8 text-center text-gray-400 font-mono text-sm">
+                No submissions recorded yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {submissions.map((sub) => {
+                  const questObj = quests.find((q) => q.id === sub.questId);
+                  return (
+                    <div
+                      key={sub.id}
+                      className={`glass-panel p-5 space-y-3 ${
+                        sub.status === 'pending'
+                          ? 'border-purple-500/40 bg-purple-950/10'
+                          : sub.status === 'verified'
+                          ? 'border-emerald-500/30'
+                          : 'border-red-500/30'
                       }`}
                     >
-                      {q.status.toUpperCase()}
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold text-white">{q.title}</h3>
-                  <p className="text-xs text-gray-400 font-mono">{q.instructions}</p>
-                </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="text-xs font-mono text-amber-400 font-bold block">
+                            {questObj?.title || sub.questId}
+                          </span>
+                          <span className="text-[11px] font-mono text-gray-400">
+                            Agent: {sub.playerId} • Submitted: {new Date(sub.submittedAt).toLocaleString()}
+                          </span>
+                        </div>
 
-                <div className="flex items-center gap-2">
+                        <span
+                          className={`text-xs font-mono font-bold px-3 py-1 rounded-full uppercase ${
+                            sub.status === 'verified'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                              : sub.status === 'pending'
+                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                              : 'bg-red-500/20 text-red-400 border border-red-500/40'
+                          }`}
+                        >
+                          {sub.status}
+                        </span>
+                      </div>
+
+                      {sub.proofUrl && (
+                        <div className="p-2 bg-obsidian rounded-xl border border-gray-800 text-xs font-mono">
+                          <span className="text-gray-400 block mb-1">Proof URL:</span>
+                          <a
+                            href={sub.proofUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-cyan-400 hover:underline break-all"
+                          >
+                            {sub.proofUrl}
+                          </a>
+                        </div>
+                      )}
+
+                      {sub.submittedContent && (
+                        <div className="p-2 bg-obsidian rounded-xl border border-gray-800 text-xs font-mono text-gray-300">
+                          {sub.submittedContent}
+                        </div>
+                      )}
+
+                      {sub.status === 'pending' && (
+                        <div className="space-y-2 pt-2 border-t border-gray-800">
+                          <input
+                            type="text"
+                            placeholder="Optional Game Master feedback..."
+                            value={feedbackInput[sub.id] || ''}
+                            onChange={(e) =>
+                              setFeedbackInput({ ...feedbackInput, [sub.id]: e.target.value })
+                            }
+                            className="input-field text-xs font-mono"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleReview(sub.id, 'verified')}
+                              className="btn btn-primary text-xs py-2 px-4 font-bold flex-1"
+                            >
+                              ✓ APPROVE & AWARD POINTS
+                            </button>
+                            <button
+                              onClick={() => handleReview(sub.id, 'rejected')}
+                              className="btn btn-secondary text-xs py-2 px-4 text-red-400 hover:border-red-600 flex-1"
+                            >
+                              ✕ REJECT
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: QUEST MANAGER */}
+        {activeTab === 'quests' && (
+          <div className="space-y-4 animate-fade-in">
+            <h2 className="text-xl font-bold text-white">Quest Manager ({quests.length})</h2>
+            <div className="space-y-3">
+              {quests.map((q) => (
+                <div
+                  key={q.id}
+                  className="glass-panel p-4 flex flex-wrap items-center justify-between gap-3 border-gray-800"
+                >
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-white text-base">{q.title}</span>
+                      <span className={`badge badge-${q.difficulty}`}>{q.difficulty}</span>
+                      <span className="text-amber-400 font-mono text-xs">+{q.pointValue} XP</span>
+                    </div>
+                    <p className="text-xs text-gray-400 font-mono">
+                      Location: {q.location?.name || 'Canton'} • Type: {q.verificationType} • Radius: {q.radiusMeters || 100}m
+                    </p>
+                  </div>
+
                   <button
                     onClick={() => handleToggleQuestStatus(q)}
-                    className="btn btn-secondary text-xs py-1.5 px-3 min-h-[36px]"
+                    className={`text-xs px-4 py-2 rounded-xl font-mono font-bold border ${
+                      q.status === 'active'
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                        : 'bg-gray-800 text-gray-400 border-gray-700'
+                    }`}
                   >
-                    {q.status === 'active' ? 'Deactivate' : 'Activate'}
+                    {q.status === 'active' ? '● ACTIVE' : '○ INACTIVE'}
                   </button>
                 </div>
-              </div>
-            ))}
-          </section>
-        )}
-
-        {/* TAB 3: MANAGE EVENTS */}
-        {activeTab === 'events' && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">Canton Events Catalog</h2>
-              <button
-                onClick={() => setShowNewEventModal(true)}
-                className="btn btn-primary text-xs py-2 px-3"
-              >
-                + Create New Event
-              </button>
+              ))}
             </div>
-
-            {events.map((e) => (
-              <div
-                key={e.id}
-                className="glass-panel p-5 border-amber-500/20 flex flex-col md:flex-row md:items-center justify-between gap-4"
-              >
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="badge badge-medium">{e.status.toUpperCase()}</span>
-                    <span className="text-xs font-mono text-gray-400">{e.slug}</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-white">{e.title}</h3>
-                  <p className="text-xs text-gray-300 max-w-xl">{e.description}</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {e.status !== 'active' ? (
-                    <button
-                      onClick={() => handleStatusChange(e.id, 'active')}
-                      className="btn btn-primary text-xs py-2 px-3"
-                    >
-                      ● Activate Event
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleStatusChange(e.id, 'ended')}
-                      className="btn btn-secondary text-xs py-2 px-3 text-red-400"
-                    >
-                      End Event
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </section>
+          </div>
         )}
 
-        {/* CREATE QUEST MODAL */}
-        {showNewQuestModal && (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-            <div className="glass-panel p-6 max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-                <h3 className="text-lg font-bold text-white">Create New Quest</h3>
-                <button onClick={() => setShowNewQuestModal(false)} className="text-gray-400 hover:text-white">
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={handleCreateQuestSubmit} className="space-y-3 text-xs font-mono">
-                <div>
-                  <label className="block text-gray-300 mb-1">Quest Title:</label>
-                  <input
-                    type="text"
-                    value={qTitle}
-                    onChange={(e) => setQTitle(e.target.value)}
-                    placeholder="e.g. Market Ave Fountain Challenge"
-                    className="input-field text-xs"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-300 mb-1">Description:</label>
-                  <textarea
-                    value={qDescription}
-                    onChange={(e) => setQDescription(e.target.value)}
-                    placeholder="Quest narrative details..."
-                    className="input-field text-xs min-h-[60px]"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-300 mb-1">Instructions:</label>
-                  <input
-                    type="text"
-                    value={qInstructions}
-                    onChange={(e) => setQInstructions(e.target.value)}
-                    placeholder="Specific verification steps..."
-                    className="input-field text-xs"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-gray-300 mb-1">Point Value (XP):</label>
-                    <input
-                      type="number"
-                      value={qPoints}
-                      onChange={(e) => setQPoints(Number(e.target.value))}
-                      className="input-field text-xs"
-                      required
-                    />
+        {/* TAB 5: TEAMS MANAGER */}
+        {activeTab === 'teams' && (
+          <div className="space-y-4 animate-fade-in">
+            <h2 className="text-xl font-bold text-white">Registered Squads ({teams.length})</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {teams.map((team) => (
+                <div key={team.teamId} className="glass-panel p-4 space-y-2 border-cyan-500/30">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-white text-base">{team.teamName}</h3>
+                    <span className="text-xs font-mono text-amber-400 bg-amber-950/50 px-2 py-0.5 rounded border border-amber-800/40">
+                      Code: {team.joinCode}
+                    </span>
                   </div>
-
-                  <div>
-                    <label className="block text-gray-300 mb-1">Difficulty:</label>
-                    <select
-                      value={qDifficulty}
-                      onChange={(e) => setQDifficulty(e.target.value as QuestDifficulty)}
-                      className="input-field text-xs bg-obsidian"
-                    >
-                      <option value="easy">Easy</option>
-                      <option value="medium">Medium</option>
-                      <option value="hard">Hard</option>
-                      <option value="epic">Epic</option>
-                    </select>
+                  <div className="text-xs text-gray-300 font-mono space-y-1">
+                    <div>Captain: {team.captainName}</div>
+                    <div>Members: {team.memberCount} Agent(s)</div>
+                    <div className="text-cyan-400 font-bold pt-1">Total Squad Points: {team.totalPoints} XP</div>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-gray-300 mb-1">Verification Type:</label>
-                    <select
-                      value={qVerificationType}
-                      onChange={(e) => setQVerificationType(e.target.value as ProofVerificationType)}
-                      className="input-field text-xs bg-obsidian"
-                    >
-                      <option value="checkin">Check-In</option>
-                      <option value="passphrase">Passphrase / Code</option>
-                      <option value="qr">QR Code</option>
-                      <option value="photo">Photo Submission</option>
-                      <option value="video">Video Submission</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-300 mb-1">Target Answer / Code:</label>
-                    <input
-                      type="text"
-                      value={qTargetCode}
-                      onChange={(e) => setQTargetCode(e.target.value)}
-                      placeholder="e.g. 1927 or CODE123"
-                      className="input-field text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-3 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowNewQuestModal(false)}
-                    className="btn btn-secondary text-xs"
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary text-xs">
-                    Create Quest
-                  </button>
-                </div>
-              </form>
+              ))}
             </div>
           </div>
         )}

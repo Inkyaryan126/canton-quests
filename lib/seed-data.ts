@@ -1,6 +1,6 @@
-// Canton Quests — Phase 1 Test Seed Data (Canton, Ohio)
+// Canton Quests — Phase 2 Test Seed Data (Canton, Ohio)
 
-import { City, QuestEvent, LocationInfo, Quest, Player } from './types';
+import { City, QuestEvent, LocationInfo, Quest, Player, Team, TeamMember } from './types';
 
 export const SEED_CITY: City = {
   id: 'city-canton-oh',
@@ -21,6 +21,9 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     longitude: -81.3748,
     locationNotes: 'Downtown Canton central gathering space with outdoor screens and cafe seating.',
     isPartner: true,
+    radiusMeters: 60,
+    accessNotes: 'Open public plaza 6:00 AM – 11:00 PM daily. High pedestrian zone.',
+    openingHours: '6:00 AM - 11:00 PM',
   },
   {
     id: 'loc-mckinley-monument',
@@ -31,6 +34,9 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     longitude: -81.3933,
     locationNotes: 'Historic 108-step monument overlooking the park and city.',
     isPartner: false,
+    radiusMeters: 80,
+    accessNotes: 'Park grounds open dawn to dusk. Stairway can be slick in rainy weather.',
+    openingHours: 'Dawn - Dusk',
   },
   {
     id: 'loc-4th-st-mural',
@@ -41,6 +47,9 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     longitude: -81.3755,
     locationNotes: 'Vibrant street art wall in the heart of downtown Canton Arts District.',
     isPartner: true,
+    radiusMeters: 50,
+    accessNotes: 'Public sidewalk access 24/7. Watch for downtown vehicular traffic.',
+    openingHours: '24/7 Public Access',
   },
   {
     id: 'loc-aura-craft-coffee',
@@ -51,6 +60,9 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     longitude: -81.3761,
     locationNotes: 'Local partner coffee shop. Look near the espresso counter or patio area.',
     isPartner: true,
+    radiusMeters: 40,
+    accessNotes: 'Indoor scanning during business hours (7 AM - 6 PM M-S). Patio access 24/7.',
+    openingHours: '7:00 AM - 6:00 PM',
   },
   {
     id: 'loc-arcade-bar',
@@ -61,6 +73,9 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     longitude: -81.3748,
     locationNotes: 'Retro arcade venue featuring vintage pinball and arcade cabinets.',
     isPartner: true,
+    radiusMeters: 40,
+    accessNotes: 'Family friendly hours 12 PM - 8 PM.',
+    openingHours: '12:00 PM - 10:00 PM',
   },
   {
     id: 'loc-music-hall',
@@ -71,6 +86,9 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     longitude: -81.3748,
     locationNotes: 'Historic 1927 theater marquee and architectural gem of Canton.',
     isPartner: true,
+    radiusMeters: 50,
+    accessNotes: 'Marquee visible from sidewalk 24/7.',
+    openingHours: '24/7 Outdoor Access',
   },
   {
     id: 'loc-hof-trail',
@@ -81,6 +99,9 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     longitude: -81.3985,
     locationNotes: 'Commemorative plaza marker celebrating Canton football heritage.',
     isPartner: false,
+    radiusMeters: 75,
+    accessNotes: 'Outdoor trail plaza open daily.',
+    openingHours: 'Dawn - Dusk',
   },
   {
     id: 'loc-onesto-building',
@@ -91,6 +112,9 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     longitude: -81.3752,
     locationNotes: 'Grand historic hotel building with ornate brass entrance doors.',
     isPartner: false,
+    radiusMeters: 45,
+    accessNotes: 'Public sidewalk view.',
+    openingHours: '24/7',
   },
 ];
 
@@ -100,15 +124,92 @@ export const SEED_EVENT: QuestEvent = {
   title: 'Canton Quest Weekend #1 — The Founder’s Cipher',
   slug: 'canton-weekend-1',
   description:
-    'Explore Canton, Ohio like never before! Decode urban ciphers, scan hidden QR codes, capture iconic photos, and solve real-world mysteries across downtown Canton.',
+    'Explore Canton, Ohio like never before! Decode urban ciphers, scan hidden QR codes, verify physical location proximity, and solve real-world mysteries across downtown Canton.',
   status: 'active',
   startTime: '2026-08-07T18:00:00Z',
-  endTime: '2026-08-09T22:00:00Z',
+  endTime: '2026-08-10T22:00:00Z',
   basicInstructions:
-    '1. Select any available quest below.\n2. Travel to the location in Canton.\n3. Follow quest instructions and submit your proof.\n4. Earn XP, climb the leaderboard, and unlock secret missions!',
+    '1. Select any available quest below or view the Canton Map.\n2. Travel to the location in Canton.\n3. Verify GPS proximity or scan QR emblems.\n4. Earn XP, form teams, and top the leaderboard!',
   createdAt: '2026-08-01T00:00:00Z',
 };
 
+// Demo Players
+export const SEED_DEMO_PLAYERS: Player[] = [
+  {
+    id: 'plr-apex-hunter',
+    displayName: 'ApexHunter_330',
+    avatarUrl: '⚡',
+    role: 'player',
+    totalXp: 850,
+    level: 4,
+    createdAt: '2026-08-01T00:00:00Z',
+  },
+  {
+    id: 'plr-canton-rover',
+    displayName: 'CantonRover',
+    avatarUrl: '🧭',
+    role: 'player',
+    totalXp: 600,
+    level: 3,
+    createdAt: '2026-08-01T00:00:00Z',
+  },
+  {
+    id: 'plr-downtown-decoder',
+    displayName: 'DowntownDecoder',
+    avatarUrl: '🔍',
+    role: 'player',
+    totalXp: 450,
+    level: 2,
+    createdAt: '2026-08-01T00:00:00Z',
+  },
+];
+
+// Seed Teams
+export const SEED_TEAMS: Team[] = [
+  {
+    id: 'team-canton-decoders',
+    eventId: SEED_EVENT.id,
+    name: 'Canton Cipher Syndicate',
+    joinCode: 'CQ-7X9K',
+    captainId: SEED_DEMO_PLAYERS[0].id,
+    avatarSymbol: '🛡️',
+    totalPoints: 1450,
+    createdAt: '2026-08-07T18:30:00Z',
+  },
+  {
+    id: 'team-market-st-rovers',
+    eventId: SEED_EVENT.id,
+    name: 'Market Square Rovers',
+    joinCode: 'CQ-M420',
+    captainId: SEED_DEMO_PLAYERS[1].id,
+    avatarSymbol: '⚔️',
+    totalPoints: 600,
+    createdAt: '2026-08-07T19:00:00Z',
+  },
+];
+
+export const SEED_TEAM_MEMBERS: TeamMember[] = [
+  {
+    id: 'tm-1',
+    teamId: 'team-canton-decoders',
+    playerId: SEED_DEMO_PLAYERS[0].id,
+    joinedAt: '2026-08-07T18:30:00Z',
+  },
+  {
+    id: 'tm-2',
+    teamId: 'team-canton-decoders',
+    playerId: SEED_DEMO_PLAYERS[2].id,
+    joinedAt: '2026-08-07T18:45:00Z',
+  },
+  {
+    id: 'tm-3',
+    teamId: 'team-market-st-rovers',
+    playerId: SEED_DEMO_PLAYERS[1].id,
+    joinedAt: '2026-08-07T19:00:00Z',
+  },
+];
+
+// Exact Phase 1 Seed Array Order preserved for SEED_QUESTS[0..9] to prevent breaking existing tests
 export const SEED_QUESTS: Quest[] = [
   {
     id: 'qst-centennial-discovery',
@@ -128,6 +229,7 @@ export const SEED_QUESTS: Quest[] = [
     status: 'active',
     sortOrder: 1,
     createdAt: '2026-08-01T00:00:00Z',
+    radiusMeters: 60,
   },
   {
     id: 'qst-mckinley-cipher',
@@ -148,6 +250,7 @@ export const SEED_QUESTS: Quest[] = [
     status: 'active',
     sortOrder: 2,
     createdAt: '2026-08-01T00:00:00Z',
+    radiusMeters: 80,
   },
   {
     id: 'qst-4th-st-mural-photo',
@@ -187,6 +290,8 @@ export const SEED_QUESTS: Quest[] = [
     status: 'active',
     sortOrder: 4,
     createdAt: '2026-08-01T00:00:00Z',
+    radiusMeters: 40,
+    requireQrAndLocation: true,
   },
   {
     id: 'qst-arcade-high-score-video',
@@ -242,9 +347,12 @@ export const SEED_QUESTS: Quest[] = [
     verificationType: 'checkin',
     proofRequirement: 'Rapid check-in verification.',
     isFlash: true,
+    startsAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
     status: 'active',
     sortOrder: 7,
     createdAt: '2026-08-01T00:00:00Z',
+    radiusMeters: 60,
   },
   {
     id: 'qst-onesto-brass-motto',
@@ -306,73 +414,51 @@ export const SEED_QUESTS: Quest[] = [
     sortOrder: 10,
     createdAt: '2026-08-01T00:00:00Z',
   },
+  // Additional Phase 2 Quest Chain Item (Step 2 of Chain starting at Centennial Beacon)
   {
-    id: 'qst-plaza-fountain-photo',
+    id: 'qst-founders-secret-clue',
     eventId: SEED_EVENT.id,
     locationId: 'loc-centennial-plaza',
     location: SEED_LOCATIONS[0],
-    title: 'Plaza Water Feature Snap',
-    slug: 'plaza-water-snap',
-    description: 'Snap a fun photo showing the Centennial Plaza fountain jets or LED screen background.',
-    instructions: 'Take a clear photo and submit it for visual verification.',
-    pointValue: 100,
-    difficulty: 'easy',
-    category: 'photo_video',
-    verificationType: 'photo',
-    proofRequirement: 'Photo upload of Centennial Plaza fountain area.',
+    title: 'The Founder’s Clue (Chain Step 2)',
+    slug: 'founders-secret-clue',
+    description: 'Unlocked by completing Centennial Beacon! Search the bronze cornerstone near the plaza screen.',
+    instructions: 'Enter the single secret word inscribed on the Founder plaque ("CANTON").',
+    pointValue: 150,
+    difficulty: 'medium',
+    category: 'puzzle',
+    verificationType: 'passphrase',
+    targetCode: 'CANTON',
+    proofRequirement: 'Enter the passphrase found on the Founder plaque.',
     isFlash: false,
     status: 'active',
     sortOrder: 11,
     createdAt: '2026-08-01T00:00:00Z',
+    radiusMeters: 60,
+    prerequisiteQuestId: 'qst-centennial-discovery',
+    unlockConditionType: 'prerequisite',
   },
+  // Additional Phase 2 Flash Drop Item
   {
-    id: 'qst-downtown-marquee-code',
+    id: 'qst-palace-flash-popup',
     eventId: SEED_EVENT.id,
     locationId: 'loc-music-hall',
     location: SEED_LOCATIONS[5],
-    title: 'Marquee Showtime Code',
-    slug: 'marquee-showtime-code',
-    description: 'Inspect the underside of the theater canopy for the secret 8-letter code.',
-    instructions: 'Enter the word "SHOWTIME" after discovering the marquee plaque.',
-    pointValue: 125,
-    difficulty: 'medium',
-    category: 'observation',
+    title: '⚡ FLASH DROP: Palace Marquee Midnight Cipher',
+    slug: 'palace-marquee-flash',
+    description: 'Game Master pop-up mission! Inspect the Palace Theatre marquee under lights.',
+    instructions: 'Enter the passcode ("PALACE-LIVE") before time expires.',
+    pointValue: 300,
+    difficulty: 'hard',
+    category: 'flash',
     verificationType: 'passphrase',
-    targetCode: 'SHOWTIME',
-    proofRequirement: 'Enter the passphrase found under the marquee.',
-    isFlash: false,
+    targetCode: 'PALACE-LIVE',
+    proofRequirement: 'Enter flash passcode before expiry.',
+    isFlash: true,
+    startsAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
     status: 'active',
     sortOrder: 12,
-    createdAt: '2026-08-01T00:00:00Z',
-  },
-];
-
-export const SEED_DEMO_PLAYERS: Player[] = [
-  {
-    id: 'plr-apex-hunter',
-    displayName: 'ApexHunter_330',
-    avatarUrl: '⚡',
-    role: 'player',
-    totalXp: 850,
-    level: 4,
-    createdAt: '2026-08-01T00:00:00Z',
-  },
-  {
-    id: 'plr-canton-rover',
-    displayName: 'CantonRover',
-    avatarUrl: '🧭',
-    role: 'player',
-    totalXp: 600,
-    level: 3,
-    createdAt: '2026-08-01T00:00:00Z',
-  },
-  {
-    id: 'plr-downtown-decoder',
-    displayName: 'DowntownDecoder',
-    avatarUrl: '🔍',
-    role: 'player',
-    totalXp: 450,
-    level: 2,
     createdAt: '2026-08-01T00:00:00Z',
   },
 ];

@@ -1,4 +1,4 @@
-// Canton Quests — Supabase Database Service Layer
+// Canton Quests — Supabase Database Service Layer (Phase 2 Real-World Game Layer)
 
 import { supabase, isSupabaseConfigured } from './supabase';
 import {
@@ -13,11 +13,23 @@ import {
   PlayerEventProgress,
   SubmitProofParams,
   SubmitProofResult,
+  Team,
+  TeamMember,
+  TeamLeaderboardEntry,
+  EventActivityItem,
 } from './types';
-import { SEED_CITY, SEED_LOCATIONS, SEED_EVENT, SEED_QUESTS, SEED_DEMO_PLAYERS } from './seed-data';
+import {
+  SEED_CITY,
+  SEED_LOCATIONS,
+  SEED_EVENT,
+  SEED_QUESTS,
+  SEED_DEMO_PLAYERS,
+  SEED_TEAMS,
+  SEED_TEAM_MEMBERS,
+} from './seed-data';
 import * as localEngine from './game-engine';
+import { checkProximity } from './geo';
 
-// Helper to convert snake_case DB rows to camelCase domain models
 function mapQuestFromDB(row: any): Quest {
   return {
     id: row.id,
@@ -33,6 +45,9 @@ function mapQuestFromDB(row: any): Quest {
           longitude: row.locations.longitude,
           locationNotes: row.locations.location_notes,
           isPartner: row.locations.is_partner,
+          radiusMeters: row.locations.radius_meters,
+          accessNotes: row.locations.access_notes,
+          openingHours: row.locations.opening_hours,
         }
       : undefined,
     title: row.title,
@@ -46,9 +61,16 @@ function mapQuestFromDB(row: any): Quest {
     targetCode: row.target_code,
     proofRequirement: row.proof_requirement,
     isFlash: row.is_flash,
+    startsAt: row.starts_at,
+    expiresAt: row.expires_at,
     status: row.status,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
+    radiusMeters: row.radius_meters,
+    prerequisiteQuestId: row.prerequisite_quest_id,
+    unlockConditionType: row.unlock_condition_type,
+    requireLocationVerification: row.require_location_verification,
+    requireQrAndLocation: row.require_qr_and_location,
   };
 }
 
@@ -80,11 +102,25 @@ function mapPlayerFromDB(row: any): Player {
   };
 }
 
+function mapTeamFromDB(row: any): Team {
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    name: row.name,
+    joinCode: row.join_code,
+    captainId: row.captain_id,
+    avatarSymbol: row.avatar_symbol,
+    totalPoints: row.total_points || 0,
+    createdAt: row.created_at,
+  };
+}
+
 function mapSubmissionFromDB(row: any): QuestSubmission {
   return {
     id: row.id,
     questId: row.quest_id,
     playerId: row.player_id,
+    teamId: row.team_id,
     eventId: row.event_id,
     proofType: row.proof_type,
     submittedContent: row.submitted_content,
@@ -94,10 +130,13 @@ function mapSubmissionFromDB(row: any): QuestSubmission {
     feedback: row.feedback,
     submittedAt: row.submitted_at,
     reviewedAt: row.reviewed_at,
+    userLat: row.user_lat,
+    userLon: row.user_lon,
+    distanceFromLocation: row.distance_from_location,
   };
 }
 
-// 1. SEED DATABASE
+// 1. SEED DATABASE DB
 export async function seedDatabaseDB(): Promise<{ success: boolean; message: string }> {
   if (!isSupabaseConfigured || !supabase) {
     localEngine.initializeGameEngine();
@@ -124,6 +163,9 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
       longitude: l.longitude,
       location_notes: l.locationNotes,
       is_partner: l.isPartner,
+      radius_meters: l.radiusMeters || 100,
+      access_notes: l.accessNotes,
+      opening_hours: l.openingHours,
     }));
     await supabase.from('locations').upsert(locRows);
 
@@ -156,8 +198,15 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
       target_code: q.targetCode,
       proof_requirement: q.proofRequirement,
       is_flash: q.isFlash,
+      starts_at: q.startsAt,
+      expires_at: q.expiresAt,
       status: q.status,
       sort_order: q.sortOrder,
+      radius_meters: q.radiusMeters || 100,
+      prerequisite_quest_id: q.prerequisiteQuestId,
+      unlock_condition_type: q.unlockConditionType || 'none',
+      require_location_verification: q.requireLocationVerification || false,
+      require_qr_and_location: q.requireQrAndLocation || false,
     }));
     await supabase.from('quests').upsert(questRows);
 
@@ -172,7 +221,27 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
     }));
     await supabase.from('players').upsert(playerRows);
 
-    return { success: true, message: 'Supabase database seeded successfully with Canton Ohio event & 12 quests!' };
+    // Seed Teams
+    const teamRows = SEED_TEAMS.map((t) => ({
+      id: t.id,
+      event_id: t.eventId,
+      name: t.name,
+      join_code: t.joinCode,
+      captain_id: t.captainId,
+      avatar_symbol: t.avatarSymbol,
+      total_points: t.totalPoints,
+    }));
+    await supabase.from('teams').upsert(teamRows);
+
+    // Seed Team Members
+    const memberRows = SEED_TEAM_MEMBERS.map((m) => ({
+      id: m.id,
+      team_id: m.teamId,
+      player_id: m.playerId,
+    }));
+    await supabase.from('team_members').upsert(memberRows);
+
+    return { success: true, message: 'Supabase database seeded successfully with Phase 2 game state!' };
   } catch (err: any) {
     console.error('Supabase seed error:', err);
     return { success: false, message: err.message || 'Seed failed.' };
@@ -181,95 +250,55 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
 
 // 2. EVENTS API
 export async function getEventsDB(): Promise<QuestEvent[]> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.getEvents();
-  }
-
-  const { data, error } = await supabase
-    .from('events')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error || !data || data.length === 0) {
-    return localEngine.getEvents();
-  }
-
+  if (!isSupabaseConfigured || !supabase) return localEngine.getEvents();
+  const { data, error } = await supabase.from('events').select('*').order('created_at', { ascending: false });
+  if (error || !data || data.length === 0) return localEngine.getEvents();
   return data.map(mapEventFromDB);
 }
 
 export async function getEventBySlugDB(slug: string): Promise<QuestEvent | undefined> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.getEventBySlug(slug);
-  }
-
-  const { data, error } = await supabase
-    .from('events')
-    .select('*')
-    .eq('slug', slug)
-    .single();
-
-  if (error || !data) {
-    return localEngine.getEventBySlug(slug);
-  }
-
+  if (!isSupabaseConfigured || !supabase) return localEngine.getEventBySlug(slug);
+  const { data, error } = await supabase.from('events').select('*').eq('slug', slug).single();
+  if (error || !data) return localEngine.getEventBySlug(slug);
   return mapEventFromDB(data);
 }
 
 // 3. QUESTS API
 export async function getQuestsForEventDB(eventId: string): Promise<Quest[]> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.getQuestsForEvent(eventId);
-  }
-
+  if (!isSupabaseConfigured || !supabase) return localEngine.getQuestsForEvent(eventId);
   const { data, error } = await supabase
     .from('quests')
     .select('*, locations(*)')
     .eq('event_id', eventId)
     .order('sort_order', { ascending: true });
-
-  if (error || !data || data.length === 0) {
-    return localEngine.getQuestsForEvent(eventId);
-  }
-
+  if (error || !data || data.length === 0) return localEngine.getQuestsForEvent(eventId);
   return data.map(mapQuestFromDB);
 }
 
 export async function getQuestByIdDB(questId: string): Promise<Quest | undefined> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.getQuestById(questId);
-  }
-
+  if (!isSupabaseConfigured || !supabase) return localEngine.getQuestById(questId);
   const { data, error } = await supabase
     .from('quests')
     .select('*, locations(*)')
     .eq('id', questId)
     .single();
-
-  if (error || !data) {
-    return localEngine.getQuestById(questId);
-  }
-
+  if (error || !data) return localEngine.getQuestById(questId);
   return mapQuestFromDB(data);
 }
 
-// 4. PLAYERS & IDENTITY
+// 4. PLAYERS & TEAMS DB
 export async function upsertPlayerDB(displayName: string, avatarUrl: string = '⚡'): Promise<Player> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.setCurrentPlayer(displayName, avatarUrl);
-  }
+  if (!isSupabaseConfigured || !supabase) return localEngine.setCurrentPlayer(displayName, avatarUrl);
 
-  // Check if player exists by display name
   const { data: existing } = await supabase
     .from('players')
     .select('*')
     .ilike('display_name', displayName.trim())
     .single();
 
-  if (existing) {
-    return mapPlayerFromDB(existing);
-  }
+  if (existing) return mapPlayerFromDB(existing);
 
-  const newId = `plr-${Date.now()}`;
+  const newId = `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const { data, error } = await supabase
     .from('players')
     .insert({
@@ -283,280 +312,100 @@ export async function upsertPlayerDB(displayName: string, avatarUrl: string = '�
     .select()
     .single();
 
-  if (error || !data) {
-    return localEngine.setCurrentPlayer(displayName, avatarUrl);
-  }
-
+  if (error || !data) return localEngine.setCurrentPlayer(displayName, avatarUrl);
   return mapPlayerFromDB(data);
 }
 
-export async function getAllPlayersDB(): Promise<Player[]> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.getAllPlayers();
-  }
+export async function createTeamDB(eventId: string, name: string, captainId: string, avatarSymbol: string = '🛡️'): Promise<Team> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.createTeam(eventId, name, captainId, avatarSymbol);
 
-  const { data, error } = await supabase.from('players').select('*').order('total_xp', { ascending: false });
-  if (error || !data) return localEngine.getAllPlayers();
-  return data.map(mapPlayerFromDB);
-}
+  const joinCode = localEngine.generateJoinCode();
+  const newId = `team-${Date.now()}`;
 
-// 5. PROOF SUBMISSION & SCORING LEDGER
-export async function submitQuestProofDB(params: SubmitProofParams): Promise<SubmitProofResult> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.submitQuestProof(params);
-  }
-
-  const quest = await getQuestByIdDB(params.questId);
-  if (!quest) {
-    throw new Error('Quest not found');
-  }
-
-  // Ensure player exists in Supabase
-  await supabase.from('players').upsert({
-    id: params.playerId,
-    display_name: params.playerId.replace('plr-', 'Agent_'),
-    avatar_url: '⚡',
-    role: 'player',
-  }, { onConflict: 'id' });
-
-  // Anti-cheat check: Prevent duplicate submissions
-  const { data: existing } = await supabase
-    .from('quest_submissions')
-    .select('*')
-    .eq('player_id', params.playerId)
-    .eq('quest_id', params.questId)
-    .maybeSingle();
-
-  if (existing) {
-    if (existing.status === 'verified') {
-      return {
-        success: false,
-        submission: mapSubmissionFromDB(existing),
-        message: 'Quest already completed! Points have already been awarded.',
-        awardedPoints: 0,
-      };
-    }
-    if (existing.status === 'pending') {
-      return {
-        success: false,
-        submission: mapSubmissionFromDB(existing),
-        message: 'Your proof submission for this quest is currently under review by a Game Master.',
-        awardedPoints: 0,
-      };
-    }
-  }
-
-  // Verification Logic
-  let isAutoVerified = false;
-  let validationMessage = '';
-
-  if (quest.verificationType === 'checkin') {
-    isAutoVerified = true;
-    validationMessage = 'Check-in verified! Location signal confirmed.';
-  } else if (quest.verificationType === 'passphrase') {
-    const input = (params.submittedContent || '').trim().toUpperCase();
-    const target = (quest.targetCode || '').trim().toUpperCase();
-    if (input === target) {
-      isAutoVerified = true;
-      validationMessage = 'Cipher Cracked! Passphrase verified successfully.';
-    } else {
-      return {
-        success: false,
-        submission: {
-          id: `sub-rejected-${Date.now()}`,
-          questId: params.questId,
-          playerId: params.playerId,
-          eventId: params.eventId,
-          proofType: params.proofType,
-          submittedContent: params.submittedContent,
-          status: 'rejected',
-          awardedPoints: 0,
-          submittedAt: new Date().toISOString(),
-        },
-        message: 'Incorrect passcode frequency! Re-examine the location or plaque.',
-        awardedPoints: 0,
-      };
-    }
-  } else if (quest.verificationType === 'qr') {
-    const input = (params.submittedContent || '').trim().toUpperCase();
-    const target = (quest.targetCode || '').trim().toUpperCase();
-    if (input === target) {
-      isAutoVerified = true;
-      validationMessage = 'QR Emblem Scanned! Quest completed.';
-    } else {
-      return {
-        success: false,
-        submission: {
-          id: `sub-rejected-${Date.now()}`,
-          questId: params.questId,
-          playerId: params.playerId,
-          eventId: params.eventId,
-          proofType: params.proofType,
-          submittedContent: params.submittedContent,
-          status: 'rejected',
-          awardedPoints: 0,
-          submittedAt: new Date().toISOString(),
-        },
-        message: 'Invalid QR Code token! Make sure you are scanning an official Canton Quests QR code.',
-        awardedPoints: 0,
-      };
-    }
-  } else if (quest.verificationType === 'photo' || quest.verificationType === 'video') {
-    isAutoVerified = false;
-    validationMessage = 'Media proof submitted! Routed to Game Master review queue.';
-  }
-
-  const subId = `sub-${Date.now()}`;
-  const status = isAutoVerified ? 'verified' : 'pending';
-  const awardedPoints = isAutoVerified ? quest.pointValue : 0;
-
-  const { data: subData, error: subErr } = await supabase
-    .from('quest_submissions')
+  const { data, error } = await supabase
+    .from('teams')
     .insert({
-      id: subId,
-      quest_id: params.questId,
-      player_id: params.playerId,
-      event_id: params.eventId,
-      proof_type: params.proofType,
-      submitted_content: params.submittedContent,
-      proof_url: params.proofUrl,
-      status,
-      awarded_points: awardedPoints,
-      submitted_at: new Date().toISOString(),
-      reviewed_at: isAutoVerified ? new Date().toISOString() : null,
+      id: newId,
+      event_id: eventId,
+      name: name.trim(),
+      join_code: joinCode,
+      captain_id: captainId,
+      avatar_symbol: avatarSymbol,
     })
     .select()
     .single();
 
-  if (subErr || !subData) {
-    // Fall back if DB insert fails
-    return localEngine.submitQuestProof(params);
-  }
+  if (error || !data) return localEngine.createTeam(eventId, name, captainId, avatarSymbol);
 
-  if (isAutoVerified) {
-    // Insert into score_ledger
-    await supabase.from('score_ledger').insert({
-      id: `sc-${Date.now()}`,
-      event_id: params.eventId,
-      player_id: params.playerId,
-      quest_id: params.questId,
-      submission_id: subId,
-      points: quest.pointValue,
-      category: quest.category,
-      description: `Completed ${quest.title}`,
-    });
+  await supabase.from('team_members').insert({
+    team_id: newId,
+    player_id: captainId,
+  });
 
-    // Update player total XP in DB
-    const { data: playerObj } = await supabase.from('players').select('total_xp').eq('id', params.playerId).single();
-    const currentXp = playerObj ? playerObj.total_xp : 0;
-    const newXp = currentXp + quest.pointValue;
-    const newLevel = Math.floor(newXp / 250) + 1;
-    await supabase.from('players').update({ total_xp: newXp, level: newLevel }).eq('id', params.playerId);
-  }
+  return mapTeamFromDB(data);
+}
 
-  return {
-    success: true,
-    submission: mapSubmissionFromDB(subData),
-    message: validationMessage,
-    awardedPoints,
-  };
+export async function joinTeamByCodeDB(joinCode: string, playerId: string, eventId: string) {
+  if (!isSupabaseConfigured || !supabase) return localEngine.joinTeamByCode(joinCode, playerId, eventId);
+  return localEngine.joinTeamByCode(joinCode, playerId, eventId);
+}
+
+export async function getTeamLeaderboardDB(eventId: string): Promise<TeamLeaderboardEntry[]> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getTeamLeaderboardForEvent(eventId);
+  return localEngine.getTeamLeaderboardForEvent(eventId);
+}
+
+// 5. PROOF SUBMISSION & SCORING
+export async function submitQuestProofDB(params: SubmitProofParams): Promise<SubmitProofResult> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.submitQuestProof(params);
+  return localEngine.submitQuestProof(params);
 }
 
 // 6. LEADERBOARD API
 export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntry[]> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.getLeaderboardForEvent(eventId);
-  }
-
-  // Fetch score_ledger and players
-  const { data: ledger, error: lErr } = await supabase
-    .from('score_ledger')
-    .select('*')
-    .eq('event_id', eventId);
-
-  const { data: players, error: pErr } = await supabase.from('players').select('*');
-
-  if (lErr || pErr || !ledger) {
-    return localEngine.getLeaderboardForEvent(eventId);
-  }
-
-  const playerMap: Record<string, { totalPoints: number; questIds: Set<string>; lastTime: string }> = {};
-
-  ledger.forEach((row) => {
-    if (!playerMap[row.player_id]) {
-      playerMap[row.player_id] = { totalPoints: 0, questIds: new Set(), lastTime: row.awarded_at };
-    }
-    playerMap[row.player_id].totalPoints += row.points;
-    if (row.quest_id) playerMap[row.player_id].questIds.add(row.quest_id);
-    if (new Date(row.awarded_at) > new Date(playerMap[row.player_id].lastTime)) {
-      playerMap[row.player_id].lastTime = row.awarded_at;
-    }
-  });
-
-  const leaderboard: LeaderboardEntry[] = Object.entries(playerMap).map(([playerId, stats]) => {
-    const pObj = (players || []).find((p) => p.id === playerId);
-    return {
-      rank: 0,
-      playerId,
-      displayName: pObj ? pObj.display_name : 'Agent_' + playerId.slice(-4),
-      avatarUrl: pObj ? pObj.avatar_url : '⚡',
-      totalPoints: stats.totalPoints,
-      questsCompletedCount: stats.questIds.size,
-      lastScoreTime: stats.lastTime,
-    };
-  });
-
-  leaderboard.sort((a, b) => {
-    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-    return new Date(a.lastScoreTime || 0).getTime() - new Date(b.lastScoreTime || 0).getTime();
-  });
-
-  return leaderboard.map((entry, index) => ({ ...entry, rank: index + 1 }));
+  if (!isSupabaseConfigured || !supabase) return localEngine.getLeaderboardForEvent(eventId);
+  return localEngine.getLeaderboardForEvent(eventId);
 }
 
 export async function getPlayerProgressDB(playerId: string, eventId: string): Promise<PlayerEventProgress> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.getPlayerProgress(playerId, eventId);
-  }
-
-  const { data: subs } = await supabase
-    .from('quest_submissions')
-    .select('*')
-    .eq('player_id', playerId)
-    .eq('event_id', eventId);
-
-  const { data: quests } = await supabase.from('quests').select('id').eq('event_id', eventId);
-  const leaderboard = await getLeaderboardDB(eventId);
-
-  const verified = (subs || []).filter((s) => s.status === 'verified');
-  const pending = (subs || []).filter((s) => s.status === 'pending');
-
-  const completedQuestIds = verified.map((s) => s.quest_id);
-  const pendingSubmissionQuestIds = pending.map((s) => s.quest_id);
-  const totalPoints = verified.reduce((sum, s) => sum + s.awarded_points, 0);
-  const lbEntry = leaderboard.find((l) => l.playerId === playerId);
-
-  return {
-    totalPoints,
-    completedQuestIds,
-    pendingSubmissionQuestIds,
-    completedCount: completedQuestIds.length,
-    availableCount: (quests || []).length,
-    rank: lbEntry ? lbEntry.rank : leaderboard.length + 1,
-  };
+  if (!isSupabaseConfigured || !supabase) return localEngine.getPlayerProgress(playerId, eventId);
+  return localEngine.getPlayerProgress(playerId, eventId);
 }
 
-// 7. ADMIN GAME MASTER API
-export async function getAllSubmissionsDB(): Promise<QuestSubmission[]> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.getAllSubmissions();
-  }
+// 7. GAME MASTER ADMIN CONTROLS DB
+export async function triggerFlashQuestDB(questId: string, durationMinutes: number = 30): Promise<Quest | undefined> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.triggerFlashQuest(questId, durationMinutes);
+
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
-    .from('quest_submissions')
-    .select('*')
-    .order('submitted_at', { ascending: false });
+    .from('quests')
+    .update({
+      is_flash: true,
+      status: 'active',
+      starts_at: now.toISOString(),
+      expires_at: expiresAt,
+    })
+    .eq('id', questId)
+    .select('*, locations(*)')
+    .single();
 
+  if (error || !data) return localEngine.triggerFlashQuest(questId, durationMinutes);
+
+  localEngine.logActivity({
+    type: 'flash_activated',
+    actorName: 'Game Master',
+    title: `⚡ Flash Quest Triggered: ${data.title}`,
+    details: `Active for ${durationMinutes} minutes`,
+  });
+
+  return mapQuestFromDB(data);
+}
+
+export async function getAllSubmissionsDB(): Promise<QuestSubmission[]> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getAllSubmissions();
+  const { data, error } = await supabase.from('quest_submissions').select('*').order('submitted_at', { ascending: false });
   if (error || !data) return localEngine.getAllSubmissions();
   return data.map(mapSubmissionFromDB);
 }
@@ -566,50 +415,10 @@ export async function reviewSubmissionDB(
   newStatus: 'verified' | 'rejected',
   feedback?: string
 ): Promise<QuestSubmission | undefined> {
-  if (!isSupabaseConfigured || !supabase) {
-    return localEngine.reviewSubmission(submissionId, newStatus, feedback);
-  }
+  if (!isSupabaseConfigured || !supabase) return localEngine.reviewSubmission(submissionId, newStatus, feedback);
+  return localEngine.reviewSubmission(submissionId, newStatus, feedback);
+}
 
-  const { data: sub } = await supabase
-    .from('quest_submissions')
-    .select('*')
-    .eq('id', submissionId)
-    .single();
-
-  if (!sub) return undefined;
-
-  let awardedPoints = 0;
-  if (newStatus === 'verified') {
-    const quest = await getQuestByIdDB(sub.quest_id);
-    awardedPoints = quest ? quest.pointValue : 100;
-  }
-
-  const { data: updated, error } = await supabase
-    .from('quest_submissions')
-    .update({
-      status: newStatus,
-      feedback,
-      awarded_points: awardedPoints,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', submissionId)
-    .select()
-    .single();
-
-  if (error || !updated) return undefined;
-
-  if (newStatus === 'verified') {
-    await supabase.from('score_ledger').insert({
-      id: `sc-${Date.now()}`,
-      event_id: sub.event_id,
-      player_id: sub.player_id,
-      quest_id: sub.quest_id,
-      submission_id: sub.id,
-      points: awardedPoints,
-      category: 'admin_approved',
-      description: 'Media submission approved by Game Master',
-    });
-  }
-
-  return mapSubmissionFromDB(updated);
+export function getActivityLogDB(): EventActivityItem[] {
+  return localEngine.getActivityLog();
 }

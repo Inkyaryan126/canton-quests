@@ -1,4 +1,4 @@
-// Canton Quests — Phase 1 Core Domain Types
+// Canton Quests — Core Domain Types
 
 export type UserRole = 'player' | 'admin' | 'partner';
 
@@ -21,6 +21,10 @@ export type ProofVerificationType = 'checkin' | 'qr' | 'passphrase' | 'photo' | 
 
 export type SubmissionStatus = 'pending' | 'verified' | 'rejected';
 
+export type QuestUnlockConditionType = 'none' | 'prerequisite' | 'scheduled' | 'manual';
+
+export type QuestState = 'available' | 'completed' | 'pending' | 'locked' | 'flash' | 'expired' | 'hidden';
+
 export interface City {
   id: string;
   name: string;
@@ -41,6 +45,38 @@ export interface Player {
   createdAt: string;
 }
 
+export interface Team {
+  id: string;
+  eventId: string;
+  name: string;
+  joinCode: string;
+  captainId: string;
+  avatarSymbol?: string;
+  totalPoints: number;
+  createdAt: string;
+}
+
+export interface TeamMember {
+  id: string;
+  teamId: string;
+  playerId: string;
+  joinedAt: string;
+  player?: Player;
+}
+
+export interface TeamLeaderboardEntry {
+  rank: number;
+  teamId: string;
+  teamName: string;
+  joinCode: string;
+  captainId: string;
+  captainName: string;
+  memberCount: number;
+  totalPoints: number;
+  questsCompletedCount: number;
+  lastScoreTime?: string;
+}
+
 export interface LocationInfo {
   id: string;
   cityId: string;
@@ -50,6 +86,9 @@ export interface LocationInfo {
   longitude?: number;
   locationNotes?: string;
   isPartner: boolean;
+  radiusMeters?: number;
+  accessNotes?: string;
+  openingHours?: string;
 }
 
 export interface QuestEvent {
@@ -81,16 +120,25 @@ export interface Quest {
   targetCode?: string; // Correct answer or QR token hash
   proofRequirement: string;
   isFlash: boolean;
+  startsAt?: string;
   expiresAt?: string;
   status: 'active' | 'inactive' | 'draft';
   sortOrder: number;
   createdAt: string;
+
+  // Phase 2 Fields
+  radiusMeters?: number;
+  prerequisiteQuestId?: string;
+  unlockConditionType?: QuestUnlockConditionType;
+  requireLocationVerification?: boolean;
+  requireQrAndLocation?: boolean;
 }
 
 export interface QuestSubmission {
   id: string;
   questId: string;
   playerId: string;
+  teamId?: string;
   eventId: string;
   proofType: ProofVerificationType;
   submittedContent?: string;
@@ -100,12 +148,16 @@ export interface QuestSubmission {
   feedback?: string;
   submittedAt: string;
   reviewedAt?: string;
+  userLat?: number;
+  userLon?: number;
+  distanceFromLocation?: number;
 }
 
 export interface ScoreLedgerEntry {
   id: string;
   eventId: string;
   playerId: string;
+  teamId?: string;
   questId?: string;
   submissionId?: string;
   points: number;
@@ -122,6 +174,7 @@ export interface LeaderboardEntry {
   totalPoints: number;
   questsCompletedCount: number;
   lastScoreTime?: string;
+  teamName?: string;
 }
 
 export interface PlayerEventProgress {
@@ -131,6 +184,7 @@ export interface PlayerEventProgress {
   completedCount: number;
   availableCount: number;
   rank: number;
+  team?: Team;
 }
 
 export interface SubmitProofParams {
@@ -140,6 +194,9 @@ export interface SubmitProofParams {
   proofType: ProofVerificationType;
   submittedContent?: string;
   proofUrl?: string;
+  userLat?: number;
+  userLon?: number;
+  teamId?: string;
 }
 
 export interface SubmitProofResult {
@@ -147,4 +204,16 @@ export interface SubmitProofResult {
   submission: QuestSubmission;
   message: string;
   awardedPoints: number;
+  unlockedQuestId?: string;
+  teamPointsAwarded?: number;
 }
+
+export interface EventActivityItem {
+  id: string;
+  type: 'player_joined' | 'team_created' | 'team_joined' | 'quest_completed' | 'flash_activated' | 'submission_pending';
+  actorName: string;
+  title: string;
+  timestamp: string;
+  details?: string;
+}
+

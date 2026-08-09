@@ -3,6 +3,8 @@
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
+import LocationVerifier from '@/components/LocationVerifier';
+import GameFeedbackModal from '@/components/GameFeedbackModal';
 import { Quest, QuestEvent, Player, QuestSubmission, SubmitProofResult } from '@/lib/types';
 import {
   getQuestById,
@@ -10,6 +12,8 @@ import {
   getCurrentPlayer,
   getSubmissionsForPlayer,
   submitQuestProof,
+  calculateQuestState,
+  getQuestsForEvent,
 } from '@/lib/game-engine';
 
 export default function QuestDetailPage({
@@ -23,13 +27,18 @@ export default function QuestDetailPage({
   const [quest, setQuest] = useState<Quest | null>(null);
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
+  const [allEventQuests, setAllEventQuests] = useState<Quest[]>([]);
   const [existingSubmission, setExistingSubmission] = useState<QuestSubmission | null>(null);
 
-  // Form Inputs
+  // Form Inputs & Geolocation
   const [textInput, setTextInput] = useState('');
   const [mediaUrlInput, setMediaUrlInput] = useState('');
+  const [userLat, setUserLat] = useState<number | undefined>(undefined);
+  const [userLon, setUserLon] = useState<number | undefined>(undefined);
+  const [isProximityOk, setIsProximityOk] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<SubmitProofResult | null>(null);
+  const [feedback, setFeedback] = useState<any | null>(null);
 
   useEffect(() => {
     const q = getQuestById(questId);
@@ -37,7 +46,10 @@ export default function QuestDetailPage({
     const p = getCurrentPlayer();
 
     if (q) setQuest(q);
-    if (e) setEvent(e);
+    if (e) {
+      setEvent(e);
+      setAllEventQuests(getQuestsForEvent(e.id));
+    }
     if (p) {
       setPlayer(p);
       if (e && q) {
@@ -60,12 +72,25 @@ export default function QuestDetailPage({
     );
   }
 
+  // Calculate Quest State
+  const playerSubmissions = getSubmissionsForPlayer(player.id, event.id);
+  const completedIds = playerSubmissions.filter((s) => s.status === 'verified').map((s) => s.questId);
+  const pendingIds = playerSubmissions.filter((s) => s.status === 'pending').map((s) => s.questId);
+  const questState = calculateQuestState(quest, completedIds, pendingIds);
+
   const isAlreadyCompleted = existingSubmission?.status === 'verified' || submissionResult?.submission?.status === 'verified';
   const isAlreadyPending = existingSubmission?.status === 'pending' || submissionResult?.submission?.status === 'pending';
+  const isLocked = questState === 'locked';
+
+  const handleLocationVerified = (lat: number, lon: number, proximityOk: boolean) => {
+    setUserLat(lat);
+    setUserLon(lon);
+    setIsProximityOk(proximityOk);
+  };
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isSubmitting || isAlreadyCompleted) return;
+    if (isSubmitting || isAlreadyCompleted || isLocked) return;
 
     setIsSubmitting(true);
     setSubmissionResult(null);
@@ -75,7 +100,7 @@ export default function QuestDetailPage({
       let url = mediaUrlInput.trim();
 
       if (quest.verificationType === 'checkin') {
-        content = 'Centennial Check-In GPS Verified';
+        content = 'Centennial GPS Location Checked In';
       }
 
       const result = submitQuestProof({
@@ -85,11 +110,25 @@ export default function QuestDetailPage({
         proofType: quest.verificationType,
         submittedContent: content,
         proofUrl: url,
+        userLat,
+        userLon,
       });
 
       setSubmissionResult(result);
       if (result.success) {
         setExistingSubmission(result.submission);
+
+        // Check if completing this quest unlocked the next chain quest!
+        const nextInChain = allEventQuests.find((q) => q.prerequisiteQuestId === quest.id);
+
+        setFeedback({
+          type: 'quest_completed',
+          title: `QUEST SOLVED!`,
+          message: result.message,
+          pointsAwarded: result.awardedPoints,
+          unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,
+          unlockedQuestUrl: nextInChain ? `/events/${eventSlug}/quests/${nextInChain.id}` : undefined,
+        });
       }
     } catch (err: any) {
       console.error(err);
@@ -105,10 +144,18 @@ export default function QuestDetailPage({
       <main className="flex-1 max-w-2xl w-full mx-auto p-4 md:p-6">
         <Link
           href={`/events/${eventSlug}`}
-          className="inline-flex items-center gap-1 text-xs font-mono text-cyan-400 hover:underline mb-4"
+          className="inline-flex items-center gap-1 text-xs font-mono text-cyan-400 hover:underline mb-4 font-bold"
         >
-          ← Back to Event Quests
+          ← Back to Event Hub & Map
         </Link>
+
+        {/* Flash Quest Banner if Active */}
+        {quest.isFlash && (
+          <div className="p-3 bg-red-950/40 border border-red-500/60 rounded-xl mb-4 text-xs font-mono text-red-300 font-bold flex items-center justify-between animate-pulse">
+            <span>⚡ POP-UP FLASH QUEST</span>
+            <span>+250 XP BONUS ACTIVE</span>
+          </div>
+        )}
 
         {/* Quest Title Card */}
         <div className="glass-panel p-6 mb-6 border-amber-500/30 glow-amber relative">
@@ -122,24 +169,43 @@ export default function QuestDetailPage({
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">{quest.title}</h1>
           <p className="text-sm text-gray-300 leading-relaxed mb-4">{quest.description}</p>
 
-          {/* Location Info */}
+          {/* Location & Safety Context Info */}
           {quest.location && (
-            <div className="p-3 bg-obsidian/80 rounded-xl border border-gray-800 text-xs text-gray-300 font-mono space-y-1">
-              <div className="text-white font-bold flex items-center gap-1">
+            <div className="p-3.5 bg-obsidian/80 rounded-xl border border-gray-800 text-xs text-gray-300 font-mono space-y-1.5">
+              <div className="text-white font-bold flex items-center gap-1.5">
                 📍 {quest.location.name}
               </div>
               {quest.location.address && <div className="text-gray-400">{quest.location.address}</div>}
-              {quest.location.locationNotes && (
-                <div className="text-amber-400/90 text-[11px] pt-1">
-                  💡 Hint / Note: {quest.location.locationNotes}
+              {quest.location.accessNotes && (
+                <div className="text-cyan-300 text-[11px] pt-1">
+                  🛡️ Access Note: {quest.location.accessNotes}
+                </div>
+              )}
+              {quest.location.openingHours && (
+                <div className="text-amber-400/90 text-[11px]">
+                  ⏰ Hours: {quest.location.openingHours}
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Submission / Completion Status Card */}
-        {isAlreadyCompleted ? (
+        {/* Locked Prerequisite Warning */}
+        {isLocked ? (
+          <div className="glass-panel p-6 border-slate-700 bg-slate-950/60 text-center space-y-3 mb-6">
+            <span className="text-4xl block">🔒</span>
+            <h2 className="text-xl font-extrabold text-gray-300">QUEST PREREQUISITE LOCKED</h2>
+            <p className="text-xs text-gray-400 font-mono">
+              You must complete the previous quest step in this chain before initializing this field mission.
+            </p>
+            <div className="pt-2">
+              <Link href={`/events/${eventSlug}`} className="btn btn-primary text-xs px-6">
+                Return to Quests List →
+              </Link>
+            </div>
+          </div>
+        ) : isAlreadyCompleted ? (
+          /* COMPLETED STATE */
           <div className="glass-panel p-6 border-emerald-500/50 bg-emerald-950/20 text-center space-y-3 animate-fade-in mb-6">
             <span className="text-4xl block">🎉</span>
             <h2 className="text-2xl font-extrabold text-emerald-400">QUEST COMPLETED!</h2>
@@ -153,9 +219,10 @@ export default function QuestDetailPage({
             </div>
           </div>
         ) : isAlreadyPending ? (
-          <div className="glass-panel p-6 border-amber-500/50 bg-amber-950/20 text-center space-y-3 animate-fade-in mb-6">
+          /* PENDING REVIEW STATE */
+          <div className="glass-panel p-6 border-purple-500/50 bg-purple-950/20 text-center space-y-3 animate-fade-in mb-6">
             <span className="text-4xl block">⏳</span>
-            <h2 className="text-2xl font-extrabold text-amber-300">SUBMISSION UNDER REVIEW</h2>
+            <h2 className="text-2xl font-extrabold text-purple-300">SUBMISSION UNDER REVIEW</h2>
             <p className="text-sm text-gray-200 font-mono">
               Your media proof has been submitted to the Game Master review queue. Points will be awarded once verified.
             </p>
@@ -175,37 +242,41 @@ export default function QuestDetailPage({
               <p className="text-xs text-gray-400 font-mono">{quest.instructions}</p>
             </div>
 
+            {/* Geolocation Sensor Card */}
+            {(quest.requireLocationVerification || quest.requireQrAndLocation || quest.verificationType === 'checkin') && (
+              <LocationVerifier
+                location={quest.location}
+                requiredRadiusMeters={quest.radiusMeters}
+                onLocationVerified={handleLocationVerified}
+              />
+            )}
+
             {submissionResult && !submissionResult.success && (
-              <div className="p-3 bg-red-950/40 border border-red-800 text-red-300 text-xs font-mono rounded-xl animate-fade-in">
-                ❌ {submissionResult.message}
+              <div className="p-3.5 bg-red-950/50 border border-red-800 text-red-300 text-xs font-mono rounded-xl animate-fade-in space-y-1">
+                <div className="font-bold">❌ Verification Failed</div>
+                <div>{submissionResult.message}</div>
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Proof Form Variant by verificationType */}
+              {/* Form Inputs by Verification Type */}
               {quest.verificationType === 'checkin' && (
-                <div className="text-center py-4 space-y-3">
-                  <div className="w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center text-3xl mx-auto animate-pulse">
-                    📍
-                  </div>
-                  <p className="text-xs text-gray-300 font-mono">
-                    Ensure location permission is active on your mobile phone and tap below to verify physical presence.
-                  </p>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="btn btn-cyan w-full text-sm font-bold py-3"
-                  >
-                    {isSubmitting ? 'Scanning Signal...' : '📡 VERIFY CHECK-IN SIGNAL'}
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !isProximityOk}
+                  className="btn btn-cyan w-full text-sm font-bold py-3"
+                >
+                  {isSubmitting ? 'Verifying Location Signal...' : '📡 TRANSMIT LOCATION CHECK-IN'}
+                </button>
               )}
 
               {(quest.verificationType === 'passphrase' || quest.verificationType === 'qr') && (
                 <div className="space-y-3">
                   <label className="text-xs font-mono text-gray-300 block">
                     {quest.verificationType === 'qr'
-                      ? 'Scan QR Emblem Passcode or Enter Token Code:'
+                      ? quest.requireQrAndLocation
+                        ? 'Scan QR Emblem & Confirm Physical Proximity:'
+                        : 'Scan QR Emblem Passcode or Enter Token Code:'
                       : 'Enter Decoded Cipher Passphrase:'}
                   </label>
                   <input
@@ -215,7 +286,7 @@ export default function QuestDetailPage({
                     placeholder={
                       quest.verificationType === 'qr'
                         ? 'e.g. AURA-BREW-2026'
-                        : 'e.g. 1897, ONESTO, or CYPHER-77'
+                        : 'e.g. 1897, CANTON, ONESTO, or CYPHER-77'
                     }
                     className="input-field font-mono uppercase tracking-wider text-amber-300 font-bold"
                     required
@@ -235,10 +306,10 @@ export default function QuestDetailPage({
 
                   <button
                     type="submit"
-                    disabled={isSubmitting || !textInput.trim()}
+                    disabled={isSubmitting || !textInput.trim() || (quest.requireQrAndLocation && !isProximityOk)}
                     className="btn btn-primary w-full text-sm font-bold py-3"
                   >
-                    {isSubmitting ? 'Verifying Cipher...' : '🔓 TRANSMIT VERIFICATION CODE'}
+                    {isSubmitting ? 'Verifying Code...' : '🔓 TRANSMIT VERIFICATION CODE'}
                   </button>
                 </div>
               )}
@@ -260,7 +331,7 @@ export default function QuestDetailPage({
                   <div className="p-3 bg-obsidian/60 border border-dashed border-gray-700 rounded-xl text-center cursor-pointer hover:border-amber-500/50 transition-colors">
                     <span className="text-2xl block mb-1">📷</span>
                     <span className="text-xs text-gray-400 font-mono block">
-                      Tap to capture or upload photo/video from your camera
+                      Tap to capture photo/video proof from your smartphone camera
                     </span>
                   </div>
 
@@ -277,6 +348,8 @@ export default function QuestDetailPage({
           </div>
         )}
       </main>
+
+      <GameFeedbackModal feedback={feedback} onClose={() => setFeedback(null)} />
     </div>
   );
 }
