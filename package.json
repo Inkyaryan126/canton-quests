@@ -1,0 +1,27 @@
+{
+  "name": "canton-quests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A real-world, city-scale game layered over Canton, Ohio.",
+  "scripts": {
+    "dev": "npx next dev",
+    "build": "npx next build",
+    "start": "npx next start",
+    "lint": "npx next lint",
+    "test": "npx vitest run"
+  },
+  "dependencies": {
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.5",
+    "typescript": "^5.5.3",
+    "vitest": "^2.0.3"
+  }
+}
