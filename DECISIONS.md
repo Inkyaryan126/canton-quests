@@ -92,3 +92,14 @@ Each entry follows the standard ADR structure:
 - **Consequences**: Production migration SQL (`supabase/migrations/20260809000000_phase1_playable_core.sql`) is stored for remote deployments while dev engine handles instant local state.
 - **Status**: **ACCEPTED**
 
+---
+
+## ADR-009: Launch Event Schedule — September 4th, 2026
+- **Date**: 2026-08-09
+- **Decision**: Confirm September 4th, 2026 as the official launch date for *Canton Quests: Volume 1 — The Founder's Cipher*.
+- **Reason**: Provides a 3-week operational runway to secure community donations, business partner sponsorships, and local prizes. Furthermore, aligns with the Stark County Fair (starting Sept 1st), enabling high-density physical flyer distribution and player acquisition leading directly into launch weekend (Sept 4–7).
+- **Alternatives Evaluated**: Immediate August release without sponsor prep; late autumn release after outdoor weather window closes.
+- **Consequences**: Production seed events, countdown timers, marketing copy, and launch runbooks will default to the September 4, 2026 start time.
+- **Status**: **ACCEPTED**
+
+

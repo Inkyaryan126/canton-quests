@@ -144,8 +144,8 @@ export const SEED_EVENT: QuestEvent = {
   status: 'active',
   currentPhase: 'day_1',
   isPaused: false,
-  startTime: '2026-08-07T18:00:00Z',
-  endTime: '2026-08-10T22:00:00Z',
+  startTime: '2026-09-04T18:00:00Z',
+  endTime: '2026-09-07T22:00:00Z',
   basicInstructions:
     '1. Select any available quest below or view the Canton Map.\n2. Travel to the location in Canton.\n3. Verify GPS proximity or scan QR emblems.\n4. Earn XP, form teams, and top the leaderboard!',
   createdAt: '2026-08-01T00:00:00Z',
