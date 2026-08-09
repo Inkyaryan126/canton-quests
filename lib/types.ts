@@ -133,6 +133,15 @@ export interface PlayerEventProgress {
   rank: number;
 }
 
+export interface SubmitProofParams {
+  playerId: string;
+  questId: string;
+  eventId: string;
+  proofType: ProofVerificationType;
+  submittedContent?: string;
+  proofUrl?: string;
+}
+
 export interface SubmitProofResult {
   success: boolean;
   submission: QuestSubmission;
