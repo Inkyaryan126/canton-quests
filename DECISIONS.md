@@ -102,4 +102,34 @@ Each entry follows the standard ADR structure:
 - **Consequences**: Production seed events, countdown timers, marketing copy, and launch runbooks will default to the September 4, 2026 start time.
 - **Status**: **ACCEPTED**
 
+---
+
+## ADR-010: Spectator Mode Architecture, Public View Isolation, Minor Protections & Server-Mediated Voting
+- **Date**: 2026-08-09
+- **Decision**: Architect public spectator mode (`/watch`) with double-sanitized public security barrier views (`public_audience_events` masking internal admin user IDs, target secrets, and override notes; `public_audience_event_options` masking `effect_payload`), direct table access on `audience_events` and `audience_event_options` restricted strictly to GM Admins (`role = 'admin'`), mandatory minor privacy protections (`is_minor = true` forcing anonymized handles `Agent #XXXX` and suppressing public photo/media exposure), 2-step Age & Safety Gate onboarding for walk-up conversion, server-mediated voting via RPC (`cast_spectator_vote`) with `EXECUTE` revoked from public roles and granted strictly to `service_role`, server-derived session/IP hashes via `/api/game/spectator`, active-player exclusion via `public.quest_submissions`, database trigger limit enforcement (`max_votes_per_session`), 2-minute district-aggregated location delays, and zero-friction walk-up conversion funnels.
+- **Reason**: Direct public table reads or un-isolated RPC execution allow vote forgery, expose raw admin user IDs/internal target secrets, and bypass session limits. Unfiltered event/option views leak hidden Host game plans and unreleased quest targets. Default exposure of minor player handles or media violates real-world player safety rules. District-level delays prevent real-world stream-sniping and player stalking.
+- **Alternatives Evaluated**: Allowing public client direct table SELECTs/INSERTS on raw `audience_events` or `audience_votes`; exposing public execution of RPCs with client-supplied hashes; exposing raw target names and admin user IDs to public clients; publishing exact GPS coordinates in real-time.
+- **Consequences**: Public clients query event and option data exclusively via `public_audience_events` and `public_audience_event_options` views. Public clients submit votes exclusively via `/api/game/spectator` server endpoint, which derives session token hashes and IP hashes server-side before calling `cast_spectator_vote` using Service Role. Under-18 accounts are strictly anonymized across all public feeds/leaderboards. Public feed displays district names only with a mandatory delay.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-011: Server-Only Admin Security Boundary & Safe SECURITY DEFINER RPC Specs
+- **Date**: 2026-08-09
+- **Decision**: Enforce a strict server-only admin authentication boundary for `/admin/live` and Game Master API endpoints, and mandate explicit `SET search_path = public, pg_temp;` on all database `SECURITY DEFINER` functions. Client components on `/admin/live` or `/admin` must NOT import or bundle secret-verifying logic (`verifyAdminSecret`), passphrases, or hardcoded default secrets into browser JavaScript.
+- **Reason**: Bundling admin secret verification functions into browser code bakes secret strings into public client JS assets, allowing secret discovery and unauthorized endpoint execution via `x-admin-key` headers. Defining `SECURITY DEFINER` RPCs without a locked `search_path` exposes the database to schema-shadowing attacks in PostgreSQL.
+- **Alternatives Evaluated**: Validating admin passphrases in client components using localStorage and client secret helpers; creating `SECURITY DEFINER` functions without `search_path` locks.
+- **Consequences**: Game Master authentication is processed exclusively via server endpoints/Server Actions (`/api/admin/login`, `/api/admin/session`) setting secure HTTP-only cookies. Production secret verification relies solely on `process.env.ADMIN_SECRET_KEY` evaluated server-side. All `SECURITY DEFINER` RPC definitions specify `SET search_path = public, pg_temp;`.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-012: Database Admin Role Hardening & Public Feed DB Read Boundary Protection
+- **Date**: 2026-08-09
+- **Decision**: (1) Require database schema hardening on `public.players` in Phase 5.1 to preserve `user_id`-based profile ownership (`USING (auth.uid() = user_id OR user_id IS NULL) WITH CHECK (auth.uid() = user_id OR user_id IS NULL)`) and attach a PostgreSQL trigger (`trg_protect_player_role`) blocking non-`service_role` role self-elevation. (2) Require the `public_game_feed` table's public read RLS policy to enforce `is_public_feed_eligible = true AND is_minor_participant = false` alongside `published_at <= NOW() AND is_retracted = false`.
+- **Reason**: (1) Database RLS policies relying on `players.role = 'admin'` are bypassable if clients can update their own `players.role` column directly via Supabase client requests. (2) Relying solely on application-level filtering for minor involvement and feed eligibility creates data leak risks if an un-sanitized or minor record is inserted; privacy and minor protections must be enforced at the database read boundary.
+- **Alternatives Evaluated**: Trusting client-side `players.role` updates; enforcing minor/eligibility filters strictly in frontend component logic or API serializers.
+- **Consequences**: `players.role` cannot be modified by standard client update calls. Database RLS policies checking `players.role = 'admin'` are securely backed by PostgreSQL schema constraints. Direct Supabase SELECT queries on `public_game_feed` by public clients automatically suppress ineligible and minor participant rows.
+- **Status**: **ACCEPTED**
+
 
