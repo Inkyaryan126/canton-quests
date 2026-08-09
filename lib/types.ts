@@ -1,8 +1,18 @@
-// Canton Quests — Core Domain Types
+// Canton Quests — Core Domain Types (Phase 3 Live Weekend Engine)
 
 export type UserRole = 'player' | 'admin' | 'partner';
 
 export type EventStatus = 'draft' | 'upcoming' | 'active' | 'ended';
+
+export type EventPhaseType =
+  | 'pre_game'
+  | 'opening'
+  | 'day_1'
+  | 'night_round'
+  | 'day_2'
+  | 'final_hours'
+  | 'finale'
+  | 'ended';
 
 export type QuestDifficulty = 'easy' | 'medium' | 'hard' | 'epic';
 
@@ -15,15 +25,18 @@ export type QuestCategory =
   | 'business_partner'
   | 'flash'
   | 'trivia'
-  | 'secret';
+  | 'secret'
+  | 'finale';
 
 export type ProofVerificationType = 'checkin' | 'qr' | 'passphrase' | 'photo' | 'video';
 
 export type SubmissionStatus = 'pending' | 'verified' | 'rejected';
 
-export type QuestUnlockConditionType = 'none' | 'prerequisite' | 'scheduled' | 'manual';
+export type QuestUnlockConditionType = 'none' | 'prerequisite' | 'scheduled' | 'manual' | 'collectible_set';
 
-export type QuestState = 'available' | 'completed' | 'pending' | 'locked' | 'flash' | 'expired' | 'hidden';
+export type QuestState = 'available' | 'completed' | 'pending' | 'locked' | 'flash' | 'expired' | 'hidden' | 'claimed_out';
+
+export type AnnouncementUrgency = 'info' | 'warning' | 'flash' | 'urgent';
 
 export interface City {
   id: string;
@@ -98,10 +111,24 @@ export interface QuestEvent {
   slug: string;
   description: string;
   status: EventStatus;
+  currentPhase: EventPhaseType;
+  isPaused: boolean;
+  pauseReason?: string;
   startTime?: string;
   endTime?: string;
   basicInstructions?: string;
   createdAt: string;
+}
+
+export interface EventPhaseInfo {
+  id: string;
+  eventId: string;
+  phase: EventPhaseType;
+  name: string;
+  description: string;
+  isActive: boolean;
+  pointMultiplier: number;
+  activatedAt: string;
 }
 
 export interface Quest {
@@ -117,7 +144,7 @@ export interface Quest {
   difficulty: QuestDifficulty;
   category: QuestCategory;
   verificationType: ProofVerificationType;
-  targetCode?: string; // Correct answer or QR token hash
+  targetCode?: string;
   proofRequirement: string;
   isFlash: boolean;
   startsAt?: string;
@@ -126,12 +153,20 @@ export interface Quest {
   sortOrder: number;
   createdAt: string;
 
-  // Phase 2 Fields
+  // Phase 2 & 3 Fields
   radiusMeters?: number;
   prerequisiteQuestId?: string;
   unlockConditionType?: QuestUnlockConditionType;
   requireLocationVerification?: boolean;
   requireQrAndLocation?: boolean;
+  claimLimit?: number;
+  currentClaims?: number;
+  isSecret?: boolean;
+  isFinaleQuest?: boolean;
+  raceRewards?: { place: number; bonusPoints: number }[];
+  hints?: { id: string; hintText: string; costPoints: number }[];
+  riskReward?: { hardModeBonus: number; failurePenalty: number };
+  requiredCollectibleId?: string;
 }
 
 export interface QuestSubmission {
@@ -151,6 +186,7 @@ export interface QuestSubmission {
   userLat?: number;
   userLon?: number;
   distanceFromLocation?: number;
+  claimPlacement?: number;
 }
 
 export interface ScoreLedgerEntry {
@@ -164,6 +200,7 @@ export interface ScoreLedgerEntry {
   category: string;
   description: string;
   awardedAt: string;
+  adminIdentity?: string;
 }
 
 export interface LeaderboardEntry {
@@ -185,6 +222,7 @@ export interface PlayerEventProgress {
   availableCount: number;
   rank: number;
   team?: Team;
+  isQualifiedForFinale?: boolean;
 }
 
 export interface SubmitProofParams {
@@ -197,6 +235,7 @@ export interface SubmitProofParams {
   userLat?: number;
   userLon?: number;
   teamId?: string;
+  isHardModeOptIn?: boolean;
 }
 
 export interface SubmitProofResult {
@@ -206,14 +245,147 @@ export interface SubmitProofResult {
   awardedPoints: number;
   unlockedQuestId?: string;
   teamPointsAwarded?: number;
+  claimPlacement?: number;
+  collectibleAwarded?: Collectible;
+}
+
+export interface LiveAnnouncement {
+  id: string;
+  eventId: string;
+  title: string;
+  message: string;
+  urgency: AnnouncementUrgency;
+  expiresAt?: string;
+  linkedQuestId?: string;
+  createdAt: string;
+}
+
+export interface SecretCode {
+  id: string;
+  eventId: string;
+  code: string;
+  description: string;
+  bonusPoints: number;
+  maxRedemptions?: number;
+  currentRedemptions: number;
+  expiresAt?: string;
+  isActive: boolean;
+  grantCollectibleId?: string;
+  createdAt: string;
+}
+
+export interface CodeRedemption {
+  id: string;
+  codeId: string;
+  playerId: string;
+  teamId?: string;
+  redeemedAt: string;
+  pointsAwarded: number;
+}
+
+export interface Collectible {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  badgeSymbol: string;
+  rarity: 'common' | 'rare' | 'legendary';
+}
+
+export interface PlayerCollectible {
+  id: string;
+  playerId: string;
+  collectibleId: string;
+  earnedAt: string;
+  source: string;
+  collectible?: Collectible;
+}
+
+export interface NPCCharacter {
+  id: string;
+  eventId: string;
+  aliasName: string;
+  description: string;
+  avatarSymbol: string;
+  isActive: boolean;
+  currentZone: string;
+  clueHint: string;
+  secretCode?: string;
+  lastSpottedAt: string;
+}
+
+export interface BusinessPartnerInfo {
+  id: string;
+  cityId: string;
+  name: string;
+  address: string;
+  contactNotes?: string;
+  publicInstructions: string;
+  isActive: boolean;
+}
+
+export interface CrowdObjective {
+  id: string;
+  eventId: string;
+  title: string;
+  description: string;
+  targetCount: number;
+  currentCount: number;
+  objectiveType: 'total_completions' | 'collectibles_found' | 'teams_active';
+  isAchieved: boolean;
+  unlockedQuestId?: string;
+}
+
+export interface BonusWindow {
+  id: string;
+  eventId: string;
+  title: string;
+  multiplier: number;
+  flatBonus: number;
+  targetCategory?: QuestCategory;
+  startsAt: string;
+  expiresAt: string;
+  isActive: boolean;
+}
+
+export interface FinaleQualification {
+  id: string;
+  eventId: string;
+  playerId: string;
+  teamId?: string;
+  qualifiedAt: string;
+  qualificationReason: string;
+  isWildcard: boolean;
+}
+
+export interface Prize {
+  id: string;
+  eventId: string;
+  title: string;
+  sponsorName: string;
+  quantity: number;
+  eligibilityRule: string;
+  winnerPlayerId?: string;
+  awardedAt?: string;
 }
 
 export interface EventActivityItem {
   id: string;
-  type: 'player_joined' | 'team_created' | 'team_joined' | 'quest_completed' | 'flash_activated' | 'submission_pending';
+  type:
+    | 'player_joined'
+    | 'team_created'
+    | 'team_joined'
+    | 'quest_completed'
+    | 'flash_activated'
+    | 'submission_pending'
+    | 'announcement'
+    | 'code_redeemed'
+    | 'collectible_earned'
+    | 'phase_change'
+    | 'bonus_activated'
+    | 'finale_qualified';
   actorName: string;
   title: string;
   timestamp: string;
   details?: string;
 }
-

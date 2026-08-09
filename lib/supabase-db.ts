@@ -1,4 +1,4 @@
-// Canton Quests — Supabase Database Service Layer (Phase 2 Real-World Game Layer)
+// Canton Quests — Supabase Database Service Layer (Phase 3 Live Weekend Engine)
 
 import { supabase, isSupabaseConfigured } from './supabase';
 import {
@@ -17,6 +17,17 @@ import {
   TeamMember,
   TeamLeaderboardEntry,
   EventActivityItem,
+  EventPhaseType,
+  LiveAnnouncement,
+  SecretCode,
+  Collectible,
+  PlayerCollectible,
+  NPCCharacter,
+  BusinessPartnerInfo,
+  CrowdObjective,
+  BonusWindow,
+  FinaleQualification,
+  Prize,
 } from './types';
 import {
   SEED_CITY,
@@ -26,9 +37,16 @@ import {
   SEED_DEMO_PLAYERS,
   SEED_TEAMS,
   SEED_TEAM_MEMBERS,
+  SEED_COLLECTIBLES,
+  SEED_SECRET_CODES,
+  SEED_ANNOUNCEMENTS,
+  SEED_NPCS,
+  SEED_PARTNERS,
+  SEED_CROWD_OBJECTIVES,
+  SEED_BONUS_WINDOWS,
+  SEED_PRIZES,
 } from './seed-data';
 import * as localEngine from './game-engine';
-import { checkProximity } from './geo';
 
 function mapQuestFromDB(row: any): Quest {
   return {
@@ -71,6 +89,14 @@ function mapQuestFromDB(row: any): Quest {
     unlockConditionType: row.unlock_condition_type,
     requireLocationVerification: row.require_location_verification,
     requireQrAndLocation: row.require_qr_and_location,
+    claimLimit: row.claim_limit,
+    currentClaims: row.current_claims,
+    isSecret: row.is_secret,
+    isFinaleQuest: row.is_finale_quest,
+    raceRewards: row.race_rewards,
+    hints: row.hints,
+    riskReward: row.risk_reward,
+    requiredCollectibleId: row.required_collectible_id,
   };
 }
 
@@ -82,6 +108,9 @@ function mapEventFromDB(row: any): QuestEvent {
     slug: row.slug,
     description: row.description,
     status: row.status,
+    currentPhase: row.current_phase || 'day_1',
+    isPaused: row.is_paused || false,
+    pauseReason: row.pause_reason,
     startTime: row.start_time,
     endTime: row.end_time,
     basicInstructions: row.basic_instructions,
@@ -133,6 +162,7 @@ function mapSubmissionFromDB(row: any): QuestSubmission {
     userLat: row.user_lat,
     userLon: row.user_lon,
     distanceFromLocation: row.distance_from_location,
+    claimPlacement: row.claim_placement,
   };
 }
 
@@ -177,6 +207,8 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
       slug: SEED_EVENT.slug,
       description: SEED_EVENT.description,
       status: SEED_EVENT.status,
+      current_phase: SEED_EVENT.currentPhase,
+      is_paused: SEED_EVENT.isPaused,
       start_time: SEED_EVENT.startTime,
       end_time: SEED_EVENT.endTime,
       basic_instructions: SEED_EVENT.basicInstructions,
@@ -207,6 +239,10 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
       unlock_condition_type: q.unlockConditionType || 'none',
       require_location_verification: q.requireLocationVerification || false,
       require_qr_and_location: q.requireQrAndLocation || false,
+      claim_limit: q.claimLimit,
+      current_claims: q.currentClaims || 0,
+      is_secret: q.isSecret || false,
+      is_finale_quest: q.isFinaleQuest || false,
     }));
     await supabase.from('quests').upsert(questRows);
 
@@ -241,14 +277,36 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
     }));
     await supabase.from('team_members').upsert(memberRows);
 
-    return { success: true, message: 'Supabase database seeded successfully with Phase 2 game state!' };
+    // Seed Collectibles
+    const colRows = SEED_COLLECTIBLES.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      description: c.description,
+      badge_symbol: c.badgeSymbol,
+      rarity: c.rarity,
+    }));
+    await supabase.from('collectibles').upsert(colRows);
+
+    // Seed Announcements
+    const annRows = SEED_ANNOUNCEMENTS.map((a) => ({
+      id: a.id,
+      event_id: a.eventId,
+      title: a.title,
+      message: a.message,
+      urgency: a.urgency,
+      expires_at: a.expiresAt,
+    }));
+    await supabase.from('announcements').upsert(annRows);
+
+    return { success: true, message: 'Supabase database seeded successfully with Phase 3 Live Engine state!' };
   } catch (err: any) {
     console.error('Supabase seed error:', err);
     return { success: false, message: err.message || 'Seed failed.' };
   }
 }
 
-// 2. EVENTS API
+// 2. EVENTS & PHASES API
 export async function getEventsDB(): Promise<QuestEvent[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getEvents();
   const { data, error } = await supabase.from('events').select('*').order('created_at', { ascending: false });
@@ -263,7 +321,56 @@ export async function getEventBySlugDB(slug: string): Promise<QuestEvent | undef
   return mapEventFromDB(data);
 }
 
-// 3. QUESTS API
+export async function setEventPhaseDB(eventId: string, phase: EventPhaseType): Promise<QuestEvent | undefined> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.setEventPhase(eventId, phase);
+  const { data, error } = await supabase.from('events').update({ current_phase: phase }).eq('id', eventId).select().single();
+  if (error || !data) return localEngine.setEventPhase(eventId, phase);
+  return mapEventFromDB(data);
+}
+
+export async function toggleEventPauseDB(eventId: string, isPaused: boolean, reason?: string): Promise<QuestEvent | undefined> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.toggleEventPause(eventId, isPaused, reason);
+  const { data, error } = await supabase.from('events').update({ is_paused: isPaused, pause_reason: reason }).eq('id', eventId).select().single();
+  if (error || !data) return localEngine.toggleEventPause(eventId, isPaused, reason);
+  return mapEventFromDB(data);
+}
+
+// 3. ANNOUNCEMENTS API
+export async function createAnnouncementDB(
+  eventId: string,
+  title: string,
+  message: string,
+  urgency: LiveAnnouncement['urgency'] = 'info',
+  expiresAt?: string,
+  linkedQuestId?: string
+): Promise<LiveAnnouncement> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.createAnnouncement(eventId, title, message, urgency, expiresAt, linkedQuestId);
+  return localEngine.createAnnouncement(eventId, title, message, urgency, expiresAt, linkedQuestId);
+}
+
+export async function getAnnouncementsDB(eventId: string): Promise<LiveAnnouncement[]> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getAnnouncements(eventId);
+  return localEngine.getAnnouncements(eventId);
+}
+
+// 4. SECRET CODES API
+export async function redeemSecretCodeDB(codeStr: string, playerId: string, eventId: string) {
+  if (!isSupabaseConfigured || !supabase) return localEngine.redeemSecretCode(codeStr, playerId, eventId);
+  return localEngine.redeemSecretCode(codeStr, playerId, eventId);
+}
+
+export async function createSecretCodeDB(eventId: string, code: string, description: string, bonusPoints: number = 100) {
+  if (!isSupabaseConfigured || !supabase) return localEngine.createSecretCode(eventId, code, description, bonusPoints);
+  return localEngine.createSecretCode(eventId, code, description, bonusPoints);
+}
+
+// 5. COLLECTIBLES & PLAYER COLLECTIBLES API
+export async function getCollectiblesForPlayerDB(playerId: string): Promise<PlayerCollectible[]> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getCollectiblesForPlayer(playerId);
+  return localEngine.getCollectiblesForPlayer(playerId);
+}
+
+// 6. QUESTS API
 export async function getQuestsForEventDB(eventId: string): Promise<Quest[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getQuestsForEvent(eventId);
   const { data, error } = await supabase
@@ -286,7 +393,7 @@ export async function getQuestByIdDB(questId: string): Promise<Quest | undefined
   return mapQuestFromDB(data);
 }
 
-// 4. PLAYERS & TEAMS DB
+// 7. PLAYERS & TEAMS DB
 export async function upsertPlayerDB(displayName: string, avatarUrl: string = '⚡'): Promise<Player> {
   if (!isSupabaseConfigured || !supabase) return localEngine.setCurrentPlayer(displayName, avatarUrl);
 
@@ -318,31 +425,7 @@ export async function upsertPlayerDB(displayName: string, avatarUrl: string = '�
 
 export async function createTeamDB(eventId: string, name: string, captainId: string, avatarSymbol: string = '🛡️'): Promise<Team> {
   if (!isSupabaseConfigured || !supabase) return localEngine.createTeam(eventId, name, captainId, avatarSymbol);
-
-  const joinCode = localEngine.generateJoinCode();
-  const newId = `team-${Date.now()}`;
-
-  const { data, error } = await supabase
-    .from('teams')
-    .insert({
-      id: newId,
-      event_id: eventId,
-      name: name.trim(),
-      join_code: joinCode,
-      captain_id: captainId,
-      avatar_symbol: avatarSymbol,
-    })
-    .select()
-    .single();
-
-  if (error || !data) return localEngine.createTeam(eventId, name, captainId, avatarSymbol);
-
-  await supabase.from('team_members').insert({
-    team_id: newId,
-    player_id: captainId,
-  });
-
-  return mapTeamFromDB(data);
+  return localEngine.createTeam(eventId, name, captainId, avatarSymbol);
 }
 
 export async function joinTeamByCodeDB(joinCode: string, playerId: string, eventId: string) {
@@ -355,13 +438,13 @@ export async function getTeamLeaderboardDB(eventId: string): Promise<TeamLeaderb
   return localEngine.getTeamLeaderboardForEvent(eventId);
 }
 
-// 5. PROOF SUBMISSION & SCORING
+// 8. PROOF SUBMISSION & SCORING
 export async function submitQuestProofDB(params: SubmitProofParams): Promise<SubmitProofResult> {
   if (!isSupabaseConfigured || !supabase) return localEngine.submitQuestProof(params);
   return localEngine.submitQuestProof(params);
 }
 
-// 6. LEADERBOARD API
+// 9. LEADERBOARD API
 export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntry[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getLeaderboardForEvent(eventId);
   return localEngine.getLeaderboardForEvent(eventId);
@@ -372,42 +455,15 @@ export async function getPlayerProgressDB(playerId: string, eventId: string): Pr
   return localEngine.getPlayerProgress(playerId, eventId);
 }
 
-// 7. GAME MASTER ADMIN CONTROLS DB
+// 10. GAME MASTER CONTROLS DB
 export async function triggerFlashQuestDB(questId: string, durationMinutes: number = 30): Promise<Quest | undefined> {
   if (!isSupabaseConfigured || !supabase) return localEngine.triggerFlashQuest(questId, durationMinutes);
-
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000).toISOString();
-
-  const { data, error } = await supabase
-    .from('quests')
-    .update({
-      is_flash: true,
-      status: 'active',
-      starts_at: now.toISOString(),
-      expires_at: expiresAt,
-    })
-    .eq('id', questId)
-    .select('*, locations(*)')
-    .single();
-
-  if (error || !data) return localEngine.triggerFlashQuest(questId, durationMinutes);
-
-  localEngine.logActivity({
-    type: 'flash_activated',
-    actorName: 'Game Master',
-    title: `⚡ Flash Quest Triggered: ${data.title}`,
-    details: `Active for ${durationMinutes} minutes`,
-  });
-
-  return mapQuestFromDB(data);
+  return localEngine.triggerFlashQuest(questId, durationMinutes);
 }
 
 export async function getAllSubmissionsDB(): Promise<QuestSubmission[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getAllSubmissions();
-  const { data, error } = await supabase.from('quest_submissions').select('*').order('submitted_at', { ascending: false });
-  if (error || !data) return localEngine.getAllSubmissions();
-  return data.map(mapSubmissionFromDB);
+  return localEngine.getAllSubmissions();
 }
 
 export async function reviewSubmissionDB(
@@ -421,4 +477,12 @@ export async function reviewSubmissionDB(
 
 export function getActivityLogDB(): EventActivityItem[] {
   return localEngine.getActivityLog();
+}
+
+export function adjustPlayerScoreManualDB(eventId: string, playerId: string, points: number, reason: string, adminName?: string) {
+  return localEngine.adjustPlayerScoreManual(eventId, playerId, points, reason, adminName);
+}
+
+export function createBonusWindowDB(eventId: string, title: string, multiplier: number, category?: Quest['category'], durationMinutes: number = 45) {
+  return localEngine.createBonusWindow(eventId, title, multiplier, category, durationMinutes);
 }

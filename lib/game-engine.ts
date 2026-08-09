@@ -1,4 +1,4 @@
-// Canton Quests — Core Game Engine & Persistence Layer (Phase 2 Real-World Game Engine)
+// Canton Quests — Core Game Engine & Persistence Layer (Phase 3 Live Weekend Engine)
 
 import {
   Player,
@@ -16,6 +16,18 @@ import {
   SubmitProofParams,
   SubmitProofResult,
   EventActivityItem,
+  EventPhaseType,
+  LiveAnnouncement,
+  SecretCode,
+  CodeRedemption,
+  Collectible,
+  PlayerCollectible,
+  NPCCharacter,
+  BusinessPartnerInfo,
+  CrowdObjective,
+  BonusWindow,
+  FinaleQualification,
+  Prize,
 } from './types';
 import {
   SEED_CITY,
@@ -25,6 +37,14 @@ import {
   SEED_DEMO_PLAYERS,
   SEED_TEAMS,
   SEED_TEAM_MEMBERS,
+  SEED_COLLECTIBLES,
+  SEED_SECRET_CODES,
+  SEED_ANNOUNCEMENTS,
+  SEED_NPCS,
+  SEED_PARTNERS,
+  SEED_CROWD_OBJECTIVES,
+  SEED_BONUS_WINDOWS,
+  SEED_PRIZES,
 } from './seed-data';
 import { checkProximity, formatDistance } from './geo';
 
@@ -38,6 +58,17 @@ const STORAGE_KEYS = {
   TEAMS: 'canton_quests_teams',
   TEAM_MEMBERS: 'canton_quests_team_members',
   ACTIVITY_LOG: 'canton_quests_activity_log',
+  ANNOUNCEMENTS: 'canton_quests_announcements',
+  SECRET_CODES: 'canton_quests_secret_codes',
+  CODE_REDEMPTIONS: 'canton_quests_code_redemptions',
+  COLLECTIBLES: 'canton_quests_collectibles',
+  PLAYER_COLLECTIBLES: 'canton_quests_player_collectibles',
+  NPCS: 'canton_quests_npcs',
+  PARTNERS: 'canton_quests_partners',
+  CROWD_OBJECTIVES: 'canton_quests_crowd_objectives',
+  BONUS_WINDOWS: 'canton_quests_bonus_windows',
+  FINALE_QUALIFICATIONS: 'canton_quests_finale_qualifications',
+  PRIZES: 'canton_quests_prizes',
 };
 
 const inMemoryStore = new Map<string, any>();
@@ -65,7 +96,7 @@ function setStoredItem<T>(key: string, value: T): void {
   }
 }
 
-// Ensure default seed data is initialized
+// Ensure default seed data is initialized in storage
 export function initializeGameEngine(): void {
   if (getStoredItem<QuestEvent[]>(STORAGE_KEYS.EVENTS, []).length === 0) {
     setStoredItem(STORAGE_KEYS.EVENTS, [SEED_EVENT]);
@@ -82,213 +113,510 @@ export function initializeGameEngine(): void {
   if (getStoredItem<TeamMember[]>(STORAGE_KEYS.TEAM_MEMBERS, []).length === 0) {
     setStoredItem(STORAGE_KEYS.TEAM_MEMBERS, SEED_TEAM_MEMBERS);
   }
-  if (getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []).length === 0) {
-    const demoSubmissions: QuestSubmission[] = [
-      {
-        id: 'sub-demo-1',
-        questId: SEED_QUESTS[0].id,
-        playerId: SEED_DEMO_PLAYERS[0].id,
-        teamId: SEED_TEAMS[0].id,
-        eventId: SEED_EVENT.id,
-        proofType: 'checkin',
-        submittedContent: 'Check-in confirmed',
-        status: 'verified',
-        awardedPoints: 50,
-        submittedAt: '2026-08-07T19:00:00Z',
-        reviewedAt: '2026-08-07T19:00:00Z',
-      },
-      {
-        id: 'sub-demo-2',
-        questId: SEED_QUESTS[3].id,
-        playerId: SEED_DEMO_PLAYERS[0].id,
-        teamId: SEED_TEAMS[0].id,
-        eventId: SEED_EVENT.id,
-        proofType: 'passphrase',
-        submittedContent: '1897',
-        status: 'verified',
-        awardedPoints: 150,
-        submittedAt: '2026-08-07T19:30:00Z',
-        reviewedAt: '2026-08-07T19:30:00Z',
-      },
-      {
-        id: 'sub-demo-3',
-        questId: SEED_QUESTS[2].id,
-        playerId: SEED_DEMO_PLAYERS[0].id,
-        teamId: SEED_TEAMS[0].id,
-        eventId: SEED_EVENT.id,
-        proofType: 'passphrase',
-        submittedContent: 'CYPHER-77',
-        status: 'verified',
-        awardedPoints: 750,
-        submittedAt: '2026-08-07T20:00:00Z',
-        reviewedAt: '2026-08-07T20:00:00Z',
-      },
-      {
-        id: 'sub-demo-4',
-        questId: SEED_QUESTS[0].id,
-        playerId: SEED_DEMO_PLAYERS[1].id,
-        teamId: SEED_TEAMS[1].id,
-        eventId: SEED_EVENT.id,
-        proofType: 'checkin',
-        submittedContent: 'Check-in confirmed',
-        status: 'verified',
-        awardedPoints: 50,
-        submittedAt: '2026-08-07T19:15:00Z',
-        reviewedAt: '2026-08-07T19:15:00Z',
-      },
-      {
-        id: 'sub-demo-5',
-        questId: SEED_QUESTS[11].id,
-        playerId: SEED_DEMO_PLAYERS[1].id,
-        teamId: SEED_TEAMS[1].id,
-        eventId: SEED_EVENT.id,
-        proofType: 'qr',
-        submittedContent: 'HOF-CANTON-LEGEND',
-        status: 'verified',
-        awardedPoints: 400,
-        submittedAt: '2026-08-07T19:45:00Z',
-        reviewedAt: '2026-08-07T19:45:00Z',
-      },
-      {
-        id: 'sub-demo-6',
-        questId: SEED_QUESTS[3].id,
-        playerId: SEED_DEMO_PLAYERS[1].id,
-        teamId: SEED_TEAMS[1].id,
-        eventId: SEED_EVENT.id,
-        proofType: 'passphrase',
-        submittedContent: '1897',
-        status: 'verified',
-        awardedPoints: 150,
-        submittedAt: '2026-08-07T20:15:00Z',
-        reviewedAt: '2026-08-07T20:15:00Z',
-      },
-      {
-        id: 'sub-demo-7',
-        questId: SEED_QUESTS[7].id,
-        playerId: SEED_DEMO_PLAYERS[2].id,
-        teamId: SEED_TEAMS[0].id,
-        eventId: SEED_EVENT.id,
-        proofType: 'photo',
-        submittedContent: 'Photo proof link',
-        proofUrl: 'https://example.com/photo1.jpg',
-        status: 'pending',
-        awardedPoints: 0,
-        submittedAt: '2026-08-08T10:00:00Z',
-      },
-    ];
-    setStoredItem(STORAGE_KEYS.SUBMISSIONS, demoSubmissions);
+  if (getStoredItem<Collectible[]>(STORAGE_KEYS.COLLECTIBLES, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.COLLECTIBLES, SEED_COLLECTIBLES);
   }
-
-  if (getStoredItem<ScoreLedgerEntry[]>(STORAGE_KEYS.SCORE_LEDGER, []).length === 0) {
-    const demoLedger: ScoreLedgerEntry[] = [
-      {
-        id: 'sc-1',
-        eventId: SEED_EVENT.id,
-        playerId: SEED_DEMO_PLAYERS[0].id,
-        teamId: SEED_TEAMS[0].id,
-        questId: SEED_QUESTS[0].id,
-        submissionId: 'sub-demo-1',
-        points: 50,
-        category: 'exploration',
-        description: 'Completed Centennial Beacon Check-In',
-        awardedAt: '2026-08-07T19:00:00Z',
-      },
-      {
-        id: 'sc-2',
-        eventId: SEED_EVENT.id,
-        playerId: SEED_DEMO_PLAYERS[0].id,
-        teamId: SEED_TEAMS[0].id,
-        questId: SEED_QUESTS[3].id,
-        submissionId: 'sub-demo-2',
-        points: 150,
-        category: 'puzzle',
-        description: 'Completed The McKinley Monument Year',
-        awardedAt: '2026-08-07T19:30:00Z',
-      },
-      {
-        id: 'sc-3',
-        eventId: SEED_EVENT.id,
-        playerId: SEED_DEMO_PLAYERS[0].id,
-        teamId: SEED_TEAMS[0].id,
-        questId: SEED_QUESTS[2].id,
-        submissionId: 'sub-demo-3',
-        points: 750,
-        category: 'secret',
-        description: 'Completed The 4th Street Master Cipher',
-        awardedAt: '2026-08-07T20:00:00Z',
-      },
-      {
-        id: 'sc-4',
-        eventId: SEED_EVENT.id,
-        playerId: SEED_DEMO_PLAYERS[1].id,
-        teamId: SEED_TEAMS[1].id,
-        questId: SEED_QUESTS[0].id,
-        submissionId: 'sub-demo-4',
-        points: 50,
-        category: 'exploration',
-        description: 'Completed Centennial Beacon Check-In',
-        awardedAt: '2026-08-07T19:15:00Z',
-      },
-      {
-        id: 'sc-5',
-        eventId: SEED_EVENT.id,
-        playerId: SEED_DEMO_PLAYERS[1].id,
-        teamId: SEED_TEAMS[1].id,
-        questId: SEED_QUESTS[11].id,
-        submissionId: 'sub-demo-5',
-        points: 400,
-        category: 'trivia',
-        description: 'Completed Hall of Fame Trail Emblem',
-        awardedAt: '2026-08-07T19:45:00Z',
-      },
-      {
-        id: 'sc-6',
-        eventId: SEED_EVENT.id,
-        playerId: SEED_DEMO_PLAYERS[1].id,
-        teamId: SEED_TEAMS[1].id,
-        questId: SEED_QUESTS[3].id,
-        submissionId: 'sub-demo-6',
-        points: 150,
-        category: 'puzzle',
-        description: 'Completed The McKinley Monument Year',
-        awardedAt: '2026-08-07T20:15:00Z',
-      },
-    ];
-    setStoredItem(STORAGE_KEYS.SCORE_LEDGER, demoLedger);
+  if (getStoredItem<SecretCode[]>(STORAGE_KEYS.SECRET_CODES, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.SECRET_CODES, SEED_SECRET_CODES);
   }
-
-  if (getStoredItem<EventActivityItem[]>(STORAGE_KEYS.ACTIVITY_LOG, []).length === 0) {
-    const initialActivity: EventActivityItem[] = [
-      {
-        id: 'act-1',
-        type: 'team_created',
-        actorName: 'ApexHunter_330',
-        title: 'Team Created: Canton Cipher Syndicate',
-        timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
-        details: 'Code: CQ-7X9K',
-      },
-      {
-        id: 'act-2',
-        type: 'flash_activated',
-        actorName: 'Game Master',
-        title: '⚡ Flash Quest Activated',
-        timestamp: new Date(Date.now() - 1800000).toISOString(),
-        details: 'Market Square Signal Surge (+250 XP)',
-      },
-      {
-        id: 'act-3',
-        type: 'quest_completed',
-        actorName: 'ApexHunter_330',
-        title: 'Quest Completed: Centennial Beacon',
-        timestamp: new Date(Date.now() - 900000).toISOString(),
-        details: '+50 XP awarded',
-      },
-    ];
-    setStoredItem(STORAGE_KEYS.ACTIVITY_LOG, initialActivity);
+  if (getStoredItem<LiveAnnouncement[]>(STORAGE_KEYS.ANNOUNCEMENTS, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.ANNOUNCEMENTS, SEED_ANNOUNCEMENTS);
+  }
+  if (getStoredItem<NPCCharacter[]>(STORAGE_KEYS.NPCS, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.NPCS, SEED_NPCS);
+  }
+  if (getStoredItem<BusinessPartnerInfo[]>(STORAGE_KEYS.PARTNERS, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.PARTNERS, SEED_PARTNERS);
+  }
+  if (getStoredItem<CrowdObjective[]>(STORAGE_KEYS.CROWD_OBJECTIVES, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.CROWD_OBJECTIVES, SEED_CROWD_OBJECTIVES);
+  }
+  if (getStoredItem<BonusWindow[]>(STORAGE_KEYS.BONUS_WINDOWS, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.BONUS_WINDOWS, SEED_BONUS_WINDOWS);
+  }
+  if (getStoredItem<Prize[]>(STORAGE_KEYS.PRIZES, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.PRIZES, SEED_PRIZES);
   }
 }
 
-// 1. QUEST UNLOCK & STATE CALCULATION ENGINE
+// 1. EVENT PHASES & EMERGENCY PAUSE
+export function setEventPhase(eventId: string, phase: EventPhaseType): QuestEvent | undefined {
+  initializeGameEngine();
+  const events = getEvents();
+  const event = events.find((e) => e.id === eventId);
+  if (!event) return undefined;
+
+  event.currentPhase = phase;
+  setStoredItem(STORAGE_KEYS.EVENTS, events);
+
+  logActivity({
+    type: 'phase_change',
+    actorName: 'Game Director',
+    title: `🔄 Event Phase Changed: ${phase.toUpperCase()}`,
+    details: `Canton Quests entered ${phase} phase`,
+  });
+
+  return event;
+}
+
+export function toggleEventPause(eventId: string, isPaused: boolean, reason?: string): QuestEvent | undefined {
+  initializeGameEngine();
+  const events = getEvents();
+  const event = events.find((e) => e.id === eventId);
+  if (!event) return undefined;
+
+  event.isPaused = isPaused;
+  event.pauseReason = reason;
+  setStoredItem(STORAGE_KEYS.EVENTS, events);
+
+  logActivity({
+    type: 'announcement',
+    actorName: 'Game Master',
+    title: isPaused ? '🛑 EVENT TEMPORARILY PAUSED' : '▶️ EVENT RESUMED',
+    details: reason || (isPaused ? 'Event paused for field safety check' : 'Event resumed'),
+  });
+
+  return event;
+}
+
+// 2. LIVE ANNOUNCEMENTS ENGINE
+export function createAnnouncement(
+  eventId: string,
+  title: string,
+  message: string,
+  urgency: LiveAnnouncement['urgency'] = 'info',
+  expiresAt?: string,
+  linkedQuestId?: string
+): LiveAnnouncement {
+  initializeGameEngine();
+  const announcements = getStoredItem<LiveAnnouncement[]>(STORAGE_KEYS.ANNOUNCEMENTS, SEED_ANNOUNCEMENTS);
+
+  const newAnn: LiveAnnouncement = {
+    id: `ann-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    eventId,
+    title: title.trim(),
+    message: message.trim(),
+    urgency,
+    expiresAt,
+    linkedQuestId,
+    createdAt: new Date().toISOString(),
+  };
+
+  setStoredItem(STORAGE_KEYS.ANNOUNCEMENTS, [newAnn, ...announcements]);
+
+  logActivity({
+    type: 'announcement',
+    actorName: 'Game Director',
+    title: `📢 Announcement: ${newAnn.title}`,
+    details: newAnn.message,
+  });
+
+  return newAnn;
+}
+
+export function getAnnouncements(eventId: string): LiveAnnouncement[] {
+  initializeGameEngine();
+  const announcements = getStoredItem<LiveAnnouncement[]>(STORAGE_KEYS.ANNOUNCEMENTS, SEED_ANNOUNCEMENTS);
+  const now = Date.now();
+  return announcements
+    .filter((a) => a.eventId === eventId)
+    .filter((a) => !a.expiresAt || new Date(a.expiresAt).getTime() > now)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+// 3. SECRET CODES & PASSWORD DROPS
+export function createSecretCode(
+  eventId: string,
+  code: string,
+  description: string,
+  bonusPoints: number = 100,
+  maxRedemptions?: number,
+  grantCollectibleId?: string
+): SecretCode {
+  initializeGameEngine();
+  const codes = getStoredItem<SecretCode[]>(STORAGE_KEYS.SECRET_CODES, SEED_SECRET_CODES);
+
+  const newCode: SecretCode = {
+    id: `code-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    eventId,
+    code: code.trim().toUpperCase(),
+    description: description.trim(),
+    bonusPoints,
+    maxRedemptions,
+    currentRedemptions: 0,
+    isActive: true,
+    grantCollectibleId,
+    createdAt: new Date().toISOString(),
+  };
+
+  setStoredItem(STORAGE_KEYS.SECRET_CODES, [...codes, newCode]);
+  return newCode;
+}
+
+export function redeemSecretCode(
+  codeStr: string,
+  playerId: string,
+  eventId: string
+): { success: boolean; message: string; pointsAwarded: number; collectibleAwarded?: Collectible } {
+  initializeGameEngine();
+  const codes = getStoredItem<SecretCode[]>(STORAGE_KEYS.SECRET_CODES, SEED_SECRET_CODES);
+  const redemptions = getStoredItem<CodeRedemption[]>(STORAGE_KEYS.CODE_REDEMPTIONS, []);
+  const cleanCode = codeStr.trim().toUpperCase();
+
+  const targetCode = codes.find((c) => c.eventId === eventId && c.code === cleanCode && c.isActive);
+  if (!targetCode) {
+    return { success: false, message: 'Invalid or inactive secret passcode!', pointsAwarded: 0 };
+  }
+
+  if (targetCode.expiresAt && new Date(targetCode.expiresAt).getTime() <= Date.now()) {
+    return { success: false, message: 'This secret passcode has expired!', pointsAwarded: 0 };
+  }
+
+  if (targetCode.maxRedemptions && targetCode.currentRedemptions >= targetCode.maxRedemptions) {
+    return { success: false, message: 'Maximum redemptions reached for this passcode!', pointsAwarded: 0 };
+  }
+
+  const alreadyRedeemed = redemptions.some((r) => r.codeId === targetCode.id && r.playerId === playerId);
+  if (alreadyRedeemed) {
+    return { success: false, message: 'You have already redeemed this passcode!', pointsAwarded: 0 };
+  }
+
+  // Record Redemption
+  targetCode.currentRedemptions += 1;
+  setStoredItem(STORAGE_KEYS.SECRET_CODES, codes);
+
+  const newRedemption: CodeRedemption = {
+    id: `red-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    codeId: targetCode.id,
+    playerId,
+    redeemedAt: new Date().toISOString(),
+    pointsAwarded: targetCode.bonusPoints,
+  };
+  setStoredItem(STORAGE_KEYS.CODE_REDEMPTIONS, [...redemptions, newRedemption]);
+
+  // Award Points via Ledger
+  recordScoreLedger({
+    eventId,
+    playerId,
+    points: targetCode.bonusPoints,
+    category: 'secret_code',
+    description: `Redeemed Secret Code: ${targetCode.code}`,
+  });
+
+  // Award Collectible if tied
+  let grantedCol: Collectible | undefined = undefined;
+  if (targetCode.grantCollectibleId) {
+    grantedCol = awardCollectible(playerId, targetCode.grantCollectibleId, `Secret Code: ${targetCode.code}`);
+  }
+
+  const player = getAllPlayers().find((p) => p.id === playerId);
+  logActivity({
+    type: 'code_redeemed',
+    actorName: player?.displayName || 'Player',
+    title: `Passcode Redeemed: ${targetCode.code}`,
+    details: `+${targetCode.bonusPoints} XP awarded`,
+  });
+
+  return {
+    success: true,
+    message: `Passcode ${targetCode.code} Cracked! +${targetCode.bonusPoints} XP awarded!`,
+    pointsAwarded: targetCode.bonusPoints,
+    collectibleAwarded: grantedCol,
+  };
+}
+
+// 4. COLLECTIBLES SYSTEM
+export function awardCollectible(playerId: string, collectibleId: string, source: string = 'quest'): Collectible | undefined {
+  initializeGameEngine();
+  const catalog = getStoredItem<Collectible[]>(STORAGE_KEYS.COLLECTIBLES, SEED_COLLECTIBLES);
+  const playerCols = getStoredItem<PlayerCollectible[]>(STORAGE_KEYS.PLAYER_COLLECTIBLES, []);
+
+  const item = catalog.find((c) => c.id === collectibleId || c.slug === collectibleId);
+  if (!item) return undefined;
+
+  const alreadyHas = playerCols.some((pc) => pc.playerId === playerId && pc.collectibleId === item.id);
+  if (!alreadyHas) {
+    const newRecord: PlayerCollectible = {
+      id: `pcol-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      playerId,
+      collectibleId: item.id,
+      earnedAt: new Date().toISOString(),
+      source,
+      collectible: item,
+    };
+    setStoredItem(STORAGE_KEYS.PLAYER_COLLECTIBLES, [...playerCols, newRecord]);
+
+    const player = getAllPlayers().find((p) => p.id === playerId);
+    logActivity({
+      type: 'collectible_earned',
+      actorName: player?.displayName || 'Player',
+      title: `Collectible Unlocked: ${item.name}`,
+      details: `${item.badgeSymbol} ${item.description}`,
+    });
+  }
+
+  return item;
+}
+
+export function getCollectiblesForPlayer(playerId: string): PlayerCollectible[] {
+  initializeGameEngine();
+  const playerCols = getStoredItem<PlayerCollectible[]>(STORAGE_KEYS.PLAYER_COLLECTIBLES, []);
+  const catalog = getStoredItem<Collectible[]>(STORAGE_KEYS.COLLECTIBLES, SEED_COLLECTIBLES);
+
+  return playerCols
+    .filter((pc) => pc.playerId === playerId)
+    .map((pc) => ({
+      ...pc,
+      collectible: catalog.find((c) => c.id === pc.collectibleId),
+    }));
+}
+
+// 5. NPC ROAMING CHARACTER SYSTEM
+export function getNPCCharacters(eventId: string): NPCCharacter[] {
+  initializeGameEngine();
+  const npcs = getStoredItem<NPCCharacter[]>(STORAGE_KEYS.NPCS, SEED_NPCS);
+  return npcs.filter((n) => n.eventId === eventId);
+}
+
+export function updateNPCCharacter(npcId: string, updates: Partial<NPCCharacter>): NPCCharacter | undefined {
+  initializeGameEngine();
+  const npcs = getStoredItem<NPCCharacter[]>(STORAGE_KEYS.NPCS, SEED_NPCS);
+  const index = npcs.findIndex((n) => n.id === npcId);
+  if (index === -1) return undefined;
+
+  const updated = {
+    ...npcs[index],
+    ...updates,
+    lastSpottedAt: new Date().toISOString(),
+  };
+  npcs[index] = updated;
+  setStoredItem(STORAGE_KEYS.NPCS, npcs);
+
+  logActivity({
+    type: 'announcement',
+    actorName: updated.aliasName,
+    title: `🕵️ NPC SPOTTED: ${updated.aliasName}`,
+    details: `Zone: ${updated.currentZone} • Clue: ${updated.clueHint}`,
+  });
+
+  return updated;
+}
+
+// 6. CROWD / COMMUNITY OBJECTIVES
+export function getCrowdObjectives(eventId: string): CrowdObjective[] {
+  initializeGameEngine();
+  const objectives = getStoredItem<CrowdObjective[]>(STORAGE_KEYS.CROWD_OBJECTIVES, SEED_CROWD_OBJECTIVES);
+  return objectives.filter((co) => co.eventId === eventId);
+}
+
+export function incrementCrowdObjective(eventId: string, count: number = 1): void {
+  initializeGameEngine();
+  const objectives = getStoredItem<CrowdObjective[]>(STORAGE_KEYS.CROWD_OBJECTIVES, SEED_CROWD_OBJECTIVES);
+  objectives.forEach((obj) => {
+    if (obj.eventId === eventId && !obj.isAchieved) {
+      obj.currentCount += count;
+      if (obj.currentCount >= obj.targetCount) {
+        obj.isAchieved = true;
+        logActivity({
+          type: 'announcement',
+          actorName: 'Canton Community',
+          title: `🏆 CROWD OBJECTIVE ACHIEVED: ${obj.title}`,
+          details: obj.description,
+        });
+      }
+    }
+  });
+  setStoredItem(STORAGE_KEYS.CROWD_OBJECTIVES, objectives);
+}
+
+// 7. BONUS WINDOWS & MULTIPLIERS
+export function createBonusWindow(
+  eventId: string,
+  title: string,
+  multiplier: number = 2.0,
+  targetCategory?: Quest['category'],
+  durationMinutes: number = 45
+): BonusWindow {
+  initializeGameEngine();
+  const windows = getStoredItem<BonusWindow[]>(STORAGE_KEYS.BONUS_WINDOWS, SEED_BONUS_WINDOWS);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000).toISOString();
+
+  const newWindow: BonusWindow = {
+    id: `bw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    eventId,
+    title: title.trim(),
+    multiplier,
+    flatBonus: 0,
+    targetCategory,
+    startsAt: now.toISOString(),
+    expiresAt,
+    isActive: true,
+  };
+
+  setStoredItem(STORAGE_KEYS.BONUS_WINDOWS, [...windows, newWindow]);
+
+  logActivity({
+    type: 'bonus_activated',
+    actorName: 'Game Master',
+    title: `🔥 Bonus Window Activated: ${newWindow.title}`,
+    details: `${multiplier}x XP for ${durationMinutes} minutes`,
+  });
+
+  return newWindow;
+}
+
+export function getActiveBonusMultiplier(eventId: string, category?: Quest['category']): number {
+  initializeGameEngine();
+  const windows = getStoredItem<BonusWindow[]>(STORAGE_KEYS.BONUS_WINDOWS, SEED_BONUS_WINDOWS);
+  const now = Date.now();
+
+  const activeWindow = windows.find((w) => {
+    if (w.eventId !== eventId || !w.isActive) return false;
+    if (new Date(w.expiresAt).getTime() <= now) return false;
+    if (w.targetCategory && w.targetCategory !== category) return false;
+    return true;
+  });
+
+  return activeWindow ? activeWindow.multiplier : 1.0;
+}
+
+// 8. SCORE LEDGER AUDIT, MANUAL ADJUSTMENTS & RECONCILIATION
+export function adjustPlayerScoreManual(
+  eventId: string,
+  playerId: string,
+  points: number,
+  reason: string,
+  adminName: string = 'Game Master'
+): ScoreLedgerEntry {
+  initializeGameEngine();
+  const entry = recordScoreLedger({
+    eventId,
+    playerId,
+    points,
+    category: 'admin_adjustment',
+    description: `Manual adjustment by ${adminName}: ${reason}`,
+  });
+
+  entry.adminIdentity = adminName;
+
+  logActivity({
+    type: 'quest_completed',
+    actorName: adminName,
+    title: `Manual Score Adjustment (${points > 0 ? '+' : ''}${points} XP)`,
+    details: `Reason: ${reason}`,
+  });
+
+  return entry;
+}
+
+export function reconcilePlayerScores(eventId: string): { reconciledCount: number } {
+  initializeGameEngine();
+  const ledger = getStoredItem<ScoreLedgerEntry[]>(STORAGE_KEYS.SCORE_LEDGER, []);
+  const players = getAllPlayers();
+
+  const playerTotals: Record<string, number> = {};
+  ledger
+    .filter((entry) => entry.eventId === eventId)
+    .forEach((entry) => {
+      playerTotals[entry.playerId] = (playerTotals[entry.playerId] || 0) + entry.points;
+    });
+
+  let count = 0;
+  players.forEach((p) => {
+    if (playerTotals[p.id] !== undefined && playerTotals[p.id] !== p.totalXp) {
+      p.totalXp = playerTotals[p.id];
+      p.level = Math.floor(p.totalXp / 250) + 1;
+      count++;
+    }
+  });
+
+  setStoredItem(STORAGE_KEYS.PLAYERS, players);
+  return { reconciledCount: count };
+}
+
+// 9. FINALE QUALIFICATION & WILDCARDS
+export function getFinaleQualifications(eventId: string): FinaleQualification[] {
+  initializeGameEngine();
+  return getStoredItem<FinaleQualification[]>(STORAGE_KEYS.FINALE_QUALIFICATIONS, []);
+}
+
+export function grantFinaleQualification(
+  eventId: string,
+  playerId: string,
+  reason: string,
+  isWildcard: boolean = false
+): FinaleQualification {
+  initializeGameEngine();
+  const quals = getStoredItem<FinaleQualification[]>(STORAGE_KEYS.FINALE_QUALIFICATIONS, []);
+  const existing = quals.find((q) => q.eventId === eventId && q.playerId === playerId);
+
+  if (existing) return existing;
+
+  const newQual: FinaleQualification = {
+    id: `qual-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    eventId,
+    playerId,
+    qualificationReason: reason,
+    isWildcard,
+    qualifiedAt: new Date().toISOString(),
+  };
+
+  setStoredItem(STORAGE_KEYS.FINALE_QUALIFICATIONS, [...quals, newQual]);
+
+  const player = getAllPlayers().find((p) => p.id === playerId);
+  logActivity({
+    type: 'finale_qualified',
+    actorName: isWildcard ? 'Game Master' : player?.displayName || 'Player',
+    title: `🏆 Finale Qualification Granted: ${player?.displayName || 'Agent'}`,
+    details: `Reason: ${reason}`,
+  });
+
+  return newQual;
+}
+
+export function isPlayerQualifiedForFinale(playerId: string, eventId: string): boolean {
+  initializeGameEngine();
+  const quals = getStoredItem<FinaleQualification[]>(STORAGE_KEYS.FINALE_QUALIFICATIONS, []);
+  if (quals.some((q) => q.eventId === eventId && q.playerId === playerId)) return true;
+
+  // Auto-qualify if player total XP >= 750 or has verified submissions
+  const player = getAllPlayers().find((p) => p.id === playerId);
+  if (player && player.totalXp >= 750) return true;
+
+  const submissions = getSubmissionsForPlayer(playerId, eventId);
+  const verifiedCount = submissions.filter((s) => s.status === 'verified').length;
+  return verifiedCount >= 5;
+}
+
+// 10. PRIZES CATALOG
+export function getPrizes(eventId: string): Prize[] {
+  initializeGameEngine();
+  return getStoredItem<Prize[]>(STORAGE_KEYS.PRIZES, SEED_PRIZES).filter((p) => p.eventId === eventId);
+}
+
+export function awardPrize(prizeId: string, winnerPlayerId: string): Prize | undefined {
+  initializeGameEngine();
+  const prizes = getStoredItem<Prize[]>(STORAGE_KEYS.PRIZES, SEED_PRIZES);
+  const prize = prizes.find((p) => p.id === prizeId);
+  if (!prize) return undefined;
+
+  prize.winnerPlayerId = winnerPlayerId;
+  prize.awardedAt = new Date().toISOString();
+  setStoredItem(STORAGE_KEYS.PRIZES, prizes);
+
+  const player = getAllPlayers().find((p) => p.id === winnerPlayerId);
+  logActivity({
+    type: 'announcement',
+    actorName: 'Game Master',
+    title: `🎁 Prize Awarded: ${prize.title}`,
+    details: `Winner: ${player?.displayName || 'Agent'} (${prize.sponsorName})`,
+  });
+
+  return prize;
+}
+
+// 11. QUEST STATE CALCULATION ENGINE WITH PHASE 3 RULES
 export function calculateQuestState(
   quest: Quest,
   completedQuestIds: string[],
@@ -298,6 +626,11 @@ export function calculateQuestState(
   if (completedQuestIds.includes(quest.id)) return 'completed';
   if (pendingQuestIds.includes(quest.id)) return 'pending';
   if (quest.status === 'inactive' || quest.status === 'draft') return 'hidden';
+
+  // Limited Claim Check
+  if (quest.claimLimit && quest.currentClaims && quest.currentClaims >= quest.claimLimit) {
+    return 'claimed_out';
+  }
 
   // Prerequisite Quest Check
   if (quest.prerequisiteQuestId && !completedQuestIds.includes(quest.prerequisiteQuestId)) {
@@ -320,7 +653,7 @@ export function calculateQuestState(
   return 'available';
 }
 
-// 2. PLAYER MANAGEMENT
+// 12. PLAYER MANAGEMENT
 export function getCurrentPlayer(): Player {
   initializeGameEngine();
   const player = getStoredItem<Player | null>(STORAGE_KEYS.CURRENT_PLAYER, null);
@@ -380,7 +713,7 @@ export function getAllPlayers(): Player[] {
   return getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, SEED_DEMO_PLAYERS);
 }
 
-// 3. EVENTS MANAGEMENT
+// 13. EVENTS MANAGEMENT
 export function getEvents(): QuestEvent[] {
   initializeGameEngine();
   return getStoredItem<QuestEvent[]>(STORAGE_KEYS.EVENTS, [SEED_EVENT]);
@@ -412,7 +745,7 @@ export function updateEventStatus(eventId: string, status: QuestEvent['status'])
   return event;
 }
 
-// 4. QUESTS MANAGEMENT
+// 14. QUESTS MANAGEMENT
 export function getQuestsForEvent(eventId: string): Quest[] {
   initializeGameEngine();
   const quests = getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, SEED_QUESTS);
@@ -455,7 +788,6 @@ export function updateQuest(questId: string, updates: Partial<Quest>): Quest | u
   return updatedQuest;
 }
 
-// Trigger / Activate a Flash Quest
 export function triggerFlashQuest(questId: string, durationMinutes: number = 30): Quest | undefined {
   initializeGameEngine();
   const quest = getQuestById(questId);
@@ -472,18 +804,20 @@ export function triggerFlashQuest(questId: string, durationMinutes: number = 30)
   });
 
   if (updated) {
-    logActivity({
-      type: 'flash_activated',
-      actorName: 'Game Master',
-      title: `⚡ Flash Quest Triggered: ${updated.title}`,
-      details: `Active for ${durationMinutes} minutes (+${updated.pointValue} XP)`,
-    });
+    createAnnouncement(
+      quest.eventId,
+      `⚡ FLASH DROP: ${updated.title}`,
+      `A high-priority pop-up drop is active for ${durationMinutes} minutes! (+${updated.pointValue} XP)`,
+      'flash',
+      expiresAt,
+      quest.id
+    );
   }
 
   return updated;
 }
 
-// 5. TEAMS ENGINE
+// 15. TEAMS ENGINE
 export function generateJoinCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'CQ-';
@@ -504,7 +838,7 @@ export function createTeam(eventId: string, name: string, captainId: string, ava
   }
 
   const newTeam: Team = {
-    id: `team-${Date.now()}`,
+    id: `team-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     eventId,
     name: name.trim(),
     joinCode,
@@ -515,7 +849,7 @@ export function createTeam(eventId: string, name: string, captainId: string, ava
   };
 
   const newMember: TeamMember = {
-    id: `tm-${Date.now()}`,
+    id: `tm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     teamId: newTeam.id,
     playerId: captainId,
     joinedAt: new Date().toISOString(),
@@ -552,12 +886,11 @@ export function joinTeamByCode(joinCode: string, playerId: string, eventId: stri
     return { success: true, team: targetTeam, message: `You are already a member of ${targetTeam.name}!` };
   }
 
-  // Remove player from existing team in this event if any
   const otherTeamIds = teams.filter((t) => t.eventId === eventId).map((t) => t.id);
   const filteredMembers = members.filter((m) => !(m.playerId === playerId && otherTeamIds.includes(m.teamId)));
 
   const newMember: TeamMember = {
-    id: `tm-${Date.now()}`,
+    id: `tm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     teamId: targetTeam.id,
     playerId,
     joinedAt: new Date().toISOString(),
@@ -622,11 +955,9 @@ export function getTeamLeaderboardForEvent(eventId: string): TeamLeaderboardEntr
     };
   });
 
-  // Calculate team scores from ledger
   ledger
     .filter((entry) => entry.eventId === eventId)
     .forEach((entry) => {
-      // Find which team this player belonged to or entry.teamId
       let targetTeamId = entry.teamId;
       if (!targetTeamId) {
         const playerTeam = members.find((m) => {
@@ -674,7 +1005,7 @@ export function getTeamLeaderboardForEvent(eventId: string): TeamLeaderboardEntr
   return leaderboard.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
 }
 
-// 6. SUBMISSION & PROOF ENGINE WITH GEOLOCATION & COMBINED QR PROXIMITY
+// 16. SUBMISSION & PROOF ENGINE WITH ATOMIC LIMITED CLAIM & RACE REWARDS
 export function getSubmissionsForPlayer(playerId: string, eventId?: string): QuestSubmission[] {
   initializeGameEngine();
   const submissions = getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
@@ -688,14 +1019,55 @@ export function getAllSubmissions(): QuestSubmission[] {
 
 export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   initializeGameEngine();
+  const event = getEvents().find((e) => e.id === params.eventId);
+  if (event && event.isPaused) {
+    return {
+      success: false,
+      submission: {
+        id: `sub-paused-${Date.now()}`,
+        questId: params.questId,
+        playerId: params.playerId,
+        eventId: params.eventId,
+        proofType: params.proofType,
+        status: 'rejected',
+        awardedPoints: 0,
+        submittedAt: new Date().toISOString(),
+      },
+      message: `Event is currently paused by Game Master (${event.pauseReason || 'Field safety check'}). Submissions held.`,
+      awardedPoints: 0,
+    };
+  }
+
   const quest = getQuestById(params.questId);
   if (!quest) {
     throw new Error('Quest not found');
   }
 
+  // ATOMIC LIMITED CLAIM CHECK
+  if (quest.claimLimit) {
+    const currentClaims = quest.currentClaims || 0;
+    if (currentClaims >= quest.claimLimit) {
+      return {
+        success: false,
+        submission: {
+          id: `sub-claimedout-${Date.now()}`,
+          questId: params.questId,
+          playerId: params.playerId,
+          eventId: params.eventId,
+          proofType: params.proofType,
+          status: 'rejected',
+          awardedPoints: 0,
+          submittedAt: new Date().toISOString(),
+        },
+        message: `Claim limit reached! All ${quest.claimLimit} available completion slots have been claimed.`,
+        awardedPoints: 0,
+      };
+    }
+  }
+
   const submissions = getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
 
-  // Anti-duplicate submission check
+  // Anti-duplicate check
   const existingSub = submissions.find(
     (s) => s.playerId === params.playerId && s.questId === params.questId
   );
@@ -719,7 +1091,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     }
   }
 
-  // 1. GEOLOCATION PROXIMITY VERIFICATION (if required or location checkin)
+  // GEOLOCATION PROXIMITY VERIFICATION
   let proximityChecked = false;
   let distanceFromLoc: number | undefined = undefined;
 
@@ -730,7 +1102,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     quest.location.longitude
   ) {
     const requiredRadius = quest.radiusMeters || quest.location.radiusMeters || 100;
-    
+
     if (params.userLat !== undefined && params.userLon !== undefined) {
       const prox = checkProximity(
         { latitude: params.userLat, longitude: params.userLon },
@@ -764,7 +1136,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     }
   }
 
-  // 2. VERIFICATION LOGIC BY TYPE
+  // VERIFICATION LOGIC BY TYPE
   let isAutoVerified = false;
   let validationMessage = '';
 
@@ -834,9 +1206,29 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     validationMessage = 'Media proof submitted! Routed to Game Master review queue.';
   }
 
-  // Get player team if any
+  // Handle Risk / Reward (Hard Mode Failure Penalty)
+  if (params.isHardModeOptIn && !isAutoVerified && quest.verificationType === 'passphrase') {
+    // Failed hard mode attempt
+    const penalty = quest.riskReward?.failurePenalty || 50;
+    recordScoreLedger({
+      eventId: params.eventId,
+      playerId: params.playerId,
+      points: -penalty,
+      category: 'hard_mode_penalty',
+      description: `Hard mode failure penalty for ${quest.title}`,
+    });
+  }
+
   const playerTeamInfo = getTeamForPlayer(params.playerId, params.eventId);
   const teamId = params.teamId || playerTeamInfo.team?.id;
+
+  // Increment claim count on quest
+  let claimPlacement: number | undefined = undefined;
+  if (isAutoVerified) {
+    const currentClaims = quest.currentClaims || 0;
+    claimPlacement = currentClaims + 1;
+    updateQuest(quest.id, { currentClaims: claimPlacement });
+  }
 
   const newSubmission: QuestSubmission = {
     id: `sub-${Date.now()}`,
@@ -854,39 +1246,64 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     userLat: params.userLat,
     userLon: params.userLon,
     distanceFromLocation: distanceFromLoc,
+    claimPlacement,
   };
 
   const updatedSubmissions = [...submissions, newSubmission];
   setStoredItem(STORAGE_KEYS.SUBMISSIONS, updatedSubmissions);
 
   let awardedPoints = 0;
+  let grantedCol: Collectible | undefined = undefined;
+
   if (isAutoVerified) {
-    awardedPoints = quest.pointValue;
+    let basePoints = quest.pointValue;
+
+    // Apply Active Bonus Window Multiplier
+    const multiplier = getActiveBonusMultiplier(params.eventId, quest.category);
+    basePoints = Math.round(basePoints * multiplier);
+
+    // Apply Race Rewards (1st, 2nd, 3rd place bonuses)
+    if (quest.raceRewards && claimPlacement) {
+      const raceBonus = quest.raceRewards.find((r) => r.place === claimPlacement);
+      if (raceBonus) {
+        basePoints += raceBonus.bonusPoints;
+        validationMessage += ` 🥇 Placement Bonus #${claimPlacement}: +${raceBonus.bonusPoints} XP!`;
+      }
+    }
+
+    // Apply Hard Mode Opt-in Bonus
+    if (params.isHardModeOptIn && quest.riskReward) {
+      basePoints += quest.riskReward.hardModeBonus;
+      validationMessage += ` ⚡ Hard Mode Victory: +${quest.riskReward.hardModeBonus} XP!`;
+    }
+
+    awardedPoints = basePoints;
+
     recordScoreLedger({
       eventId: params.eventId,
       playerId: params.playerId,
       teamId,
       questId: params.questId,
       submissionId: newSubmission.id,
-      points: quest.pointValue,
+      points: awardedPoints,
       category: quest.category,
-      description: `Completed ${quest.title}`,
+      description: `Completed ${quest.title}${multiplier > 1.0 ? ` (${multiplier}x Bonus)` : ''}`,
     });
+
+    // Increment Crowd Objective Counter
+    incrementCrowdObjective(params.eventId, 1);
+
+    // Award Collectibles if tied
+    if (quest.id === 'qst-centennial-discovery') {
+      grantedCol = awardCollectible(params.playerId, 'col-founder-token', 'Centennial Beacon Quest');
+    }
 
     const player = getAllPlayers().find((p) => p.id === params.playerId);
     logActivity({
       type: 'quest_completed',
       actorName: player?.displayName || 'Player',
       title: `Quest Completed: ${quest.title}`,
-      details: `+${quest.pointValue} XP awarded`,
-    });
-  } else {
-    const player = getAllPlayers().find((p) => p.id === params.playerId);
-    logActivity({
-      type: 'submission_pending',
-      actorName: player?.displayName || 'Player',
-      title: `Proof Submitted: ${quest.title}`,
-      details: 'Media proof pending Game Master review',
+      details: `+${awardedPoints} XP awarded`,
     });
   }
 
@@ -895,27 +1312,29 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     submission: newSubmission,
     message: validationMessage,
     awardedPoints,
+    claimPlacement,
+    collectibleAwarded: grantedCol,
   };
 }
 
-// 7. SCORE LEDGER & LEADERBOARD
+// 17. SCORE LEDGER & LEADERBOARD
 export function recordScoreLedger(entryData: Omit<ScoreLedgerEntry, 'id' | 'awardedAt'>): ScoreLedgerEntry {
   initializeGameEngine();
   const ledger = getStoredItem<ScoreLedgerEntry[]>(STORAGE_KEYS.SCORE_LEDGER, []);
   const newEntry: ScoreLedgerEntry = {
     ...entryData,
-    id: `sc-${Date.now()}`,
+    id: `sc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     awardedAt: new Date().toISOString(),
   };
 
   const updatedLedger = [...ledger, newEntry];
   setStoredItem(STORAGE_KEYS.SCORE_LEDGER, updatedLedger);
 
-  // Update player total XP
+  // Update player total XP (guarantee non-negative total XP unless intentionally below 0)
   const players = getAllPlayers();
   const player = players.find((p) => p.id === entryData.playerId);
   if (player) {
-    player.totalXp += entryData.points;
+    player.totalXp = Math.max(0, player.totalXp + entryData.points);
     player.level = Math.floor(player.totalXp / 250) + 1;
     setStoredItem(STORAGE_KEYS.PLAYERS, players);
   }
@@ -981,7 +1400,7 @@ export function getLeaderboardForEvent(eventId: string): LeaderboardEntry[] {
       playerId,
       displayName: playerObj.displayName,
       avatarUrl: playerObj.avatarUrl || '⚡',
-      totalPoints: stats.totalPoints,
+      totalPoints: Math.max(0, stats.totalPoints),
       questsCompletedCount: stats.completedQuestIds.size,
       lastScoreTime: stats.lastScoreTime,
       teamName: teamObj?.name,
@@ -1005,6 +1424,7 @@ export function getPlayerProgress(playerId: string, eventId: string): PlayerEven
   const quests = getQuestsForEvent(eventId);
   const leaderboard = getLeaderboardForEvent(eventId);
   const teamInfo = getTeamForPlayer(playerId, eventId);
+  const isQualified = isPlayerQualifiedForFinale(playerId, eventId);
 
   const verifiedSubmissions = submissions.filter((s) => s.status === 'verified');
   const pendingSubmissions = submissions.filter((s) => s.status === 'pending');
@@ -1023,10 +1443,11 @@ export function getPlayerProgress(playerId: string, eventId: string): PlayerEven
     availableCount: quests.length,
     rank: leaderboardEntry ? leaderboardEntry.rank : leaderboard.length + 1,
     team: teamInfo.team,
+    isQualifiedForFinale: isQualified,
   };
 }
 
-// 8. ADMIN REVIEW & RECENT ACTIVITY CONTROLS
+// 18. ADMIN REVIEW & RECENT ACTIVITY CONTROLS
 export function reviewSubmission(
   submissionId: string,
   newStatus: 'verified' | 'rejected',

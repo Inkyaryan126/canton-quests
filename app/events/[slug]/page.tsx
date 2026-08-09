@@ -18,6 +18,10 @@ import {
   PlayerEventProgress,
   Team,
   TeamMember,
+  LiveAnnouncement,
+  PlayerCollectible,
+  NPCCharacter,
+  CrowdObjective,
 } from '@/lib/types';
 import {
   getEventBySlug,
@@ -27,6 +31,11 @@ import {
   getTeamLeaderboardForEvent,
   getPlayerProgress,
   getTeamForPlayer,
+  getAnnouncements,
+  redeemSecretCode,
+  getCollectiblesForPlayer,
+  getNPCCharacters,
+  getCrowdObjectives,
 } from '@/lib/game-engine';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
 
@@ -43,8 +52,18 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
   const [team, setTeam] = useState<Team | undefined>(undefined);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
+  // Phase 3 Live States
+  const [announcements, setAnnouncements] = useState<LiveAnnouncement[]>([]);
+  const [collectibles, setCollectibles] = useState<PlayerCollectible[]>([]);
+  const [npcs, setNpcs] = useState<NPCCharacter[]>([]);
+  const [crowdObjectives, setCrowdObjectives] = useState<CrowdObjective[]>([]);
+
+  // Secret Passcode Input State
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [passcodeResult, setPasscodeResult] = useState<{ success: boolean; message: string } | null>(null);
+
   // Navigation & View Filters
-  const [activeTab, setActiveTab] = useState<'quests' | 'map' | 'teams' | 'leaderboard' | 'rules'>('quests');
+  const [activeTab, setActiveTab] = useState<'quests' | 'map' | 'teams' | 'leaderboard' | 'collectibles' | 'rules'>('quests');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'default' | 'nearest' | 'points'>('default');
 
@@ -81,10 +100,18 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
     const teamInfo = getTeamForPlayer(player.id, foundEvent.id);
     setTeam(teamInfo.team);
     setTeamMembers(teamInfo.members);
+
+    // Phase 3 Live Data
+    setAnnouncements(getAnnouncements(foundEvent.id));
+    setCollectibles(getCollectiblesForPlayer(player.id));
+    setNpcs(getNPCCharacters(foundEvent.id));
+    setCrowdObjectives(getCrowdObjectives(foundEvent.id));
   }, [eventSlug]);
 
   useEffect(() => {
     refreshData();
+    const interval = setInterval(refreshData, 6000);
+    return () => clearInterval(interval);
   }, [refreshData]);
 
   // Geolocation Sensor
@@ -104,6 +131,24 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
   useEffect(() => {
     requestLocation();
   }, []);
+
+  // Handle Passcode Redemption
+  const handleRedeemPasscode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!event || !currentPlayer || !passcodeInput.trim()) return;
+
+    const res = redeemSecretCode(passcodeInput, currentPlayer.id, event.id);
+    setPasscodeResult(res);
+    if (res.success) {
+      setFeedback({
+        title: '🔑 SECRET PASSCODE CRACKED!',
+        points: res.pointsAwarded,
+        unlockedQuestTitle: res.collectibleAwarded ? `Unlocked Collectible: ${res.collectibleAwarded.name}` : undefined,
+      });
+      setPasscodeInput('');
+    }
+    refreshData();
+  };
 
   // Update Finale Timer
   useEffect(() => {
@@ -133,14 +178,15 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
     );
   }
 
-  // Active Flash Quests Filter
   const activeFlashQuests = quests.filter((q) => q.isFlash && q.status === 'active');
+  const latestAnnouncement = announcements[0];
+  const activeNpc = npcs[0];
+  const activeCrowdObj = crowdObjectives[0];
 
-  // Filter and Sort Quests
   let filteredQuests = quests.filter((q) => {
     if (selectedCategory === 'all') return true;
-    if (selectedCategory === 'completed') return progress?.completedQuestIds.includes(q.id);
     if (selectedCategory === 'available') return !progress?.completedQuestIds.includes(q.id);
+    if (selectedCategory === 'completed') return progress?.completedQuestIds.includes(q.id);
     if (selectedCategory === 'flash') return q.isFlash;
     return q.category === selectedCategory;
   });
@@ -166,30 +212,81 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
       <Header />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6">
+        {/* LIVE TICKER ANNOUNCEMENT BANNER */}
+        {latestAnnouncement && (
+          <div
+            className={`p-3.5 rounded-2xl mb-4 text-xs font-mono border flex items-center justify-between gap-3 shadow-lg ${
+              latestAnnouncement.urgency === 'flash' || latestAnnouncement.urgency === 'urgent'
+                ? 'bg-red-950/70 border-red-500 text-red-200 animate-pulse'
+                : latestAnnouncement.urgency === 'warning'
+                ? 'bg-amber-950/70 border-amber-500 text-amber-200'
+                : 'bg-cyan-950/70 border-cyan-500 text-cyan-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base">📢</span>
+              <div>
+                <span className="font-bold uppercase tracking-wider block">{latestAnnouncement.title}</span>
+                <span className="text-[11px] opacity-90">{latestAnnouncement.message}</span>
+              </div>
+            </div>
+            {latestAnnouncement.linkedQuestId && (
+              <Link
+                href={`/events/${event.slug}/quests/${latestAnnouncement.linkedQuestId}`}
+                className="btn btn-primary text-[11px] py-1 px-3 whitespace-nowrap font-bold"
+              >
+                Inspect Quest →
+              </Link>
+            )}
+          </div>
+        )}
+
         {/* Event Header Banner */}
-        <div className="glass-panel p-5 md:p-6 mb-6 border-amber-500/30 glow-amber relative overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-            <span className="badge badge-medium bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-              ● LIVING GAME WORLD • CANTON, OH
-            </span>
+        <div className="glass-panel p-5 md:p-6 mb-6 border-amber-500/30 glow-amber relative overflow-hidden space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="badge badge-medium bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                ● CANTON LIVE GRID
+              </span>
+              <span className="text-xs font-mono text-amber-400 bg-amber-950/40 px-2.5 py-0.5 rounded-full border border-amber-800/40 font-bold uppercase">
+                PHASE: {event.currentPhase}
+              </span>
+            </div>
             <span className="text-xs font-mono text-amber-400 bg-amber-950/40 px-3 py-1 rounded-full border border-amber-800/40">
               ⏱️ Event Finale: {finaleTimerStr}
             </span>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-white mb-2">{event.title}</h1>
-          <p className="text-xs sm:text-sm text-gray-300 mb-4 max-w-2xl leading-relaxed">
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-white">{event.title}</h1>
+          <p className="text-xs sm:text-sm text-gray-300 max-w-2xl leading-relaxed">
             {event.description}
           </p>
 
-          {/* Quick Objective Bar */}
+          {/* Citywide Crowd Objective Bar */}
+          {activeCrowdObj && (
+            <div className="p-3 bg-obsidian/90 rounded-xl border border-purple-500/40 space-y-1 text-xs font-mono">
+              <div className="flex items-center justify-between text-purple-300 font-bold">
+                <span>🌆 {activeCrowdObj.title}</span>
+                <span>
+                  {activeCrowdObj.currentCount} / {activeCrowdObj.targetCount} Solves
+                </span>
+              </div>
+              <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-purple-500 h-full transition-all"
+                  style={{
+                    width: `${Math.min(100, (activeCrowdObj.currentCount / activeCrowdObj.targetCount) * 100)}%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Guidance Bar */}
           <div className="p-3 bg-obsidian/80 rounded-xl border border-gray-800 text-xs text-gray-300 font-mono flex flex-wrap items-center justify-between gap-2">
-            <span>🎮 Use the Canton Map, GPS check-ins, QR emblems & squad play to conquer the city.</span>
+            <span>🎮 Live Game Director active. Watch map pins and live flash broadcasts.</span>
             {userLat === undefined && (
-              <button
-                onClick={requestLocation}
-                className="text-[11px] text-cyan-400 hover:underline font-bold"
-              >
+              <button onClick={requestLocation} className="text-[11px] text-cyan-400 hover:underline font-bold">
                 📍 Enable GPS Proximity
               </button>
             )}
@@ -219,6 +316,57 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
           </div>
         )}
 
+        {/* Roaming NPC Radar Card */}
+        {activeNpc && activeNpc.isActive && (
+          <div className="p-4 bg-emerald-950/30 border border-emerald-500/40 rounded-2xl mb-6 text-xs font-mono space-y-1 shadow">
+            <div className="flex items-center justify-between text-emerald-300 font-bold">
+              <span className="flex items-center gap-1.5">
+                {activeNpc.avatarSymbol} ROAMING NPC SPOTTED: {activeNpc.aliasName}
+              </span>
+              <span className="text-[10px] text-gray-400 uppercase">ACTIVE FIELD RADAR</span>
+            </div>
+            <div className="text-gray-300">
+              Current Zone: <span className="text-white font-bold">{activeNpc.currentZone}</span>
+            </div>
+            <div className="text-emerald-400 text-[11px]">Clue: &quot;{activeNpc.clueHint}&quot;</div>
+          </div>
+        )}
+
+        {/* Secret Passcode Redemption Bar */}
+        <div className="p-4 bg-cyan-950/30 border border-cyan-500/40 rounded-2xl mb-6 space-y-3 font-mono">
+          <div className="flex items-center justify-between">
+            <span className="text-white font-bold text-xs flex items-center gap-1.5">
+              🔑 REDEEM SECRET PASSCODE DROP
+            </span>
+            <span className="text-[10px] text-cyan-400">Game Master Broadcast Code</span>
+          </div>
+
+          <form onSubmit={handleRedeemPasscode} className="flex gap-2">
+            <input
+              type="text"
+              value={passcodeInput}
+              onChange={(e) => setPasscodeInput(e.target.value.toUpperCase())}
+              placeholder="e.g. FOUNDER2026 or COURIER77"
+              className="input-field text-xs uppercase tracking-wider font-bold flex-1"
+            />
+            <button type="submit" className="btn btn-cyan text-xs py-2 px-4 whitespace-nowrap font-bold">
+              REDEEM
+            </button>
+          </form>
+
+          {passcodeResult && (
+            <div
+              className={`p-2.5 rounded-xl text-xs font-bold ${
+                passcodeResult.success
+                  ? 'bg-emerald-950/60 border border-emerald-500 text-emerald-300'
+                  : 'bg-amber-950/60 border border-amber-500 text-amber-300'
+              }`}
+            >
+              {passcodeResult.message}
+            </div>
+          )}
+        </div>
+
         {/* Player Identity Bar */}
         <PlayerIdentityBar onPlayerChanged={() => refreshData()} />
 
@@ -247,9 +395,9 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
             </div>
 
             <div className="glass-card p-3 text-center">
-              <span className="text-[10px] font-mono text-gray-400 uppercase block">Squad</span>
-              <span className="font-display font-extrabold text-sm text-cyan-300 block truncate pt-1">
-                {team ? team.name : 'Solo Agent'}
+              <span className="text-[10px] font-mono text-gray-400 uppercase block">Finale Status</span>
+              <span className="font-display font-extrabold text-xs text-purple-300 block truncate pt-1 uppercase">
+                {progress.isQualifiedForFinale ? '🏆 QUALIFIED' : 'PENDING'}
               </span>
             </div>
           </div>
@@ -259,7 +407,7 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
         <div className="flex border-b border-[var(--border-subtle)] mb-6 font-display font-bold text-xs sm:text-sm overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('quests')}
-            className={`flex-1 min-w-[100px] py-3 text-center border-b-2 transition-all ${
+            className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
               activeTab === 'quests'
                 ? 'border-amber-400 text-amber-400'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
@@ -269,27 +417,27 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
           </button>
           <button
             onClick={() => setActiveTab('map')}
-            className={`flex-1 min-w-[100px] py-3 text-center border-b-2 transition-all ${
+            className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
               activeTab === 'map'
                 ? 'border-amber-400 text-amber-400'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            🗺️ Canton Map
+            🗺️ Map
           </button>
           <button
             onClick={() => setActiveTab('teams')}
-            className={`flex-1 min-w-[100px] py-3 text-center border-b-2 transition-all ${
+            className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
               activeTab === 'teams'
                 ? 'border-amber-400 text-amber-400'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            👥 Squads {team ? `(${team.name})` : ''}
+            👥 Squads
           </button>
           <button
             onClick={() => setActiveTab('leaderboard')}
-            className={`flex-1 min-w-[100px] py-3 text-center border-b-2 transition-all ${
+            className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
               activeTab === 'leaderboard'
                 ? 'border-amber-400 text-amber-400'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
@@ -298,14 +446,24 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
             🏆 Leaderboard
           </button>
           <button
+            onClick={() => setActiveTab('collectibles')}
+            className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
+              activeTab === 'collectibles'
+                ? 'border-amber-400 text-amber-400'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            🏅 Collection ({collectibles.length})
+          </button>
+          <button
             onClick={() => setActiveTab('rules')}
-            className={`flex-1 min-w-[100px] py-3 text-center border-b-2 transition-all ${
+            className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
               activeTab === 'rules'
                 ? 'border-amber-400 text-amber-400'
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            🛡️ Safety & Rules
+            🛡️ Safety
           </button>
         </div>
 
@@ -314,7 +472,6 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
           <section className="space-y-4">
             {/* Sort & Filter Controls Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-obsidian/70 p-3 rounded-2xl border border-gray-800">
-              {/* Category Pills */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
                 {[
                   { id: 'all', label: 'All' },
@@ -340,7 +497,6 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
                 ))}
               </div>
 
-              {/* Sort dropdown */}
               <div className="flex items-center gap-2 font-mono text-xs">
                 <span className="text-gray-400">Sort:</span>
                 <select
@@ -430,7 +586,43 @@ export default function EventHubPage({ params }: { params: Promise<{ slug: strin
           </section>
         )}
 
-        {/* TAB 5: SAFETY & RULES */}
+        {/* TAB 5: PLAYER COLLECTIBLES */}
+        {activeTab === 'collectibles' && (
+          <section className="glass-panel p-6 space-y-4 font-mono animate-fade-in">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                🏅 Agent Digital Collectibles Vault ({collectibles.length})
+              </h2>
+              <span className="text-xs text-amber-400">Phase 3 Cipher Collection</span>
+            </div>
+
+            {collectibles.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 text-xs">
+                No collectibles discovered yet! Complete quest chains or redeem secret passcode drops.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {collectibles.map((pc) => (
+                  <div
+                    key={pc.id}
+                    className="p-3 bg-obsidian border border-amber-500/30 rounded-xl flex items-center gap-3"
+                  >
+                    <span className="text-3xl">{pc.collectible?.badgeSymbol || '🏅'}</span>
+                    <div>
+                      <span className="text-white font-bold text-xs block">{pc.collectible?.name}</span>
+                      <span className="text-gray-400 text-[11px] block">{pc.collectible?.description}</span>
+                      <span className="text-amber-400 text-[10px] uppercase block pt-0.5">
+                        Source: {pc.source}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* TAB 6: SAFETY & RULES */}
         {activeTab === 'rules' && (
           <section className="glass-panel p-6 space-y-4 animate-fade-in">
             <h2 className="text-xl font-bold text-white flex items-center gap-2">

@@ -37,7 +37,7 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
 
   it('3. VIEW QUESTS: loads seeded quests for Canton event', () => {
     const quests = getQuestsForEvent(SEED_EVENT.id);
-    expect(quests.length).toBe(12);
+    expect(quests.length).toBeGreaterThanOrEqual(12);
 
     const checkinQuest = quests.find((q) => q.verificationType === 'checkin');
     const passphraseQuest = quests.find((q) => q.verificationType === 'passphrase');

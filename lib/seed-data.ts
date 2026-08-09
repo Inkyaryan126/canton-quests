@@ -1,6 +1,22 @@
-// Canton Quests — Phase 2 Test Seed Data (Canton, Ohio)
+// Canton Quests — Phase 3 Test Seed Data (Canton, Ohio)
 
-import { City, QuestEvent, LocationInfo, Quest, Player, Team, TeamMember } from './types';
+import {
+  City,
+  QuestEvent,
+  LocationInfo,
+  Quest,
+  Player,
+  Team,
+  TeamMember,
+  LiveAnnouncement,
+  SecretCode,
+  Collectible,
+  NPCCharacter,
+  BusinessPartnerInfo,
+  CrowdObjective,
+  BonusWindow,
+  Prize,
+} from './types';
 
 export const SEED_CITY: City = {
   id: 'city-canton-oh',
@@ -126,6 +142,8 @@ export const SEED_EVENT: QuestEvent = {
   description:
     'Explore Canton, Ohio like never before! Decode urban ciphers, scan hidden QR codes, verify physical location proximity, and solve real-world mysteries across downtown Canton.',
   status: 'active',
+  currentPhase: 'day_1',
+  isPaused: false,
   startTime: '2026-08-07T18:00:00Z',
   endTime: '2026-08-10T22:00:00Z',
   basicInstructions:
@@ -209,7 +227,195 @@ export const SEED_TEAM_MEMBERS: TeamMember[] = [
   },
 ];
 
-// Exact Phase 1 Seed Array Order preserved for SEED_QUESTS[0..9] to prevent breaking existing tests
+// Phase 3 Collectibles Catalog
+export const SEED_COLLECTIBLES: Collectible[] = [
+  {
+    id: 'col-founder-token',
+    name: 'Founder Token',
+    slug: 'founder-token',
+    description: 'Awarded to agents who crack the Founder Cipher at Centennial Plaza.',
+    badgeSymbol: '🏅',
+    rarity: 'common',
+  },
+  {
+    id: 'col-cipher-fragment-1',
+    name: 'Cipher Fragment Alpha',
+    slug: 'cipher-fragment-1',
+    description: 'First piece of the 3-part Canton Master Cipher.',
+    badgeSymbol: '🧩',
+    rarity: 'rare',
+  },
+  {
+    id: 'col-cipher-fragment-2',
+    name: 'Cipher Fragment Beta',
+    slug: 'cipher-fragment-2',
+    description: 'Second piece of the 3-part Canton Master Cipher.',
+    badgeSymbol: '🧩',
+    rarity: 'rare',
+  },
+  {
+    id: 'col-cipher-fragment-3',
+    name: 'Cipher Fragment Gamma',
+    slug: 'cipher-fragment-3',
+    description: 'Final piece of the 3-part Canton Master Cipher.',
+    badgeSymbol: '🧩',
+    rarity: 'legendary',
+  },
+  {
+    id: 'col-palace-seal',
+    name: 'Palace Theatre Golden Seal',
+    slug: 'palace-seal',
+    description: 'Historic seal granted for completing the Palace Theatre marquee lore.',
+    badgeSymbol: '👑',
+    rarity: 'legendary',
+  },
+];
+
+// Phase 3 Secret Codes
+export const SEED_SECRET_CODES: SecretCode[] = [
+  {
+    id: 'code-founder-2026',
+    eventId: SEED_EVENT.id,
+    code: 'FOUNDER2026',
+    description: 'Game Master Opening Broadcast Code',
+    bonusPoints: 150,
+    maxRedemptions: 50,
+    currentRedemptions: 4,
+    isActive: true,
+    grantCollectibleId: 'col-founder-token',
+    createdAt: '2026-08-07T18:00:00Z',
+  },
+  {
+    id: 'code-courier-77',
+    eventId: SEED_EVENT.id,
+    code: 'COURIER77',
+    description: 'Handed out by roaming NPC "The Courier" near Arts District',
+    bonusPoints: 200,
+    maxRedemptions: 15,
+    currentRedemptions: 2,
+    isActive: true,
+    grantCollectibleId: 'col-palace-seal',
+    createdAt: '2026-08-07T19:30:00Z',
+  },
+];
+
+// Phase 3 Announcements
+export const SEED_ANNOUNCEMENTS: LiveAnnouncement[] = [
+  {
+    id: 'ann-1',
+    eventId: SEED_EVENT.id,
+    title: '🎉 CANTON QUEST WEEKEND #1 IS LIVE!',
+    message: 'Welcome Agents! Stand by for pop-up flash drops and secret code broadcasts.',
+    urgency: 'urgent',
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+  },
+  {
+    id: 'ann-2',
+    eventId: SEED_EVENT.id,
+    title: '🔥 DOUBLE XP ACTIVE ON PUZZLE QUESTS',
+    message: 'All puzzle category quest completions earn 2x XP for the next 45 minutes!',
+    urgency: 'flash',
+    expiresAt: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 900000).toISOString(),
+  },
+  {
+    id: 'ann-3',
+    eventId: SEED_EVENT.id,
+    title: '🕵️ ROAMING NPC SPOTTED',
+    message: '"The Courier" was last seen near the 4th Street Arts Corridor Mural with secret passphrase codes.',
+    urgency: 'info',
+    createdAt: new Date(Date.now() - 300000).toISOString(),
+  },
+];
+
+// Phase 3 NPC Characters
+export const SEED_NPCS: NPCCharacter[] = [
+  {
+    id: 'npc-courier',
+    eventId: SEED_EVENT.id,
+    aliasName: 'The Courier',
+    description: 'A mysterious agent roaming downtown Canton handing out secret passphrase cards.',
+    avatarSymbol: '🕵️',
+    isActive: true,
+    currentZone: '4th Street Arts Corridor',
+    clueHint: 'Look near the giant street mural or Aura Craft Coffee patio.',
+    secretCode: 'COURIER77',
+    lastSpottedAt: new Date(Date.now() - 600000).toISOString(),
+  },
+];
+
+// Phase 3 Business Partners
+export const SEED_PARTNERS: BusinessPartnerInfo[] = [
+  {
+    id: 'bp-aura-coffee',
+    cityId: SEED_CITY.id,
+    name: 'Aura Craft Coffee',
+    address: '414 4th St NW, Canton, OH 44702',
+    contactNotes: 'Partner coffee shop providing QR card placement and perk discounts.',
+    publicInstructions: 'Show completed quest screen at counter for 10% off espresso drinks!',
+    isActive: true,
+  },
+  {
+    id: 'bp-arcade-vault',
+    cityId: SEED_CITY.id,
+    name: 'Downtown Canton Arcade Vault',
+    address: '218 Market Ave N, Canton, OH 44702',
+    contactNotes: 'Arcade venue partner.',
+    publicInstructions: 'Show completed quest screen for 5 free game tokens!',
+    isActive: true,
+  },
+];
+
+// Phase 3 Crowd Objectives
+export const SEED_CROWD_OBJECTIVES: CrowdObjective[] = [
+  {
+    id: 'crowd-20-quests',
+    eventId: SEED_EVENT.id,
+    title: 'Canton Collective: 20 Citywide Quest Solves',
+    description: 'When players collectively complete 20 quests, a secret bonus drop unlocks!',
+    targetCount: 20,
+    currentCount: 14,
+    objectiveType: 'total_completions',
+    isAchieved: false,
+  },
+];
+
+// Phase 3 Bonus Windows
+export const SEED_BONUS_WINDOWS: BonusWindow[] = [
+  {
+    id: 'bw-puzzle-2x',
+    eventId: SEED_EVENT.id,
+    title: 'Double XP Puzzle Sprint',
+    multiplier: 2.0,
+    flatBonus: 0,
+    targetCategory: 'puzzle',
+    startsAt: new Date(Date.now() - 900000).toISOString(),
+    expiresAt: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
+    isActive: false,
+  },
+];
+
+// Phase 3 Demo Prizes
+export const SEED_PRIZES: Prize[] = [
+  {
+    id: 'prz-1',
+    eventId: SEED_EVENT.id,
+    title: '🏆 Canton Quest Champion Trophy & $100 Local Gift Pass',
+    sponsorName: 'Downtown Canton Partnership',
+    quantity: 1,
+    eligibilityRule: 'Highest overall XP score at Finale',
+  },
+  {
+    id: 'prz-2',
+    eventId: SEED_EVENT.id,
+    title: '☕ Year of Aura Coffee VIP Pass',
+    sponsorName: 'Aura Craft Coffee',
+    quantity: 1,
+    eligibilityRule: 'Winner of Business Partner Trail Challenge',
+  },
+];
+
+// Exact SEED_QUESTS array order preserved with Phase 3 fields added
 export const SEED_QUESTS: Quest[] = [
   {
     id: 'qst-centennial-discovery',
@@ -413,8 +619,8 @@ export const SEED_QUESTS: Quest[] = [
     status: 'active',
     sortOrder: 10,
     createdAt: '2026-08-01T00:00:00Z',
+    isSecret: true,
   },
-  // Additional Phase 2 Quest Chain Item (Step 2 of Chain starting at Centennial Beacon)
   {
     id: 'qst-founders-secret-clue',
     eventId: SEED_EVENT.id,
@@ -438,7 +644,6 @@ export const SEED_QUESTS: Quest[] = [
     prerequisiteQuestId: 'qst-centennial-discovery',
     unlockConditionType: 'prerequisite',
   },
-  // Additional Phase 2 Flash Drop Item
   {
     id: 'qst-palace-flash-popup',
     eventId: SEED_EVENT.id,
@@ -459,6 +664,28 @@ export const SEED_QUESTS: Quest[] = [
     expiresAt: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
     status: 'active',
     sortOrder: 12,
+    createdAt: '2026-08-01T00:00:00Z',
+  },
+  // Phase 3 Finale Quest
+  {
+    id: 'qst-grand-finale-cipher',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-centennial-plaza',
+    location: SEED_LOCATIONS[0],
+    title: '🏆 GRAND FINALE: The Canton Founder’s Master Key',
+    slug: 'grand-finale-cipher',
+    description: 'The ultimate finale quest! Available only to qualified agents during Finale Mode.',
+    instructions: 'Enter the final master key ("FINALE-CANTON-CHAMP") to claim finale points!',
+    pointValue: 1000,
+    difficulty: 'epic',
+    category: 'finale',
+    verificationType: 'passphrase',
+    targetCode: 'FINALE-CANTON-CHAMP',
+    proofRequirement: 'Finale qualification required.',
+    isFlash: false,
+    isFinaleQuest: true,
+    status: 'active',
+    sortOrder: 13,
     createdAt: '2026-08-01T00:00:00Z',
   },
 ];
