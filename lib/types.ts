@@ -1,8 +1,8 @@
-// Canton Quests — Core Domain Types (Phase 3 Live Weekend Engine)
+// Canton Quests — Core Domain Types (Phase 4 Event Factory)
 
 export type UserRole = 'player' | 'admin' | 'partner';
 
-export type EventStatus = 'draft' | 'upcoming' | 'active' | 'ended';
+export type EventStatus = 'draft' | 'ready' | 'published' | 'upcoming' | 'active' | 'ended';
 
 export type EventPhaseType =
   | 'pre_game'
@@ -30,13 +30,21 @@ export type QuestCategory =
 
 export type ProofVerificationType = 'checkin' | 'qr' | 'passphrase' | 'photo' | 'video';
 
-export type SubmissionStatus = 'pending' | 'verified' | 'rejected';
+export type SubmissionStatus = 'pending' | 'verified' | 'rejected' | 'retry_requested';
 
 export type QuestUnlockConditionType = 'none' | 'prerequisite' | 'scheduled' | 'manual' | 'collectible_set';
 
 export type QuestState = 'available' | 'completed' | 'pending' | 'locked' | 'flash' | 'expired' | 'hidden' | 'claimed_out';
 
 export type AnnouncementUrgency = 'info' | 'warning' | 'flash' | 'urgent';
+
+export type ProofReviewFlag =
+  | 'DUPLICATE_PROOF'
+  | 'OUTSIDE_LOCATION'
+  | 'EXPIRED_QUEST'
+  | 'HIGH_FREQUENCY_SUBMISSIONS'
+  | 'MALFORMED_QR'
+  | 'PAUSED_EVENT';
 
 export interface City {
   id: string;
@@ -116,19 +124,47 @@ export interface QuestEvent {
   pauseReason?: string;
   startTime?: string;
   endTime?: string;
+  registrationStartTime?: string;
   basicInstructions?: string;
+  safetyNotes?: string;
+  mapCenterLat?: number;
+  mapCenterLon?: number;
+  themeColor?: string;
   createdAt: string;
 }
 
-export interface EventPhaseInfo {
+export interface EventReadiness {
+  isReady: boolean;
+  blockers: string[];
+  warnings: string[];
+  metrics: {
+    totalQuests: number;
+    totalXp: number;
+    categoryCounts: Record<string, number>;
+    locationCount: number;
+    secretCount: number;
+    flashCount: number;
+    chainCount: number;
+    timeLockedXpPercentage: number;
+  };
+}
+
+export interface QuestTemplate {
   id: string;
-  eventId: string;
-  phase: EventPhaseType;
   name: string;
   description: string;
-  isActive: boolean;
-  pointMultiplier: number;
-  activatedAt: string;
+  preset: Partial<Quest>;
+}
+
+export interface GeneratedQR {
+  id: string;
+  eventId: string;
+  token: string;
+  targetType: 'quest' | 'secret' | 'code' | 'checkpoint' | 'partner';
+  targetId: string;
+  targetUrl: string;
+  label: string;
+  createdAt: string;
 }
 
 export interface Quest {
@@ -153,7 +189,7 @@ export interface Quest {
   sortOrder: number;
   createdAt: string;
 
-  // Phase 2 & 3 Fields
+  // Phase 2, 3 & 4 Fields
   radiusMeters?: number;
   prerequisiteQuestId?: string;
   unlockConditionType?: QuestUnlockConditionType;
@@ -181,6 +217,9 @@ export interface QuestSubmission {
   status: SubmissionStatus;
   awardedPoints: number;
   feedback?: string;
+  reviewerNotes?: string;
+  reviewFlags?: ProofReviewFlag[];
+  retryRequested?: boolean;
   submittedAt: string;
   reviewedAt?: string;
   userLat?: number;
@@ -247,6 +286,7 @@ export interface SubmitProofResult {
   teamPointsAwarded?: number;
   claimPlacement?: number;
   collectibleAwarded?: Collectible;
+  flags?: ProofReviewFlag[];
 }
 
 export interface LiveAnnouncement {
@@ -311,6 +351,7 @@ export interface NPCCharacter {
   currentZone: string;
   clueHint: string;
   secretCode?: string;
+  operatorNotes?: string;
   lastSpottedAt: string;
 }
 

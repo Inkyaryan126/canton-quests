@@ -1,4 +1,4 @@
-// Canton Quests — Supabase Database Service Layer (Phase 3 Live Weekend Engine)
+// Canton Quests — Supabase Database Service Layer (Phase 4 Event Factory)
 
 import { supabase, isSupabaseConfigured } from './supabase';
 import {
@@ -28,6 +28,8 @@ import {
   BonusWindow,
   FinaleQualification,
   Prize,
+  EventReadiness,
+  GeneratedQR,
 } from './types';
 import {
   SEED_CITY,
@@ -113,7 +115,12 @@ function mapEventFromDB(row: any): QuestEvent {
     pauseReason: row.pause_reason,
     startTime: row.start_time,
     endTime: row.end_time,
+    registrationStartTime: row.registration_start_time,
     basicInstructions: row.basic_instructions,
+    safetyNotes: row.safety_notes,
+    mapCenterLat: row.map_center_lat,
+    mapCenterLon: row.map_center_lon,
+    themeColor: row.theme_color,
     createdAt: row.created_at,
   };
 }
@@ -157,6 +164,8 @@ function mapSubmissionFromDB(row: any): QuestSubmission {
     status: row.status,
     awardedPoints: row.awarded_points,
     feedback: row.feedback,
+    reviewerNotes: row.reviewer_notes,
+    reviewFlags: row.review_flags,
     submittedAt: row.submitted_at,
     reviewedAt: row.reviewed_at,
     userLat: row.user_lat,
@@ -174,7 +183,6 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
   }
 
   try {
-    // Seed City
     await supabase.from('cities').upsert({
       id: SEED_CITY.id,
       name: SEED_CITY.name,
@@ -183,7 +191,6 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
       is_active: SEED_CITY.isActive,
     });
 
-    // Seed Locations
     const locRows = SEED_LOCATIONS.map((l) => ({
       id: l.id,
       city_id: l.cityId,
@@ -199,7 +206,6 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
     }));
     await supabase.from('locations').upsert(locRows);
 
-    // Seed Event
     await supabase.from('events').upsert({
       id: SEED_EVENT.id,
       city_id: SEED_EVENT.cityId,
@@ -214,7 +220,6 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
       basic_instructions: SEED_EVENT.basicInstructions,
     });
 
-    // Seed Quests
     const questRows = SEED_QUESTS.map((q) => ({
       id: q.id,
       event_id: q.eventId,
@@ -246,67 +251,14 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
     }));
     await supabase.from('quests').upsert(questRows);
 
-    // Seed Players
-    const playerRows = SEED_DEMO_PLAYERS.map((p) => ({
-      id: p.id,
-      display_name: p.displayName,
-      avatar_url: p.avatarUrl,
-      role: p.role,
-      total_xp: p.totalXp,
-      level: p.level,
-    }));
-    await supabase.from('players').upsert(playerRows);
-
-    // Seed Teams
-    const teamRows = SEED_TEAMS.map((t) => ({
-      id: t.id,
-      event_id: t.eventId,
-      name: t.name,
-      join_code: t.joinCode,
-      captain_id: t.captainId,
-      avatar_symbol: t.avatarSymbol,
-      total_points: t.totalPoints,
-    }));
-    await supabase.from('teams').upsert(teamRows);
-
-    // Seed Team Members
-    const memberRows = SEED_TEAM_MEMBERS.map((m) => ({
-      id: m.id,
-      team_id: m.teamId,
-      player_id: m.playerId,
-    }));
-    await supabase.from('team_members').upsert(memberRows);
-
-    // Seed Collectibles
-    const colRows = SEED_COLLECTIBLES.map((c) => ({
-      id: c.id,
-      name: c.name,
-      slug: c.slug,
-      description: c.description,
-      badge_symbol: c.badgeSymbol,
-      rarity: c.rarity,
-    }));
-    await supabase.from('collectibles').upsert(colRows);
-
-    // Seed Announcements
-    const annRows = SEED_ANNOUNCEMENTS.map((a) => ({
-      id: a.id,
-      event_id: a.eventId,
-      title: a.title,
-      message: a.message,
-      urgency: a.urgency,
-      expires_at: a.expiresAt,
-    }));
-    await supabase.from('announcements').upsert(annRows);
-
-    return { success: true, message: 'Supabase database seeded successfully with Phase 3 Live Engine state!' };
+    return { success: true, message: 'Supabase database seeded successfully!' };
   } catch (err: any) {
     console.error('Supabase seed error:', err);
     return { success: false, message: err.message || 'Seed failed.' };
   }
 }
 
-// 2. EVENTS & PHASES API
+// 2. EVENT FACTORY API
 export async function getEventsDB(): Promise<QuestEvent[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getEvents();
   const { data, error } = await supabase.from('events').select('*').order('created_at', { ascending: false });
@@ -321,18 +273,28 @@ export async function getEventBySlugDB(slug: string): Promise<QuestEvent | undef
   return mapEventFromDB(data);
 }
 
+export async function createEventWizardDB(eventData: Omit<QuestEvent, 'id' | 'createdAt'>): Promise<QuestEvent> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.createEventWizard(eventData);
+  return localEngine.createEventWizard(eventData);
+}
+
+export async function duplicateEventDB(sourceEventId: string, newTitle: string, newSlug: string) {
+  if (!isSupabaseConfigured || !supabase) return localEngine.duplicateEvent(sourceEventId, newTitle, newSlug);
+  return localEngine.duplicateEvent(sourceEventId, newTitle, newSlug);
+}
+
+export function getEventReadinessCheckDB(eventId: string): EventReadiness {
+  return localEngine.getEventReadinessCheck(eventId);
+}
+
 export async function setEventPhaseDB(eventId: string, phase: EventPhaseType): Promise<QuestEvent | undefined> {
   if (!isSupabaseConfigured || !supabase) return localEngine.setEventPhase(eventId, phase);
-  const { data, error } = await supabase.from('events').update({ current_phase: phase }).eq('id', eventId).select().single();
-  if (error || !data) return localEngine.setEventPhase(eventId, phase);
-  return mapEventFromDB(data);
+  return localEngine.setEventPhase(eventId, phase);
 }
 
 export async function toggleEventPauseDB(eventId: string, isPaused: boolean, reason?: string): Promise<QuestEvent | undefined> {
   if (!isSupabaseConfigured || !supabase) return localEngine.toggleEventPause(eventId, isPaused, reason);
-  const { data, error } = await supabase.from('events').update({ is_paused: isPaused, pause_reason: reason }).eq('id', eventId).select().single();
-  if (error || !data) return localEngine.toggleEventPause(eventId, isPaused, reason);
-  return mapEventFromDB(data);
+  return localEngine.toggleEventPause(eventId, isPaused, reason);
 }
 
 // 3. ANNOUNCEMENTS API
@@ -353,15 +315,24 @@ export async function getAnnouncementsDB(eventId: string): Promise<LiveAnnouncem
   return localEngine.getAnnouncements(eventId);
 }
 
-// 4. SECRET CODES API
+// 4. SECRET CODES & QR CODE STUDIO
 export async function redeemSecretCodeDB(codeStr: string, playerId: string, eventId: string) {
   if (!isSupabaseConfigured || !supabase) return localEngine.redeemSecretCode(codeStr, playerId, eventId);
   return localEngine.redeemSecretCode(codeStr, playerId, eventId);
 }
 
-export async function createSecretCodeDB(eventId: string, code: string, description: string, bonusPoints: number = 100) {
-  if (!isSupabaseConfigured || !supabase) return localEngine.createSecretCode(eventId, code, description, bonusPoints);
-  return localEngine.createSecretCode(eventId, code, description, bonusPoints);
+export async function generateQRCodeTokenDB(eventId: string, targetType: GeneratedQR['targetType'], targetId: string, label: string) {
+  if (!isSupabaseConfigured || !supabase) return localEngine.generateQRCodeToken(eventId, targetType, targetId, label);
+  return localEngine.generateQRCodeToken(eventId, targetType, targetId, label);
+}
+
+export async function getGeneratedQRsDB(eventId: string): Promise<GeneratedQR[]> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getGeneratedQRs(eventId);
+  return localEngine.getGeneratedQRs(eventId);
+}
+
+export function resolveQRTokenDB(token: string): GeneratedQR | undefined {
+  return localEngine.resolveQRToken(token);
 }
 
 // 5. COLLECTIBLES & PLAYER COLLECTIBLES API
@@ -370,7 +341,7 @@ export async function getCollectiblesForPlayerDB(playerId: string): Promise<Play
   return localEngine.getCollectiblesForPlayer(playerId);
 }
 
-// 6. QUESTS API
+// 6. QUESTS & LOCATIONS API
 export async function getQuestsForEventDB(eventId: string): Promise<Quest[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getQuestsForEvent(eventId);
   const { data, error } = await supabase
@@ -384,43 +355,23 @@ export async function getQuestsForEventDB(eventId: string): Promise<Quest[]> {
 
 export async function getQuestByIdDB(questId: string): Promise<Quest | undefined> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getQuestById(questId);
-  const { data, error } = await supabase
-    .from('quests')
-    .select('*, locations(*)')
-    .eq('id', questId)
-    .single();
-  if (error || !data) return localEngine.getQuestById(questId);
-  return mapQuestFromDB(data);
+  return localEngine.getQuestById(questId);
+}
+
+export async function getLocationsDB(): Promise<LocationInfo[]> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getLocations();
+  return localEngine.getLocations();
+}
+
+export async function createLocationDB(locData: Omit<LocationInfo, 'id'>): Promise<LocationInfo> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.createLocation(locData);
+  return localEngine.createLocation(locData);
 }
 
 // 7. PLAYERS & TEAMS DB
 export async function upsertPlayerDB(displayName: string, avatarUrl: string = '⚡'): Promise<Player> {
   if (!isSupabaseConfigured || !supabase) return localEngine.setCurrentPlayer(displayName, avatarUrl);
-
-  const { data: existing } = await supabase
-    .from('players')
-    .select('*')
-    .ilike('display_name', displayName.trim())
-    .single();
-
-  if (existing) return mapPlayerFromDB(existing);
-
-  const newId = `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  const { data, error } = await supabase
-    .from('players')
-    .insert({
-      id: newId,
-      display_name: displayName.trim(),
-      avatar_url: avatarUrl,
-      role: 'player',
-      total_xp: 0,
-      level: 1,
-    })
-    .select()
-    .single();
-
-  if (error || !data) return localEngine.setCurrentPlayer(displayName, avatarUrl);
-  return mapPlayerFromDB(data);
+  return localEngine.setCurrentPlayer(displayName, avatarUrl);
 }
 
 export async function createTeamDB(eventId: string, name: string, captainId: string, avatarSymbol: string = '🛡️'): Promise<Team> {
@@ -444,7 +395,6 @@ export async function submitQuestProofDB(params: SubmitProofParams): Promise<Sub
   return localEngine.submitQuestProof(params);
 }
 
-// 9. LEADERBOARD API
 export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntry[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getLeaderboardForEvent(eventId);
   return localEngine.getLeaderboardForEvent(eventId);
@@ -455,7 +405,7 @@ export async function getPlayerProgressDB(playerId: string, eventId: string): Pr
   return localEngine.getPlayerProgress(playerId, eventId);
 }
 
-// 10. GAME MASTER CONTROLS DB
+// 9. GAME MASTER CONTROLS DB
 export async function triggerFlashQuestDB(questId: string, durationMinutes: number = 30): Promise<Quest | undefined> {
   if (!isSupabaseConfigured || !supabase) return localEngine.triggerFlashQuest(questId, durationMinutes);
   return localEngine.triggerFlashQuest(questId, durationMinutes);
@@ -468,11 +418,12 @@ export async function getAllSubmissionsDB(): Promise<QuestSubmission[]> {
 
 export async function reviewSubmissionDB(
   submissionId: string,
-  newStatus: 'verified' | 'rejected',
-  feedback?: string
+  newStatus: 'verified' | 'rejected' | 'retry_requested',
+  feedback?: string,
+  reviewerNotes?: string
 ): Promise<QuestSubmission | undefined> {
-  if (!isSupabaseConfigured || !supabase) return localEngine.reviewSubmission(submissionId, newStatus, feedback);
-  return localEngine.reviewSubmission(submissionId, newStatus, feedback);
+  if (!isSupabaseConfigured || !supabase) return localEngine.reviewSubmission(submissionId, newStatus, feedback, reviewerNotes);
+  return localEngine.reviewSubmission(submissionId, newStatus, feedback, reviewerNotes);
 }
 
 export function getActivityLogDB(): EventActivityItem[] {

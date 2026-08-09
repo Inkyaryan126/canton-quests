@@ -3,12 +3,13 @@
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
-import { Quest, QuestEvent, Player, SubmitProofResult } from '@/lib/types';
+import { Quest, QuestEvent, Player, SubmitProofResult, GeneratedQR } from '@/lib/types';
 import {
   getEvents,
   getQuestsForEvent,
   getCurrentPlayer,
   submitQuestProof,
+  resolveQRToken,
 } from '@/lib/game-engine';
 
 export default function QrGatewayPage({ params }: { params: Promise<{ code: string }> }) {
@@ -19,6 +20,7 @@ export default function QrGatewayPage({ params }: { params: Promise<{ code: stri
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
   const [result, setResult] = useState<SubmitProofResult | null>(null);
+  const [generatedQR, setGeneratedQR] = useState<GeneratedQR | null>(null);
 
   useEffect(() => {
     const events = getEvents();
@@ -28,15 +30,24 @@ export default function QrGatewayPage({ params }: { params: Promise<{ code: stri
     setEvent(activeEvent);
     const quests = getQuestsForEvent(activeEvent.id);
 
-    // Search quest matching code in targetCode or slug
-    const match = quests.find(
-      (q) =>
-        (q.targetCode && q.targetCode.toUpperCase() === code.toUpperCase()) ||
-        q.slug.toUpperCase() === code.toUpperCase()
-    );
-
-    if (match) {
-      setQuest(match);
+    // 1. Check generated QR tokens
+    const gen = resolveQRToken(code);
+    if (gen) {
+      setGeneratedQR(gen);
+      const targetQuest = quests.find((q) => q.id === gen.targetId || q.slug === gen.targetId);
+      if (targetQuest) {
+        setQuest(targetQuest);
+      }
+    } else {
+      // 2. Direct quest code match
+      const match = quests.find(
+        (q) =>
+          (q.targetCode && q.targetCode.toUpperCase() === code.toUpperCase()) ||
+          q.slug.toUpperCase() === code.toUpperCase()
+      );
+      if (match) {
+        setQuest(match);
+      }
     }
 
     const p = getCurrentPlayer();
@@ -73,6 +84,12 @@ export default function QrGatewayPage({ params }: { params: Promise<{ code: stri
           <h1 className="text-2xl font-extrabold text-white">
             Passcode Token: <span className="text-cyan-400 font-mono">{code}</span>
           </h1>
+
+          {generatedQR && (
+            <div className="text-xs text-amber-400 font-mono">
+              Label: <span className="text-white font-bold">{generatedQR.label}</span>
+            </div>
+          )}
 
           {quest ? (
             <div className="space-y-4">

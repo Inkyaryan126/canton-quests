@@ -1,4 +1,4 @@
-// Canton Quests — Core Game Engine & Persistence Layer (Phase 3 Live Weekend Engine)
+// Canton Quests — Core Game Engine & Persistence Layer (Phase 4 Event Factory)
 
 import {
   Player,
@@ -28,6 +28,11 @@ import {
   BonusWindow,
   FinaleQualification,
   Prize,
+  EventReadiness,
+  QuestTemplate,
+  GeneratedQR,
+  LocationInfo,
+  ProofReviewFlag,
 } from './types';
 import {
   SEED_CITY,
@@ -47,6 +52,7 @@ import {
   SEED_PRIZES,
 } from './seed-data';
 import { checkProximity, formatDistance } from './geo';
+import { evaluateProofIntegrity } from './proof-integrity';
 
 const STORAGE_KEYS = {
   CURRENT_PLAYER: 'canton_quests_current_player',
@@ -69,6 +75,8 @@ const STORAGE_KEYS = {
   BONUS_WINDOWS: 'canton_quests_bonus_windows',
   FINALE_QUALIFICATIONS: 'canton_quests_finale_qualifications',
   PRIZES: 'canton_quests_prizes',
+  GENERATED_QRS: 'canton_quests_generated_qrs',
+  LOCATIONS: 'canton_quests_locations',
 };
 
 const inMemoryStore = new Map<string, any>();
@@ -103,6 +111,9 @@ export function initializeGameEngine(): void {
   }
   if (getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, []).length === 0) {
     setStoredItem(STORAGE_KEYS.QUESTS, SEED_QUESTS);
+  }
+  if (getStoredItem<LocationInfo[]>(STORAGE_KEYS.LOCATIONS, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.LOCATIONS, SEED_LOCATIONS);
   }
   if (getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, []).length === 0) {
     setStoredItem(STORAGE_KEYS.PLAYERS, SEED_DEMO_PLAYERS);
@@ -139,7 +150,408 @@ export function initializeGameEngine(): void {
   }
 }
 
-// 1. EVENT PHASES & EMERGENCY PAUSE
+// 1. EVENT FACTORY — CREATION, EDIT & DUPLICATION
+export function createEventWizard(eventData: Omit<QuestEvent, 'id' | 'createdAt'>): QuestEvent {
+  initializeGameEngine();
+  const events = getEvents();
+  const newEvent: QuestEvent = {
+    ...eventData,
+    id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    currentPhase: eventData.currentPhase || 'day_1',
+    isPaused: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  setStoredItem(STORAGE_KEYS.EVENTS, [newEvent, ...events]);
+
+  logActivity({
+    type: 'announcement',
+    actorName: 'Game Master',
+    title: `🎉 New Event Created: ${newEvent.title}`,
+    details: `Status: ${newEvent.status.toUpperCase()}`,
+  });
+
+  return newEvent;
+}
+
+export function duplicateEvent(
+  sourceEventId: string,
+  newTitle: string,
+  newSlug: string,
+  newDates?: { startTime?: string; endTime?: string }
+): { newEvent: QuestEvent; duplicatedQuestsCount: number } {
+  initializeGameEngine();
+  const events = getEvents();
+  const source = events.find((e) => e.id === sourceEventId);
+  if (!source) {
+    throw new Error('Source event not found!');
+  }
+
+  const newEventId = `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const newEvent: QuestEvent = {
+    ...source,
+    id: newEventId,
+    title: newTitle.trim(),
+    slug: newSlug.trim().toLowerCase().replace(/\s+/g, '-'),
+    status: 'draft',
+    currentPhase: 'pre_game',
+    isPaused: false,
+    startTime: newDates?.startTime || source.startTime,
+    endTime: newDates?.endTime || source.endTime,
+    createdAt: new Date().toISOString(),
+  };
+
+  // Duplicate Quests & Maintain Chain Mappings
+  const sourceQuests = getQuestsForEvent(sourceEventId);
+  const questIdMap = new Map<string, string>();
+
+  const newQuests: Quest[] = sourceQuests.map((sq) => {
+    const nqId = `qst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    questIdMap.set(sq.id, nqId);
+
+    return {
+      ...sq,
+      id: nqId,
+      eventId: newEventId,
+      currentClaims: 0,
+      createdAt: new Date().toISOString(),
+    };
+  });
+
+  // Re-link Prerequisite Chain IDs
+  newQuests.forEach((nq) => {
+    if (nq.prerequisiteQuestId && questIdMap.has(nq.prerequisiteQuestId)) {
+      nq.prerequisiteQuestId = questIdMap.get(nq.prerequisiteQuestId);
+    }
+  });
+
+  const allQuests = getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, SEED_QUESTS);
+  setStoredItem(STORAGE_KEYS.EVENTS, [newEvent, ...events]);
+  setStoredItem(STORAGE_KEYS.QUESTS, [...allQuests, ...newQuests]);
+
+  logActivity({
+    type: 'announcement',
+    actorName: 'Game Master',
+    title: `📋 Event Duplicated: ${newEvent.title}`,
+    details: `${newQuests.length} quests copied from template`,
+  });
+
+  return { newEvent, duplicatedQuestsCount: newQuests.length };
+}
+
+// 2. EVENT READINESS CHECK & DESIGN METRICS
+export function getEventReadinessCheck(eventId: string): EventReadiness {
+  initializeGameEngine();
+  const event = getEvents().find((e) => e.id === eventId);
+  const eventQuests = getQuestsForEvent(eventId);
+  const locations = getLocations();
+
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+
+  if (!event) {
+    return {
+      isReady: false,
+      blockers: ['Event does not exist.'],
+      warnings: [],
+      metrics: {
+        totalQuests: 0,
+        totalXp: 0,
+        categoryCounts: {},
+        locationCount: 0,
+        secretCount: 0,
+        flashCount: 0,
+        chainCount: 0,
+        timeLockedXpPercentage: 0,
+      },
+    };
+  }
+
+  if (!event.startTime || !event.endTime) {
+    blockers.push('Start time and end time must be configured.');
+  }
+
+  if (eventQuests.length === 0) {
+    blockers.push('Event must contain at least 1 published/active quest.');
+  }
+
+  // Detect Broken Prerequisite Chains & Circular Dependencies
+  const questIdSet = new Set(eventQuests.map((q) => q.id));
+  let chainCount = 0;
+
+  eventQuests.forEach((q) => {
+    if (q.prerequisiteQuestId) {
+      chainCount++;
+      if (q.prerequisiteQuestId === q.id) {
+        blockers.push(`Quest "${q.title}" cannot be its own prerequisite.`);
+      } else if (!questIdSet.has(q.prerequisiteQuestId)) {
+        blockers.push(`Quest "${q.title}" references a missing prerequisite quest ID (${q.prerequisiteQuestId}).`);
+      }
+    }
+  });
+
+  // Calculate Metrics
+  let totalXp = 0;
+  let timeLockedXp = 0;
+  let secretCount = 0;
+  let flashCount = 0;
+  const categoryCounts: Record<string, number> = {};
+
+  eventQuests.forEach((q) => {
+    totalXp += q.pointValue;
+    categoryCounts[q.category] = (categoryCounts[q.category] || 0) + 1;
+
+    if (q.isSecret) secretCount++;
+    if (q.isFlash) {
+      flashCount++;
+      timeLockedXp += q.pointValue;
+    }
+  });
+
+  if (totalXp < 500) {
+    warnings.push('Total event XP is below 500. Consider adding more quests for player progression.');
+  }
+
+  const timeLockedXpPercentage = totalXp > 0 ? Math.round((timeLockedXp / totalXp) * 100) : 0;
+  if (timeLockedXpPercentage > 40) {
+    warnings.push(`High time-locked XP (${timeLockedXpPercentage}%). Partial-weekend players may be disadvantaged.`);
+  }
+
+  return {
+    isReady: blockers.length === 0,
+    blockers,
+    warnings,
+    metrics: {
+      totalQuests: eventQuests.length,
+      totalXp,
+      categoryCounts,
+      locationCount: locations.length,
+      secretCount,
+      flashCount,
+      chainCount,
+      timeLockedXpPercentage,
+    },
+  };
+}
+
+// 3. QUEST STUDIO & TEMPLATES
+export function getQuestTemplates(): QuestTemplate[] {
+  return [
+    {
+      id: 'tmpl-checkin',
+      name: 'Landmark GPS Check-In',
+      description: 'Physical location check-in via GPS proximity sensor (e.g. Centennial Plaza).',
+      preset: {
+        category: 'exploration',
+        verificationType: 'checkin',
+        pointValue: 50,
+        difficulty: 'easy',
+        proofRequirement: 'Confirm physical check-in within location radius.',
+        radiusMeters: 60,
+      },
+    },
+    {
+      id: 'tmpl-qr-discovery',
+      name: 'QR Emblem Discovery',
+      description: 'Find and scan an official Canton Quests QR emblem card.',
+      preset: {
+        category: 'business_partner',
+        verificationType: 'qr',
+        pointValue: 100,
+        difficulty: 'easy',
+        targetCode: 'CANTON-EMBLEM-2026',
+        proofRequirement: 'Scan or enter QR passcode displayed at partner location.',
+        requireQrAndLocation: true,
+      },
+    },
+    {
+      id: 'tmpl-passphrase',
+      name: 'Plaque Passphrase Cipher',
+      description: 'Find historic year or inscription on a bronze plaque or stone.',
+      preset: {
+        category: 'puzzle',
+        verificationType: 'passphrase',
+        pointValue: 150,
+        difficulty: 'medium',
+        proofRequirement: 'Enter the exact word or year found on the plaque.',
+      },
+    },
+    {
+      id: 'tmpl-photo-challenge',
+      name: 'Creative Photo Challenge',
+      description: 'Upload a team victory pose or creative photo in front of a landmark.',
+      preset: {
+        category: 'creative',
+        verificationType: 'photo',
+        pointValue: 200,
+        difficulty: 'medium',
+        proofRequirement: 'Upload a photo showing team members at the location.',
+      },
+    },
+    {
+      id: 'tmpl-flash-drop',
+      name: '⚡ Timed Pop-Up Flash Drop',
+      description: 'Pop-up drop with active countdown timer.',
+      preset: {
+        category: 'flash',
+        verificationType: 'checkin',
+        pointValue: 250,
+        difficulty: 'medium',
+        isFlash: true,
+        proofRequirement: 'Rapid physical check-in before timer expires.',
+      },
+    },
+    {
+      id: 'tmpl-secret-quest',
+      name: '🔒 Hidden Secret Cipher',
+      description: 'Unlisted quest hidden from map/list until unlocked by passcode or collectible.',
+      preset: {
+        category: 'secret',
+        verificationType: 'passphrase',
+        pointValue: 500,
+        difficulty: 'epic',
+        isSecret: true,
+        proofRequirement: 'Enter decoded master passphrase.',
+      },
+    },
+  ];
+}
+
+export function duplicateQuest(questId: string): Quest | undefined {
+  initializeGameEngine();
+  const quest = getQuestById(questId);
+  if (!quest) return undefined;
+
+  const newQuest: Quest = {
+    ...quest,
+    id: `qst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    title: `${quest.title} (Copy)`,
+    slug: `${quest.slug}-copy-${Math.floor(Math.random() * 1000)}`,
+    currentClaims: 0,
+    createdAt: new Date().toISOString(),
+  };
+
+  const quests = getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, SEED_QUESTS);
+  setStoredItem(STORAGE_KEYS.QUESTS, [...quests, newQuest]);
+  return newQuest;
+}
+
+// 4. LOCATION MANAGER
+export function getLocations(): LocationInfo[] {
+  initializeGameEngine();
+  return getStoredItem<LocationInfo[]>(STORAGE_KEYS.LOCATIONS, SEED_LOCATIONS);
+}
+
+export function createLocation(locData: Omit<LocationInfo, 'id'>): LocationInfo {
+  initializeGameEngine();
+  const locs = getLocations();
+  const newLoc: LocationInfo = {
+    ...locData,
+    id: `loc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  };
+  setStoredItem(STORAGE_KEYS.LOCATIONS, [...locs, newLoc]);
+  return newLoc;
+}
+
+export function updateLocation(locId: string, updates: Partial<LocationInfo>): LocationInfo | undefined {
+  initializeGameEngine();
+  const locs = getLocations();
+  const idx = locs.findIndex((l) => l.id === locId);
+  if (idx === -1) return undefined;
+
+  const updated = { ...locs[idx], ...updates };
+  locs[idx] = updated;
+  setStoredItem(STORAGE_KEYS.LOCATIONS, locs);
+  return updated;
+}
+
+// 5. QR CODE STUDIO & TOKEN RESOLUTION
+export function generateQRCodeToken(
+  eventId: string,
+  targetType: GeneratedQR['targetType'],
+  targetId: string,
+  label: string
+): GeneratedQR {
+  initializeGameEngine();
+  const qrs = getStoredItem<GeneratedQR[]>(STORAGE_KEYS.GENERATED_QRS, []);
+  const token = `CQQR-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  const targetUrl = `https://divinedesigndestinations.com/qr/${token}`;
+
+  const newQr: GeneratedQR = {
+    id: `qr-${Date.now()}`,
+    eventId,
+    token,
+    targetType,
+    targetId,
+    targetUrl,
+    label: label.trim(),
+    createdAt: new Date().toISOString(),
+  };
+
+  setStoredItem(STORAGE_KEYS.GENERATED_QRS, [...qrs, newQr]);
+  return newQr;
+}
+
+export function getGeneratedQRs(eventId: string): GeneratedQR[] {
+  initializeGameEngine();
+  return getStoredItem<GeneratedQR[]>(STORAGE_KEYS.GENERATED_QRS, []).filter((q) => q.eventId === eventId);
+}
+
+export function resolveQRToken(token: string): GeneratedQR | undefined {
+  initializeGameEngine();
+  const qrs = getStoredItem<GeneratedQR[]>(STORAGE_KEYS.GENERATED_QRS, []);
+  const clean = token.trim().toUpperCase();
+  return qrs.find((q) => q.token.toUpperCase() === clean);
+}
+
+// 6. EVENT EXPORT & IMPORT UTILITIES
+export function exportEventJSON(eventId: string): string {
+  initializeGameEngine();
+  const event = getEvents().find((e) => e.id === eventId);
+  const eventQuests = getQuestsForEvent(eventId);
+  const locations = getLocations();
+  const secretCodes = getStoredItem<SecretCode[]>(STORAGE_KEYS.SECRET_CODES, []).filter((c) => c.eventId === eventId);
+  const collectibles = getStoredItem<Collectible[]>(STORAGE_KEYS.COLLECTIBLES, SEED_COLLECTIBLES);
+  const npcs = getNPCCharacters(eventId);
+
+  const exportPayload = {
+    version: '4.0',
+    exportedAt: new Date().toISOString(),
+    event,
+    quests: eventQuests,
+    locations,
+    secretCodes,
+    collectibles,
+    npcs,
+  };
+
+  return JSON.stringify(exportPayload, null, 2);
+}
+
+export function importEventJSON(jsonStr: string): { success: boolean; message: string; newEvent?: QuestEvent } {
+  try {
+    const payload = JSON.parse(jsonStr);
+    if (!payload.event || !payload.quests) {
+      return { success: false, message: 'Invalid Canton Quests export format.' };
+    }
+
+    const dupResult = duplicateEvent(
+      SEED_EVENT.id,
+      payload.event.title || 'Imported Event',
+      payload.event.slug || `imported-${Date.now()}`
+    );
+
+    return {
+      success: true,
+      message: `Event "${dupResult.newEvent.title}" imported successfully!`,
+      newEvent: dupResult.newEvent,
+    };
+  } catch (err: any) {
+    return { success: false, message: err.message || 'JSON parsing failed.' };
+  }
+}
+
+// 7. EXISTING GAME FUNCTIONS (Phase 1, 2 & 3)
 export function setEventPhase(eventId: string, phase: EventPhaseType): QuestEvent | undefined {
   initializeGameEngine();
   const events = getEvents();
@@ -179,7 +591,6 @@ export function toggleEventPause(eventId: string, isPaused: boolean, reason?: st
   return event;
 }
 
-// 2. LIVE ANNOUNCEMENTS ENGINE
 export function createAnnouncement(
   eventId: string,
   title: string,
@@ -224,7 +635,6 @@ export function getAnnouncements(eventId: string): LiveAnnouncement[] {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
-// 3. SECRET CODES & PASSWORD DROPS
 export function createSecretCode(
   eventId: string,
   code: string,
@@ -281,7 +691,6 @@ export function redeemSecretCode(
     return { success: false, message: 'You have already redeemed this passcode!', pointsAwarded: 0 };
   }
 
-  // Record Redemption
   targetCode.currentRedemptions += 1;
   setStoredItem(STORAGE_KEYS.SECRET_CODES, codes);
 
@@ -294,7 +703,6 @@ export function redeemSecretCode(
   };
   setStoredItem(STORAGE_KEYS.CODE_REDEMPTIONS, [...redemptions, newRedemption]);
 
-  // Award Points via Ledger
   recordScoreLedger({
     eventId,
     playerId,
@@ -303,7 +711,6 @@ export function redeemSecretCode(
     description: `Redeemed Secret Code: ${targetCode.code}`,
   });
 
-  // Award Collectible if tied
   let grantedCol: Collectible | undefined = undefined;
   if (targetCode.grantCollectibleId) {
     grantedCol = awardCollectible(playerId, targetCode.grantCollectibleId, `Secret Code: ${targetCode.code}`);
@@ -325,7 +732,6 @@ export function redeemSecretCode(
   };
 }
 
-// 4. COLLECTIBLES SYSTEM
 export function awardCollectible(playerId: string, collectibleId: string, source: string = 'quest'): Collectible | undefined {
   initializeGameEngine();
   const catalog = getStoredItem<Collectible[]>(STORAGE_KEYS.COLLECTIBLES, SEED_COLLECTIBLES);
@@ -371,7 +777,6 @@ export function getCollectiblesForPlayer(playerId: string): PlayerCollectible[] 
     }));
 }
 
-// 5. NPC ROAMING CHARACTER SYSTEM
 export function getNPCCharacters(eventId: string): NPCCharacter[] {
   initializeGameEngine();
   const npcs = getStoredItem<NPCCharacter[]>(STORAGE_KEYS.NPCS, SEED_NPCS);
@@ -402,7 +807,6 @@ export function updateNPCCharacter(npcId: string, updates: Partial<NPCCharacter>
   return updated;
 }
 
-// 6. CROWD / COMMUNITY OBJECTIVES
 export function getCrowdObjectives(eventId: string): CrowdObjective[] {
   initializeGameEngine();
   const objectives = getStoredItem<CrowdObjective[]>(STORAGE_KEYS.CROWD_OBJECTIVES, SEED_CROWD_OBJECTIVES);
@@ -429,7 +833,6 @@ export function incrementCrowdObjective(eventId: string, count: number = 1): voi
   setStoredItem(STORAGE_KEYS.CROWD_OBJECTIVES, objectives);
 }
 
-// 7. BONUS WINDOWS & MULTIPLIERS
 export function createBonusWindow(
   eventId: string,
   title: string,
@@ -481,7 +884,6 @@ export function getActiveBonusMultiplier(eventId: string, category?: Quest['cate
   return activeWindow ? activeWindow.multiplier : 1.0;
 }
 
-// 8. SCORE LEDGER AUDIT, MANUAL ADJUSTMENTS & RECONCILIATION
 export function adjustPlayerScoreManual(
   eventId: string,
   playerId: string,
@@ -535,12 +937,6 @@ export function reconcilePlayerScores(eventId: string): { reconciledCount: numbe
   return { reconciledCount: count };
 }
 
-// 9. FINALE QUALIFICATION & WILDCARDS
-export function getFinaleQualifications(eventId: string): FinaleQualification[] {
-  initializeGameEngine();
-  return getStoredItem<FinaleQualification[]>(STORAGE_KEYS.FINALE_QUALIFICATIONS, []);
-}
-
 export function grantFinaleQualification(
   eventId: string,
   playerId: string,
@@ -580,7 +976,6 @@ export function isPlayerQualifiedForFinale(playerId: string, eventId: string): b
   const quals = getStoredItem<FinaleQualification[]>(STORAGE_KEYS.FINALE_QUALIFICATIONS, []);
   if (quals.some((q) => q.eventId === eventId && q.playerId === playerId)) return true;
 
-  // Auto-qualify if player total XP >= 750 or has verified submissions
   const player = getAllPlayers().find((p) => p.id === playerId);
   if (player && player.totalXp >= 750) return true;
 
@@ -589,34 +984,6 @@ export function isPlayerQualifiedForFinale(playerId: string, eventId: string): b
   return verifiedCount >= 5;
 }
 
-// 10. PRIZES CATALOG
-export function getPrizes(eventId: string): Prize[] {
-  initializeGameEngine();
-  return getStoredItem<Prize[]>(STORAGE_KEYS.PRIZES, SEED_PRIZES).filter((p) => p.eventId === eventId);
-}
-
-export function awardPrize(prizeId: string, winnerPlayerId: string): Prize | undefined {
-  initializeGameEngine();
-  const prizes = getStoredItem<Prize[]>(STORAGE_KEYS.PRIZES, SEED_PRIZES);
-  const prize = prizes.find((p) => p.id === prizeId);
-  if (!prize) return undefined;
-
-  prize.winnerPlayerId = winnerPlayerId;
-  prize.awardedAt = new Date().toISOString();
-  setStoredItem(STORAGE_KEYS.PRIZES, prizes);
-
-  const player = getAllPlayers().find((p) => p.id === winnerPlayerId);
-  logActivity({
-    type: 'announcement',
-    actorName: 'Game Master',
-    title: `🎁 Prize Awarded: ${prize.title}`,
-    details: `Winner: ${player?.displayName || 'Agent'} (${prize.sponsorName})`,
-  });
-
-  return prize;
-}
-
-// 11. QUEST STATE CALCULATION ENGINE WITH PHASE 3 RULES
 export function calculateQuestState(
   quest: Quest,
   completedQuestIds: string[],
@@ -627,22 +994,18 @@ export function calculateQuestState(
   if (pendingQuestIds.includes(quest.id)) return 'pending';
   if (quest.status === 'inactive' || quest.status === 'draft') return 'hidden';
 
-  // Limited Claim Check
   if (quest.claimLimit && quest.currentClaims && quest.currentClaims >= quest.claimLimit) {
     return 'claimed_out';
   }
 
-  // Prerequisite Quest Check
   if (quest.prerequisiteQuestId && !completedQuestIds.includes(quest.prerequisiteQuestId)) {
     return 'locked';
   }
 
-  // Scheduled unlock time check
   if (quest.startsAt && new Date(quest.startsAt).getTime() > nowMs) {
     return 'locked';
   }
 
-  // Flash Quest expiration check
   if (quest.isFlash) {
     if (quest.expiresAt && new Date(quest.expiresAt).getTime() <= nowMs) {
       return 'expired';
@@ -653,7 +1016,6 @@ export function calculateQuestState(
   return 'available';
 }
 
-// 12. PLAYER MANAGEMENT
 export function getCurrentPlayer(): Player {
   initializeGameEngine();
   const player = getStoredItem<Player | null>(STORAGE_KEYS.CURRENT_PLAYER, null);
@@ -713,7 +1075,6 @@ export function getAllPlayers(): Player[] {
   return getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, SEED_DEMO_PLAYERS);
 }
 
-// 13. EVENTS MANAGEMENT
 export function getEvents(): QuestEvent[] {
   initializeGameEngine();
   return getStoredItem<QuestEvent[]>(STORAGE_KEYS.EVENTS, [SEED_EVENT]);
@@ -725,14 +1086,7 @@ export function getEventBySlug(slug: string): QuestEvent | undefined {
 }
 
 export function createEvent(eventData: Omit<QuestEvent, 'id' | 'createdAt'>): QuestEvent {
-  const events = getEvents();
-  const newEvent: QuestEvent = {
-    ...eventData,
-    id: `evt-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  };
-  setStoredItem(STORAGE_KEYS.EVENTS, [...events, newEvent]);
-  return newEvent;
+  return createEventWizard(eventData);
 }
 
 export function updateEventStatus(eventId: string, status: QuestEvent['status']): QuestEvent | undefined {
@@ -745,7 +1099,6 @@ export function updateEventStatus(eventId: string, status: QuestEvent['status'])
   return event;
 }
 
-// 14. QUESTS MANAGEMENT
 export function getQuestsForEvent(eventId: string): Quest[] {
   initializeGameEngine();
   const quests = getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, SEED_QUESTS);
@@ -770,7 +1123,7 @@ export function createQuest(questData: Omit<Quest, 'id' | 'createdAt'>): Quest {
   const quests = getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, SEED_QUESTS);
   const newQuest: Quest = {
     ...questData,
-    id: `qst-${Date.now()}`,
+    id: `qst-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     createdAt: new Date().toISOString(),
   };
   setStoredItem(STORAGE_KEYS.QUESTS, [...quests, newQuest]);
@@ -817,7 +1170,6 @@ export function triggerFlashQuest(questId: string, durationMinutes: number = 30)
   return updated;
 }
 
-// 15. TEAMS ENGINE
 export function generateJoinCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'CQ-';
@@ -1005,7 +1357,6 @@ export function getTeamLeaderboardForEvent(eventId: string): TeamLeaderboardEntr
   return leaderboard.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
 }
 
-// 16. SUBMISSION & PROOF ENGINE WITH ATOMIC LIMITED CLAIM & RACE REWARDS
 export function getSubmissionsForPlayer(playerId: string, eventId?: string): QuestSubmission[] {
   initializeGameEngine();
   const submissions = getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
@@ -1020,6 +1371,8 @@ export function getAllSubmissions(): QuestSubmission[] {
 export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   initializeGameEngine();
   const event = getEvents().find((e) => e.id === params.eventId);
+  const isPaused = event ? event.isPaused : false;
+
   if (event && event.isPaused) {
     return {
       success: false,
@@ -1043,7 +1396,10 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     throw new Error('Quest not found');
   }
 
-  // ATOMIC LIMITED CLAIM CHECK
+  // Evaluate Proof Integrity & Automated Review Flags
+  const existingSubmissions = getAllSubmissions();
+  const reviewFlags = evaluateProofIntegrity(params, quest, existingSubmissions, isPaused);
+
   if (quest.claimLimit) {
     const currentClaims = quest.currentClaims || 0;
     if (currentClaims >= quest.claimLimit) {
@@ -1065,10 +1421,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     }
   }
 
-  const submissions = getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
-
-  // Anti-duplicate check
-  const existingSub = submissions.find(
+  const existingSub = existingSubmissions.find(
     (s) => s.playerId === params.playerId && s.questId === params.questId
   );
 
@@ -1091,7 +1444,6 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     }
   }
 
-  // GEOLOCATION PROXIMITY VERIFICATION
   let proximityChecked = false;
   let distanceFromLoc: number | undefined = undefined;
 
@@ -1131,12 +1483,12 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
           },
           message: prox.message,
           awardedPoints: 0,
+          flags: reviewFlags,
         };
       }
     }
   }
 
-  // VERIFICATION LOGIC BY TYPE
   let isAutoVerified = false;
   let validationMessage = '';
 
@@ -1164,12 +1516,13 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
         feedback: 'Incorrect passphrase code. Inspect the location closely.',
         submittedAt: new Date().toISOString(),
       };
-      setStoredItem(STORAGE_KEYS.SUBMISSIONS, [...submissions, failedSub]);
+      setStoredItem(STORAGE_KEYS.SUBMISSIONS, [...existingSubmissions, failedSub]);
       return {
         success: false,
         submission: failedSub,
         message: 'Incorrect passcode frequency! Re-examine the location or plaque.',
         awardedPoints: 0,
+        flags: reviewFlags,
       };
     }
   } else if (quest.verificationType === 'qr') {
@@ -1193,12 +1546,13 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
         feedback: 'Invalid QR token code.',
         submittedAt: new Date().toISOString(),
       };
-      setStoredItem(STORAGE_KEYS.SUBMISSIONS, [...submissions, failedSub]);
+      setStoredItem(STORAGE_KEYS.SUBMISSIONS, [...existingSubmissions, failedSub]);
       return {
         success: false,
         submission: failedSub,
         message: 'Invalid QR Code token! Make sure you are scanning an official Canton Quests QR emblem.',
         awardedPoints: 0,
+        flags: reviewFlags,
       };
     }
   } else if (quest.verificationType === 'photo' || quest.verificationType === 'video') {
@@ -1206,9 +1560,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     validationMessage = 'Media proof submitted! Routed to Game Master review queue.';
   }
 
-  // Handle Risk / Reward (Hard Mode Failure Penalty)
   if (params.isHardModeOptIn && !isAutoVerified && quest.verificationType === 'passphrase') {
-    // Failed hard mode attempt
     const penalty = quest.riskReward?.failurePenalty || 50;
     recordScoreLedger({
       eventId: params.eventId,
@@ -1222,7 +1574,6 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   const playerTeamInfo = getTeamForPlayer(params.playerId, params.eventId);
   const teamId = params.teamId || playerTeamInfo.team?.id;
 
-  // Increment claim count on quest
   let claimPlacement: number | undefined = undefined;
   if (isAutoVerified) {
     const currentClaims = quest.currentClaims || 0;
@@ -1241,6 +1592,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     proofUrl: params.proofUrl,
     status: isAutoVerified ? 'verified' : 'pending',
     awardedPoints: isAutoVerified ? quest.pointValue : 0,
+    reviewFlags: reviewFlags.length > 0 ? reviewFlags : undefined,
     submittedAt: new Date().toISOString(),
     reviewedAt: isAutoVerified ? new Date().toISOString() : undefined,
     userLat: params.userLat,
@@ -1249,7 +1601,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     claimPlacement,
   };
 
-  const updatedSubmissions = [...submissions, newSubmission];
+  const updatedSubmissions = [...existingSubmissions, newSubmission];
   setStoredItem(STORAGE_KEYS.SUBMISSIONS, updatedSubmissions);
 
   let awardedPoints = 0;
@@ -1258,11 +1610,9 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   if (isAutoVerified) {
     let basePoints = quest.pointValue;
 
-    // Apply Active Bonus Window Multiplier
     const multiplier = getActiveBonusMultiplier(params.eventId, quest.category);
     basePoints = Math.round(basePoints * multiplier);
 
-    // Apply Race Rewards (1st, 2nd, 3rd place bonuses)
     if (quest.raceRewards && claimPlacement) {
       const raceBonus = quest.raceRewards.find((r) => r.place === claimPlacement);
       if (raceBonus) {
@@ -1271,7 +1621,6 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
       }
     }
 
-    // Apply Hard Mode Opt-in Bonus
     if (params.isHardModeOptIn && quest.riskReward) {
       basePoints += quest.riskReward.hardModeBonus;
       validationMessage += ` ⚡ Hard Mode Victory: +${quest.riskReward.hardModeBonus} XP!`;
@@ -1290,10 +1639,8 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
       description: `Completed ${quest.title}${multiplier > 1.0 ? ` (${multiplier}x Bonus)` : ''}`,
     });
 
-    // Increment Crowd Objective Counter
     incrementCrowdObjective(params.eventId, 1);
 
-    // Award Collectibles if tied
     if (quest.id === 'qst-centennial-discovery') {
       grantedCol = awardCollectible(params.playerId, 'col-founder-token', 'Centennial Beacon Quest');
     }
@@ -1314,10 +1661,10 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     awardedPoints,
     claimPlacement,
     collectibleAwarded: grantedCol,
+    flags: reviewFlags,
   };
 }
 
-// 17. SCORE LEDGER & LEADERBOARD
 export function recordScoreLedger(entryData: Omit<ScoreLedgerEntry, 'id' | 'awardedAt'>): ScoreLedgerEntry {
   initializeGameEngine();
   const ledger = getStoredItem<ScoreLedgerEntry[]>(STORAGE_KEYS.SCORE_LEDGER, []);
@@ -1330,7 +1677,6 @@ export function recordScoreLedger(entryData: Omit<ScoreLedgerEntry, 'id' | 'awar
   const updatedLedger = [...ledger, newEntry];
   setStoredItem(STORAGE_KEYS.SCORE_LEDGER, updatedLedger);
 
-  // Update player total XP (guarantee non-negative total XP unless intentionally below 0)
   const players = getAllPlayers();
   const player = players.find((p) => p.id === entryData.playerId);
   if (player) {
@@ -1447,11 +1793,11 @@ export function getPlayerProgress(playerId: string, eventId: string): PlayerEven
   };
 }
 
-// 18. ADMIN REVIEW & RECENT ACTIVITY CONTROLS
 export function reviewSubmission(
   submissionId: string,
-  newStatus: 'verified' | 'rejected',
-  feedback?: string
+  newStatus: 'verified' | 'rejected' | 'retry_requested',
+  feedback?: string,
+  reviewerNotes?: string
 ): QuestSubmission | undefined {
   initializeGameEngine();
   const submissions = getAllSubmissions();
@@ -1460,7 +1806,11 @@ export function reviewSubmission(
 
   sub.status = newStatus;
   sub.feedback = feedback;
+  sub.reviewerNotes = reviewerNotes;
   sub.reviewedAt = new Date().toISOString();
+  if (newStatus === 'retry_requested') {
+    sub.retryRequested = true;
+  }
 
   if (newStatus === 'verified') {
     const quest = getQuestById(sub.questId);
