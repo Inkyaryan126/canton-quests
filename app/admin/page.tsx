@@ -42,12 +42,9 @@ import {
   createSecretCode,
   awardCollectible,
   updateNPCCharacter,
-  getNPCCharacters,
 } from '@/lib/game-engine';
-import { verifyAdminSecret } from '@/lib/admin-auth';
 
 export default function AdminPage() {
-  // Admin Authentication State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
   const [adminPassphrase, setAdminPassphrase] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
@@ -116,6 +113,19 @@ export default function AdminPage() {
   const [previewQuest, setPreviewQuest] = useState<Quest | null>(null);
 
   const refreshData = useCallback(() => {
+    if (!isAdminAuthenticated) {
+      setEvents([]);
+      setSelectedEvent(null);
+      setQuests([]);
+      setTeams([]);
+      setReadiness(null);
+      setGeneratedQrs([]);
+      setLocations([]);
+      setSubmissions([]);
+      setActivityLog([]);
+      return;
+    }
+
     const allEvents = getEvents();
     setEvents(allEvents);
     const activeEvt = selectedEvent || allEvents[0] || null;
@@ -130,25 +140,46 @@ export default function AdminPage() {
     setLocations(getLocations());
     setSubmissions(getAllSubmissions());
     setActivityLog(getActivityLog());
-  }, [selectedEvent]);
+  }, [isAdminAuthenticated, selectedEvent]);
 
   useEffect(() => {
-    // Check saved admin passphrase in session
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('canton_gm_auth') : null;
-    if (saved && verifyAdminSecret(saved)) {
-      setIsAdminAuthenticated(true);
-    }
-    refreshData();
-  }, [refreshData]);
+    fetch('/api/admin/session')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isAdmin) {
+          setIsAdminAuthenticated(true);
+        } else {
+          setIsAdminAuthenticated(false);
+        }
+      })
+      .catch(() => {
+        setIsAdminAuthenticated(false);
+      });
+  }, []);
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isAdminAuthenticated) {
+      refreshData();
+    }
+  }, [isAdminAuthenticated, refreshData]);
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (verifyAdminSecret(adminPassphrase)) {
-      setIsAdminAuthenticated(true);
-      if (typeof window !== 'undefined') localStorage.setItem('canton_gm_auth', adminPassphrase);
-      setAuthError('');
-    } else {
-      setAuthError('Invalid Game Master passphrase! Access denied.');
+    try {
+      const res = await fetch('/api/admin/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passphrase: adminPassphrase }),
+      });
+      const data = await res.json();
+      if (res.ok && data.isAdmin) {
+        setIsAdminAuthenticated(true);
+        setAuthError('');
+      } else {
+        setAuthError(data.error || 'Invalid Game Master passphrase! Access denied.');
+      }
+    } catch (err: any) {
+      setAuthError('Authentication failed: ' + err.message);
     }
   };
 

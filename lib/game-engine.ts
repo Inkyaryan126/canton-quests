@@ -1846,3 +1846,27 @@ export function logActivity(item: Omit<EventActivityItem, 'id' | 'timestamp'>): 
   };
   setStoredItem(STORAGE_KEYS.ACTIVITY_LOG, [newLog, ...logs].slice(0, 50));
 }
+
+// -----------------------------------------------------------------------------
+// Spectator Engine Re-exports (Phase 5.1)
+// -----------------------------------------------------------------------------
+export {
+  createSessionTokenHash,
+  createIpHash,
+  registerOrUpdateSpectatorSession,
+  convertSpectatorToPlayer,
+  createAudienceEvent,
+  getAudienceEvents,
+  getAudienceEventOptions,
+  castSpectatorVote,
+  resolveAudienceEvent,
+  mapCoordinatesToDistrict,
+  sanitizeActivityItem,
+  publishToPublicGameFeed,
+  getPublicGameFeed,
+  createHostBroadcast,
+  getHostBroadcasts,
+  toggleSpectatorSystemFreeze,
+  getSpectatorSystemSettings,
+  resetSpectatorStores,
+} from './spectator-engine';

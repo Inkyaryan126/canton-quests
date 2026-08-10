@@ -51,6 +51,11 @@ export default function LiveDirectorDashboard() {
   const [activityLog, setActivityLog] = useState<EventActivityItem[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
 
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
+  const [adminPassphrase, setAdminPassphrase] = useState<string>('');
+  const [authError, setAuthError] = useState<string>('');
+
   // Action Modals & Form State
   const [activeModal, setActiveModal] = useState<'announce' | 'flash' | 'code' | 'bonus' | 'npc' | 'score' | 'wildcard' | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -85,6 +90,19 @@ export default function LiveDirectorDashboard() {
   const [adjReason, setAdjReason] = useState('Field Challenge Bonus');
 
   const refreshData = useCallback(() => {
+    if (!isAdminAuthenticated) {
+      setEvent(null);
+      setQuests([]);
+      setLeaderboard([]);
+      setTeamLeaderboard([]);
+      setAnnouncements([]);
+      setNpcs([]);
+      setCrowdObjectives([]);
+      setPlayers([]);
+      setActivityLog([]);
+      return;
+    }
+
     const allEvents = getEvents();
     const activeEvt = allEvents[0] || null;
     setEvent(activeEvt);
@@ -99,119 +117,292 @@ export default function LiveDirectorDashboard() {
     }
     setPlayers(getAllPlayers());
     setActivityLog(getActivityLog());
+  }, [isAdminAuthenticated]);
+
+  useEffect(() => {
+    fetch('/api/admin/session')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isAdmin) {
+          setIsAdminAuthenticated(true);
+        } else {
+          setIsAdminAuthenticated(false);
+        }
+      })
+      .catch(() => {
+        setIsAdminAuthenticated(false);
+      })
+      .finally(() => setIsCheckingAuth(false));
   }, []);
 
   useEffect(() => {
+    if (!isAdminAuthenticated) return;
     refreshData();
     const interval = setInterval(refreshData, 5000);
     return () => clearInterval(interval);
-  }, [refreshData]);
+  }, [isAdminAuthenticated, refreshData]);
+
+  const handleAdminAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/admin/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passphrase: adminPassphrase }),
+      });
+      const data = await res.json();
+      if (res.ok && data.isAdmin) {
+        setIsAdminAuthenticated(true);
+        setAuthError('');
+      } else {
+        setAuthError(data.error || 'Invalid Game Master passphrase! Access denied.');
+      }
+    } catch (err: any) {
+      setAuthError('Authentication failed: ' + err.message);
+    }
+  };
 
   const notify = (msg: string) => {
     setActionMessage(msg);
     setTimeout(() => setActionMessage(null), 3500);
   };
 
-  const handlePhaseChange = (phase: EventPhaseType) => {
+  const sendAdminLiveAction = async (payload: Record<string, any>) => {
+    try {
+      const res = await fetch('/api/admin/live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return await res.json();
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const handlePhaseChange = async (phase: EventPhaseType) => {
     if (!event) return;
-    setEventPhase(event.id, phase);
-    notify(`Phase updated to ${phase.toUpperCase()}`);
+    const res = await sendAdminLiveAction({ action: 'set_phase', eventId: event.id, phase });
+    if (res.success) {
+      notify(`Phase updated to ${phase.toUpperCase()}`);
+    } else {
+      notify(`Failed: ${res.error}`);
+    }
     refreshData();
   };
 
-  const handleTogglePause = () => {
+  const handleTogglePause = async () => {
     if (!event) return;
     const nextPaused = !event.isPaused;
-    toggleEventPause(event.id, nextPaused, nextPaused ? 'Field safety check in progress' : undefined);
-    notify(nextPaused ? '🛑 EVENT PAUSED' : '▶️ EVENT RESUMED');
+    const res = await sendAdminLiveAction({
+      action: 'toggle_pause',
+      eventId: event.id,
+      isPaused: nextPaused,
+      reason: nextPaused ? 'Field safety check in progress' : undefined,
+    });
+    if (res.success) {
+      notify(nextPaused ? '🛑 EVENT PAUSED' : '▶️ EVENT RESUMED');
+    } else {
+      notify(`Failed: ${res.error}`);
+    }
     refreshData();
   };
 
-  const handleCreateAnnouncement = (e: React.FormEvent) => {
+  const handleCreateAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event || !annTitle.trim() || !annMessage.trim()) return;
-    createAnnouncement(event.id, annTitle, annMessage, annUrgency);
-    notify('📢 Announcement Broadcasted Live!');
-    setAnnTitle('');
-    setAnnMessage('');
-    setActiveModal(null);
+    const res = await sendAdminLiveAction({
+      action: 'create_announcement',
+      eventId: event.id,
+      title: annTitle,
+      message: annMessage,
+      urgency: annUrgency,
+    });
+    if (res.success) {
+      notify('📢 Announcement Broadcasted Live!');
+      setAnnTitle('');
+      setAnnMessage('');
+      setActiveModal(null);
+    } else {
+      notify(`Failed: ${res.error}`);
+    }
     refreshData();
   };
 
-  const handleTriggerFlash = (e: React.FormEvent) => {
+  const handleTriggerFlash = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedQuestId) return;
-    triggerFlashQuest(selectedQuestId, flashDurationMinutes);
-    notify(`⚡ Flash Drop Triggered (${flashDurationMinutes}m)!`);
-    setActiveModal(null);
+    const res = await sendAdminLiveAction({
+      action: 'trigger_flash',
+      questId: selectedQuestId,
+      durationMinutes: flashDurationMinutes,
+    });
+    if (res.success) {
+      notify(`⚡ Flash Drop Triggered (${flashDurationMinutes}m)!`);
+      setActiveModal(null);
+    } else {
+      notify(`Failed: ${res.error}`);
+    }
     refreshData();
   };
 
-  const handleCreateCode = (e: React.FormEvent) => {
+  const handleCreateCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event || !codeStr.trim()) return;
-    createSecretCode(event.id, codeStr, codeDesc || 'Secret Passcode Drop', codePoints);
-    notify(`🔑 Secret Passcode "${codeStr.toUpperCase()}" Live!`);
-    setCodeStr('');
-    setCodeDesc('');
-    setActiveModal(null);
+    const res = await sendAdminLiveAction({
+      action: 'create_secret_code',
+      eventId: event.id,
+      code: codeStr,
+      description: codeDesc || 'Secret Passcode Drop',
+      bonusPoints: codePoints,
+    });
+    if (res.success) {
+      notify(`🔑 Secret Passcode "${codeStr.toUpperCase()}" Live!`);
+      setCodeStr('');
+      setCodeDesc('');
+      setActiveModal(null);
+    } else {
+      notify(`Failed: ${res.error}`);
+    }
     refreshData();
   };
 
-  const handleCreateBonusWindow = (e: React.FormEvent) => {
+  const handleCreateBonusWindow = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event) return;
-    createBonusWindow(
-      event.id,
-      bonusTitle,
-      bonusMultiplier,
-      bonusCategory === 'all' ? undefined : bonusCategory,
-      bonusDuration
-    );
-    notify(`🔥 ${bonusMultiplier}x Bonus Window Activated (${bonusDuration}m)!`);
-    setActiveModal(null);
+    const res = await sendAdminLiveAction({
+      action: 'create_bonus_window',
+      eventId: event.id,
+      title: bonusTitle,
+      multiplier: bonusMultiplier,
+      targetCategory: bonusCategory === 'all' ? undefined : bonusCategory,
+      durationMinutes: bonusDuration,
+    });
+    if (res.success) {
+      notify(`🔥 ${bonusMultiplier}x Bonus Window Activated (${bonusDuration}m)!`);
+      setActiveModal(null);
+    } else {
+      notify(`Failed: ${res.error}`);
+    }
     refreshData();
   };
 
-  const handleUpdateNpc = (e: React.FormEvent) => {
+  const handleUpdateNpc = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!npcs[0]) return;
-    updateNPCCharacter(npcs[0].id, {
+    const res = await sendAdminLiveAction({
+      action: 'update_npc',
+      npcId: npcs[0].id,
       currentZone: npcZone,
       clueHint: npcClue,
       isActive: true,
     });
-    notify(`🕵️ NPC Location Updated: ${npcZone}`);
-    setActiveModal(null);
+    if (res.success) {
+      notify(`🕵️ NPC Location Updated: ${npcZone}`);
+      setActiveModal(null);
+    } else {
+      notify(`Failed: ${res.error}`);
+    }
     refreshData();
   };
 
-  const handleScoreAdjust = (e: React.FormEvent) => {
+  const handleScoreAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event || !adjPlayerId) return;
-    adjustPlayerScoreManual(event.id, adjPlayerId, adjPoints, adjReason, 'Game Director');
-    notify(`Score Adjusted: ${adjPoints > 0 ? '+' : ''}${adjPoints} XP`);
-    setActiveModal(null);
+    const res = await sendAdminLiveAction({
+      action: 'adjust_score',
+      eventId: event.id,
+      playerId: adjPlayerId,
+      points: adjPoints,
+      reason: adjReason,
+      adminName: 'Game Director',
+    });
+    if (res.success) {
+      notify(`Score Adjusted: ${adjPoints > 0 ? '+' : ''}${adjPoints} XP`);
+      setActiveModal(null);
+    } else {
+      notify(`Failed: ${res.error}`);
+    }
     refreshData();
   };
 
-  const handleGrantWildcard = (playerId: string) => {
+  const handleGrantWildcard = async (playerId: string) => {
     if (!event) return;
-    grantFinaleQualification(event.id, playerId, 'Game Master Wildcard Pass', true);
-    notify('👑 Wildcard Finale Qualification Granted!');
+    const res = await sendAdminLiveAction({
+      action: 'grant_wildcard',
+      eventId: event.id,
+      playerId,
+      reason: 'Game Master Wildcard Pass',
+    });
+    if (res.success) {
+      notify('👑 Wildcard Finale Qualification Granted!');
+    } else {
+      notify(`Failed: ${res.error}`);
+    }
     refreshData();
   };
 
-  const handleReconcile = () => {
+  const handleReconcile = async () => {
     if (!event) return;
-    const res = reconcilePlayerScores(event.id);
-    notify(`Score Ledger Reconciled (${res.reconciledCount} players updated)`);
+    const res = await sendAdminLiveAction({ action: 'reconcile_scores', eventId: event.id });
+    if (res.success) {
+      notify(`Score Ledger Reconciled (${res.reconciled?.reconciledCount || 0} players updated)`);
+    } else {
+      notify(`Failed: ${res.error}`);
+    }
     refreshData();
   };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-obsidian)] text-white flex items-center justify-center font-mono">
+        Verifying Game Master Authorization...
+      </div>
+    );
+  }
+
+  if (!isAdminAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col font-mono">
+        <Header />
+        <main className="flex-1 max-w-md w-full mx-auto p-6 flex flex-col justify-center items-center">
+          <div className="glass-panel p-6 border-red-500/50 glow-red w-full space-y-4 text-center">
+            <div className="text-3xl">🔒</div>
+            <h1 className="text-lg font-bold text-red-400 font-display">LIVE DIRECTOR ACCESS CONTROL</h1>
+            <p className="text-xs text-gray-300">
+              The Live Director Field Control Room (/admin/live) requires server-verified administrative authorization.
+            </p>
+
+            {authError && (
+              <div className="p-3 bg-red-950/80 border border-red-500/50 rounded text-red-300 text-xs">
+                {authError}
+              </div>
+            )}
+
+            <form onSubmit={handleAdminAuth} className="space-y-3 pt-2">
+              <input
+                type="password"
+                placeholder="Enter Game Master Secret..."
+                value={adminPassphrase}
+                onChange={(e) => setAdminPassphrase(e.target.value)}
+                className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded text-white font-mono text-xs focus:border-amber-400 outline-none"
+              />
+              <button
+                type="submit"
+                className="w-full py-2 bg-gradient-to-r from-amber-500 to-red-600 text-black font-bold rounded uppercase tracking-wider hover:opacity-90 transition-opacity"
+              >
+                Authenticate Game Master
+              </button>
+            </form>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!event) {
     return (
-      <div className="min-h-screen bg-obsidian text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-obsidian)] text-white flex items-center justify-center">
         Loading Live Control Room...
       </div>
     );

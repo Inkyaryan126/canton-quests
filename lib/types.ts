@@ -424,9 +424,173 @@ export interface EventActivityItem {
     | 'collectible_earned'
     | 'phase_change'
     | 'bonus_activated'
-    | 'finale_qualified';
+    | 'finale_qualified'
+    | 'audience_vote_launched'
+    | 'audience_vote_resolved';
   actorName: string;
   title: string;
   timestamp: string;
   details?: string;
+}
+
+// -----------------------------------------------------------------------------
+// Phase 5 Spectator Participation Engine Types
+// -----------------------------------------------------------------------------
+
+export type AudienceEventType = 'audience_vote' | 'player_benefit' | 'world_event' | 'crowd_meter';
+
+export type AudienceEventStatus =
+  | 'draft'
+  | 'scheduled'
+  | 'voting_active'
+  | 'tallying_closed'
+  | 'effect_applied'
+  | 'resolved'
+  | 'cancelled';
+
+export type AudienceEligibilityMode = 'all_spectators' | 'authenticated_only' | 'exclude_active_players';
+
+export type AudienceTargetType = 'category' | 'quest' | 'team' | 'zone' | 'citywide';
+
+export interface AudienceEvent {
+  id: string;
+  eventId: string;
+  title: string;
+  description?: string;
+  eventType: AudienceEventType;
+  status: AudienceEventStatus;
+  isPaused: boolean;
+  pausedAt?: string;
+  eligibilityMode: AudienceEligibilityMode;
+  maxVotesPerSession: number;
+  targetType?: AudienceTargetType;
+  targetId?: string;
+  targetName?: string;
+  startsAt?: string;
+  endsAt?: string;
+  winningOptionId?: string;
+  isManuallyOverridden: boolean;
+  overrideReason?: string;
+  resolvedBy?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicAudienceEvent {
+  id: string;
+  eventId: string;
+  title: string;
+  description?: string;
+  eventType: AudienceEventType;
+  status: AudienceEventStatus;
+  isPaused: boolean;
+  startsAt?: string;
+  endsAt?: string;
+  pausedAt?: string;
+  eligibilityMode: AudienceEligibilityMode;
+  maxVotesPerSession: number;
+  publicTargetDescription?: string;
+  publicWinningOptionId?: string;
+  createdAt: string;
+}
+
+export interface AudienceEventOption {
+  id: string;
+  audienceEventId: string;
+  optionLabel: string;
+  optionDescription?: string;
+  effectPayload: Record<string, any>;
+  voteCount: number;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface PublicAudienceEventOption {
+  id: string;
+  audienceEventId: string;
+  optionLabel: string;
+  optionDescription?: string;
+  voteCount: number;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface AudienceVote {
+  id: string;
+  audienceEventId: string;
+  optionId: string;
+  sessionTokenHash: string;
+  voteNumber: number;
+  ipHash: string;
+  playerId?: string;
+  createdAt: string;
+}
+
+export type AudienceEffectStatus = 'pending' | 'applied' | 'failed' | 'cancelled' | 'overridden';
+
+export interface AudienceEffect {
+  id: string;
+  audienceEventId: string;
+  effectType: string;
+  payload: Record<string, any>;
+  status: AudienceEffectStatus;
+  appliedAt?: string;
+  resolvedAt?: string;
+  cancellationReason?: string;
+  overrideContext?: string;
+  createdBy?: string;
+  appliedBy?: string;
+  resolvedBy?: string;
+  createdAt: string;
+}
+
+export interface PublicGameFeedItem {
+  id: string;
+  eventId: string;
+  feedType: string;
+  headline: string;
+  body?: string;
+  districtName?: string;
+  urgency: 'info' | 'warning' | 'flash' | 'urgent';
+  isHost: boolean;
+  isRetracted: boolean;
+  isMinorParticipant: boolean;
+  isPublicFeedEligible: boolean;
+  publishedAt: string;
+  createdAt: string;
+}
+
+export interface HostBroadcast {
+  id: string;
+  eventId: string;
+  headline: string;
+  body: string;
+  tone: 'theatrical' | 'urgent' | 'announcement' | 'flash';
+  targetChannel?: 'all' | 'spectators' | 'players' | 'internal';
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  isPublished?: boolean;
+  publishedAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface SpectatorSession {
+  id: string;
+  sessionTokenHash: string;
+  ipHash: string;
+  convertedToPlayerId?: string;
+  isMinor: boolean;
+  ageAcknowledgedAt?: string;
+  safetyAcknowledgedAt?: string;
+  createdAt: string;
+  lastSeenAt: string;
+}
+
+export interface SpectatorSystemSettings {
+  eventId: string;
+  isSpectatorSystemDisabled: boolean;
+  disabledReason?: string;
+  disabledAt?: string;
+  updatedAt: string;
 }

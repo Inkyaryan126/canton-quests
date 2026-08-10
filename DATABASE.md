@@ -116,3 +116,47 @@ The Canton Quests data architecture relies on PostgreSQL (hosted via Supabase) w
 
 ### 3.20 `notifications` & `admin_events`
 - **Purpose**: Log push alert broadcasts, flash event drops, and administrative system audits.
+
+---
+
+## 4. Phase 5 Spectator Engine Tables & Sanitized Public Security Barrier Views
+
+### 4.1 `audience_events` & `public_audience_events`
+- **Purpose**: Internal GM table storing audience event definitions, status (`draft`, `scheduled`, `voting_active`, `tallying_closed`, `effect_applied`, `resolved`, `cancelled`), target configurations, override reasons, and admin attribution.
+- **Security & Public Isolation**: Direct `SELECT` queries on raw `audience_events` restricted strictly to GM Admins (`role = 'admin'`). Public clients query double-sanitized view `public_audience_events` (`WITH (security_barrier = true)`), which masks internal admin user IDs (`created_by`, `resolved_by`), target parameters, and manual override notes, filtering strictly to active/resolved states.
+- **Invariants**: Enforces max 1 simultaneous active event per game event via partial unique index `uq_single_active_audience_event`.
+
+### 4.2 `audience_event_options` & `public_audience_event_options`
+- **Purpose**: Options spectators may vote on. Contains internal `effect_payload` JSONB and real-time `vote_count`.
+- **Security & Public Isolation**: Direct table access restricted to admins. Public spectators query view `public_audience_event_options`, which masks internal `effect_payload` payloads and restricts rows to active/resolved events.
+- **Invariants**: Composite unique key `CONSTRAINT uq_option_id_event_id UNIQUE (id, audience_event_id)`.
+
+### 4.3 `audience_votes`
+- **Purpose**: Ledger recording spectator votes.
+- **Fields**: `id`, `audience_event_id`, `option_id`, `session_token_hash`, `vote_number`, `ip_hash`, `player_id`, `created_at`.
+- **Security & Execution Isolation**: Direct public `INSERT` revoked. Direct RPC execution of `cast_spectator_vote` revoked from `PUBLIC, anon, authenticated` and granted strictly to `service_role`. Votes processed exclusively server-side via `/api/game/spectator`.
+- **Invariants**:
+  - Structural composite FK `CONSTRAINT fk_vote_option_event FOREIGN KEY (option_id, audience_event_id) REFERENCES public.audience_event_options(id, audience_event_id)` preventing votes for options belonging to different audience events.
+  - Unique constraint `CONSTRAINT uq_spectator_one_vote_per_event UNIQUE (audience_event_id, session_token_hash)` preventing duplicate voting.
+  - PostgreSQL trigger `trg_enforce_spectator_vote_limit` enforcing single vote per spectator session.
+
+### 4.4 `audience_effects`
+- **Purpose**: Authoritative server ledger of audience-generated gameplay effects and payloads.
+- **Fields**: `id`, `audience_event_id`, `effect_type`, `payload`, `status` (`pending`, `applied`, `failed`, `cancelled`, `overridden`), `applied_at`, `resolved_at`, `cancellation_reason`, `override_context`, `created_by`, `applied_by`, `resolved_by`, `created_at`.
+- **Security**: Admin access only (`players.role = 'admin'`). Public clients do not receive un-published effect payloads. Fully tracks lifecycle resolutions, cancellation reasons, manual overrides, and admin attribution.
+
+### 4.5 `public_game_feed`
+- **Purpose**: Stores sanitized public activity stream for spectator viewing.
+- **Security & Privacy Read Boundary**: RLS SELECT policy strictly requires `published_at <= NOW() AND is_retracted = false AND is_public_feed_eligible = true AND is_minor_participant = false`. Ineligible rows and minor participant entries are suppressed at the database read boundary. Server sanitization boundary (`sanitizeTextContent`) automatically strips emails, phone numbers, exact geographic coordinates (mapping to coarse district names), secret passphrases/codes, admin notes, IP/token hashes, and private proof URLs. Gameplay activity logs operate on a 2-minute delay buffer.
+
+### 4.6 `host_broadcasts`
+- **Purpose**: Host/Game Master announcements for player and spectator channels.
+- **Security**: Public read for published items; admin write.
+
+### 4.7 `spectator_sessions`
+- **Purpose**: Anonymous and identified spectator sessions with age acknowledgement, safety consent, and minor tracking (`is_minor`).
+- **Security**: Direct public reads/writes revoked. Admin view only. Server API manages session creation and spectator-to-player conversions using Service Role. Spectator-to-player conversion strictly requires verified Supabase Auth JWT credentials, preventing player impersonation.
+
+### 4.8 `spectator_system_settings`
+- **Purpose**: Global spectator system state and emergency kill switch flags (`is_spectator_system_disabled`).
+- **Security**: Public read; admin write.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, use } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import PlayerIdentityBar from '@/components/PlayerIdentityBar';
@@ -39,9 +39,8 @@ import {
 } from '@/lib/game-engine';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
 
-export default function EventHubPage({ params }: { params: Promise<{ slug: string }> }) {
-  const resolvedParams = use(params);
-  const eventSlug = resolvedParams.slug;
+export default function EventHubPage({ params }: { params: { slug: string } }) {
+  const eventSlug = params.slug;
 
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [quests, setQuests] = useState<Quest[]>([]);

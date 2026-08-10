@@ -1,0 +1,440 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import Header from '@/components/Header';
+import AudienceVoteCard from '@/components/spectator/AudienceVoteCard';
+import HostBroadcastCard from '@/components/spectator/HostBroadcastCard';
+import PublicGameFeed from '@/components/spectator/PublicGameFeed';
+import DistrictActivityView, { DistrictInfo } from '@/components/spectator/DistrictActivityView';
+import CommunityStatsBar from '@/components/spectator/CommunityStatsBar';
+import EnterGameModal from '@/components/spectator/EnterGameModal';
+import {
+  PublicAudienceEvent,
+  PublicAudienceEventOption,
+  HostBroadcast,
+  PublicGameFeedItem,
+  SpectatorSystemSettings,
+} from '@/lib/types';
+
+const VOTES_LOCAL_STORAGE_KEY = 'canton_spectator_voted_options';
+
+export default function WatchPage() {
+  // Data state
+  const [events, setEvents] = useState<PublicAudienceEvent[]>([]);
+  const [optionsMap, setOptionsMap] = useState<Record<string, PublicAudienceEventOption[]>>({});
+  const [broadcasts, setBroadcasts] = useState<HostBroadcast[]>([]);
+  const [feed, setFeed] = useState<PublicGameFeedItem[]>([]);
+  const [settings, setSettings] = useState<SpectatorSystemSettings | null>(null);
+  const [districts, setDistricts] = useState<DistrictInfo[]>([]);
+  const [activeSpectatorCount, setActiveSpectatorCount] = useState<number>(0);
+  const [parentEventStatus, setParentEventStatus] = useState<'upcoming' | 'active' | 'ended'>('active');
+
+  // User session state
+  const [votedOptions, setVotedOptions] = useState<Record<string, string>>({});
+  const [isEnterGameModalOpen, setIsEnterGameModalOpen] = useState<boolean>(false);
+  const [isMinorSession, setIsMinorSession] = useState<boolean>(false);
+  const [convertedPlayerId, setConvertedPlayerId] = useState<string | null>(null);
+
+  // Status & Network state
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [networkError, setNetworkError] = useState<string | null>(null);
+  const [isPollingActive, setIsPollingActive] = useState<boolean>(true);
+
+  // Restore local vote history & register session on mount
+  useEffect(() => {
+    try {
+      const savedVotes = localStorage.getItem(VOTES_LOCAL_STORAGE_KEY);
+      if (savedVotes) {
+        setVotedOptions(JSON.parse(savedVotes));
+      }
+      const localProfile = localStorage.getItem('canton_player_profile');
+      if (localProfile) {
+        const parsed = JSON.parse(localProfile);
+        if (parsed.id) setConvertedPlayerId(parsed.id);
+      }
+    } catch {
+      // LocalStorage fallback
+    }
+
+    // Register session on mount
+    const registerSession = async () => {
+      try {
+        const res = await fetch('/api/game/spectator', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'register_session' }),
+        });
+        const data = await res.json();
+        if (data.success && data.session) {
+          setIsMinorSession(!!data.session.isMinor);
+          if (data.session.convertedToPlayerId) {
+            setConvertedPlayerId(data.session.convertedToPlayerId);
+          }
+        }
+      } catch {
+        // Silently handle session reg error
+      }
+    };
+
+    registerSession();
+  }, []);
+
+  // Fetch spectator data
+  const fetchData = useCallback(async () => {
+    try {
+      const [eventsRes, broadcastsRes, feedRes, settingsRes, districtsRes, statsRes, mainEventRes] = await Promise.all([
+        fetch('/api/game/spectator?action=events'),
+        fetch('/api/game/spectator?action=broadcasts'),
+        fetch('/api/game/spectator?action=feed'),
+        fetch('/api/game/spectator?action=settings'),
+        fetch('/api/game/spectator?action=districts'),
+        fetch('/api/game/spectator?action=stats'),
+        fetch('/api/game/events').catch(() => null),
+      ]);
+
+      const eventsData = await eventsRes.json();
+      const broadcastsData = await broadcastsRes.json();
+      const feedData = await feedRes.json();
+      const settingsData = await settingsRes.json();
+      const districtsData = await districtsRes.json();
+      const statsData = await statsRes.json();
+
+      if (eventsData.success) {
+        const activeEvents: PublicAudienceEvent[] = eventsData.events || [];
+        setEvents(activeEvents);
+
+        // Fetch options for each audience event
+        for (const evt of activeEvents) {
+          const optRes = await fetch(`/api/game/spectator?action=options&audienceEventId=${evt.id}`);
+          const optData = await optRes.json();
+          if (optData.success) {
+            setOptionsMap((prev) => ({
+              ...prev,
+              [evt.id]: optData.options || [],
+            }));
+          }
+        }
+      }
+
+      if (broadcastsData.success) {
+        setBroadcasts(broadcastsData.broadcasts || []);
+      }
+
+      if (feedData.success) {
+        setFeed(feedData.feed || []);
+      }
+
+      if (settingsData.success) {
+        setSettings(settingsData.settings || null);
+      }
+
+      if (districtsData.success) {
+        setDistricts(districtsData.districts || []);
+      }
+
+      if (statsData.success) {
+        setActiveSpectatorCount(statsData.activeSpectators || 0);
+      }
+
+      if (mainEventRes) {
+        const mainEventData = await mainEventRes.json().catch(() => null);
+        if (mainEventData?.events?.[0]) {
+          const status = mainEventData.events[0].status;
+          if (status === 'draft') setParentEventStatus('upcoming');
+          else if (status === 'completed' || status === 'archived') setParentEventStatus('ended');
+          else setParentEventStatus('active');
+        }
+      }
+
+      setNetworkError(null);
+    } catch (err: any) {
+      setNetworkError('Network connectivity issue. Polling automatic recovery active...');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Initial fetch and 5s polling interval
+  useEffect(() => {
+    fetchData();
+
+    if (!isPollingActive) return;
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, [fetchData, isPollingActive]);
+
+  // Active audience event (priority: voting_active, then closed/resolved)
+  const activeEvent =
+    events.find((e) => e.status === 'voting_active') ||
+    events.find((e) => ['closed', 'resolved'].includes(e.status)) ||
+    null;
+
+  const currentOptions = activeEvent ? optionsMap[activeEvent.id] || [] : [];
+  const currentVotedOptionId = activeEvent ? votedOptions[activeEvent.id] || null : null;
+
+  // Handle Spectator Vote Submission
+  const handleVoteSubmission = async (optionId: string): Promise<{ success: boolean; error?: string; code?: string }> => {
+    if (!activeEvent) return { success: false, error: 'No active event' };
+
+    try {
+      const res = await fetch('/api/game/spectator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audienceEventId: activeEvent.id,
+          optionId,
+          eventId: activeEvent.eventId || 'default-event',
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        // Record vote locally
+        const updatedVotes = { ...votedOptions, [activeEvent.id]: optionId };
+        setVotedOptions(updatedVotes);
+        try {
+          localStorage.setItem(VOTES_LOCAL_STORAGE_KEY, JSON.stringify(updatedVotes));
+        } catch {
+          // ignore
+        }
+
+        // Re-fetch data to reflect updated vote tallies
+        fetchData();
+        return { success: true };
+      }
+
+      return {
+        success: false,
+        error: data.error,
+        code: data.code,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: 'Network failure submitting vote',
+      };
+    }
+  };
+
+  // Session Update from Age & Safety Gate Modal
+  const handleSessionUpdate = async (params: {
+    ageAcknowledged: boolean;
+    safetyAcknowledged: boolean;
+    isMinor?: boolean;
+  }) => {
+    const res = await fetch('/api/game/spectator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'register_session',
+        ...params,
+      }),
+    });
+    const data = await res.json();
+    if (data.success && data.session) {
+      setIsMinorSession(!!data.session.isMinor);
+      if (data.session.convertedToPlayerId) {
+        setConvertedPlayerId(data.session.convertedToPlayerId);
+      }
+    }
+  };
+
+  const isSystemDisabled = !!settings?.isSpectatorSystemDisabled;
+  const totalVotesCast = currentOptions.reduce((sum, opt) => sum + (opt.voteCount || 0), 0);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col font-mono text-xs">
+        <Header />
+        <main className="flex-1 max-w-4xl w-full mx-auto p-6 space-y-6 flex flex-col items-center justify-center min-h-[65vh]">
+          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-center space-y-1">
+            <h2 className="text-sm font-extrabold text-white font-mono uppercase tracking-wider">
+              📡 CONNECTING TO DOWNTOWN CANTON WATCH AIRWAVES...
+            </h2>
+            <p className="text-xs text-gray-400">Synchronizing live feed, broadcasts, and audience voting channels</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col font-mono text-xs pb-20">
+      <Header />
+
+      {/* Watch Mode Banner Header */}
+      <div className="bg-[#121824] border-b border-gray-800 py-3 px-4 sticky top-[61px] z-30 backdrop-blur-md">
+        <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <div>
+              <span className="font-extrabold text-sm text-white tracking-wider font-display uppercase block">
+                CANTON QUESTS • SPECTATOR WATCH
+              </span>
+              <span className="text-[10px] text-cyan-400 font-mono">
+                Live Citywide Game Show Airwaves
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {networkError ? (
+              <span className="px-2.5 py-1 bg-red-950/80 text-red-300 border border-red-500/50 rounded-lg text-[10px] font-mono">
+                ⚠️ RECONNECTING...
+              </span>
+            ) : (
+              <span className="px-2.5 py-1 bg-emerald-950/80 text-emerald-300 border border-emerald-500/50 rounded-lg text-[10px] font-mono flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                LIVE SYNC
+              </span>
+            )}
+
+            {isMinorSession && (
+              <span className="px-2.5 py-1 bg-purple-950/80 text-purple-300 border border-purple-500/50 rounded-lg text-[10px] font-mono">
+                🛡️ MINOR PROTECTED
+              </span>
+            )}
+
+            {convertedPlayerId ? (
+              <span className="px-2.5 py-1 bg-emerald-950/80 text-emerald-300 border border-emerald-500/50 rounded-lg text-[10px] font-mono font-bold">
+                ⚡ AGENT CONVERTED ({convertedPlayerId})
+              </span>
+            ) : (
+              <button
+                onClick={() => setIsEnterGameModalOpen(true)}
+                className="btn btn-primary text-xs py-1.5 px-3 font-mono font-bold flex items-center gap-1 text-amber-400 bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20"
+              >
+                🎮 ENTER THE GAME →
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 space-y-6">
+        {/* Parent Event Status Banner Frame */}
+        {parentEventStatus === 'upcoming' && (
+          <div className="p-5 bg-cyan-950/40 border-2 border-cyan-500/50 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="badge badge-medium bg-cyan-500/20 text-cyan-300 font-mono font-bold uppercase">
+                🗓️ UPCOMING EVENT • CANTON VOL. 1
+              </span>
+              <span className="text-xs text-gray-400 font-mono">Kickoff: September 4, 2026</span>
+            </div>
+            <h2 className="text-lg font-bold text-white">Canton Quests Airwaves Standing By</h2>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              The live citywide game show opens on September 4th. Audience voting options, live broadcasts, and real-time field tickers will stream live right here during event hours.
+            </p>
+          </div>
+        )}
+
+        {parentEventStatus === 'ended' && (
+          <div className="p-5 bg-purple-950/40 border-2 border-purple-500/50 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="badge badge-medium bg-purple-500/20 text-purple-300 font-mono font-bold uppercase">
+                🏆 EVENT CONCLUDED
+              </span>
+              <span className="text-xs text-gray-400 font-mono font-bold">FINAL RESULTS ARCHIVED</span>
+            </div>
+            <h2 className="text-lg font-bold text-white">Canton Quests Season Has Ended</h2>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Field operations for this volume are complete. Final spectator vote outcomes and public activity records are archived below.
+            </p>
+          </div>
+        )}
+
+        {/* System Freeze Banner */}
+        {isSystemDisabled && (
+          <div className="p-4 bg-red-950/90 border-2 border-red-500 rounded-2xl text-red-200 space-y-1 animate-pulse shadow-lg shadow-red-950/50">
+            <div className="flex items-center gap-2 font-bold text-sm">
+              <span>⛔ GAME MASTER EMERGENCY SYSTEM FREEZE</span>
+            </div>
+            <p className="text-xs text-red-300 leading-relaxed">
+              {settings?.disabledReason || 'Spectator voting and live commands have been temporarily paused by the Game Master.'}
+            </p>
+          </div>
+        )}
+
+        {/* Network Error Alert */}
+        {networkError && (
+          <div className="p-3.5 bg-red-950/60 border border-red-500/50 rounded-xl text-red-300 flex items-center justify-between gap-3 font-mono">
+            <span>{networkError}</span>
+            <button
+              onClick={fetchData}
+              className="btn btn-secondary text-[11px] py-1 px-3"
+            >
+              🔄 Retry Now
+            </button>
+          </div>
+        )}
+
+        {/* Returning Spectator Session Alert */}
+        {convertedPlayerId && (
+          <div className="p-3.5 bg-emerald-950/50 border border-emerald-500/40 rounded-xl text-emerald-300 flex items-center justify-between gap-3 font-mono">
+            <span>⚡ Welcome back! Your spectator session is linked to Agent Profile ({convertedPlayerId}).</span>
+            <a href="/" className="btn btn-primary text-[11px] py-1 px-3 font-bold">
+              🚀 PLAY NOW →
+            </a>
+          </div>
+        )}
+
+        {/* Community Stats Bar */}
+        <CommunityStatsBar
+          totalVotes={totalVotesCast}
+          activeSpectatorCount={activeSpectatorCount}
+          activeDistrictCount={districts.length || 4}
+          feedCount={feed.length}
+        />
+
+        {/* Host Broadcasts */}
+        <HostBroadcastCard broadcasts={broadcasts} />
+
+        {/* Active Audience Vote Card */}
+        <AudienceVoteCard
+          event={activeEvent}
+          options={currentOptions}
+          votedOptionId={currentVotedOptionId}
+          onVoteSubmitted={handleVoteSubmission}
+          isSystemDisabled={isSystemDisabled}
+        />
+
+        {/* Canton Citywide District Activity View */}
+        <DistrictActivityView districts={districts} />
+
+        {/* Sanitized Public Field Feed */}
+        <PublicGameFeed feed={feed} />
+      </main>
+
+      {/* Floating Sticky Conversion Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#0b0f17]/95 border-t border-amber-500/40 p-3 backdrop-blur-md">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+          <div>
+            <span className="font-extrabold text-white text-xs block">
+              READY TO JOIN DOWNTOWN CANTON FIELD OPS?
+            </span>
+            <span className="text-[10px] text-gray-400 font-mono hidden sm:block">
+              Convert your spectator session into an active agent profile in 1 tap.
+            </span>
+          </div>
+
+          <button
+            onClick={() => setIsEnterGameModalOpen(true)}
+            className="btn btn-primary text-xs py-2 px-4 font-mono font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform whitespace-nowrap"
+          >
+            🚀 ENTER THE GAME NOW →
+          </button>
+        </div>
+      </div>
+
+      {/* Age & Safety Onboarding Modal */}
+      <EnterGameModal
+        isOpen={isEnterGameModalOpen}
+        onClose={() => setIsEnterGameModalOpen(false)}
+        onSessionUpdate={handleSessionUpdate}
+      />
+    </div>
+  );
+}

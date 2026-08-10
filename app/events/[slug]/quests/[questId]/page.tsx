@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import LocationVerifier from '@/components/LocationVerifier';
@@ -19,10 +19,9 @@ import {
 export default function QuestDetailPage({
   params,
 }: {
-  params: Promise<{ slug: string; questId: string }>;
+  params: { slug: string; questId: string };
 }) {
-  const resolvedParams = use(params);
-  const { slug: eventSlug, questId } = resolvedParams;
+  const { slug: eventSlug, questId } = params;
 
   const [quest, setQuest] = useState<Quest | null>(null);
   const [event, setEvent] = useState<QuestEvent | null>(null);

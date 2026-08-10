@@ -132,4 +132,49 @@ Each entry follows the standard ADR structure:
 - **Consequences**: `players.role` cannot be modified by standard client update calls. Database RLS policies checking `players.role = 'admin'` are securely backed by PostgreSQL schema constraints. Direct Supabase SELECT queries on `public_game_feed` by public clients automatically suppress ineligible and minor participant rows.
 - **Status**: **ACCEPTED**
 
+---
+
+## ADR-013: Hardened Player Identity Verification, Public Feed Sanitization Boundary & Extended Audience Effect Audit Shape
+- **Date**: 2026-08-09
+- **Decision**:
+  1. Enforce strict cryptographic JWT verification (`supabase.auth.getUser`) for authenticated player claims in spectator endpoints (`/api/game/spectator`). Raw unauthenticated player UUID token matching directly against the `players` table is prohibited to prevent player impersonation.
+  2. Enforce a mandatory text sanitization boundary (`sanitizeTextContent`) across all public feed outputs (`sanitizeActivityItem`) to strip emails, phone numbers, exact lat/lon coordinates, secret codes/passphrases, admin notes, IP/token hashes, and private proof URLs.
+  3. Extend the `audience_effects` schema and domain interfaces to support full lifecycle status (`pending`, `applied`, `failed`, `cancelled`, `overridden`), resolution timestamps (`resolved_at`), cancellation reasons (`cancellation_reason`), override context (`override_context`), and administrative attribution (`created_by`, `applied_by`, `resolved_by`).
+- **Reason**:
+  - Accept raw player UUID strings as authenticated player IDs allowed anonymous browsers to forge player identities and bypass active-player exclusions or impersonate players during spectator conversion.
+  - Direct concatenation of raw activity details into public feed items risked exposing sensitive location or contact metadata.
+  - The spectator architecture audit requires complete GM auditability and lifecycle overrides for audience-generated effects.
+- **Alternatives Evaluated**: Trusting `x-player-token` header strings without JWT validation; allowing raw activity text in public feed; maintaining minimal 3-state `audience_effects`.
+- **Consequences**:
+  - Player authentication in spectator routes strictly requires valid Supabase Auth JWTs.
+  - All public game feed items pass through `sanitizeTextContent` before public publication.
+  - `audience_effects` table and domain model store complete audit records for all effect applications, resolutions, and manual overrides.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-014: Double-Sanitized Public Feed/Broadcast Boundaries & Admin Client State Security Gating
+- **Date**: 2026-08-09
+- **Decision**:
+  1. Mandate `sanitizeTextContent` at both write (insertion) and read boundaries for `public_game_feed` and `host_broadcasts` in both standalone engine (`spectator-engine.ts`) and database service layers (`spectator-db.ts`). Public spectators receive text output stripped of emails, phone numbers, exact lat/lon coordinates, secret passphrases, admin notes, IP/token hashes, and private proof URLs regardless of upstream input source.
+  2. Gate admin page component data loading (`app/admin/page.tsx` and `app/admin/live/page.tsx`) strictly behind server-verified session checks (`/api/admin/session`). Unauthenticated visitors receive 0 privileged game data in React component state, and background polling is disabled until server authorization succeeds.
+- **Reason**:
+  - Writing raw broadcast copy or reading un-sanitized feed rows directly from database tables presented potential data leak risks if upstream GM text contained sensitive coordinates, codes, or contact details.
+  - Initializing client component state with administrative game data prior to session verification exposed privileged event data in browser memory to unauthenticated visitors.
+- **Alternatives Evaluated**: Relying solely on RLS for text sanitization; populating admin state on mount before server authentication check finishes.
+- **Consequences**:
+  - All public feed and host broadcast items pass through text sanitization at both store/insert and public read boundaries.
+  - `/admin` and `/admin/live` client components maintain zeroed state and zero polling when unauthenticated, strictly enforcing server session verification via `/api/admin/session`.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-015: Database-Enforced Single Vote Per Spectator Per Audience Event Invariant
+- **Date**: 2026-08-09
+- **Decision**: Enforce a strict single-vote-per-spectator-per-event invariant at the database schema level via `CONSTRAINT uq_spectator_one_vote_per_event UNIQUE (audience_event_id, session_token_hash)` on `public.audience_votes` and `CHECK (max_votes_per_session = 1)` on `public.audience_events`.
+- **Reason**: The previous unique constraint `(audience_event_id, session_token_hash, vote_number)` allowed vote numbers 1, 2, etc. if `max_votes_per_session` was configured > 1 or unconstrained, contradicting the nonnegotiable product principle that a spectator cannot vote multiple times in the same audience event.
+- **Alternatives Evaluated**: Allowing configurable `max_votes_per_session > 1` per event type; relying solely on trigger checks.
+- **Consequences**: PostgreSQL schema guarantees that no spectator session token hash can ever record more than one vote row for a given audience event. Attempts to insert duplicate votes fail instantly at the database level with a `unique_violation`.
+- **Status**: **ACCEPTED**
+
 

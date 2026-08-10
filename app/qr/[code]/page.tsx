@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { Quest, QuestEvent, Player, SubmitProofResult, GeneratedQR } from '@/lib/types';
@@ -12,9 +12,8 @@ import {
   resolveQRToken,
 } from '@/lib/game-engine';
 
-export default function QrGatewayPage({ params }: { params: Promise<{ code: string }> }) {
-  const resolvedParams = use(params);
-  const code = decodeURIComponent(resolvedParams.code);
+export default function QrGatewayPage({ params }: { params: { code: string } }) {
+  const code = decodeURIComponent(params.code);
 
   const [quest, setQuest] = useState<Quest | null>(null);
   const [event, setEvent] = useState<QuestEvent | null>(null);

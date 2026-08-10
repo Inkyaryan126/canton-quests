@@ -22,6 +22,13 @@ export default function Header() {
 
         <div className="flex items-center gap-2">
           <Link
+            href="/watch"
+            className="btn btn-primary text-xs px-3 py-1.5 min-h-[36px] font-mono font-bold flex items-center gap-1.5 text-amber-400 bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            📺 WATCH LIVE
+          </Link>
+          <Link
             href="/admin"
             className="btn btn-secondary text-xs px-3 py-1.5 min-h-[36px] font-mono text-gray-300 hover:text-white"
           >

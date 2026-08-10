@@ -1,8 +1,8 @@
-// Canton Quests — Admin Security & Game Master Authorization Layer (Phase 4)
+// Canton Quests — Admin Security & Game Master Authorization Layer (Phase 5.1 Spectator Engine)
 
 import { UserRole } from './types';
 
-export const DEFAULT_ADMIN_SECRET = process.env.ADMIN_SECRET_KEY || 'canton-gm-2026';
+export const ADMIN_COOKIE_NAME = 'cg_admin_session';
 
 export interface AdminSession {
   isAdmin: boolean;
@@ -12,11 +12,23 @@ export interface AdminSession {
 
 /**
  * Validates whether a given passphrase or secret key grants Game Master access.
+ * Server-side evaluation.
  */
 export function verifyAdminSecret(passphrase?: string): boolean {
   if (!passphrase) return false;
   const clean = passphrase.trim();
-  return clean === DEFAULT_ADMIN_SECRET || clean === 'canton-admin-pass-2026' || clean === 'gm-super-2026';
+  const envSecret = process.env.ADMIN_SECRET_KEY;
+
+  if (envSecret) {
+    return clean === envSecret;
+  }
+
+  // In development and test environments, allow standard test passphrases when ADMIN_SECRET_KEY is not set.
+  if (process.env.NODE_ENV !== 'production') {
+    return clean === 'canton-gm-2026' || clean === 'canton-admin-pass-2026' || clean === 'gm-super-2026';
+  }
+
+  return false;
 }
 
 /**
