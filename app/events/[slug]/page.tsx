@@ -20,7 +20,6 @@ import {
   PlayerEventProgress,
   Team,
   TeamMember,
-  LiveAnnouncement,
   PlayerCollectible,
   NPCCharacter,
 } from '@/lib/types';
@@ -32,7 +31,6 @@ import {
   getTeamLeaderboardForEvent,
   getPlayerProgress,
   getTeamForPlayer,
-  getAnnouncements,
   redeemSecretCode,
   getCollectiblesForPlayer,
   getNPCCharacters,
@@ -88,7 +86,6 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   // Phase 3 Live States
-  const [announcements, setAnnouncements] = useState<LiveAnnouncement[]>([]);
   const [collectibles, setCollectibles] = useState<PlayerCollectible[]>([]);
   const [npcs, setNpcs] = useState<NPCCharacter[]>([]);
 
@@ -133,7 +130,6 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
     setTeamMembers(teamInfo.members);
 
     // Phase 3 Live Data
-    setAnnouncements(getAnnouncements(foundEvent.id));
     setCollectibles(getCollectiblesForPlayer(player.id));
     setNpcs(getNPCCharacters(foundEvent.id));
   }, [eventSlug]);
@@ -193,7 +189,6 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   }
 
   const activeFlashQuests = quests.filter((q) => q.isFlash && q.status === 'active');
-  const latestAnnouncement = announcements[0];
   const activeNpc = npcs[0];
   const recommendedQuest =
     activeFlashQuests[0] ||
@@ -228,56 +223,14 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col pb-24 md:pb-0">
+    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
       <Header />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6">
-        {/* LIVE TICKER ANNOUNCEMENT BANNER */}
-        {latestAnnouncement && (
-          <div
-            className={`p-3.5 rounded-2xl mb-4 text-xs font-mono border flex items-center justify-between gap-3 shadow-lg ${
-              latestAnnouncement.urgency === 'flash' || latestAnnouncement.urgency === 'urgent'
-                ? 'bg-red-950/70 border-red-500 text-red-200 animate-pulse'
-                : latestAnnouncement.urgency === 'warning'
-                ? 'bg-amber-950/70 border-amber-500 text-amber-200'
-                : 'bg-cyan-950/70 border-cyan-500 text-cyan-200'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-base">📢</span>
-              <div>
-                <span className="font-bold uppercase tracking-wider block">{latestAnnouncement.title}</span>
-                <span className="text-[11px] opacity-90">{latestAnnouncement.message}</span>
-              </div>
-            </div>
-            {latestAnnouncement.linkedQuestId && (
-              <Link
-                href={`/events/${event.slug}/quests/${latestAnnouncement.linkedQuestId}`}
-                className="btn btn-primary text-[11px] py-1 px-3 whitespace-nowrap font-bold"
-              >
-                Inspect Quest →
-              </Link>
-            )}
-          </div>
-        )}
-
         {/* Event Hero */}
-        <section className="relative overflow-hidden border border-amber-500/30 bg-[#050607] shadow-2xl shadow-black/40 mb-6">
-          <div className="absolute inset-0">
-            <Image
-              src={cqImages.heroCity}
-              alt="Players overlooking downtown Canton at sunset"
-              fill
-              priority
-              sizes="(max-width: 896px) 100vw, 896px"
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#050607] via-[#050607]/82 to-[#050607]/38" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#050607] via-transparent to-[#050607]/25" />
-          </div>
-
-          <div className="relative z-10 grid gap-6 md:grid-cols-[1fr_260px] p-5 md:p-8 min-h-[520px] items-end">
-            <div>
+        <section className="overflow-hidden border border-amber-500/30 bg-[#050607] shadow-2xl shadow-black/40 mb-6">
+          <div className="grid md:grid-cols-[1fr_0.82fr]">
+            <div className="p-5 md:p-8 flex flex-col justify-end min-h-[420px]">
               <span className="inline-flex mb-3 text-[11px] font-mono uppercase tracking-[0.22em] text-amber-300 font-extrabold">
                 Canton Quest Weekend
               </span>
@@ -311,19 +264,31 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
               </div>
             </div>
 
-            <div className="bg-black/70 border border-amber-500/40 p-5 shadow-xl shadow-black/35">
-              <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-amber-300 font-extrabold">
-                {countdown.label}
-              </span>
-              <strong className="block text-4xl font-display font-extrabold text-white mt-2">
-                {countdown.value}
-              </strong>
-              <p className="text-xs text-gray-300 font-mono mt-2">{countdown.subtext}</p>
-              <div className="h-px bg-amber-500/30 my-4" />
-              <span className="block text-[10px] font-mono uppercase tracking-widest text-gray-400">
-                Event Window
-              </span>
-              <p className="text-sm text-amber-200 font-bold mt-1">{formatEventWindow(event)}</p>
+            <div className="grid grid-rows-[minmax(260px,1fr)_auto] border-t md:border-l md:border-t-0 border-amber-500/25">
+              <div className="relative min-h-[260px] md:min-h-0 bg-black">
+                <Image
+                  src={cqImages.heroCity}
+                  alt="Players overlooking downtown Canton at sunset"
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 100vw, 380px"
+                  className="object-cover"
+                />
+              </div>
+              <div className="bg-black/86 border-t border-amber-500/30 p-5">
+                <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-amber-300 font-extrabold">
+                  {countdown.label}
+                </span>
+                <strong className="block text-4xl font-display font-extrabold text-white mt-2">
+                  {countdown.value}
+                </strong>
+                <p className="text-xs text-gray-300 font-mono mt-2">{countdown.subtext}</p>
+                <div className="h-px bg-amber-500/30 my-4" />
+                <span className="block text-[10px] font-mono uppercase tracking-widest text-gray-400">
+                  Event Window
+                </span>
+                <p className="text-sm text-amber-200 font-bold mt-1">{formatEventWindow(event)}</p>
+              </div>
             </div>
           </div>
         </section>

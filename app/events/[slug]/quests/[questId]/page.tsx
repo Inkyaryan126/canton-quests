@@ -140,7 +140,7 @@ export default function QuestDetailPage({
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col pb-24 md:pb-0">
+    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
       <Header />
 
       <main className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-6">
@@ -161,7 +161,7 @@ export default function QuestDetailPage({
 
         {/* Quest Briefing */}
         <section className="glass-panel mb-6 border-amber-500/30 glow-amber overflow-hidden">
-          <div className="relative min-h-[260px]">
+          <div className="relative aspect-[16/9] min-h-[220px] max-h-[380px] bg-black">
             <Image
               src={getQuestImage(quest)}
               alt={`${cleanQuestTitle(quest.title)} location artwork`}
@@ -170,24 +170,24 @@ export default function QuestDetailPage({
               sizes="(max-width: 768px) 100vw, 768px"
               className="object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#050607] via-[#050607]/70 to-[#050607]/15" />
-            <div className="absolute inset-x-0 bottom-0 p-5 md:p-6">
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className={`badge badge-${quest.difficulty}`}>{quest.difficulty}</span>
-                <span className="badge badge-medium bg-amber-500/20 text-amber-300 border-amber-500/40 font-mono">
-                  +{quest.pointValue} XP
-                </span>
-                <span className="badge badge-medium bg-cyan-500/15 text-cyan-300 border-cyan-500/35 font-mono">
-                  {proofTypeLabels[quest.verificationType]}
-                </span>
-              </div>
-              <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-none">
-                {cleanQuestTitle(quest.title)}
-              </h1>
-              <p className="text-sm sm:text-base text-gray-200 leading-relaxed mt-3 max-w-2xl">
-                {quest.description}
-              </p>
+          </div>
+
+          <div className="p-5 md:p-6 bg-[#050607] border-t border-amber-500/24">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className={`badge badge-${quest.difficulty}`}>{quest.difficulty}</span>
+              <span className="badge badge-medium bg-amber-500/20 text-amber-300 border-amber-500/40 font-mono">
+                +{quest.pointValue} XP
+              </span>
+              <span className="badge badge-medium bg-cyan-500/15 text-cyan-300 border-cyan-500/35 font-mono">
+                {proofTypeLabels[quest.verificationType]}
+              </span>
             </div>
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-none">
+              {cleanQuestTitle(quest.title)}
+            </h1>
+            <p className="text-sm sm:text-base text-gray-200 leading-relaxed mt-3 max-w-2xl">
+              {quest.description}
+            </p>
           </div>
 
           <div className="grid sm:grid-cols-3 gap-px bg-amber-500/20">
