@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import PlayerIdentityBar from '@/components/PlayerIdentityBar';
@@ -22,7 +23,6 @@ import {
   LiveAnnouncement,
   PlayerCollectible,
   NPCCharacter,
-  CrowdObjective,
 } from '@/lib/types';
 import {
   getEventBySlug,
@@ -36,10 +36,44 @@ import {
   redeemSecretCode,
   getCollectiblesForPlayer,
   getNPCCharacters,
-  getCrowdObjectives,
 } from '@/lib/game-engine';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
-import { cleanQuestTitle } from '@/lib/marketing-assets';
+import { cleanQuestTitle, cqImages, formatEventWindow } from '@/lib/marketing-assets';
+
+function getEventCountdown(event: QuestEvent) {
+  const now = Date.now();
+  const start = event.startTime ? new Date(event.startTime).getTime() : null;
+  const end = event.endTime ? new Date(event.endTime).getTime() : null;
+  const target = start && now < start ? start : end;
+
+  if (!target) {
+    return {
+      label: 'Event time',
+      value: 'Announcing soon',
+      subtext: 'Full schedule will appear here.',
+    };
+  }
+
+  const remainingMs = target - now;
+  if (remainingMs <= 0) {
+    return {
+      label: 'Event status',
+      value: 'Event complete',
+      subtext: 'Final results are being wrapped.',
+    };
+  }
+
+  const totalMinutes = Math.floor(remainingMs / (1000 * 60));
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  return {
+    label: start && now < start ? 'Starts in' : 'Ends in',
+    value: `${days}d ${hours}h ${minutes}m`,
+    subtext: start && now < start ? 'Get your callsign ready.' : 'Keep earning XP before the finale.',
+  };
+}
 
 export default function EventHubPage({ params }: { params: { slug: string } }) {
   const eventSlug = params.slug;
@@ -57,7 +91,6 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   const [announcements, setAnnouncements] = useState<LiveAnnouncement[]>([]);
   const [collectibles, setCollectibles] = useState<PlayerCollectible[]>([]);
   const [npcs, setNpcs] = useState<NPCCharacter[]>([]);
-  const [crowdObjectives, setCrowdObjectives] = useState<CrowdObjective[]>([]);
 
   // Secret Passcode Input State
   const [passcodeInput, setPasscodeInput] = useState('');
@@ -71,9 +104,6 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   // User Geolocation State
   const [userLat, setUserLat] = useState<number | undefined>(undefined);
   const [userLon, setUserLon] = useState<number | undefined>(undefined);
-
-  // Finale Countdown Timer
-  const [finaleTimerStr, setFinaleTimerStr] = useState<string>('14h 22m');
 
   // Feedback Modal State
   const [feedback, setFeedback] = useState<any | null>(null);
@@ -106,7 +136,6 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
     setAnnouncements(getAnnouncements(foundEvent.id));
     setCollectibles(getCollectiblesForPlayer(player.id));
     setNpcs(getNPCCharacters(foundEvent.id));
-    setCrowdObjectives(getCrowdObjectives(foundEvent.id));
   }, [eventSlug]);
 
   useEffect(() => {
@@ -151,22 +180,6 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
     refreshData();
   };
 
-  // Update Finale Timer
-  useEffect(() => {
-    if (!event || !event.endTime) return;
-    const interval = setInterval(() => {
-      const remainingMs = new Date(event.endTime!).getTime() - Date.now();
-      if (remainingMs <= 0) {
-        setFinaleTimerStr('EVENT ENDED');
-      } else {
-        const hrs = Math.floor(remainingMs / (1000 * 60 * 60));
-        const mins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-        setFinaleTimerStr(`${hrs}h ${mins}m`);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [event]);
-
   if (!event) {
     return (
       <div className="min-h-screen bg-[var(--bg-obsidian)] text-white flex flex-col justify-center items-center p-4">
@@ -182,13 +195,13 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   const activeFlashQuests = quests.filter((q) => q.isFlash && q.status === 'active');
   const latestAnnouncement = announcements[0];
   const activeNpc = npcs[0];
-  const activeCrowdObj = crowdObjectives[0];
   const recommendedQuest =
     activeFlashQuests[0] ||
     quests
       .filter((quest) => quest.status === 'active' && !progress?.completedQuestIds.includes(quest.id))
       .sort((a, b) => b.pointValue - a.pointValue)[0] ||
     quests[0];
+  const countdown = getEventCountdown(event);
 
   let filteredQuests = quests.filter((q) => {
     if (selectedCategory === 'all') return true;
@@ -248,57 +261,72 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
           </div>
         )}
 
-        {/* Event Header Banner */}
-        <div className="glass-panel p-5 md:p-6 mb-6 border-amber-500/30 glow-amber relative overflow-hidden space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="badge badge-medium bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                ● CANTON LIVE GRID
-              </span>
-              <span className="text-xs font-mono text-amber-400 bg-amber-950/40 px-2.5 py-0.5 rounded-full border border-amber-800/40 font-bold uppercase">
-                PHASE: {event.currentPhase}
-              </span>
-            </div>
-            <span className="text-xs font-mono text-amber-400 bg-amber-950/40 px-3 py-1 rounded-full border border-amber-800/40">
-              ⏱️ Event Finale: {finaleTimerStr}
-            </span>
+        {/* Event Hero */}
+        <section className="relative overflow-hidden border border-amber-500/30 bg-[#050607] shadow-2xl shadow-black/40 mb-6">
+          <div className="absolute inset-0">
+            <Image
+              src={cqImages.heroCity}
+              alt="Players overlooking downtown Canton at sunset"
+              fill
+              priority
+              sizes="(max-width: 896px) 100vw, 896px"
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#050607] via-[#050607]/82 to-[#050607]/38" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#050607] via-transparent to-[#050607]/25" />
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-white">{event.title}</h1>
-          <p className="text-xs sm:text-sm text-gray-300 max-w-2xl leading-relaxed">
-            {event.description}
-          </p>
+          <div className="relative z-10 grid gap-6 md:grid-cols-[1fr_260px] p-5 md:p-8 min-h-[520px] items-end">
+            <div>
+              <span className="inline-flex mb-3 text-[11px] font-mono uppercase tracking-[0.22em] text-amber-300 font-extrabold">
+                Canton Quest Weekend
+              </span>
+              <h1 className="text-4xl sm:text-6xl font-extrabold text-white leading-[0.9] max-w-xl">
+                {event.title.replace('Canton Quest Weekend #1 — ', '')}
+              </h1>
+              <p className="text-base text-gray-200 leading-relaxed mt-4 max-w-xl">
+                A real-world adventure across Canton. Pick a quest, visit the location, complete the mission, and earn XP.
+              </p>
 
-          {/* Citywide Crowd Objective Bar */}
-          {activeCrowdObj && (
-            <div className="p-3 bg-obsidian/90 rounded-xl border border-purple-500/40 space-y-1 text-xs font-mono">
-              <div className="flex items-center justify-between text-purple-300 font-bold">
-                <span>🌆 {activeCrowdObj.title}</span>
-                <span>
-                  {activeCrowdObj.currentCount} / {activeCrowdObj.targetCount} Solves
-                </span>
+              <div className="grid gap-2 sm:grid-cols-3 mt-6">
+                {[
+                  ['1', 'Create your callsign'],
+                  ['2', 'Choose a quest'],
+                  ['3', 'Submit proof'],
+                ].map(([step, label]) => (
+                  <div key={step} className="bg-black/55 border border-amber-500/25 p-3">
+                    <span className="text-amber-300 font-display font-extrabold text-xl">{step}</span>
+                    <strong className="block text-white text-sm mt-1">{label}</strong>
+                  </div>
+                ))}
               </div>
-              <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-purple-500 h-full transition-all"
-                  style={{
-                    width: `${Math.min(100, (activeCrowdObj.currentCount / activeCrowdObj.targetCount) * 100)}%`,
-                  }}
-                ></div>
+
+              <div className="flex flex-wrap gap-3 mt-6">
+                <a href="#quest-board" className="btn btn-primary text-sm px-5 py-3 font-bold">
+                  Choose a Quest
+                </a>
+                <button onClick={requestLocation} className="btn btn-secondary text-sm px-5 py-3 font-bold">
+                  Enable GPS
+                </button>
               </div>
             </div>
-          )}
 
-          {/* Quick Guidance Bar */}
-          <div className="p-3 bg-obsidian/80 rounded-xl border border-gray-800 text-xs text-gray-300 font-mono flex flex-wrap items-center justify-between gap-2">
-            <span>Start simple: set your callsign, pick a quest, go to the location, submit proof.</span>
-            {userLat === undefined && (
-              <button onClick={requestLocation} className="text-[11px] text-cyan-400 hover:underline font-bold">
-                📍 Enable GPS Proximity
-              </button>
-            )}
+            <div className="bg-black/70 border border-amber-500/40 p-5 shadow-xl shadow-black/35">
+              <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-amber-300 font-extrabold">
+                {countdown.label}
+              </span>
+              <strong className="block text-4xl font-display font-extrabold text-white mt-2">
+                {countdown.value}
+              </strong>
+              <p className="text-xs text-gray-300 font-mono mt-2">{countdown.subtext}</p>
+              <div className="h-px bg-amber-500/30 my-4" />
+              <span className="block text-[10px] font-mono uppercase tracking-widest text-gray-400">
+                Event Window
+              </span>
+              <p className="text-sm text-amber-200 font-bold mt-1">{formatEventWindow(event)}</p>
+            </div>
           </div>
-        </div>
+        </section>
 
         {/* Live Flash Quest Pop-Up Alert Banner */}
         {activeFlashQuests.length > 0 && (
@@ -323,29 +351,29 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
           </div>
         )}
 
-        {/* Roaming NPC Radar Card */}
+        {/* Live Clue Card */}
         {activeNpc && activeNpc.isActive && (
           <div className="p-4 bg-emerald-950/30 border border-emerald-500/40 rounded-2xl mb-6 text-xs font-mono space-y-1 shadow">
             <div className="flex items-center justify-between text-emerald-300 font-bold">
               <span className="flex items-center gap-1.5">
-                {activeNpc.avatarSymbol} ROAMING NPC SPOTTED: {activeNpc.aliasName}
+                {activeNpc.avatarSymbol} Live clue nearby: {activeNpc.aliasName}
               </span>
-              <span className="text-[10px] text-gray-400 uppercase">ACTIVE FIELD RADAR</span>
+              <span className="text-[10px] text-gray-400 uppercase">Optional hint</span>
             </div>
             <div className="text-gray-300">
-              Current Zone: <span className="text-white font-bold">{activeNpc.currentZone}</span>
+              Area: <span className="text-white font-bold">{activeNpc.currentZone}</span>
             </div>
             <div className="text-emerald-400 text-[11px]">Clue: &quot;{activeNpc.clueHint}&quot;</div>
           </div>
         )}
 
-        {/* Secret Passcode Redemption Bar */}
+        {/* Secret Code Bar */}
         <div className="p-4 bg-cyan-950/30 border border-cyan-500/40 rounded-2xl mb-6 space-y-3 font-mono">
           <div className="flex items-center justify-between">
             <span className="text-white font-bold text-xs flex items-center gap-1.5">
-              🔑 REDEEM SECRET PASSCODE DROP
+              Have a secret code?
             </span>
-            <span className="text-[10px] text-cyan-400">Game Master Broadcast Code</span>
+            <span className="text-[10px] text-cyan-400">Enter it here for bonus XP</span>
           </div>
 
           <form onSubmit={handleRedeemPasscode} className="flex gap-2">
@@ -512,7 +540,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
 
         {/* TAB 1: QUESTS LIST */}
         {activeTab === 'quests' && (
-          <section className="space-y-4">
+          <section id="quest-board" className="space-y-4 scroll-mt-24">
             {/* Sort & Filter Controls Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-obsidian/70 p-3 rounded-2xl border border-gray-800">
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
