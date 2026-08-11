@@ -229,8 +229,8 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6">
         {/* Event Hero */}
         <section className="overflow-hidden border border-amber-500/30 bg-[#050607] shadow-2xl shadow-black/40 mb-6">
-          <div className="grid md:grid-cols-[1fr_0.82fr]">
-            <div className="p-5 md:p-8 flex flex-col justify-end min-h-[420px]">
+          <div className="grid gap-px bg-amber-500/25 md:grid-cols-[minmax(0,1fr)_minmax(280px,0.78fr)]">
+            <div className="bg-[#050607] p-5 md:p-8 flex flex-col justify-center min-h-[360px]">
               <span className="inline-flex mb-3 text-[11px] font-mono uppercase tracking-[0.22em] text-amber-300 font-extrabold">
                 Canton Quest Weekend
               </span>
@@ -264,18 +264,17 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
               </div>
             </div>
 
-            <div className="grid grid-rows-[minmax(260px,1fr)_auto] border-t md:border-l md:border-t-0 border-amber-500/25">
-              <div className="relative min-h-[260px] md:min-h-0 bg-black">
+            <aside className="grid bg-[#050607]">
+              <figure className="bg-black aspect-[16/10] md:aspect-auto md:min-h-[360px] overflow-hidden">
                 <Image
                   src={cqImages.heroCity}
                   alt="Players overlooking downtown Canton at sunset"
-                  fill
                   priority
                   sizes="(max-width: 768px) 100vw, 380px"
-                  className="object-cover"
+                  className="h-full w-full object-cover"
                 />
-              </div>
-              <div className="bg-black/86 border-t border-amber-500/30 p-5">
+              </figure>
+              <div className="bg-black/80 border-t border-amber-500/30 p-5">
                 <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-amber-300 font-extrabold">
                   {countdown.label}
                 </span>
@@ -289,7 +288,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 </span>
                 <p className="text-sm text-amber-200 font-bold mt-1">{formatEventWindow(event)}</p>
               </div>
-            </div>
+            </aside>
           </div>
         </section>
 

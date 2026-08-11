@@ -161,16 +161,15 @@ export default function QuestDetailPage({
 
         {/* Quest Briefing */}
         <section className="glass-panel mb-6 border-amber-500/30 glow-amber overflow-hidden">
-          <div className="relative aspect-[16/9] min-h-[220px] max-h-[380px] bg-black">
+          <figure className="aspect-[16/9] min-h-[220px] max-h-[380px] bg-black overflow-hidden">
             <Image
               src={getQuestImage(quest)}
               alt={`${cleanQuestTitle(quest.title)} location artwork`}
-              fill
               priority
               sizes="(max-width: 768px) 100vw, 768px"
-              className="object-cover"
+              className="h-full w-full object-cover"
             />
-          </div>
+          </figure>
 
           <div className="p-5 md:p-6 bg-[#050607] border-t border-amber-500/24">
             <div className="flex flex-wrap items-center gap-2 mb-3">
