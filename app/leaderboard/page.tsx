@@ -52,7 +52,7 @@ export default function LeaderboardPage() {
             </p>
             <div className="cq-page-actions">
               <Link href={eventHref} className="cq-gold-button">
-                START PLAYING
+                START QUEST
                 <Zap size={17} aria-hidden="true" />
               </Link>
               <Link href="/quests" className="cq-dark-button">
@@ -67,9 +67,9 @@ export default function LeaderboardPage() {
 
         <section className="cq-scoreboard-overview">
           <div>
-            <span className="cq-kicker">CURRENT EVENT</span>
+            <span className="cq-kicker">CURRENT QUEST</span>
             <h2>{activeEvent?.title || 'Canton Quest Weekend'}</h2>
-            <p>{activeEvent ? formatEventWindow(activeEvent) : 'Event window loading'} · Downtown Canton</p>
+            <p>{activeEvent ? formatEventWindow(activeEvent) : 'Quest dates loading'} · Downtown Canton</p>
           </div>
           <div>
             <Radio size={20} aria-hidden="true" />
@@ -93,7 +93,7 @@ export default function LeaderboardPage() {
               <div>{entry.avatarUrl || '⚡'}</div>
               <h2>{entry.displayName}</h2>
               <strong>{entry.totalPoints} XP</strong>
-              <p>{entry.questsCompletedCount} quests verified</p>
+              <p>{entry.questsCompletedCount} missions verified</p>
             </article>
           ))}
         </section>
@@ -121,7 +121,7 @@ export default function LeaderboardPage() {
                       {isCurrent && <span>YOU</span>}
                     </h3>
                     <p>
-                      {entry.teamName || 'Solo Agent'} · {entry.questsCompletedCount} quest
+                      {entry.teamName || 'Solo Agent'} · {entry.questsCompletedCount} mission
                       {entry.questsCompletedCount === 1 ? '' : 's'} completed
                     </p>
                   </div>

@@ -129,7 +129,7 @@ export default function HomePage() {
 
             <div className="cq-hero-buttons">
               <Link href={eventHref} className="cq-gold-button cq-primary-cta">
-                START PLAYING
+                START QUEST
                 <ArrowRight size={17} aria-hidden="true" />
               </Link>
               <Link href="/quests" className="cq-dark-button">
@@ -147,7 +147,7 @@ export default function HomePage() {
                   <strong>{currentPlayer.displayName}</strong>
                 </div>
                 <b>{currentPlayer.totalXp} XP</b>
-                <Link href={eventHref}>CONTINUE GAME</Link>
+                <Link href={eventHref}>CONTINUE QUEST</Link>
               </div>
             )}
           </div>
@@ -176,7 +176,7 @@ export default function HomePage() {
             <div className="cq-player-panel" aria-label="Player identity setup">
               <div className="cq-panel-header">
                 <span>STEP 1</span>
-                <strong>Create your callsign, then start the event.</strong>
+                <strong>Create your callsign, then start the quest.</strong>
               </div>
               <PlayerIdentityBar onPlayerChanged={setCurrentPlayerState} />
             </div>
@@ -190,8 +190,8 @@ export default function HomePage() {
                 <span className="cq-kicker">THE CITY IS THE GAME BOARD</span>
                 <h2>REAL PLACES. REAL MISSIONS.</h2>
               </div>
-              <Link href="/events" className="cq-view-all-button">
-                SEE EVENTS
+              <Link href={eventHref} className="cq-view-all-button">
+                START QUEST
                 <ArrowRight size={16} aria-hidden="true" />
               </Link>
             </div>
@@ -289,15 +289,15 @@ export default function HomePage() {
             />
           </div>
           <div className="cq-live-cta-copy">
-            <span className="cq-kicker">CURRENT EVENT</span>
+            <span className="cq-kicker">CURRENT QUEST</span>
             <h2>THE CITY IS ALREADY IN PLAY.</h2>
             <p>
-              Enter the current Canton Quest Weekend, complete live missions, earn XP,
+              Start the current Canton Quest, complete live missions, earn XP,
               and climb the leaderboard.
             </p>
             <div className="cq-live-buttons">
               <Link href={eventHref} className="cq-gold-button">
-                START PLAYING
+                START QUEST
                 <Flag size={17} aria-hidden="true" />
               </Link>
               <Link href="/leaderboard" className="cq-dark-button">

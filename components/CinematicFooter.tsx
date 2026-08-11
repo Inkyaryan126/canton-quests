@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { Eye, Flag, HelpCircle, ListChecks, Trophy } from 'lucide-react';
+import { Eye, HelpCircle, ListChecks, Trophy } from 'lucide-react';
 import { cqImages } from '@/lib/marketing-assets';
 
 export default function CinematicFooter() {
@@ -14,10 +14,6 @@ export default function CinematicFooter() {
         <Link href="/quests">
           <ListChecks size={15} aria-hidden="true" />
           Quests
-        </Link>
-        <Link href="/events">
-          <Flag size={15} aria-hidden="true" />
-          Events
         </Link>
         <Link href="/leaderboard">
           <Trophy size={15} aria-hidden="true" />

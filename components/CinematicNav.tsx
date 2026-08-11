@@ -17,7 +17,6 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
       <div className="cq-nav-links">
         <Link href="/quests">QUESTS</Link>
         <Link href="/leaderboard">LEADERBOARD</Link>
-        <Link href="/events">EVENTS</Link>
         <Link href="/how-it-works">HOW IT WORKS</Link>
       </div>
 
@@ -27,7 +26,7 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
           WATCH LIVE
         </Link>
         <Link href={eventHref} className="cq-gold-button cq-nav-cta">
-          START PLAYING
+          START QUEST
           <ArrowRight size={15} aria-hidden="true" />
         </Link>
       </div>

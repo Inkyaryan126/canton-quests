@@ -12,7 +12,7 @@ interface MobileStartBarProps {
 
 export default function MobileStartBar({
   href,
-  label = 'Start Playing',
+  label = 'Start Quest',
   eyebrow = 'Ready in 60 seconds',
 }: MobileStartBarProps) {
   return (

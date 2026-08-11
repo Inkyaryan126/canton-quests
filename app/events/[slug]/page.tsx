@@ -46,7 +46,7 @@ function getEventCountdown(event: QuestEvent) {
 
   if (!target) {
     return {
-      label: 'Event time',
+      label: 'Quest time',
       value: 'Announcing soon',
       subtext: 'Full schedule will appear here.',
     };
@@ -55,8 +55,8 @@ function getEventCountdown(event: QuestEvent) {
   const remainingMs = target - now;
   if (remainingMs <= 0) {
     return {
-      label: 'Event status',
-      value: 'Event complete',
+      label: 'Quest status',
+      value: 'Quest complete',
       subtext: 'Final results are being wrapped.',
     };
   }
@@ -179,8 +179,8 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   if (!event) {
     return (
       <div className="min-h-screen bg-[var(--bg-obsidian)] text-white flex flex-col justify-center items-center p-4">
-        <h1 className="text-2xl font-bold mb-2">Event Not Found</h1>
-        <p className="text-gray-400 text-sm mb-4">No active Canton event matching &quot;{eventSlug}&quot;.</p>
+        <h1 className="text-2xl font-bold mb-2">Quest Not Found</h1>
+        <p className="text-gray-400 text-sm mb-4">No active Canton Quest matching &quot;{eventSlug}&quot;.</p>
         <Link href="/" className="btn btn-primary text-sm">
           Return to City Hub
         </Link>
@@ -227,24 +227,24 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
       <Header />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6">
-        {/* Event Hero */}
+        {/* Quest Hero */}
         <section className="overflow-hidden border border-amber-500/30 bg-[#050607] shadow-2xl shadow-black/40 mb-6">
           <div className="grid gap-px bg-amber-500/25 md:grid-cols-[minmax(0,1fr)_minmax(280px,0.78fr)]">
             <div className="bg-[#050607] p-5 md:p-8 flex flex-col justify-center min-h-[360px]">
               <span className="inline-flex mb-3 text-[11px] font-mono uppercase tracking-[0.22em] text-amber-300 font-extrabold">
-                Canton Quest Weekend
+                Current Canton Quest
               </span>
               <h1 className="text-4xl sm:text-6xl font-extrabold text-white leading-[0.9] max-w-xl">
                 {event.title.replace('Canton Quest Weekend #1 — ', '')}
               </h1>
               <p className="text-base text-gray-200 leading-relaxed mt-4 max-w-xl">
-                A real-world adventure across Canton. Pick a quest, visit the location, complete the mission, and earn XP.
+                A real-world adventure across Canton. Choose a mission, visit the location, submit proof, and earn XP.
               </p>
 
               <div className="grid gap-2 sm:grid-cols-3 mt-6">
                 {[
                   ['1', 'Create your callsign'],
-                  ['2', 'Choose a quest'],
+                  ['2', 'Choose a mission'],
                   ['3', 'Submit proof'],
                 ].map(([step, label]) => (
                   <div key={step} className="bg-black/55 border border-amber-500/25 p-3">
@@ -256,7 +256,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
 
               <div className="flex flex-wrap gap-3 mt-6">
                 <a href="#quest-board" className="btn btn-primary text-sm px-5 py-3 font-bold">
-                  Choose a Quest
+                  Choose a Mission
                 </a>
                 <button onClick={requestLocation} className="btn btn-secondary text-sm px-5 py-3 font-bold">
                   Enable GPS
@@ -284,7 +284,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 <p className="text-xs text-gray-300 font-mono mt-2">{countdown.subtext}</p>
                 <div className="h-px bg-amber-500/30 my-4" />
                 <span className="block text-[10px] font-mono uppercase tracking-widest text-gray-400">
-                  Event Window
+                  Quest Dates
                 </span>
                 <p className="text-sm text-amber-200 font-bold mt-1">{formatEventWindow(event)}</p>
               </div>
@@ -292,14 +292,14 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
           </div>
         </section>
 
-        {/* Live Flash Quest Pop-Up Alert Banner */}
+        {/* Live Pop-Up Mission Alert Banner */}
         {activeFlashQuests.length > 0 && (
           <div className="p-4 bg-red-950/40 border-2 border-red-500/60 rounded-2xl mb-6 shadow-xl flex flex-wrap items-center justify-between gap-3 animate-pulse">
             <div className="flex items-center gap-3">
               <span className="text-3xl">⚡</span>
               <div>
                 <span className="text-[10px] font-mono uppercase text-red-400 font-bold tracking-widest block">
-                  LIVE POP-UP FLASH QUEST ACTIVE
+                  LIVE POP-UP MISSION ACTIVE
                 </span>
                 <h3 className="text-base font-extrabold text-white">
                   {activeFlashQuests[0].title} (+{activeFlashQuests[0].pointValue} XP)
@@ -310,7 +310,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
               href={`/events/${event.slug}/quests/${activeFlashQuests[0].id}`}
               className="btn btn-primary text-xs py-2 px-4 font-bold"
             >
-              Hurry to Location →
+              Go to Mission →
             </Link>
           </div>
         )}
@@ -380,11 +380,11 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 <div>
                   <h2 className="text-2xl font-extrabold text-white">{currentPlayer.displayName}</h2>
                   <p className="text-xs text-gray-300 font-mono">
-                    {progress?.totalPoints || 0} XP · {progress?.completedCount || 0} quests completed
+                    {progress?.totalPoints || 0} XP · {progress?.completedCount || 0} missions completed
                   </p>
                 </div>
                 <Link href="/quests" className="btn btn-secondary text-xs px-4 py-2 font-bold">
-                  Browse All Quests
+                  Browse All Missions
                 </Link>
               </div>
             </div>
@@ -394,12 +394,12 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
               className="glass-panel p-4 border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/15 transition-colors min-w-full md:min-w-[280px]"
             >
               <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">
-                Recommended next quest
+                Recommended next mission
               </span>
               <h3 className="text-lg font-extrabold text-white mt-1">{cleanQuestTitle(recommendedQuest.title)}</h3>
               <p className="text-xs text-gray-300 mt-1 line-clamp-2">{recommendedQuest.description}</p>
               <div className="mt-3 btn btn-primary text-xs py-2 px-4 w-full font-bold">
-                Start This Quest →
+                Start This Mission →
               </div>
             </Link>
           </section>
@@ -416,7 +416,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
             </div>
 
             <div className="glass-card p-3 text-center">
-              <span className="text-[10px] font-mono text-gray-400 uppercase block">Quests Solved</span>
+              <span className="text-[10px] font-mono text-gray-400 uppercase block">Missions Solved</span>
               <span className="font-display font-extrabold text-2xl text-emerald-400">
                 {progress.completedCount} / {progress.availableCount}
               </span>
@@ -438,7 +438,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
           </div>
         )}
 
-        {/* Main Event Navigation Tabs */}
+        {/* Main Quest Navigation Tabs */}
         <div className="flex border-b border-[var(--border-subtle)] mb-6 font-display font-bold text-xs sm:text-sm overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('quests')}
@@ -448,7 +448,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            Quests ({quests.length})
+            Missions ({quests.length})
           </button>
           <button
             onClick={() => setActiveTab('map')}
@@ -546,10 +546,10 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
               </div>
             </div>
 
-            {/* Quests Grid */}
+            {/* Missions Grid */}
             {filteredQuests.length === 0 ? (
               <div className="glass-panel p-8 text-center text-gray-400 font-mono text-sm">
-                No quests match the selected category filter.
+                No missions match the selected category filter.
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -633,7 +633,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
 
             {collectibles.length === 0 ? (
               <div className="p-8 text-center text-gray-400 text-xs">
-                No collectibles discovered yet! Complete quest chains or redeem secret passcode drops.
+                No collectibles discovered yet. Complete mission chains or redeem secret passcode drops.
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -665,7 +665,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
             </h2>
             <div className="space-y-3 text-sm text-gray-300 leading-relaxed">
               <div className="p-3 bg-red-950/30 border border-red-800/40 rounded-xl text-red-300 font-mono text-xs">
-                ⚠️ SAFETY FIRST DIRECTIVE: No quest or points value is worth injury or property damage. Stay on public sidewalks and observe traffic signals.
+                ⚠️ SAFETY FIRST DIRECTIVE: No mission or XP value is worth injury or property damage. Stay on public sidewalks and observe traffic signals.
               </div>
               <ul className="list-disc pl-5 space-y-2 text-xs font-mono text-gray-300">
                 <li><strong className="text-white">Public Access Hours:</strong> Observe park opening hours (Dawn to Dusk) and business hours. Never trespass on private property.</li>

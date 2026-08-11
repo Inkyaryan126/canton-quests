@@ -75,7 +75,7 @@ export default function QuestsPage() {
             </p>
             <div className="cq-page-actions">
               <Link href={eventHref} className="cq-gold-button">
-                START PLAYING
+                START QUEST
                 <ArrowRight size={17} aria-hidden="true" />
               </Link>
               <Link href="/how-it-works" className="cq-dark-button">
@@ -107,11 +107,11 @@ export default function QuestsPage() {
           <div className="cq-section-heading">
             <div>
               <span className="cq-kicker">AVAILABLE NOW</span>
-              <h2>QUEST BOARD</h2>
+              <h2>MISSION BOARD</h2>
             </div>
             <div className="cq-filter-label">
               <Filter size={16} aria-hidden="true" />
-              {filteredQuests.length} signals
+              {filteredQuests.length} missions
             </div>
           </div>
 
@@ -170,8 +170,8 @@ export default function QuestsPage() {
           {filteredQuests.length === 0 && (
             <div className="cq-empty-state">
               <Search size={24} aria-hidden="true" />
-              <h3>No signals in this filter.</h3>
-              <p>Switch categories to see the rest of the Canton quest board.</p>
+              <h3>No missions in this filter.</h3>
+              <p>Switch categories to see the rest of the mission board.</p>
             </div>
           )}
         </section>

@@ -36,17 +36,17 @@ export default function EventsPage() {
 
       <main className="cq-page-main">
         <section className="cq-event-hero">
-          <Image src={cqImages.heroCity} alt="Canton event skyline signal" fill priority sizes="100vw" />
+          <Image src={cqImages.heroCity} alt="Canton quest skyline signal" fill priority sizes="100vw" />
           <div>
-            <span className="cq-kicker">FLAGSHIP WEEKEND</span>
+            <span className="cq-kicker">FEATURED QUEST</span>
             <h1>{activeEvent?.title || 'Canton Quest Weekend'}</h1>
             <p>
               {activeEvent?.description ||
-                'Pick quests, visit Canton locations, complete proof, earn XP, and climb the board.'}
+                'Start the quest, choose missions, visit Canton locations, submit proof, earn XP, and climb the board.'}
             </p>
             <div className="cq-page-actions">
               <Link href={eventHref} className="cq-gold-button">
-                START PLAYING
+                START QUEST
                 <ArrowRight size={17} aria-hidden="true" />
               </Link>
               <Link href="/leaderboard" className="cq-dark-button">
@@ -60,7 +60,7 @@ export default function EventsPage() {
           <div>
             <CalendarDays size={22} aria-hidden="true" />
             <strong>{activeEvent ? formatEventWindow(activeEvent) : 'Loading'}</strong>
-            <span>event window</span>
+            <span>quest dates</span>
           </div>
           <div>
             <MapPin size={22} aria-hidden="true" />
@@ -75,15 +75,15 @@ export default function EventsPage() {
           <div>
             <Radio size={22} aria-hidden="true" />
             <strong>{activeMetrics?.totalQuests || 0}</strong>
-            <span>live quests</span>
+            <span>missions</span>
           </div>
         </section>
 
         <section className="cq-page-section">
           <div className="cq-section-heading">
             <div>
-              <span className="cq-kicker">EVENTS</span>
-              <h2>PLAY WINDOWS</h2>
+              <span className="cq-kicker">QUESTS</span>
+              <h2>START HERE</h2>
             </div>
             <Link href="/quests" className="cq-view-all-button">
               BROWSE QUESTS
@@ -107,11 +107,11 @@ export default function EventsPage() {
                     <p>{event.description}</p>
                     <div className="cq-event-card-meta">
                       <span>{formatEventWindow(event)}</span>
-                      <span>{eventMetrics?.totalQuests || 0} quests</span>
+                      <span>{eventMetrics?.totalQuests || 0} missions</span>
                       <span>{eventMetrics?.totalXp || 0} XP</span>
                     </div>
                     <Link href={`/events/${event.slug}`} className="cq-gold-button">
-                      START EVENT
+                      START QUEST
                       <ShieldCheck size={17} aria-hidden="true" />
                     </Link>
                   </div>

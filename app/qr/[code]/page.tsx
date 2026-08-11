@@ -130,7 +130,7 @@ export default function QrGatewayPage({ params }: { params: { code: string } }) 
                     href={`/events/${event.slug}`}
                     className="btn btn-secondary w-full py-2.5 text-xs font-mono"
                   >
-                    Return to Event Hub →
+                    Return to Quest →
                   </Link>
                 )}
               </div>
