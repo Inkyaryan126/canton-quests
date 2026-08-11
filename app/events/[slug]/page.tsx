@@ -9,6 +9,7 @@ import Leaderboard from '@/components/Leaderboard';
 import CantonMapWrapper from '@/components/CantonMapWrapper';
 import TeamHub from '@/components/TeamHub';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
+import MobileStartBar from '@/components/MobileStartBar';
 import {
   QuestEvent,
   Quest,
@@ -38,6 +39,7 @@ import {
   getCrowdObjectives,
 } from '@/lib/game-engine';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
+import { cleanQuestTitle } from '@/lib/marketing-assets';
 
 export default function EventHubPage({ params }: { params: { slug: string } }) {
   const eventSlug = params.slug;
@@ -181,6 +183,12 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   const latestAnnouncement = announcements[0];
   const activeNpc = npcs[0];
   const activeCrowdObj = crowdObjectives[0];
+  const recommendedQuest =
+    activeFlashQuests[0] ||
+    quests
+      .filter((quest) => quest.status === 'active' && !progress?.completedQuestIds.includes(quest.id))
+      .sort((a, b) => b.pointValue - a.pointValue)[0] ||
+    quests[0];
 
   let filteredQuests = quests.filter((q) => {
     if (selectedCategory === 'all') return true;
@@ -207,7 +215,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
+    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col pb-24 md:pb-0">
       <Header />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6">
@@ -283,7 +291,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
 
           {/* Quick Guidance Bar */}
           <div className="p-3 bg-obsidian/80 rounded-xl border border-gray-800 text-xs text-gray-300 font-mono flex flex-wrap items-center justify-between gap-2">
-            <span>🎮 Live Game Director active. Watch map pins and live flash broadcasts.</span>
+            <span>Start simple: set your callsign, pick a quest, go to the location, submit proof.</span>
             {userLat === undefined && (
               <button onClick={requestLocation} className="text-[11px] text-cyan-400 hover:underline font-bold">
                 📍 Enable GPS Proximity
@@ -369,6 +377,42 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
         {/* Player Identity Bar */}
         <PlayerIdentityBar onPlayerChanged={() => refreshData()} />
 
+        {/* Start Here Panel */}
+        {currentPlayer && recommendedQuest && (
+          <section className="grid gap-3 md:grid-cols-[1fr_auto] items-stretch mb-6">
+            <div className="glass-panel p-4 border-amber-500/40 bg-amber-950/10">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">
+                You are playing as
+              </span>
+              <div className="flex flex-wrap items-end justify-between gap-3 mt-1">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-white">{currentPlayer.displayName}</h2>
+                  <p className="text-xs text-gray-300 font-mono">
+                    {progress?.totalPoints || 0} XP · {progress?.completedCount || 0} quests completed
+                  </p>
+                </div>
+                <Link href="/quests" className="btn btn-secondary text-xs px-4 py-2 font-bold">
+                  Browse All Quests
+                </Link>
+              </div>
+            </div>
+
+            <Link
+              href={`/events/${event.slug}/quests/${recommendedQuest.id}`}
+              className="glass-panel p-4 border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/15 transition-colors min-w-full md:min-w-[280px]"
+            >
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">
+                Recommended next quest
+              </span>
+              <h3 className="text-lg font-extrabold text-white mt-1">{cleanQuestTitle(recommendedQuest.title)}</h3>
+              <p className="text-xs text-gray-300 mt-1 line-clamp-2">{recommendedQuest.description}</p>
+              <div className="mt-3 btn btn-primary text-xs py-2 px-4 w-full font-bold">
+                Start This Quest →
+              </div>
+            </Link>
+          </section>
+        )}
+
         {/* Player Progress Stat Bar */}
         {progress && currentPlayer && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -412,7 +456,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            🎯 Quests ({quests.length})
+            Quests ({quests.length})
           </button>
           <button
             onClick={() => setActiveTab('map')}
@@ -422,7 +466,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            🗺️ Map
+            Map
           </button>
           <button
             onClick={() => setActiveTab('teams')}
@@ -432,7 +476,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            👥 Squads
+            Team
           </button>
           <button
             onClick={() => setActiveTab('leaderboard')}
@@ -442,7 +486,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            🏆 Leaderboard
+            Scores
           </button>
           <button
             onClick={() => setActiveTab('collectibles')}
@@ -452,7 +496,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            🏅 Collection ({collectibles.length})
+            Rewards ({collectibles.length})
           </button>
           <button
             onClick={() => setActiveTab('rules')}
@@ -462,7 +506,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 : 'border-transparent text-gray-400 hover:text-gray-200'
             }`}
           >
-            🛡️ Safety
+            Safety
           </button>
         </div>
 
@@ -644,6 +688,13 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
 
       {/* Game Celebration Modal */}
       <GameFeedbackModal feedback={feedback} onClose={() => setFeedback(null)} />
+      {recommendedQuest && (
+        <MobileStartBar
+          href={`/events/${event.slug}/quests/${recommendedQuest.id}`}
+          label="Start Quest"
+          eyebrow="Recommended next"
+        />
+      )}
     </div>
   );
 }

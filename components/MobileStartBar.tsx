@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { trackCqEvent } from '@/lib/analytics';
 
 interface MobileStartBarProps {
   href: string;
@@ -18,7 +21,7 @@ export default function MobileStartBar({
         <span>{eyebrow}</span>
         <strong>{label}</strong>
       </div>
-      <Link href={href}>
+      <Link href={href} onClick={() => trackCqEvent('mobile_start_clicked', { href, label })}>
         {label}
         <ArrowRight size={16} aria-hidden="true" />
       </Link>

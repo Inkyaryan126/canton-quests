@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import LocationVerifier from '@/components/LocationVerifier';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
+import MobileStartBar from '@/components/MobileStartBar';
 import { Quest, QuestEvent, Player, QuestSubmission, SubmitProofResult } from '@/lib/types';
 import {
   getQuestById,
@@ -15,6 +17,7 @@ import {
   calculateQuestState,
   getQuestsForEvent,
 } from '@/lib/game-engine';
+import { cleanQuestTitle, getQuestImage, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
 
 export default function QuestDetailPage({
   params,
@@ -137,15 +140,15 @@ export default function QuestDetailPage({
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
+    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col pb-24 md:pb-0">
       <Header />
 
-      <main className="flex-1 max-w-2xl w-full mx-auto p-4 md:p-6">
+      <main className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-6">
         <Link
           href={`/events/${eventSlug}`}
           className="inline-flex items-center gap-1 text-xs font-mono text-cyan-400 hover:underline mb-4 font-bold"
         >
-          ← Back to Event Hub & Map
+          ← Back to Event
         </Link>
 
         {/* Flash Quest Banner if Active */}
@@ -156,38 +159,61 @@ export default function QuestDetailPage({
           </div>
         )}
 
-        {/* Quest Title Card */}
-        <div className="glass-panel p-6 mb-6 border-amber-500/30 glow-amber relative">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <span className={`badge badge-${quest.difficulty}`}>{quest.difficulty}</span>
-            <span className="font-display font-extrabold text-2xl text-amber-400">
-              +{quest.pointValue} <span className="text-xs text-amber-500/80">XP</span>
-            </span>
+        {/* Quest Briefing */}
+        <section className="glass-panel mb-6 border-amber-500/30 glow-amber overflow-hidden">
+          <div className="relative min-h-[260px]">
+            <Image
+              src={getQuestImage(quest)}
+              alt={`${cleanQuestTitle(quest.title)} location artwork`}
+              fill
+              priority
+              sizes="(max-width: 768px) 100vw, 768px"
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#050607] via-[#050607]/70 to-[#050607]/15" />
+            <div className="absolute inset-x-0 bottom-0 p-5 md:p-6">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className={`badge badge-${quest.difficulty}`}>{quest.difficulty}</span>
+                <span className="badge badge-medium bg-amber-500/20 text-amber-300 border-amber-500/40 font-mono">
+                  +{quest.pointValue} XP
+                </span>
+                <span className="badge badge-medium bg-cyan-500/15 text-cyan-300 border-cyan-500/35 font-mono">
+                  {proofTypeLabels[quest.verificationType]}
+                </span>
+              </div>
+              <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-none">
+                {cleanQuestTitle(quest.title)}
+              </h1>
+              <p className="text-sm sm:text-base text-gray-200 leading-relaxed mt-3 max-w-2xl">
+                {quest.description}
+              </p>
+            </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">{quest.title}</h1>
-          <p className="text-sm text-gray-300 leading-relaxed mb-4">{quest.description}</p>
+          <div className="grid sm:grid-cols-3 gap-px bg-amber-500/20">
+            <div className="bg-[#090b0c] p-4">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Go here</span>
+              <strong className="block text-white mt-1">{quest.location?.name || 'Canton, Ohio'}</strong>
+              {quest.location?.address && <p className="text-xs text-gray-400 mt-1">{quest.location.address}</p>}
+            </div>
+            <div className="bg-[#090b0c] p-4">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Do this</span>
+              <strong className="block text-white mt-1">{questCategoryLabels[quest.category]}</strong>
+              <p className="text-xs text-gray-400 mt-1">{quest.instructions}</p>
+            </div>
+            <div className="bg-[#090b0c] p-4">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Prove it</span>
+              <strong className="block text-white mt-1">{proofTypeLabels[quest.verificationType]}</strong>
+              <p className="text-xs text-gray-400 mt-1">Submit proof below to claim the XP.</p>
+            </div>
+          </div>
 
-          {/* Location & Safety Context Info */}
-          {quest.location && (
-            <div className="p-3.5 bg-obsidian/80 rounded-xl border border-gray-800 text-xs text-gray-300 font-mono space-y-1.5">
-              <div className="text-white font-bold flex items-center gap-1.5">
-                📍 {quest.location.name}
-              </div>
-              {quest.location.address && <div className="text-gray-400">{quest.location.address}</div>}
-              {quest.location.accessNotes && (
-                <div className="text-cyan-300 text-[11px] pt-1">
-                  🛡️ Access Note: {quest.location.accessNotes}
-                </div>
-              )}
-              {quest.location.openingHours && (
-                <div className="text-amber-400/90 text-[11px]">
-                  ⏰ Hours: {quest.location.openingHours}
-                </div>
-              )}
+          {quest.location?.accessNotes && (
+            <div className="p-4 bg-cyan-950/25 border-t border-cyan-500/25 text-xs text-cyan-200 font-mono">
+              Safety note: {quest.location.accessNotes}
             </div>
           )}
-        </div>
+        </section>
 
         {/* Locked Prerequisite Warning */}
         {isLocked ? (
@@ -236,9 +262,9 @@ export default function QuestDetailPage({
           <div className="glass-panel p-6 space-y-5 mb-6 border-cyan-500/30">
             <div className="border-b border-[var(--border-subtle)] pb-3">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                📋 Proof Verification
+                Submit Proof
               </h2>
-              <p className="text-xs text-gray-400 font-mono">{quest.instructions}</p>
+              <p className="text-xs text-gray-400 font-mono">Complete the mission, then use the matching proof method below.</p>
             </div>
 
             {/* Geolocation Sensor Card */}
@@ -265,7 +291,7 @@ export default function QuestDetailPage({
                   disabled={isSubmitting || !isProximityOk}
                   className="btn btn-cyan w-full text-sm font-bold py-3"
                 >
-                  {isSubmitting ? 'Verifying Location Signal...' : '📡 TRANSMIT LOCATION CHECK-IN'}
+                  {isSubmitting ? 'Checking location...' : 'Check In and Claim XP'}
                 </button>
               )}
 
@@ -274,9 +300,9 @@ export default function QuestDetailPage({
                   <label className="text-xs font-mono text-gray-300 block">
                     {quest.verificationType === 'qr'
                       ? quest.requireQrAndLocation
-                        ? 'Scan QR Emblem & Confirm Physical Proximity:'
-                        : 'Scan QR Emblem Passcode or Enter Token Code:'
-                      : 'Enter Decoded Cipher Passphrase:'}
+                        ? 'Scan the QR and confirm you are nearby:'
+                        : 'Scan the QR or enter the quest code:'
+                      : 'Enter the answer or passphrase:'}
                   </label>
                   <input
                     type="text"
@@ -298,7 +324,7 @@ export default function QuestDetailPage({
                         onClick={() => setTextInput(quest.targetCode || 'AURA-BREW-2026')}
                         className="text-[11px] font-mono text-cyan-400 hover:underline bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-1 rounded"
                       >
-                        ⚡ Simulate Camera Scan
+                        Fill Test Code
                       </button>
                     </div>
                   )}
@@ -308,7 +334,7 @@ export default function QuestDetailPage({
                     disabled={isSubmitting || !textInput.trim() || (quest.requireQrAndLocation && !isProximityOk)}
                     className="btn btn-primary w-full text-sm font-bold py-3"
                   >
-                    {isSubmitting ? 'Verifying Code...' : '🔓 TRANSMIT VERIFICATION CODE'}
+                    {isSubmitting ? 'Checking code...' : 'Submit Code and Claim XP'}
                   </button>
                 </div>
               )}
@@ -316,7 +342,7 @@ export default function QuestDetailPage({
               {(quest.verificationType === 'photo' || quest.verificationType === 'video') && (
                 <div className="space-y-3">
                   <label className="text-xs font-mono text-gray-300 block">
-                    Media Proof File / Image URL / Link:
+                    Add your proof photo, video, or media link:
                   </label>
 
                   <input
@@ -330,7 +356,7 @@ export default function QuestDetailPage({
                   <div className="p-3 bg-obsidian/60 border border-dashed border-gray-700 rounded-xl text-center cursor-pointer hover:border-amber-500/50 transition-colors">
                     <span className="text-2xl block mb-1">📷</span>
                     <span className="text-xs text-gray-400 font-mono block">
-                      Tap to capture photo/video proof from your smartphone camera
+                      Capture or paste your proof, then submit for review.
                     </span>
                   </div>
 
@@ -339,7 +365,7 @@ export default function QuestDetailPage({
                     disabled={isSubmitting}
                     className="btn btn-primary w-full text-sm font-bold py-3"
                   >
-                    {isSubmitting ? 'Uploading Proof...' : '📤 SUBMIT MEDIA PROOF FOR REVIEW'}
+                    {isSubmitting ? 'Submitting proof...' : 'Submit Proof for Review'}
                   </button>
                 </div>
               )}
@@ -349,6 +375,7 @@ export default function QuestDetailPage({
       </main>
 
       <GameFeedbackModal feedback={feedback} onClose={() => setFeedback(null)} />
+      <MobileStartBar href={`/events/${eventSlug}`} label="Back to Quests" eyebrow="Need another mission?" />
     </div>
   );
 }
