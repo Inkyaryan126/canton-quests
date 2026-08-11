@@ -14,11 +14,11 @@ import {
   ShieldCheck,
   Sparkles,
   Trophy,
-  Users,
   Zap,
 } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
+import MobileStartBar from '@/components/MobileStartBar';
 import PlayerIdentityBar from '@/components/PlayerIdentityBar';
 import { Player, Quest, QuestEvent } from '@/lib/types';
 import { getCurrentPlayer, getEvents, getQuestsForEvent } from '@/lib/game-engine';
@@ -36,24 +36,24 @@ import {
 
 const featureBlocks = [
   {
-    title: 'EXPLORE',
-    text: 'Discover hidden gems and iconic spots around Canton.',
+    title: 'PICK',
+    text: 'Choose a quest from the live board.',
     Icon: Compass,
   },
   {
-    title: 'COMPLETE',
-    text: 'Tackle challenges, solve clues, and complete epic quests.',
+    title: 'GO',
+    text: 'Head to the real Canton location.',
+    Icon: MapPin,
+  },
+  {
+    title: 'PROVE',
+    text: 'Scan, check in, solve, or submit proof.',
     Icon: ShieldCheck,
   },
   {
-    title: 'EARN',
-    text: 'Earn points, climb the leaderboard, and unlock rewards.',
+    title: 'SCORE',
+    text: 'Earn XP and climb the leaderboard.',
     Icon: Trophy,
-  },
-  {
-    title: 'CONNECT',
-    text: 'Adventures are better together. Bring your crew.',
-    Icon: Users,
   },
 ];
 
@@ -122,15 +122,18 @@ export default function HomePage() {
             </h1>
 
             <p>
-              Canton Quests turns the city you know
+              Pick a quest. Go to the location. Complete the mission.
               <br />
-              into an adventure you&apos;ll never forget.
+              Earn XP across real Canton landmarks.
             </p>
 
             <div className="cq-hero-buttons">
-              <Link href="/quests" className="cq-gold-button">
-                BROWSE QUESTS
+              <Link href={eventHref} className="cq-gold-button cq-primary-cta">
+                START PLAYING
                 <ArrowRight size={17} aria-hidden="true" />
+              </Link>
+              <Link href="/quests" className="cq-dark-button">
+                BROWSE QUESTS
               </Link>
               <Link href="/how-it-works" className="cq-dark-button">
                 HOW IT WORKS
@@ -172,8 +175,8 @@ export default function HomePage() {
 
             <div className="cq-player-panel" aria-label="Player identity setup">
               <div className="cq-panel-header">
-                <span>FIELD IDENTITY</span>
-                <strong>Choose your callsign and enter the city grid.</strong>
+                <span>STEP 1</span>
+                <strong>Create your callsign, then start the event.</strong>
               </div>
               <PlayerIdentityBar onPlayerChanged={setCurrentPlayerState} />
             </div>
@@ -185,7 +188,7 @@ export default function HomePage() {
             <div className="cq-section-heading">
               <div>
                 <span className="cq-kicker">THE CITY IS THE GAME BOARD</span>
-                <h2>CANTON, REWIRED.</h2>
+                <h2>REAL PLACES. REAL MISSIONS.</h2>
               </div>
               <Link href="/events" className="cq-view-all-button">
                 SEE EVENTS
@@ -212,7 +215,7 @@ export default function HomePage() {
           <span />
           <div>
             <p>CANTON IS YOUR PLAYGROUND.</p>
-            <h2>WHAT QUEST WILL YOU TAKE ON?</h2>
+            <h2>START WITH ONE QUEST.</h2>
           </div>
           <span />
         </section>
@@ -266,6 +269,7 @@ export default function HomePage() {
                       <div className="cq-quest-footer">
                         <span>{getQuestDuration(quest)}</span>
                         <span>{questCategoryLabels[quest.category]}</span>
+                        <span className="cq-card-action">View Quest</span>
                       </div>
                     </div>
                   </Link>
@@ -293,7 +297,7 @@ export default function HomePage() {
             </p>
             <div className="cq-live-buttons">
               <Link href={eventHref} className="cq-gold-button">
-                ENTER EVENT
+                START PLAYING
                 <Flag size={17} aria-hidden="true" />
               </Link>
               <Link href="/leaderboard" className="cq-dark-button">
@@ -306,6 +310,7 @@ export default function HomePage() {
       </main>
 
       <CinematicFooter />
+      <MobileStartBar href={eventHref} />
     </div>
   );
 }

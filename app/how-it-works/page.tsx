@@ -17,30 +17,36 @@ import {
 } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
+import MobileStartBar from '@/components/MobileStartBar';
 import { QuestEvent } from '@/lib/types';
 import { getEvents } from '@/lib/game-engine';
 import { cqImages, getActiveEvent } from '@/lib/marketing-assets';
 
 const steps = [
   {
-    title: 'Find a quest',
-    text: 'Open the quest board and choose a signal by location, XP, or mission type.',
+    title: 'Pick a quest',
+    text: 'Choose a mission from the quest board.',
     Icon: Compass,
   },
   {
-    title: 'Go to the location',
-    text: 'The phone is your field tool. The real game happens at Canton landmarks.',
+    title: 'Go there',
+    text: 'Head to the real Canton location.',
     Icon: MapPin,
   },
   {
-    title: 'Complete the mission',
-    text: 'Read the city, solve the clue, scan the emblem, or capture proof.',
+    title: 'Complete it',
+    text: 'Scan, check in, solve, or capture proof.',
     Icon: CheckCircle2,
   },
   {
     title: 'Earn XP',
-    text: 'Verified missions push you up the board and unlock the next layer of play.',
+    text: 'Verified missions add points to your profile.',
     Icon: Zap,
+  },
+  {
+    title: 'Climb the board',
+    text: 'Keep playing to move up the leaderboard.',
+    Icon: Trophy,
   },
 ];
 
@@ -70,18 +76,17 @@ export default function HowItWorksPage() {
         <section className="cq-page-hero cq-page-hero-split">
           <div>
             <span className="cq-kicker">FIELD GUIDE</span>
-            <h1>HOW THE CITY BECOMES A GAME.</h1>
+            <h1>HOW TO PLAY.</h1>
             <p>
-              Canton Quests is built for fast entry: pick a mission, move through the city,
-              submit proof, earn XP, and keep unlocking the weekend.
+              Start with one quest. The app tells you what to do, where to go, and how to prove it.
             </p>
             <div className="cq-page-actions">
-              <Link href="/quests" className="cq-gold-button">
-                BROWSE QUESTS
+              <Link href={eventHref} className="cq-gold-button">
+                START PLAYING
                 <ArrowRight size={17} aria-hidden="true" />
               </Link>
-              <Link href={eventHref} className="cq-dark-button">
-                JOIN THE QUESTS
+              <Link href="/quests" className="cq-dark-button">
+                BROWSE QUESTS
               </Link>
             </div>
           </div>
@@ -94,7 +99,7 @@ export default function HowItWorksPage() {
           <div className="cq-section-heading">
             <div>
               <span className="cq-kicker">GAMEPLAY LOOP</span>
-              <h2>SEVEN MOVES</h2>
+              <h2>FIVE SIMPLE STEPS</h2>
             </div>
           </div>
 
@@ -114,10 +119,9 @@ export default function HowItWorksPage() {
           <Image src={cqImages.mapHud} alt="Canton route planning HUD" fill sizes="100vw" />
           <div>
             <span className="cq-kicker">PROGRESSION</span>
-            <h2>CLIMB THE BOARD. UNLOCK THE NEXT SIGNAL.</h2>
+            <h2>PLAY MORE. SCORE MORE.</h2>
             <p>
-              XP comes from proof, speed, puzzle difficulty, and live drops. Some missions
-              open the path to harder ciphers, finale moments, and squad advantages.
+              Every completed quest earns XP. Higher-value missions and live drops help you rise faster.
             </p>
             <Link href="/leaderboard" className="cq-gold-button">
               VIEW LEADERBOARD
@@ -147,6 +151,7 @@ export default function HowItWorksPage() {
       </main>
 
       <CinematicFooter />
+      <MobileStartBar href={eventHref} />
     </div>
   );
 }

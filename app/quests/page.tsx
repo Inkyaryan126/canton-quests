@@ -6,13 +6,13 @@ import Link from 'next/link';
 import { ArrowRight, Filter, MapPin, Radar, Search, Zap } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
+import MobileStartBar from '@/components/MobileStartBar';
 import { Quest, QuestEvent } from '@/lib/types';
 import { getEvents, getQuestsForEvent } from '@/lib/game-engine';
 import {
   cleanQuestTitle,
   cqImages,
   getActiveEvent,
-  getQuestDuration,
   getQuestImage,
   getQuestRarity,
   proofTypeLabels,
@@ -69,13 +69,13 @@ export default function QuestsPage() {
         <section className="cq-page-hero cq-page-hero-split">
           <div>
             <span className="cq-kicker">QUEST DISCOVERY</span>
-            <h1>CHOOSE YOUR SIGNAL.</h1>
+            <h1>PICK A QUEST.</h1>
             <p>
-              Browse active Canton missions, compare XP, pick a route, and step into the city.
+              Choose one mission, go to the location, complete the proof, and earn XP.
             </p>
             <div className="cq-page-actions">
               <Link href={eventHref} className="cq-gold-button">
-                ENTER EVENT
+                START PLAYING
                 <ArrowRight size={17} aria-hidden="true" />
               </Link>
               <Link href="/how-it-works" className="cq-dark-button">
@@ -92,7 +92,7 @@ export default function QuestsPage() {
           <section className="cq-feature-panel">
             <Image src={getQuestImage(topQuest, 0)} alt={`${cleanQuestTitle(topQuest.title)} featured quest`} fill sizes="100vw" />
             <div>
-              <span className="cq-kicker">HIGHEST VALUE SIGNAL</span>
+              <span className="cq-kicker">BEST FIRST PICK</span>
               <h2>{cleanQuestTitle(topQuest.title)}</h2>
               <p>{topQuest.description}</p>
               <Link href={`${eventHref}/quests/${topQuest.id}`} className="cq-gold-button">
@@ -159,7 +159,7 @@ export default function QuestsPage() {
                     <div className="cq-quest-footer">
                       <span>{questCategoryLabels[quest.category]}</span>
                       <span>{proofTypeLabels[quest.verificationType]}</span>
-                      <span>{getQuestDuration(quest)}</span>
+                      <span className="cq-card-action">View Quest</span>
                     </div>
                   </div>
                 </Link>
@@ -178,6 +178,7 @@ export default function QuestsPage() {
       </main>
 
       <CinematicFooter />
+      <MobileStartBar href={eventHref} />
     </div>
   );
 }

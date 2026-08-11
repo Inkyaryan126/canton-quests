@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowRight, CalendarDays, MapPin, Radio, ShieldCheck, Zap } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
+import MobileStartBar from '@/components/MobileStartBar';
 import { EventReadiness, QuestEvent } from '@/lib/types';
 import { getEventReadinessCheck, getEvents } from '@/lib/game-engine';
 import { cqImages, destinationCards, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
@@ -41,11 +42,11 @@ export default function EventsPage() {
             <h1>{activeEvent?.title || 'Canton Quest Weekend'}</h1>
             <p>
               {activeEvent?.description ||
-                'A live citywide adventure where Canton landmarks become quests, puzzles, and competitive XP routes.'}
+                'Pick quests, visit Canton locations, complete proof, earn XP, and climb the board.'}
             </p>
             <div className="cq-page-actions">
               <Link href={eventHref} className="cq-gold-button">
-                ENTER EVENT
+                START PLAYING
                 <ArrowRight size={17} aria-hidden="true" />
               </Link>
               <Link href="/leaderboard" className="cq-dark-button">
@@ -82,7 +83,7 @@ export default function EventsPage() {
           <div className="cq-section-heading">
             <div>
               <span className="cq-kicker">EVENTS</span>
-              <h2>CITY WINDOWS</h2>
+              <h2>PLAY WINDOWS</h2>
             </div>
             <Link href="/quests" className="cq-view-all-button">
               BROWSE QUESTS
@@ -93,7 +94,7 @@ export default function EventsPage() {
           <div className="cq-event-grid">
             {events.map((event, index) => {
               const eventMetrics = metrics[event.id];
-              const image = index % 2 === 0 ? cqImages.cantonSign : cqImages.mapHud;
+              const image = index % 2 === 0 ? cqImages.heroCityBeam : cqImages.cantonSign;
 
               return (
                 <article className="cq-event-card" key={event.id}>
@@ -110,7 +111,7 @@ export default function EventsPage() {
                       <span>{eventMetrics?.totalXp || 0} XP</span>
                     </div>
                     <Link href={`/events/${event.slug}`} className="cq-gold-button">
-                      OPEN EVENT
+                      START EVENT
                       <ShieldCheck size={17} aria-hidden="true" />
                     </Link>
                   </div>
@@ -144,6 +145,7 @@ export default function EventsPage() {
       </main>
 
       <CinematicFooter />
+      <MobileStartBar href={eventHref} />
     </div>
   );
 }

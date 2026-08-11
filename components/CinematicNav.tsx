@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { cqImages } from '@/lib/marketing-assets';
 
 interface CinematicNavProps {
@@ -26,7 +27,8 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
           WATCH LIVE
         </Link>
         <Link href={eventHref} className="cq-gold-button cq-nav-cta">
-          JOIN THE QUESTS
+          START PLAYING
+          <ArrowRight size={15} aria-hidden="true" />
         </Link>
       </div>
     </nav>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Crown, Medal, Radio, Shield, Trophy, UserRound, Zap } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
+import MobileStartBar from '@/components/MobileStartBar';
 import { LeaderboardEntry, Player, QuestEvent, TeamLeaderboardEntry } from '@/lib/types';
 import {
   getCurrentPlayer,
@@ -45,17 +46,17 @@ export default function LeaderboardPage() {
         <section className="cq-page-hero cq-page-hero-split">
           <div>
             <span className="cq-kicker">LIVE STANDINGS</span>
-            <h1>THE RACE IS VISIBLE.</h1>
+            <h1>CLIMB THE BOARD.</h1>
             <p>
-              Verified XP, completed quests, and squad pressure from the active Canton event.
+              Complete quests to earn XP. The more proof you verify, the higher you rank.
             </p>
             <div className="cq-page-actions">
               <Link href={eventHref} className="cq-gold-button">
-                ENTER EVENT
+                START PLAYING
                 <Zap size={17} aria-hidden="true" />
               </Link>
               <Link href="/quests" className="cq-dark-button">
-                FIND XP
+                BROWSE QUESTS
               </Link>
             </div>
           </div>
@@ -161,6 +162,7 @@ export default function LeaderboardPage() {
       </main>
 
       <CinematicFooter />
+      <MobileStartBar href={eventHref} />
     </div>
   );
 }
