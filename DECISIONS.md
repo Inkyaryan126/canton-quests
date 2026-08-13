@@ -199,3 +199,24 @@ Each entry follows the standard ADR structure:
 - **Consequences**: Public API routes and client pages consume strictly sanitized quest objects. GPS verification requires active location coordinates within the specified radius. Multi-step progression is enforced server-side. Database tables enforce unique constraints (`uq_player_event_quest_drawing`, `uq_score_quest_completion_xp`) and sanitized projection views. Supabase reward issuance requires authenticated player identity and service-role writes; local fallback is limited to unconfigured development/test environments.
 - **Status**: **ACCEPTED**
 
+---
+
+## ADR-017: Transparent Prize Drawing System, Immutability, Canonical SHA-256 Ledger Locks & Single Primary Prize Per Player Rule
+- **Date**: 2026-08-12
+- **Decision**:
+  1. Enforce a transparent, auditable prize drawing system operating over the frozen drawing entry ledger.
+  2. Implement canonical snapshot export (`exportDrawingLedgerSnapshot`) with strict, deterministic ordering (`publicPlayerLabel` ASC, `entries` ASC) independent of database return order, serialized as canonical JSON and cryptographically hashed with real SHA-256 (`sha256:...`).
+  3. Enforce fail-closed drawing ledger locking (`lockDrawingLedger`). Post-lock, normal quest reward issuance cannot add new entries for that event, and prior entries cannot be edited. Database triggers (`trg_prevent_locked_drawing_ledger_edits`) enforce this at the schema boundary.
+  4. Require Game Master review before locking. Warn if unresolved pending submissions exist, requiring explicit admin confirmation (`confirmPendingBypass`) to lock while pending submissions remain.
+  5. Decouple drawing provider logic via `DrawProvider` abstraction. Implement `InternalTestDrawProvider` using explicit test seeds (`TEST_SEED:...`) for reproducible weighted winner selection.
+  6. Enforce weighted entry math: a player with 5 entries holds 5 weighted range units, mathematically preserving 5:1 odds over a 1-entry player.
+  7. Adopt the single primary prize per player rule: winning a primary event drawing prize removes that player from subsequent primary prize pools for that event drawing session.
+  8. Public drawing projections and public result pages (`/events/[slug]/drawing` & `/api/game/events/[slug]/drawing`) display strictly privacy-safe public labels (`Agent #XXXX` or sanitized display names), total entries, lock timestamp, and snapshot hash without exposing internal player UUIDs, auth user IDs, emails, phone numbers, submission IDs, or proof URLs.
+  9. Draw records (`prize_draw_records`) require explicit audit reasons to void or cancel, preserving historical records without silent overwrites.
+- **Reason**:
+  - Drawing systems in public events require verifiable proof that entry pools were frozen prior to winner selection and cannot be secretly altered post-draw.
+  - Exposing raw player UUIDs, emails, or submission IDs in public drawing results violates player privacy and minor protection rules.
+  - Database row ordering non-determinism caused non-reproducible snapshot hashes across queries.
+- **Alternatives Evaluated**: Selecting winners on live un-frozen entry pools; relying on client-side random number generators; exposing internal player UUIDs on public winner pages; allowing silent draw result deletion.
+- **Consequences**: Drawing entry pools are frozen with real SHA-256 hashes prior to drawing. Public drawing pages present auditable proof and privacy-safe winner labels. Game Master operations require authorization. Multiple prizes honor weighted units and 1-prize-per-player equity.
+- **Status**: **ACCEPTED**

@@ -31,6 +31,17 @@ import {
   EventReadiness,
   GeneratedQR,
   QuestStep,
+  DrawingStatus,
+  CanonicalSnapshotPlayer,
+  CanonicalSnapshot,
+  EventDrawingLedgerLock,
+  DrawMethod,
+  PrizeDrawRecord,
+  PublicPlayerDrawingEntry,
+  PublicPrizeDrawResult,
+  PublicDrawingPageData,
+  DrawingLedgerReview,
+  DrawProvider,
 } from './types';
 import {
   SEED_CITY,
@@ -50,6 +61,9 @@ import {
   SEED_PRIZES,
 } from './seed-data';
 import * as localEngine from './game-engine';
+
+const DRAWABLE_LEDGER_STATUSES: DrawingStatus[] = ['locked', 'drawn'];
+const PUBLISHABLE_LEDGER_STATUSES: DrawingStatus[] = ['drawn'];
 
 function proofDigest(value: string): string | undefined {
   if (typeof window !== 'undefined') return undefined;
@@ -90,6 +104,30 @@ function mapLocationFromDB(row: any): LocationInfo | undefined {
     radiusMeters: row.radius_meters,
     accessNotes: row.access_notes,
     openingHours: row.opening_hours,
+  };
+}
+
+function mapPrizeDrawRecordFromDB(row: any, fallbackPrizeId: string = ''): PrizeDrawRecord {
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    prizeId: row.prize_id || fallbackPrizeId,
+    prizeTitle: row.prize_title,
+    status: row.status as 'drawn' | 'published' | 'cancelled',
+    lockedLedgerHash: row.locked_ledger_hash,
+    lockedAt: row.locked_at,
+    drawMethod: row.draw_method as DrawMethod,
+    providerReference: row.provider_reference,
+    drawnAt: row.drawn_at,
+    winningPlayerId: row.winning_player_id,
+    winningPublicPlayerLabel: row.winning_public_player_label,
+    selectedWeightedEntryIndex: row.selected_weighted_entry_index,
+    auditMetadata: row.audit_metadata,
+    publishedAt: row.published_at,
+    cancellationReason: row.cancellation_reason,
+    cancelledAt: row.cancelled_at,
+    cancelledBy: row.cancelled_by,
+    createdAt: row.created_at,
   };
 }
 
@@ -707,6 +745,27 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
       teamId = teamMember.team_id;
     }
 
+    // Pre-check: Reject submission immediately if event drawing ledger is locked
+    if (isSupabaseAdminConfigured && supabaseAdmin) {
+      const { data: lockRow } = await supabaseAdmin
+        .from('drawing_ledger_locks')
+        .select('is_locked, status')
+        .eq('event_id', trustedParams.eventId)
+        .maybeSingle();
+
+      if (lockRow && (lockRow.is_locked || ['locked', 'drawn', 'published', 'cancelled'].includes(lockRow.status))) {
+        return failedSubmissionResult(
+          params,
+          `Drawing ledger for event ${trustedParams.eventId} is locked. Submissions and reward issuance are prohibited.`
+        );
+      }
+    } else if (localEngine.isDrawingLedgerLocked(trustedParams.eventId)) {
+      return failedSubmissionResult(
+        params,
+        `Drawing ledger for event ${trustedParams.eventId} is locked. Submissions and reward issuance are prohibited.`
+      );
+    }
+
     const subRecord = {
       quest_id: trustedParams.questId,
       player_id: trustedPlayerId,
@@ -753,6 +812,8 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
 
       const isDuplicateScore = scoreInsert.error?.code === '23505';
       if (scoreInsert.error && !isDuplicateScore) {
+        // Cleanup on score failure
+        await supabaseAdmin.from('quest_submissions').delete().eq('id', dbSub.id);
         throw new Error(scoreInsert.error.message);
       }
 
@@ -783,7 +844,10 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
         { onConflict: 'event_id,player_id,quest_id' }
       );
       if (drawingUpsert.error) {
-        throw new Error(drawingUpsert.error.message);
+        // Transactional rollback on failed drawing ledger upsert (e.g. database lock trigger)
+        await supabaseAdmin.from('score_ledger').delete().eq('submission_id', dbSub.id);
+        await supabaseAdmin.from('quest_submissions').delete().eq('id', dbSub.id);
+        throw new Error(`Drawing entry rejected: ${drawingUpsert.error.message}`);
       }
       drawingEntriesAwarded = awardedPoints > 0 ? verification.drawingEntriesAwarded : 0;
     }
@@ -836,8 +900,89 @@ export async function reviewSubmissionDB(
   feedback?: string,
   reviewerNotes?: string
 ): Promise<QuestSubmission | undefined> {
-  if (!isSupabaseConfigured || !supabase) return localEngine.reviewSubmission(submissionId, newStatus, feedback, reviewerNotes);
-  return localEngine.reviewSubmission(submissionId, newStatus, feedback, reviewerNotes);
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.reviewSubmission(submissionId, newStatus, feedback, reviewerNotes);
+  }
+
+  const { data: sub } = await supabaseAdmin
+    .from('quest_submissions')
+    .select('*, quest:quests(*)')
+    .eq('id', submissionId)
+    .maybeSingle();
+
+  if (!sub) return undefined;
+
+  if (newStatus === 'verified') {
+    const { data: lockRow } = await supabaseAdmin
+      .from('drawing_ledger_locks')
+      .select('is_locked, status')
+      .eq('event_id', sub.event_id)
+      .maybeSingle();
+
+    if (lockRow && (lockRow.is_locked || ['locked', 'drawn', 'published', 'cancelled'].includes(lockRow.status))) {
+      throw new Error(
+        `Drawing entry ledger is locked for event ${sub.event_id}. Submissions cannot be verified to alter drawing entries while locked.`
+      );
+    }
+  }
+
+  const reviewedAt = new Date().toISOString();
+  const updateData: any = {
+    status: newStatus,
+    feedback,
+    reviewer_notes: reviewerNotes,
+    reviewed_at: reviewedAt,
+  };
+
+  if (newStatus === 'retry_requested') {
+    updateData.retry_requested = true;
+  }
+
+  const { data: updatedSub, error } = await supabaseAdmin
+    .from('quest_submissions')
+    .update(updateData)
+    .eq('id', submissionId)
+    .select()
+    .single();
+
+  if (error || !updatedSub) {
+    throw new Error(error?.message || 'Failed to update submission review status.');
+  }
+
+  if (newStatus === 'verified') {
+    const quest = Array.isArray(sub.quest) ? sub.quest[0] : sub.quest;
+    const xp = quest ? (quest.xp_reward || quest.point_value) : 100;
+    const entries = quest ? (quest.drawing_entry_reward ?? 1) : 1;
+
+    await supabaseAdmin.from('score_ledger').upsert(
+      {
+        event_id: sub.event_id,
+        player_id: sub.player_id,
+        team_id: sub.team_id,
+        quest_id: sub.quest_id,
+        submission_id: sub.id,
+        points: xp,
+        category: quest ? quest.category : 'admin_approved',
+        description: `Media submission approved for ${quest ? quest.title : 'Quest'}`,
+      },
+      { onConflict: 'event_id,player_id,quest_id' }
+    );
+
+    await supabaseAdmin.from('drawing_entry_ledger').upsert(
+      {
+        event_id: sub.event_id,
+        player_id: sub.player_id,
+        quest_id: sub.quest_id,
+        submission_id: sub.id,
+        entries_count: entries,
+        source_type: 'quest_completion',
+        reason: `Media submission approved for ${quest ? quest.title : 'Quest'}`,
+      },
+      { onConflict: 'event_id,player_id,quest_id' }
+    );
+  }
+
+  return mapSubmissionFromDB(updatedSub);
 }
 
 export function getActivityLogDB(): EventActivityItem[] {
@@ -850,4 +995,599 @@ export function adjustPlayerScoreManualDB(eventId: string, playerId: string, poi
 
 export function createBonusWindowDB(eventId: string, title: string, multiplier: number, category?: Quest['category'], durationMinutes: number = 45) {
   return localEngine.createBonusWindow(eventId, title, multiplier, category, durationMinutes);
+}
+
+// 10. TRANSPARENT PRIZE DRAWING SYSTEM DB
+export async function getDrawingLedgerReviewDB(eventId: string): Promise<DrawingLedgerReview> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.getDrawingLedgerReview(eventId);
+  }
+
+  const { data: event } = await supabaseAdmin
+    .from('events')
+    .select('id, title')
+    .or(`id.eq.${eventId},slug.eq.${eventId}`)
+    .maybeSingle();
+  const realEventId = event ? event.id : eventId;
+  const eventTitle = event ? event.title : 'Canton Quests Event';
+
+  const { data: entries } = await supabaseAdmin
+    .from('drawing_entry_ledger')
+    .select('player_id, entries_count, players(id, display_name, is_minor)')
+    .eq('event_id', realEventId);
+
+  const playerTotals: Record<string, { label: string; entries: number; isMinor?: boolean }> = {};
+  let totalQualifiedEntries = 0;
+
+  (entries || []).forEach((e: any) => {
+    const count = e.entries_count || 0;
+    if (count > 0) {
+      totalQualifiedEntries += count;
+      const pId = e.player_id;
+      if (!playerTotals[pId]) {
+        const pObj = Array.isArray(e.players) ? e.players[0] : e.players;
+        const isMinor = pObj?.is_minor === true;
+        const label = localEngine.getPublicPlayerLabel(
+          pObj ? { displayName: pObj.display_name, isMinor } as any : undefined,
+          pId
+        );
+        playerTotals[pId] = { label, entries: 0, isMinor };
+      }
+      playerTotals[pId].entries += count;
+    }
+  });
+
+  const playerEntries = Object.entries(playerTotals).map(([playerId, data]) => ({
+    playerId,
+    publicPlayerLabel: data.label,
+    entries: data.entries,
+    isMinor: data.isMinor,
+  }));
+
+  const { count: pendingCount } = await supabaseAdmin
+    .from('quest_submissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('event_id', realEventId)
+    .eq('status', 'pending');
+
+  const pendingSubmissionsCount = pendingCount || 0;
+
+  const { data: lockRow } = await supabaseAdmin
+    .from('drawing_ledger_locks')
+    .select('status, is_locked')
+    .eq('event_id', realEventId)
+    .maybeSingle();
+
+  const ledgerStatus: DrawingStatus = (lockRow?.status as DrawingStatus) || 'open';
+
+  return {
+    eventId: realEventId,
+    eventTitle,
+    ledgerStatus,
+    totalQualifiedEntries,
+    totalQualifiedPlayers: playerEntries.length,
+    playerEntries,
+    pendingSubmissionsCount,
+    hasPendingSubmissionsWarning: pendingSubmissionsCount > 0,
+  };
+}
+
+export async function lockDrawingLedgerDB(
+  eventId: string,
+  options?: { lockReason?: string; lockedBy?: string; confirmPendingBypass?: boolean }
+): Promise<EventDrawingLedgerLock> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.lockDrawingLedger(eventId, options);
+  }
+
+  const review = await getDrawingLedgerReviewDB(eventId);
+
+  // Reject re-locking if ledger is already locked, drawn, published, or cancelled
+  if (review.ledgerStatus !== 'open' && review.ledgerStatus !== 'review') {
+    const { data: existingLock } = await supabaseAdmin
+      .from('drawing_ledger_locks')
+      .select('*')
+      .eq('event_id', review.eventId)
+      .maybeSingle();
+
+    if (existingLock) {
+      return {
+        eventId: existingLock.event_id,
+        isLocked: existingLock.is_locked,
+        status: existingLock.status as DrawingStatus,
+        lockedAt: existingLock.locked_at,
+        lockReason: existingLock.lock_reason,
+        lockedBy: existingLock.locked_by,
+        snapshotHash: existingLock.snapshot_hash,
+        canonicalSnapshot: existingLock.canonical_snapshot as CanonicalSnapshot,
+        totalQualifiedEntries: existingLock.total_qualified_entries,
+        totalQualifiedPlayers: existingLock.total_qualified_players,
+        updatedAt: existingLock.updated_at,
+      };
+    }
+    throw new Error(`Cannot lock drawing ledger: Ledger status is currently '${review.ledgerStatus}'.`);
+  }
+
+  if (review.hasPendingSubmissionsWarning && !options?.confirmPendingBypass) {
+    throw new Error(
+      `Cannot lock drawing ledger: ${review.pendingSubmissionsCount} unresolved submission(s) remain pending. Admin confirmation required.`
+    );
+  }
+
+  const { data: entries } = await supabaseAdmin
+    .from('drawing_entry_ledger')
+    .select('player_id, entries_count, players(id, display_name, is_minor)')
+    .eq('event_id', review.eventId);
+
+  const playerTotals: Record<string, { label: string; publicParticipantId: string; entries: number }> = {};
+  (entries || []).forEach((e: any) => {
+    const count = e.entries_count || 0;
+    if (count > 0) {
+      const pId = e.player_id;
+      if (!playerTotals[pId]) {
+        const pObj = Array.isArray(e.players) ? e.players[0] : e.players;
+        const isMinor = pObj?.is_minor === true;
+        const label = localEngine.getPublicPlayerLabel(
+          pObj ? { displayName: pObj.display_name, isMinor } as any : undefined,
+          pId
+        );
+        const publicParticipantId = localEngine.getPublicParticipantId(pId, review.eventId);
+        playerTotals[pId] = { label, publicParticipantId, entries: 0 };
+      }
+      playerTotals[pId].entries += count;
+    }
+  });
+
+  const canonicalPlayers: CanonicalSnapshotPlayer[] = Object.values(playerTotals)
+    .filter((pt) => pt.entries > 0)
+    .map((pt) => ({
+      publicPlayerLabel: pt.label,
+      publicParticipantId: pt.publicParticipantId,
+      entries: pt.entries,
+    }))
+    .sort(
+      (a, b) =>
+        a.publicPlayerLabel.localeCompare(b.publicPlayerLabel) ||
+        a.entries - b.entries ||
+        (a.publicParticipantId || '').localeCompare(b.publicParticipantId || '')
+    );
+
+  const canonicalSnapshot: CanonicalSnapshot = {
+    eventId: review.eventId,
+    players: canonicalPlayers,
+  };
+
+  const jsonString = JSON.stringify(canonicalSnapshot);
+  const crypto = typeof require === 'function' ? require('crypto') : null;
+  if (!crypto) {
+    throw new Error('SHA-256 hashing requires Node.js runtime');
+  }
+  const rawHash = crypto.createHash('sha256').update(jsonString, 'utf8').digest('hex');
+  const snapshotHash = `SHA256-${rawHash}`;
+
+  const lockData = {
+    event_id: review.eventId,
+    is_locked: true,
+    status: 'locked',
+    locked_at: new Date().toISOString(),
+    lock_reason: options?.lockReason || 'Administrative Ledger Freeze',
+    locked_by: options?.lockedBy || 'GM Admin',
+    snapshot_hash: snapshotHash,
+    canonical_snapshot: canonicalSnapshot,
+    total_qualified_entries: canonicalPlayers.reduce((sum, p) => sum + p.entries, 0),
+    total_qualified_players: canonicalPlayers.length,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: lockRow, error } = await supabaseAdmin
+    .from('drawing_ledger_locks')
+    .upsert(lockData, { onConflict: 'event_id' })
+    .select()
+    .single();
+
+  if (error || !lockRow) {
+    throw new Error(error?.message || 'Failed to persist drawing ledger lock.');
+  }
+
+  return {
+    eventId: lockRow.event_id,
+    isLocked: lockRow.is_locked,
+    status: lockRow.status as DrawingStatus,
+    lockedAt: lockRow.locked_at,
+    lockReason: lockRow.lock_reason,
+    lockedBy: lockRow.locked_by,
+    snapshotHash: lockRow.snapshot_hash,
+    canonicalSnapshot: lockRow.canonical_snapshot as CanonicalSnapshot,
+    totalQualifiedEntries: lockRow.total_qualified_entries,
+    totalQualifiedPlayers: lockRow.total_qualified_players,
+    updatedAt: lockRow.updated_at,
+  };
+}
+
+export async function executePrizeDrawDB(params: {
+  eventId: string;
+  prizeId?: string;
+  prizeTitle?: string;
+  testSeed?: string;
+  drawMethod?: DrawMethod;
+  providerReference?: string;
+  manualWinnerPublicLabel?: string;
+  manualWinnerPublicParticipantId?: string;
+  manualWinnerPlayerId?: string;
+  auditMetadata?: Record<string, any>;
+  adminIdentity?: string;
+}): Promise<PrizeDrawRecord> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.executePrizeDraw(params);
+  }
+
+  const { data: event } = await supabaseAdmin
+    .from('events')
+    .select('id')
+    .or(`id.eq.${params.eventId},slug.eq.${params.eventId}`)
+    .maybeSingle();
+  if (!event) throw new Error(`Event not found: ${params.eventId}`);
+  const realEventId = event.id;
+
+  const { data: lockRow } = await supabaseAdmin
+    .from('drawing_ledger_locks')
+    .select('*')
+    .eq('event_id', realEventId)
+    .maybeSingle();
+
+  if (!lockRow || !lockRow.is_locked || !lockRow.snapshot_hash || !lockRow.canonical_snapshot) {
+    throw new Error('Drawing ledger must be locked before executing a draw.');
+  }
+
+  if (lockRow.status === 'cancelled') {
+    throw new Error(`Cannot execute prize draw: Drawing ledger for event ${realEventId} is cancelled.`);
+  }
+
+  if (!DRAWABLE_LEDGER_STATUSES.includes(lockRow.status as DrawingStatus)) {
+    throw new Error(
+      `Cannot execute prize draw: Drawing ledger status is "${lockRow.status}". Prize draws are only allowed from a locked or drawn ledger state.`
+    );
+  }
+
+  const prizeTitle = params.prizeTitle || 'Grand Prize';
+  const prizeId = params.prizeId || undefined;
+
+  // Prevent duplicate active draw
+  const { data: existingActiveDraw } = await supabaseAdmin
+    .from('prize_draw_records')
+    .select('id')
+    .eq('event_id', realEventId)
+    .neq('status', 'cancelled')
+    .eq('locked_ledger_hash', lockRow.snapshot_hash)
+    .or(`prize_id.eq.${prizeId || '00000000-0000-0000-0000-000000000000'},prize_title.eq.${prizeTitle}`)
+    .maybeSingle();
+
+  if (existingActiveDraw) {
+    throw new Error(
+      `An active draw record already exists for prize "${prizeTitle}" under locked ledger hash ${lockRow.snapshot_hash}. Void/cancel the existing draw record before drawing again.`
+    );
+  }
+
+  const drawMethod: DrawMethod = params.drawMethod || 'internal_test';
+  if (drawMethod === 'internal_test') {
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_INTERNAL_TEST_DRAW !== 'true') {
+      throw new Error(
+        'Internal deterministic test draws are restricted to development and testing environments.'
+      );
+    }
+  }
+
+  const { data: existingDraws } = await supabaseAdmin
+    .from('prize_draw_records')
+    .select('winning_player_id')
+    .eq('event_id', realEventId)
+    .neq('status', 'cancelled');
+
+  const excludedPlayerIds = (existingDraws || []).map((d: any) => d.winning_player_id);
+
+  const { data: ledgerEntries } = await supabaseAdmin
+    .from('drawing_entry_ledger')
+    .select('player_id, players(id, display_name, is_minor)')
+    .eq('event_id', realEventId);
+
+  const playerMap: Record<string, { label: string; isMinor?: boolean }> = {};
+  (ledgerEntries || []).forEach((e: any) => {
+    const pId = e.player_id;
+    if (!playerMap[pId]) {
+      const pObj = Array.isArray(e.players) ? e.players[0] : e.players;
+      const isMinor = pObj?.is_minor === true;
+      const label = localEngine.getPublicPlayerLabel(
+        pObj ? { displayName: pObj.display_name, isMinor } as any : undefined,
+        pId
+      );
+      playerMap[pId] = { label, isMinor };
+    }
+  });
+
+  let provider: DrawProvider = localEngine.InternalTestDrawProvider;
+  if (drawMethod === 'manual_external') {
+    provider = localEngine.ManualExternalDrawProvider;
+  } else if (drawMethod === 'random_org') {
+    provider = localEngine.RandomOrgFutureDrawProvider;
+  }
+
+  const drawResult = await provider.executeDraw({
+    eventId: realEventId,
+    prizeId: prizeId || `prz-default-${realEventId}`,
+    prizeTitle,
+    snapshot: lockRow.canonical_snapshot as CanonicalSnapshot,
+    playerMap,
+    snapshotHash: lockRow.snapshot_hash,
+    testSeed: params.testSeed,
+    excludedPlayerIds,
+    manualWinnerPublicLabel: params.manualWinnerPublicLabel,
+    manualWinnerPublicParticipantId: params.manualWinnerPublicParticipantId,
+    manualWinnerPlayerId: params.manualWinnerPlayerId,
+    providerReference: params.providerReference,
+    auditMetadata: params.auditMetadata,
+  });
+
+  const drawRecordPayload = {
+    event_id: realEventId,
+    prize_id: prizeId,
+    prize_title: prizeTitle,
+    status: 'drawn',
+    locked_ledger_hash: lockRow.snapshot_hash,
+    locked_at: lockRow.locked_at || new Date().toISOString(),
+    draw_method: drawResult.drawMethod,
+    provider_reference: drawResult.providerReference,
+    drawn_at: new Date().toISOString(),
+    winning_player_id: drawResult.winningPlayerId,
+    winning_public_player_label: drawResult.winningPublicPlayerLabel,
+    selected_weighted_entry_index: drawResult.selectedWeightedEntryIndex,
+    audit_metadata: drawResult.auditMetadata,
+    created_at: new Date().toISOString(),
+  };
+
+  const { data: inserted, error } = await supabaseAdmin.rpc('execute_prize_draw_if_drawable', {
+    p_event_id: realEventId,
+    p_allowed_statuses: DRAWABLE_LEDGER_STATUSES,
+    p_draw_record: drawRecordPayload,
+  });
+
+  if (error || !inserted) {
+    throw new Error(error?.message || 'Failed to insert prize draw record.');
+  }
+
+  const insertedRow = Array.isArray(inserted) ? inserted[0] : inserted;
+
+  return mapPrizeDrawRecordFromDB(insertedRow, prizeId || '');
+}
+
+export async function cancelDrawingLedgerDB(
+  eventId: string,
+  reason?: string,
+  adminIdentity?: string
+): Promise<EventDrawingLedgerLock> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.cancelDrawingLedger(eventId, reason, adminIdentity);
+  }
+
+  const { data: lockRow, error } = await supabaseAdmin
+    .from('drawing_ledger_locks')
+    .update({
+      status: 'cancelled',
+      is_locked: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('event_id', eventId)
+    .select()
+    .single();
+
+  if (error || !lockRow) {
+    throw new Error(error?.message || `Failed to cancel drawing ledger for event ${eventId}`);
+  }
+
+  return {
+    eventId: lockRow.event_id,
+    isLocked: lockRow.is_locked,
+    status: lockRow.status as DrawingStatus,
+    lockedAt: lockRow.locked_at,
+    lockReason: lockRow.lock_reason,
+    lockedBy: lockRow.locked_by,
+    snapshotHash: lockRow.snapshot_hash,
+    canonicalSnapshot: lockRow.canonical_snapshot as CanonicalSnapshot,
+    totalQualifiedEntries: lockRow.total_qualified_entries,
+    totalQualifiedPlayers: lockRow.total_qualified_players,
+    updatedAt: lockRow.updated_at,
+  };
+}
+
+export async function publishDrawingResultsDB(eventId: string, adminIdentity?: string): Promise<PrizeDrawRecord[]> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.publishDrawingResults(eventId, adminIdentity);
+  }
+
+  const { data: event } = await supabaseAdmin
+    .from('events')
+    .select('id')
+    .or(`id.eq.${eventId},slug.eq.${eventId}`)
+    .maybeSingle();
+  if (!event) throw new Error(`Event not found: ${eventId}`);
+  const realEventId = event.id;
+
+  const { data: lockRow } = await supabaseAdmin
+    .from('drawing_ledger_locks')
+    .select('*')
+    .eq('event_id', realEventId)
+    .maybeSingle();
+
+  if (!lockRow || !lockRow.is_locked) {
+    throw new Error(`Cannot publish drawing results: Drawing ledger for event ${eventId} is not locked.`);
+  }
+  if (lockRow.status === 'cancelled') {
+    throw new Error(`Cannot publish drawing results: Drawing ledger for event ${eventId} is cancelled.`);
+  }
+  if (!PUBLISHABLE_LEDGER_STATUSES.includes(lockRow.status as DrawingStatus)) {
+    throw new Error(
+      `Cannot publish drawing results: Drawing ledger status is "${lockRow.status}". Publishing is only allowed from a drawn ledger state.`
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  const { data: publishedDraws, error } = await supabaseAdmin.rpc('publish_prize_draws_if_publishable', {
+    p_event_id: realEventId,
+    p_allowed_statuses: PUBLISHABLE_LEDGER_STATUSES,
+    p_published_at: now,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to publish drawing results.');
+  }
+
+  if (!publishedDraws || publishedDraws.length === 0) {
+    const { data: existingPublished } = await supabaseAdmin
+      .from('prize_draw_records')
+      .select('*')
+      .eq('event_id', realEventId)
+      .eq('status', 'published');
+    if (existingPublished && existingPublished.length > 0) {
+      return existingPublished.map((d: any) => mapPrizeDrawRecordFromDB(d));
+    }
+    throw new Error('No completed draws found to publish.');
+  }
+  return publishedDraws.map((d: any) => mapPrizeDrawRecordFromDB(d));
+}
+
+export async function voidPrizeDrawRecordDB(
+  eventId: string,
+  drawRecordId: string,
+  cancellationReason: string,
+  adminIdentity?: string
+): Promise<PrizeDrawRecord> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.voidPrizeDrawRecord(eventId, drawRecordId, cancellationReason, adminIdentity);
+  }
+
+  if (!cancellationReason || cancellationReason.trim().length < 5) {
+    throw new Error('An explicit audit reason is required to void or cancel a prize drawing record.');
+  }
+
+  const now = new Date().toISOString();
+  const { data: updated, error } = await supabaseAdmin
+    .from('prize_draw_records')
+    .update({
+      status: 'cancelled',
+      cancellation_reason: cancellationReason.trim(),
+      cancelled_at: now,
+      cancelled_by: adminIdentity || 'GM Admin',
+    })
+    .eq('id', drawRecordId)
+    .select()
+    .single();
+
+  if (error || !updated) {
+    throw new Error(`Draw record not found or void failed: ${drawRecordId}`);
+  }
+
+  const { count: activeCount } = await supabaseAdmin
+    .from('prize_draw_records')
+    .select('id', { count: 'exact', head: true })
+    .eq('event_id', updated.event_id)
+    .neq('status', 'cancelled');
+
+  if (activeCount === 0) {
+    await supabaseAdmin
+      .from('drawing_ledger_locks')
+      .update({ status: 'locked', updated_at: now })
+      .eq('event_id', updated.event_id);
+  }
+
+  return {
+    id: updated.id,
+    eventId: updated.event_id,
+    prizeId: updated.prize_id || '',
+    prizeTitle: updated.prize_title,
+    status: updated.status as 'drawn' | 'published' | 'cancelled',
+    lockedLedgerHash: updated.locked_ledger_hash,
+    lockedAt: updated.locked_at,
+    drawMethod: updated.draw_method as DrawMethod,
+    providerReference: updated.provider_reference,
+    drawnAt: updated.drawn_at,
+    winningPlayerId: updated.winning_player_id,
+    winningPublicPlayerLabel: updated.winning_public_player_label,
+    selectedWeightedEntryIndex: updated.selected_weighted_entry_index,
+    auditMetadata: updated.audit_metadata,
+    publishedAt: updated.published_at,
+    cancellationReason: updated.cancellation_reason,
+    cancelledAt: updated.cancelled_at,
+    cancelledBy: updated.cancelled_by,
+    createdAt: updated.created_at,
+  };
+}
+
+export async function getPublicDrawingPageDataDB(eventId: string): Promise<PublicDrawingPageData> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.getPublicDrawingPageData(eventId);
+  }
+
+  const { data: event } = await supabaseAdmin
+    .from('events')
+    .select('id, title')
+    .or(`id.eq.${eventId},slug.eq.${eventId}`)
+    .maybeSingle();
+  const realEventId = event ? event.id : eventId;
+  const eventTitle = event ? event.title : 'Canton Quests Event';
+
+  const { data: lockRow } = await supabaseAdmin
+    .from('drawing_ledger_locks')
+    .select('*')
+    .eq('event_id', realEventId)
+    .maybeSingle();
+
+  const { data: projectionRows } = await supabaseAdmin
+    .from('public_drawing_ledger_projection')
+    .select('player_public_label, total_qualified_entries')
+    .eq('event_id', realEventId);
+
+  const publicPlayerEntries: PublicPlayerDrawingEntry[] = (projectionRows || []).map((row: any) => ({
+    playerPublicLabel: row.player_public_label,
+    totalQualifiedEntries: row.total_qualified_entries,
+  }));
+
+  const totalQualifiedEntries = publicPlayerEntries.reduce((sum, p) => sum + p.totalQualifiedEntries, 0);
+
+  const { data: publishedRows } = await supabaseAdmin
+    .from('public_published_drawings_projection')
+    .select('*')
+    .eq('event_id', realEventId);
+
+  const publishedPrizes: PublicPrizeDrawResult[] = (publishedRows || []).map((row: any) => ({
+    drawRecordId: row.draw_record_id,
+    prizeId: row.prize_id || '',
+    prizeTitle: row.prize_title,
+    winnerPublicLabel: row.winner_public_label,
+    drawMethod: row.draw_method,
+    providerReference: row.provider_reference,
+    drawnAt: row.drawn_at,
+    verificationStatus: row.verification_status || row.audit_metadata?.verificationStatus || (row.draw_method === 'manual_external' ? 'manual_unverified' : 'internal_seeded'),
+    isSystemVerified: row.is_system_verified ?? row.audit_metadata?.isSystemVerified ?? false,
+    isIndependent: row.is_independent ?? row.audit_metadata?.isIndependent ?? false,
+  }));
+
+  const ledgerLockStatus: DrawingStatus = (lockRow?.status as DrawingStatus) || 'open';
+  const firstPublished = publishedRows && publishedRows.length > 0 ? publishedRows[0] : null;
+
+  return {
+    eventId: realEventId,
+    eventTitle,
+    ledgerLockStatus,
+    ledgerLockTimestamp: lockRow?.is_locked ? lockRow.locked_at || null : null,
+    snapshotHash: lockRow?.snapshot_hash || null,
+    canonicalSnapshot: lockRow?.canonical_snapshot || null,
+    totalQualifiedEntries,
+    totalQualifiedPlayers: publicPlayerEntries.length,
+    publicPlayerEntries,
+    publishedPrizes,
+    publishedAt: firstPublished ? firstPublished.published_at || null : null,
+    verificationInfo: lockRow?.snapshot_hash
+      ? `This drawing entry pool was finalized and cryptographically hashed (SHA-256: ${lockRow.snapshot_hash}) on ${lockRow.locked_at}. The winner selection is tied directly to the frozen canonical snapshot.`
+      : undefined,
+  };
 }

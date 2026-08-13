@@ -388,6 +388,12 @@ export default function AdminPage() {
 
             <div className="flex items-center gap-2">
               <Link
+                href="/admin/drawing"
+                className="bg-amber-950/80 hover:bg-amber-900 text-amber-200 px-3 py-1.5 rounded-xl border border-amber-700 font-bold flex items-center gap-1.5"
+              >
+                🎁 Prize Drawings
+              </Link>
+              <Link
                 href="/admin/live"
                 className="bg-red-950/80 hover:bg-red-900 text-red-200 px-3 py-1.5 rounded-xl border border-red-700 font-bold flex items-center gap-1.5"
               >

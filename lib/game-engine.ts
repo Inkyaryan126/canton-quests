@@ -39,6 +39,15 @@ import {
   GeneratedQR,
   LocationInfo,
   ProofReviewFlag,
+  DrawingStatus,
+  CanonicalSnapshotPlayer,
+  CanonicalSnapshot,
+  DrawMethod,
+  PrizeDrawRecord,
+  PublicPrizeDrawResult,
+  PublicDrawingPageData,
+  DrawingLedgerReview,
+  DrawProvider,
 } from './types';
 import {
   SEED_CITY,
@@ -59,6 +68,7 @@ import {
 } from './seed-data';
 import { checkProximity, formatDistance } from './geo';
 import { evaluateProofIntegrity } from './proof-integrity';
+import { sanitizeTextContent } from './spectator-engine';
 
 const STORAGE_KEYS = {
   CURRENT_PLAYER: 'canton_quests_current_player',
@@ -83,6 +93,7 @@ const STORAGE_KEYS = {
   BONUS_WINDOWS: 'canton_quests_bonus_windows',
   FINALE_QUALIFICATIONS: 'canton_quests_finale_qualifications',
   PRIZES: 'canton_quests_prizes',
+  PRIZE_DRAWS: 'canton_quests_prize_draw_records',
   GENERATED_QRS: 'canton_quests_generated_qrs',
   LOCATIONS: 'canton_quests_locations',
 };
@@ -210,6 +221,11 @@ export function initializeGameEngine(): void {
   if (getStoredItem<Prize[]>(STORAGE_KEYS.PRIZES, []).length === 0) {
     setStoredItem(STORAGE_KEYS.PRIZES, SEED_PRIZES);
   }
+}
+
+export function resetGameEngineStore(): void {
+  inMemoryStore.clear();
+  initializeGameEngine();
 }
 
 // 1. EVENT FACTORY — CREATION, EDIT & DUPLICATION
@@ -1949,16 +1965,21 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
       description: `Completed ${quest.title}${multiplier > 1.0 ? ` (${multiplier}x Bonus)` : ''}`,
     });
 
-    // 2. Award Event-Scoped Drawing Entries
-    awardDrawingEntries({
-      eventId: params.eventId,
-      playerId: params.playerId,
-      questId: params.questId,
-      submissionId: newSubmission.id,
-      entriesCount: drawingEntriesAwarded,
-      sourceType: 'quest_completion',
-      reason: `Completed quest: ${quest.title}`,
-    });
+    // 2. Award Event-Scoped Drawing Entries (Only if ledger is open)
+    if (isDrawingLedgerLocked(params.eventId)) {
+      drawingEntriesAwarded = 0;
+      newSubmission.drawingEntriesAwarded = 0;
+    } else {
+      awardDrawingEntries({
+        eventId: params.eventId,
+        playerId: params.playerId,
+        questId: params.questId,
+        submissionId: newSubmission.id,
+        entriesCount: drawingEntriesAwarded,
+        sourceType: 'quest_completion',
+        reason: `Completed quest: ${quest.title}`,
+      });
+    }
 
     incrementCrowdObjective(params.eventId, 1);
 
@@ -2032,10 +2053,46 @@ export function recordScoreLedger(entryData: Omit<ScoreLedgerEntry, 'id' | 'awar
 // Core Quest Rewards Backbone — Drawing Entry Ledger Subsystem
 // -----------------------------------------------------------------------------
 
+export function isDrawingLedgerLocked(eventId: string): boolean {
+  initializeGameEngine();
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+  const lock = locks.find((l) => l.eventId === eventId);
+  return !!(lock && (lock.isLocked || ['locked', 'drawn', 'published', 'cancelled'].includes(lock.status)));
+}
+
+const EMAIL_LABEL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i;
+const PHONE_LABEL_REGEX = /\+?[0-9]{1,4}[-.\s]?\(?[0-9]{1,3}\)?[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{4}/;
+
+export function getPublicPlayerLabel(playerObj: Player | undefined, playerId: string): string {
+  const shortId = playerId.replace(/[^a-f0-9]/gi, '').slice(-4).toUpperCase() || '0000';
+  if (!playerObj) {
+    return `Agent #${shortId}`;
+  }
+  if ('isMinor' in playerObj && (playerObj as any).isMinor === true) {
+    return `Agent #${shortId}`;
+  }
+  let label = (playerObj.displayName || '').trim();
+  if (!label || label.startsWith('Agent #')) {
+    return `Agent #${shortId}`;
+  }
+  if (EMAIL_LABEL_REGEX.test(label) || PHONE_LABEL_REGEX.test(label)) {
+    return `Agent #${shortId}`;
+  }
+  const sanitized = sanitizeTextContent(label).trim();
+  if (!sanitized || EMAIL_LABEL_REGEX.test(sanitized) || PHONE_LABEL_REGEX.test(sanitized) || sanitized.startsWith('Agent #')) {
+    return `Agent #${shortId}`;
+  }
+  return sanitized;
+}
+
 export function awardDrawingEntries(
   entryData: Omit<DrawingEntryLedgerEntry, 'id' | 'createdAt'>
 ): DrawingEntryLedgerEntry {
   initializeGameEngine();
+  if (isDrawingLedgerLocked(entryData.eventId)) {
+    throw new Error(`Drawing ledger for event ${entryData.eventId} is locked. New drawing entries cannot be awarded.`);
+  }
+
   const ledger = getStoredItem<DrawingEntryLedgerEntry[]>(STORAGE_KEYS.DRAWING_LEDGER, []);
 
   if (entryData.questId && entryData.entriesCount > 0) {
@@ -2087,10 +2144,7 @@ export function getPublicDrawingLedgerProjection(eventId: string): PublicDrawing
     totalEntriesAcrossAllPlayers += e.entriesCount;
     if (!playerMap[e.playerId]) {
       const playerObj = players.find((p) => p.id === e.playerId);
-      let label = playerObj?.displayName || 'Anonymous Agent';
-      if (playerObj && 'isMinor' in playerObj && playerObj.isMinor === true) {
-        label = `Agent #${e.playerId.slice(-4)}`;
-      }
+      const label = getPublicPlayerLabel(playerObj, e.playerId);
       playerMap[e.playerId] = { label, count: 0 };
     }
     playerMap[e.playerId].count += e.entriesCount;
@@ -2101,63 +2155,660 @@ export function getPublicDrawingLedgerProjection(eventId: string): PublicDrawing
     totalQualifiedEntries: pm.count,
   }));
 
+  const status: DrawingStatus = lock ? lock.status : 'open';
+
   return {
     eventId,
     totalEntriesAcrossAllPlayers,
-    ledgerLockStatus: lock && lock.isLocked ? 'locked' : 'unlocked',
+    ledgerLockStatus: status,
     ledgerLockTimestamp: lock && lock.isLocked ? lock.lockedAt || null : null,
     playerEntries,
   };
 }
 
-export function lockDrawingLedger(
-  eventId: string,
-  lockReason?: string,
-  adminIdentity?: string
-): EventDrawingLedgerLock {
-  initializeGameEngine();
-  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
-  const newLock: EventDrawingLedgerLock = {
-    eventId,
-    isLocked: true,
-    lockedAt: new Date().toISOString(),
-    lockReason: lockReason || 'Administrative Ledger Lock',
-    lockedBy: adminIdentity || 'GM Admin',
-  };
-  const filtered = locks.filter((l) => l.eventId !== eventId);
-  setStoredItem(STORAGE_KEYS.DRAWING_LOCKS, [...filtered, newLock]);
-  return newLock;
+export function getPublicParticipantId(playerId: string, eventId: string): string {
+  const nodeRequire = typeof require === 'function' ? require : undefined;
+  if (nodeRequire) {
+    return nodeRequire('crypto')
+      .createHash('sha256')
+      .update(`${playerId}:${eventId}`, 'utf8')
+      .digest('hex')
+      .slice(0, 8);
+  }
+  let hash = 0;
+  const str = `${playerId}:${eventId}`;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(16).padStart(8, '0').slice(0, 8);
 }
 
 export function exportDrawingLedgerSnapshot(eventId: string): {
-  snapshot: Array<{ playerPublicLabel: string; entriesCount: number; questId?: string; createdAt: string }>;
+  snapshot: CanonicalSnapshot;
   snapshotHash: string;
 } {
   initializeGameEngine();
   const entries = getDrawingEntriesForEvent(eventId);
   const players = getAllPlayers();
 
-  const snapshot = entries
-    .map((e) => {
-      const playerObj = players.find((p) => p.id === e.playerId);
-      const label = playerObj?.displayName || 'Anonymous Agent';
-      return {
-        playerPublicLabel: label,
-        entriesCount: e.entriesCount,
-        questId: e.questId,
-        createdAt: e.createdAt,
-      };
-    })
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const playerTotals: Record<string, { label: string; publicParticipantId: string; entries: number }> = {};
 
-  const jsonString = JSON.stringify(snapshot);
+  entries.forEach((e) => {
+    if (e.entriesCount > 0) {
+      if (!playerTotals[e.playerId]) {
+        const pObj = players.find((p) => p.id === e.playerId);
+        const label = getPublicPlayerLabel(pObj, e.playerId);
+        const publicParticipantId = getPublicParticipantId(e.playerId, eventId);
+        playerTotals[e.playerId] = { label, publicParticipantId, entries: 0 };
+      }
+      playerTotals[e.playerId].entries += e.entriesCount;
+    }
+  });
+
+  // Sort deterministically: primary by publicPlayerLabel ASC, secondary by entries ASC, tertiary by publicParticipantId ASC
+  const canonicalPlayers: CanonicalSnapshotPlayer[] = Object.values(playerTotals)
+    .filter((pt) => pt.entries > 0)
+    .map((pt) => ({
+      publicPlayerLabel: pt.label,
+      publicParticipantId: pt.publicParticipantId,
+      entries: pt.entries,
+    }))
+    .sort(
+      (a, b) =>
+        a.publicPlayerLabel.localeCompare(b.publicPlayerLabel) ||
+        a.entries - b.entries ||
+        (a.publicParticipantId || '').localeCompare(b.publicParticipantId || '')
+    );
+
+  const canonicalSnapshot: CanonicalSnapshot = {
+    eventId,
+    players: canonicalPlayers,
+  };
+
+  const jsonString = JSON.stringify(canonicalSnapshot);
   const nodeRequire = typeof require === 'function' ? require : undefined;
   if (!nodeRequire) {
     throw new Error('Synchronous SHA-256 export hashing requires a Node.js runtime.');
   }
-  const snapshotHash = `SHA256-${nodeRequire('crypto').createHash('sha256').update(jsonString).digest('hex')}`;
+  const rawHash = nodeRequire('crypto').createHash('sha256').update(jsonString, 'utf8').digest('hex');
+  const snapshotHash = `SHA256-${rawHash}`;
 
-  return { snapshot, snapshotHash };
+  return { snapshot: canonicalSnapshot, snapshotHash };
+}
+
+export function getDrawingLedgerReview(eventId: string): DrawingLedgerReview {
+  initializeGameEngine();
+  const events = getEvents();
+  const event = events.find((e) => e.id === eventId || e.slug === eventId);
+  const eventTitle = event ? event.title : 'Canton Quests Event';
+  const realEventId = event ? event.id : eventId;
+
+  const entries = getDrawingEntriesForEvent(realEventId);
+  const players = getAllPlayers();
+
+  const playerTotals: Record<string, { label: string; entries: number; isMinor?: boolean }> = {};
+  let totalQualifiedEntries = 0;
+
+  entries.forEach((e) => {
+    if (e.entriesCount > 0) {
+      totalQualifiedEntries += e.entriesCount;
+      if (!playerTotals[e.playerId]) {
+        const pObj = players.find((p) => p.id === e.playerId);
+        const label = getPublicPlayerLabel(pObj, e.playerId);
+        playerTotals[e.playerId] = {
+          label,
+          entries: 0,
+          isMinor: pObj && 'isMinor' in pObj ? (pObj as any).isMinor : false,
+        };
+      }
+      playerTotals[e.playerId].entries += e.entriesCount;
+    }
+  });
+
+  const playerEntries = Object.entries(playerTotals).map(([playerId, data]) => ({
+    playerId,
+    publicPlayerLabel: data.label,
+    entries: data.entries,
+    isMinor: data.isMinor,
+  }));
+
+  const submissions = getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
+  const pendingSubmissionsCount = submissions.filter(
+    (s) => s.eventId === realEventId && s.status === 'pending'
+  ).length;
+
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+  const lock = locks.find((l) => l.eventId === realEventId);
+  const ledgerStatus: DrawingStatus = lock ? lock.status : 'open';
+
+  return {
+    eventId: realEventId,
+    eventTitle,
+    ledgerStatus,
+    totalQualifiedEntries,
+    totalQualifiedPlayers: playerEntries.length,
+    playerEntries,
+    pendingSubmissionsCount,
+    hasPendingSubmissionsWarning: pendingSubmissionsCount > 0,
+  };
+}
+
+export function lockDrawingLedger(
+  eventId: string,
+  options?: { lockReason?: string; lockedBy?: string; confirmPendingBypass?: boolean }
+): EventDrawingLedgerLock {
+  initializeGameEngine();
+  const events = getEvents();
+  const event = events.find((e) => e.id === eventId || e.slug === eventId);
+  if (!event) {
+    throw new Error(`Event not found: ${eventId}`);
+  }
+  const realEventId = event.id;
+
+  const review = getDrawingLedgerReview(realEventId);
+  if (review.ledgerStatus !== 'open' && review.ledgerStatus !== 'review') {
+    const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+    const existingLock = locks.find((l) => l.eventId === realEventId);
+    if (existingLock) return existingLock;
+  }
+
+  if (review.hasPendingSubmissionsWarning && !options?.confirmPendingBypass) {
+    throw new Error(
+      `Cannot lock drawing ledger: ${review.pendingSubmissionsCount} unresolved submission(s) remain pending. Admin confirmation required.`
+    );
+  }
+
+  const snapshotData = exportDrawingLedgerSnapshot(realEventId);
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+
+  const newLock: EventDrawingLedgerLock = {
+    eventId: realEventId,
+    isLocked: true,
+    status: 'locked',
+    lockedAt: new Date().toISOString(),
+    lockReason: options?.lockReason || 'Administrative Ledger Freeze',
+    lockedBy: options?.lockedBy || 'GM Admin',
+    snapshotHash: snapshotData.snapshotHash,
+    canonicalSnapshot: snapshotData.snapshot,
+    totalQualifiedEntries: snapshotData.snapshot.players.reduce((sum: number, p: CanonicalSnapshotPlayer) => sum + p.entries, 0),
+    totalQualifiedPlayers: snapshotData.snapshot.players.length,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const filtered = locks.filter((l) => l.eventId !== realEventId);
+  setStoredItem(STORAGE_KEYS.DRAWING_LOCKS, [...filtered, newLock]);
+  return newLock;
+}
+
+export const InternalTestDrawProvider: DrawProvider = {
+  id: 'internal_test',
+  name: 'Internal Seeded Test Provider (DEV / INTERNAL ONLY)',
+  isIndependent: false,
+  async executeDraw(params) {
+    const seed = params.testSeed || 'TEST_SEED_DEFAULT';
+    const players = params.snapshot.players.filter((p: CanonicalSnapshotPlayer) => {
+      if (!params.excludedPlayerIds || params.excludedPlayerIds.length === 0) return true;
+      const internalId = Object.entries(params.playerMap).find(([id, pInfo]: [string, { label: string; isMinor?: boolean }]) => {
+        const participantId = getPublicParticipantId(id, params.eventId);
+        if (p.publicParticipantId && participantId === p.publicParticipantId) return true;
+        return pInfo.label === p.publicPlayerLabel;
+      })?.[0];
+      return !internalId || !params.excludedPlayerIds.includes(internalId);
+    });
+
+    if (players.length === 0) {
+      throw new Error('No eligible players available for drawing.');
+    }
+
+    const totalWeightedUnits = players.reduce((sum: number, p: CanonicalSnapshotPlayer) => sum + p.entries, 0);
+    if (totalWeightedUnits <= 0) {
+      throw new Error('Drawing pool has 0 qualified entries.');
+    }
+
+    const nodeRequire = typeof require === 'function' ? require : undefined;
+    if (!nodeRequire) {
+      throw new Error('Deterministic test draw requires Node.js runtime.');
+    }
+    const seedDigest = nodeRequire('crypto')
+      .createHash('sha256')
+      .update(`${seed}:${params.prizeId}:${params.snapshotHash}`, 'utf8')
+      .digest('hex');
+
+    const bigHash = BigInt('0x' + seedDigest);
+    const selectedWeightedEntryIndex = Number(bigHash % BigInt(totalWeightedUnits));
+
+    let currentUnits = 0;
+    let selectedPlayer = players[0];
+    for (const player of players) {
+      currentUnits += player.entries;
+      if (selectedWeightedEntryIndex < currentUnits) {
+        selectedPlayer = player;
+        break;
+      }
+    }
+
+    const winningPlayerId =
+      Object.entries(params.playerMap).find(([id, pInfo]: [string, { label: string; isMinor?: boolean }]) => {
+        const participantId = getPublicParticipantId(id, params.eventId);
+        if (selectedPlayer.publicParticipantId && participantId === selectedPlayer.publicParticipantId) return true;
+        return pInfo.label === selectedPlayer.publicPlayerLabel;
+      })?.[0] ||
+      `plr-anon-${selectedPlayer.publicPlayerLabel.replace(/\s+/g, '-').toLowerCase()}`;
+
+    return {
+      winningPlayerId,
+      winningPublicPlayerLabel: selectedPlayer.publicPlayerLabel,
+      selectedWeightedEntryIndex,
+      drawMethod: 'internal_test',
+      providerReference: `TEST_SEED:${seed}`,
+      auditMetadata: {
+        seed,
+        isTestProvider: true,
+        isSystemVerified: true,
+        isIndependent: false,
+        verificationStatus: 'internal_seeded',
+        disclaimer: 'INTERNAL TEST / NON-INDEPENDENT SEED ONLY',
+        totalWeightedUnits,
+        selectedWeightedEntryIndex,
+        prizeId: params.prizeId,
+        prizeTitle: params.prizeTitle,
+        lockedLedgerHash: params.snapshotHash,
+      },
+    };
+  },
+};
+
+export const ManualExternalDrawProvider: DrawProvider = {
+  id: 'manual_external',
+  name: 'Manual External Draw Record (Manually Recorded / Unverified)',
+  isIndependent: false,
+  async executeDraw(params) {
+    if (!params.manualWinnerPublicLabel && !params.manualWinnerPlayerId && !params.manualWinnerPublicParticipantId) {
+      throw new Error('Manual external provider draw requires a winner public label, public participant ID, or internal player ID.');
+    }
+    if (!params.providerReference) {
+      throw new Error('Manual external provider draw requires a valid provider reference (e.g. RANDOM.ORG Serial # or Wheel Spin #).');
+    }
+
+    let playerInSnapshot: CanonicalSnapshotPlayer | undefined;
+
+    if (params.manualWinnerPublicParticipantId) {
+      playerInSnapshot = params.snapshot.players.find(
+        (p) => p.publicParticipantId === params.manualWinnerPublicParticipantId
+      );
+    } else if (params.manualWinnerPlayerId) {
+      const targetParticipantId = getPublicParticipantId(params.manualWinnerPlayerId, params.eventId);
+      playerInSnapshot = params.snapshot.players.find(
+        (p) => p.publicParticipantId === targetParticipantId || p.publicParticipantId === params.manualWinnerPlayerId
+      );
+    } else if (params.manualWinnerPublicLabel) {
+      const matchingPlayers = params.snapshot.players.filter(
+        (p) => p.publicPlayerLabel === params.manualWinnerPublicLabel
+      );
+      if (matchingPlayers.length > 1) {
+        throw new Error(
+          `Ambiguous winner: Multiple participants share public label "${params.manualWinnerPublicLabel}". Please specify the unique publicParticipantId (e.g. PUB-...) to identify the winner.`
+        );
+      }
+      playerInSnapshot = matchingPlayers[0];
+    }
+
+    if (!playerInSnapshot) {
+      const identifier = params.manualWinnerPublicParticipantId || params.manualWinnerPublicLabel || params.manualWinnerPlayerId;
+      throw new Error(`Specified winner "${identifier}" was not found in the frozen canonical snapshot pool.`);
+    }
+
+    const winningPlayerId =
+      params.manualWinnerPlayerId ||
+      Object.entries(params.playerMap).find(([id, pInfo]) => {
+        const participantId = getPublicParticipantId(id, params.eventId);
+        if (playerInSnapshot?.publicParticipantId && participantId === playerInSnapshot.publicParticipantId) return true;
+        return pInfo.label === playerInSnapshot?.publicPlayerLabel;
+      })?.[0] ||
+      `plr-anon-${playerInSnapshot.publicPlayerLabel.replace(/\s+/g, '-').toLowerCase()}`;
+
+    if (params.excludedPlayerIds && params.excludedPlayerIds.includes(winningPlayerId)) {
+      throw new Error(`Player "${playerInSnapshot.publicPlayerLabel}" has already won a primary prize for this event.`);
+    }
+
+    return {
+      winningPlayerId,
+      winningPublicPlayerLabel: playerInSnapshot.publicPlayerLabel,
+      selectedWeightedEntryIndex: -1,
+      drawMethod: 'manual_external',
+      providerReference: params.providerReference,
+      auditMetadata: {
+        isIndependent: false,
+        isSystemVerified: false,
+        verificationStatus: 'manual_unverified',
+        drawMethod: 'manual_external',
+        providerReference: params.providerReference,
+        disclaimer: 'MANUALLY RECORDED RESULT — NOT SYSTEM VERIFIED BY CANTON QUESTS',
+        auditNotes: params.auditMetadata?.auditNotes || 'Recorded manually by Game Master. Canton Quests did not independently verify external draw execution.',
+        lockedLedgerHash: params.snapshotHash,
+      },
+    };
+  },
+};
+
+export const RandomOrgFutureDrawProvider: DrawProvider = {
+  id: 'random_org',
+  name: 'RANDOM.ORG API (Future Independent Adapter)',
+  isIndependent: true,
+  async executeDraw(params) {
+    if (!process.env.RANDOM_ORG_API_KEY) {
+      throw new Error(
+        'RANDOM.ORG live API integration requires configured API credentials. Record external provider results via manual_external.'
+      );
+    }
+    throw new Error('RANDOM.ORG live API adapter is pending external provider authorization and credentials.');
+  },
+};
+
+export function getEventPrizes(eventId: string): Prize[] {
+  initializeGameEngine();
+  const prizes = getStoredItem<Prize[]>(STORAGE_KEYS.PRIZES, []);
+  return prizes.filter((p) => p.eventId === eventId);
+}
+
+export function createEventPrize(
+  eventId: string,
+  title: string,
+  sponsorName?: string,
+  quantity?: number
+): Prize {
+  initializeGameEngine();
+  const prizes = getStoredItem<Prize[]>(STORAGE_KEYS.PRIZES, []);
+  const newPrize: Prize = {
+    id: `prz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    eventId,
+    title,
+    sponsorName: sponsorName || 'Canton Quests',
+    quantity: quantity || 1,
+    eligibilityRule: 'ONE_PRIMARY_PRIZE_PER_PLAYER',
+  };
+  setStoredItem(STORAGE_KEYS.PRIZES, [...prizes, newPrize]);
+  return newPrize;
+}
+
+export function cancelDrawingLedger(
+  eventId: string,
+  reason?: string,
+  adminIdentity?: string
+): EventDrawingLedgerLock {
+  initializeGameEngine();
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+  const lock = locks.find((l) => l.eventId === eventId);
+  if (!lock) {
+    throw new Error(`Drawing ledger lock not found for event ${eventId}`);
+  }
+  lock.status = 'cancelled';
+  lock.isLocked = true;
+  lock.lockReason = reason || lock.lockReason || 'Administrative Ledger Cancellation';
+  lock.lockedBy = adminIdentity || lock.lockedBy || 'GM Admin';
+  lock.updatedAt = new Date().toISOString();
+  setStoredItem(STORAGE_KEYS.DRAWING_LOCKS, locks);
+  return lock;
+}
+
+export async function executePrizeDraw(params: {
+  eventId: string;
+  prizeId?: string;
+  prizeTitle?: string;
+  testSeed?: string;
+  drawMethod?: DrawMethod;
+  providerReference?: string;
+  manualWinnerPublicLabel?: string;
+  manualWinnerPublicParticipantId?: string;
+  manualWinnerPlayerId?: string;
+  auditMetadata?: Record<string, any>;
+  adminIdentity?: string;
+}): Promise<PrizeDrawRecord> {
+  initializeGameEngine();
+  const events = getEvents();
+  const event = events.find((e) => e.id === params.eventId || e.slug === params.eventId);
+  if (!event) throw new Error(`Event not found: ${params.eventId}`);
+  const realEventId = event.id;
+
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+  const lock = locks.find((l) => l.eventId === realEventId);
+
+  if (!lock || !lock.isLocked || !lock.snapshotHash || !lock.canonicalSnapshot) {
+    throw new Error('Drawing ledger must be locked before executing a draw.');
+  }
+
+  if (lock.status === 'cancelled') {
+    throw new Error(`Cannot execute prize draw: Drawing ledger for event ${realEventId} is cancelled.`);
+  }
+
+  if (lock.status !== 'locked' && lock.status !== 'drawn') {
+    throw new Error(
+      `Cannot execute prize draw: Drawing ledger status is "${lock.status}". Prize draws are only allowed from a locked or drawn ledger state.`
+    );
+  }
+
+  const prizeTitle = params.prizeTitle || 'Grand Prize';
+  const prizeId = params.prizeId || `prz-default-${realEventId}`;
+
+  const existingDraws = getStoredItem<PrizeDrawRecord[]>(STORAGE_KEYS.PRIZE_DRAWS, []);
+
+  // Check for duplicate active draw for same event, prize, and locked hash
+  const activeDuplicate = existingDraws.find(
+    (d) =>
+      d.eventId === realEventId &&
+      d.status !== 'cancelled' &&
+      d.lockedLedgerHash === lock.snapshotHash &&
+      (d.prizeId === prizeId || d.prizeTitle === prizeTitle)
+  );
+
+  if (activeDuplicate) {
+    throw new Error(
+      `An active draw record already exists for prize "${prizeTitle}" under locked ledger hash ${lock.snapshotHash}. Void/cancel the existing draw record before drawing again.`
+    );
+  }
+
+  const activeDraws = existingDraws.filter((d) => d.eventId === realEventId && d.status !== 'cancelled');
+  const excludedPlayerIds = activeDraws.map((d) => d.winningPlayerId);
+
+  const players = getAllPlayers();
+  const playerMap: Record<string, { label: string; isMinor?: boolean }> = {};
+  getDrawingEntriesForEvent(realEventId).forEach((e) => {
+    if (!playerMap[e.playerId]) {
+      const pObj = players.find((p) => p.id === e.playerId);
+      playerMap[e.playerId] = {
+        label: getPublicPlayerLabel(pObj, e.playerId),
+        isMinor: pObj && 'isMinor' in pObj ? (pObj as any).isMinor : false,
+      };
+    }
+  });
+
+  const drawMethod: DrawMethod = params.drawMethod || 'internal_test';
+  let provider: DrawProvider = InternalTestDrawProvider;
+  if (drawMethod === 'manual_external') {
+    provider = ManualExternalDrawProvider;
+  } else if (drawMethod === 'random_org') {
+    provider = RandomOrgFutureDrawProvider;
+  }
+
+  const drawResult = await provider.executeDraw({
+    eventId: realEventId,
+    prizeId,
+    prizeTitle,
+    snapshot: lock.canonicalSnapshot,
+    playerMap,
+    snapshotHash: lock.snapshotHash,
+    testSeed: params.testSeed,
+    excludedPlayerIds,
+    manualWinnerPublicLabel: params.manualWinnerPublicLabel,
+    manualWinnerPublicParticipantId: params.manualWinnerPublicParticipantId,
+    manualWinnerPlayerId: params.manualWinnerPlayerId,
+    providerReference: params.providerReference,
+    auditMetadata: params.auditMetadata,
+  });
+
+  const record: PrizeDrawRecord = {
+    id: `pdr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    eventId: realEventId,
+    prizeId,
+    prizeTitle,
+    status: 'drawn',
+    lockedLedgerHash: lock.snapshotHash,
+    lockedAt: lock.lockedAt || new Date().toISOString(),
+    drawMethod: drawResult.drawMethod,
+    providerReference: drawResult.providerReference,
+    drawnAt: new Date().toISOString(),
+    winningPlayerId: drawResult.winningPlayerId,
+    winningPublicPlayerLabel: drawResult.winningPublicPlayerLabel,
+    selectedWeightedEntryIndex: drawResult.selectedWeightedEntryIndex,
+    auditMetadata: drawResult.auditMetadata,
+    createdAt: new Date().toISOString(),
+  };
+
+  setStoredItem(STORAGE_KEYS.PRIZE_DRAWS, [...existingDraws, record]);
+
+  // Update lock status to 'drawn'
+  lock.status = 'drawn';
+  lock.updatedAt = new Date().toISOString();
+  setStoredItem(STORAGE_KEYS.DRAWING_LOCKS, locks);
+
+  return record;
+}
+
+export function publishDrawingResults(eventId: string, adminIdentity?: string): PrizeDrawRecord[] {
+  initializeGameEngine();
+  const events = getEvents();
+  const event = events.find((e) => e.id === eventId || e.slug === eventId);
+  if (!event) throw new Error(`Event not found: ${eventId}`);
+  const realEventId = event.id;
+
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+  const lock = locks.find((l) => l.eventId === realEventId);
+  if (!lock || !lock.isLocked) {
+    throw new Error(`Cannot publish drawing results: Drawing ledger for event ${realEventId} is not locked.`);
+  }
+  if (lock.status === 'cancelled') {
+    throw new Error(`Cannot publish drawing results: Drawing ledger for event ${realEventId} is cancelled.`);
+  }
+  if (lock.status !== 'drawn') {
+    throw new Error(
+      `Cannot publish drawing results: Drawing ledger status is "${lock.status}". Publishing is only allowed from a drawn ledger state.`
+    );
+  }
+
+  const draws = getStoredItem<PrizeDrawRecord[]>(STORAGE_KEYS.PRIZE_DRAWS, []);
+  const eventDraws = draws.filter((d) => d.eventId === realEventId && d.status === 'drawn');
+
+  if (eventDraws.length === 0) {
+    throw new Error('No completed draws found to publish.');
+  }
+
+  const now = new Date().toISOString();
+  eventDraws.forEach((d) => {
+    d.status = 'published';
+    d.publishedAt = now;
+  });
+  setStoredItem(STORAGE_KEYS.PRIZE_DRAWS, draws);
+
+  lock.status = 'published';
+  lock.updatedAt = now;
+  setStoredItem(STORAGE_KEYS.DRAWING_LOCKS, locks);
+
+  logActivity({
+    type: 'announcement',
+    actorName: adminIdentity || 'Game Master',
+    title: `🏆 Prize Drawing Results Published!`,
+    details: `Official winners published for event ${event.title}`,
+  });
+
+  return eventDraws;
+}
+
+export function voidPrizeDrawRecord(
+  eventId: string,
+  drawRecordId: string,
+  cancellationReason: string,
+  adminIdentity?: string
+): PrizeDrawRecord {
+  initializeGameEngine();
+  if (!cancellationReason || cancellationReason.trim().length < 5) {
+    throw new Error('An explicit audit reason is required to void or cancel a prize drawing record.');
+  }
+
+  const draws = getStoredItem<PrizeDrawRecord[]>(STORAGE_KEYS.PRIZE_DRAWS, []);
+  const record = draws.find((d) => d.id === drawRecordId && d.eventId === eventId);
+  if (!record) {
+    throw new Error(`Draw record not found: ${drawRecordId}`);
+  }
+
+  record.status = 'cancelled';
+  record.cancellationReason = cancellationReason.trim();
+  record.cancelledAt = new Date().toISOString();
+  record.cancelledBy = adminIdentity || 'GM Admin';
+
+  setStoredItem(STORAGE_KEYS.PRIZE_DRAWS, draws);
+
+  const activeDraws = draws.filter((d) => d.eventId === eventId && d.status !== 'cancelled');
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+  const lock = locks.find((l) => l.eventId === eventId);
+  if (lock) {
+    if (activeDraws.length === 0) {
+      lock.status = 'locked';
+      lock.updatedAt = new Date().toISOString();
+      setStoredItem(STORAGE_KEYS.DRAWING_LOCKS, locks);
+    }
+  }
+
+  return record;
+}
+
+export function getPublicDrawingPageData(eventId: string): PublicDrawingPageData {
+  initializeGameEngine();
+  const events = getEvents();
+  const event = events.find((e) => e.id === eventId || e.slug === eventId);
+  const eventTitle = event ? event.title : 'Canton Quests Event';
+  const realEventId = event ? event.id : eventId;
+
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+  const lock = locks.find((l) => l.eventId === realEventId);
+
+  const projection = getPublicDrawingLedgerProjection(realEventId);
+
+  const draws = getStoredItem<PrizeDrawRecord[]>(STORAGE_KEYS.PRIZE_DRAWS, []);
+  const publishedDraws = draws.filter((d) => d.eventId === realEventId && d.status === 'published');
+
+  const publishedPrizes: PublicPrizeDrawResult[] = publishedDraws.map((d) => ({
+    drawRecordId: d.id,
+    prizeId: d.prizeId,
+    prizeTitle: d.prizeTitle,
+    winnerPublicLabel: d.winningPublicPlayerLabel, // STRICTLY public label, no internal UUID!
+    drawMethod: d.drawMethod,
+    providerReference: d.providerReference,
+    drawnAt: d.drawnAt,
+    verificationStatus: d.auditMetadata?.verificationStatus || (d.drawMethod === 'manual_external' ? 'manual_unverified' : 'internal_seeded'),
+    isSystemVerified: d.auditMetadata?.isSystemVerified ?? false,
+    isIndependent: d.auditMetadata?.isIndependent ?? false,
+  }));
+
+  const ledgerLockStatus: DrawingStatus = lock ? lock.status : 'open';
+  const firstPublished = publishedDraws[0];
+
+  return {
+    eventId: realEventId,
+    eventTitle,
+    ledgerLockStatus,
+    ledgerLockTimestamp: lock && lock.isLocked ? lock.lockedAt || null : null,
+    snapshotHash: lock && lock.snapshotHash ? lock.snapshotHash : null,
+    canonicalSnapshot: lock && lock.canonicalSnapshot ? lock.canonicalSnapshot : null,
+    totalQualifiedEntries: projection.totalEntriesAcrossAllPlayers,
+    totalQualifiedPlayers: projection.playerEntries.length,
+    publicPlayerEntries: projection.playerEntries,
+    publishedPrizes,
+    publishedAt: firstPublished ? firstPublished.publishedAt || null : null,
+    verificationInfo: lock && lock.snapshotHash
+      ? `This drawing entry pool was finalized and cryptographically hashed (SHA-256: ${lock.snapshotHash}) on ${lock.lockedAt}. The winner selection is tied directly to the frozen canonical snapshot.`
+      : undefined,
+  };
 }
 
 export function getPublicQuestView(quest: Quest): PublicQuestView {

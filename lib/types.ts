@@ -295,12 +295,31 @@ export interface DrawingEntryLedgerEntry {
   createdAt: string;
 }
 
+export type DrawingStatus = 'open' | 'review' | 'locked' | 'drawn' | 'published' | 'cancelled';
+
+export interface CanonicalSnapshotPlayer {
+  publicPlayerLabel: string;
+  publicParticipantId?: string; // Deterministic privacy-safe hash (e.g. SHA-256(playerId + eventId).slice(0,8))
+  entries: number;
+}
+
+export interface CanonicalSnapshot {
+  eventId: string;
+  players: CanonicalSnapshotPlayer[];
+}
+
 export interface EventDrawingLedgerLock {
   eventId: string;
   isLocked: boolean;
+  status: DrawingStatus;
   lockedAt?: string;
   lockReason?: string;
   lockedBy?: string;
+  snapshotHash?: string;
+  canonicalSnapshot?: CanonicalSnapshot;
+  totalQualifiedEntries?: number;
+  totalQualifiedPlayers?: number;
+  updatedAt?: string;
 }
 
 export interface PublicPlayerDrawingEntry {
@@ -311,9 +330,105 @@ export interface PublicPlayerDrawingEntry {
 export interface PublicDrawingLedgerProjection {
   eventId: string;
   totalEntriesAcrossAllPlayers: number;
-  ledgerLockStatus: 'unlocked' | 'locked';
+  ledgerLockStatus: DrawingStatus;
   ledgerLockTimestamp: string | null;
   playerEntries: PublicPlayerDrawingEntry[];
+}
+
+export type DrawMethod = 'internal_test' | 'random_org' | 'manual_external';
+
+export interface PrizeDrawRecord {
+  id: string;
+  eventId: string;
+  prizeId: string;
+  prizeTitle: string;
+  status: 'drawn' | 'published' | 'cancelled';
+  lockedLedgerHash: string;
+  lockedAt: string;
+  drawMethod: DrawMethod;
+  providerReference?: string;
+  drawnAt: string;
+  winningPlayerId: string; // PRIVATE - stored server-side, NOT exposed publicly
+  winningPublicPlayerLabel: string;
+  selectedWeightedEntryIndex: number;
+  auditMetadata: Record<string, any>;
+  publishedAt?: string;
+  cancellationReason?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
+  createdAt: string;
+}
+
+export interface PublicPrizeDrawResult {
+  drawRecordId: string;
+  prizeId: string;
+  prizeTitle: string;
+  winnerPublicLabel: string;
+  drawMethod: string;
+  providerReference?: string;
+  drawnAt: string;
+  verificationStatus?: string;
+  isSystemVerified?: boolean;
+  isIndependent?: boolean;
+}
+
+export interface PublicDrawingPageData {
+  eventId: string;
+  eventTitle: string;
+  ledgerLockStatus: DrawingStatus;
+  ledgerLockTimestamp: string | null;
+  snapshotHash: string | null;
+  canonicalSnapshot?: CanonicalSnapshot | null;
+  totalQualifiedEntries: number;
+  totalQualifiedPlayers: number;
+  publicPlayerEntries: PublicPlayerDrawingEntry[];
+  publishedPrizes: PublicPrizeDrawResult[];
+  publishedAt: string | null;
+  verificationInfo?: string;
+}
+
+export interface DrawingLedgerReview {
+  eventId: string;
+  eventTitle: string;
+  ledgerStatus: DrawingStatus;
+  totalQualifiedEntries: number;
+  totalQualifiedPlayers: number;
+  playerEntries: Array<{
+    playerId?: string; // Admin view only
+    publicPlayerLabel: string;
+    entries: number;
+    isMinor?: boolean;
+  }>;
+  pendingSubmissionsCount: number;
+  hasPendingSubmissionsWarning: boolean;
+}
+
+export interface DrawProvider {
+  id: string;
+  name: string;
+  isIndependent: boolean;
+  executeDraw(params: {
+    eventId: string;
+    prizeId: string;
+    prizeTitle: string;
+    snapshot: CanonicalSnapshot;
+    playerMap: Record<string, { label: string; isMinor?: boolean }>; // label to internal ID mapping for provider
+    snapshotHash: string;
+    testSeed?: string;
+    excludedPlayerIds?: string[];
+    manualWinnerPublicLabel?: string;
+    manualWinnerPublicParticipantId?: string;
+    manualWinnerPlayerId?: string;
+    providerReference?: string;
+    auditMetadata?: Record<string, any>;
+  }): Promise<{
+    winningPlayerId: string;
+    winningPublicPlayerLabel: string;
+    selectedWeightedEntryIndex: number;
+    drawMethod: DrawMethod;
+    providerReference: string;
+    auditMetadata: Record<string, any>;
+  }>;
 }
 
 export interface LeaderboardEntry {
