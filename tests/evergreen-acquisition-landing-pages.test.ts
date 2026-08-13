@@ -3,10 +3,10 @@ import { join } from 'path';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { GET as trackingGet } from '../app/go/[slug]/route';
 import {
-  FAIR_ENTRY_HREF,
-  FAIR_LANDING_DESTINATION_PRESETS,
-  fairLandingPages,
-} from '../lib/fair-landing-content';
+  ACQUISITION_ENTRY_HREF,
+  ACQUISITION_LANDING_DESTINATION_PRESETS,
+  acquisitionLandingPages,
+} from '../lib/acquisition-landing-content';
 import {
   CAMPAIGN_ATTRIBUTION_COOKIE,
   CAMPAIGN_VISITOR_COOKIE,
@@ -23,7 +23,7 @@ function repoFile(path: string) {
   return readFileSync(join(process.cwd(), path), 'utf8');
 }
 
-async function createFairSplitCampaign(destinationUrl: string, flyerName = 'Secret') {
+async function createAcquisitionSplitCampaign(destinationUrl: string, flyerName = 'Secret') {
   const campaign = await createQrCampaign({
     name: 'STARK COUNTY FAIR 2026',
     destinationUrl,
@@ -46,30 +46,30 @@ describe('evergreen acquisition landing pages', () => {
 
   it('1. /start/family renders with intended headline and CTA', () => {
     expect(existsSync(join(process.cwd(), 'app/start/family/page.tsx'))).toBe(true);
-    expect(fairLandingPages.family.headline).toBe('YOUR KIDS THINK THEY KNOW CANTON. PROVE IT.');
-    expect(fairLandingPages.family.cta).toBe('UNLOCK MY FIRST MISSION');
+    expect(acquisitionLandingPages.family.headline).toBe('YOUR KIDS THINK THEY KNOW CANTON. PROVE IT.');
+    expect(acquisitionLandingPages.family.cta).toBe('UNLOCK MY FIRST MISSION');
   });
 
   it('2. /start/challenge renders with intended headline and CTA', () => {
     expect(existsSync(join(process.cwd(), 'app/start/challenge/page.tsx'))).toBe(true);
-    expect(fairLandingPages.challenge.headline).toBe('MOST PEOPLE WILL QUIT.');
-    expect(fairLandingPages.challenge.cta).toBe('ENTER THE GAME');
+    expect(acquisitionLandingPages.challenge.headline).toBe('MOST PEOPLE WILL QUIT.');
+    expect(acquisitionLandingPages.challenge.cta).toBe('ENTER THE GAME');
   });
 
   it('3. /start/secret renders with intended headline and CTA', () => {
     expect(existsSync(join(process.cwd(), 'app/start/secret/page.tsx'))).toBe(true);
-    expect(fairLandingPages.secret.headline).toBe('YOU FOUND THE DOOR.');
-    expect(fairLandingPages.secret.cta).toBe('SHOW ME THE FIRST QUEST');
+    expect(acquisitionLandingPages.secret.headline).toBe('YOU FOUND THE DOOR.');
+    expect(acquisitionLandingPages.secret.cta).toBe('SHOW ME THE FIRST QUEST');
   });
 
   it('4. each fair CTA points into an existing Canton Quests player flow', () => {
-    expect(FAIR_ENTRY_HREF).toBe('/quests');
+    expect(ACQUISITION_ENTRY_HREF).toBe('/quests');
     expect(existsSync(join(process.cwd(), 'app/quests/page.tsx'))).toBe(true);
-    expect(repoFile('components/FairLandingPage.tsx')).toContain(`href={FAIR_ENTRY_HREF}`);
+    expect(repoFile('components/AcquisitionLandingPage.tsx')).toContain(`href={ACQUISITION_ENTRY_HREF}`);
   });
 
   it("5. secret page teases Frankenstein's Quiet Signal without exposing proof secrets or GM notes", () => {
-    const secret = JSON.stringify(fairLandingPages.secret);
+    const secret = JSON.stringify(acquisitionLandingPages.secret);
     expect(secret).toContain("FRANKENSTEIN'S QUIET SIGNAL");
     expect(secret).toContain('Something unusual waits at West Lawn.');
     expect(secret).not.toContain('targetCode');
@@ -78,8 +78,8 @@ describe('evergreen acquisition landing pages', () => {
     expect(secret).not.toContain('quest-proof-secrets');
   });
 
-  it('6. fair landing navigation preserves QR attribution cookies through redirect', async () => {
-    const { campaign, flyer, distributor, qr } = await createFairSplitCampaign('/start/secret');
+  it('6. acquisition landing navigation preserves QR attribution cookies through redirect', async () => {
+    const { campaign, flyer, distributor, qr } = await createAcquisitionSplitCampaign('/start/secret');
 
     const response = await trackingGet(new Request(`https://example.test/go/${qr.trackingSlug}`), {
       params: { slug: qr.trackingSlug },
@@ -95,8 +95,8 @@ describe('evergreen acquisition landing pages', () => {
   });
 
   it('7. QR campaign destinations accept the three fair landing routes', async () => {
-    for (const preset of FAIR_LANDING_DESTINATION_PRESETS) {
-      const { qr } = await createFairSplitCampaign(preset.path, preset.label);
+    for (const preset of ACQUISITION_LANDING_DESTINATION_PRESETS) {
+      const { qr } = await createAcquisitionSplitCampaign(preset.path, preset.label);
       expect(qr.destinationUrl).toBe(preset.path);
     }
   });
@@ -129,23 +129,23 @@ describe('evergreen acquisition landing pages', () => {
 
   it('9. destination presets are available without preventing custom URLs', async () => {
     const adminPage = repoFile('app/admin/qr-campaigns/page.tsx');
-    expect(FAIR_LANDING_DESTINATION_PRESETS.map((preset) => preset.path)).toEqual([
+    expect(ACQUISITION_LANDING_DESTINATION_PRESETS.map((preset) => preset.path)).toEqual([
       '/start/family',
       '/start/challenge',
       '/start/secret',
     ]);
-    expect(adminPage).toContain('FAIR_LANDING_DESTINATION_PRESETS');
+    expect(adminPage).toContain('ACQUISITION_LANDING_DESTINATION_PRESETS');
     expect(adminPage).toContain('setDestinationUrl(preset.path)');
     expect(adminPage).toContain('onChange={(event) => setDestinationUrl(event.target.value)}');
     expect(adminPage).toContain('useState(false)');
 
-    const custom = await createQrCampaign({ name: 'CUSTOM FAIR TEST', destinationUrl: '/quests?source=fair-custom' });
+    const custom = await createQrCampaign({ name: 'CUSTOM ACQUISITION TEST', destinationUrl: '/quests?source=fair-custom' });
     expect(custom.destinationUrl).toBe('/quests?source=fair-custom');
   });
 
   it('10. existing QR tracking analytics remain compatible and expose destination grouping', async () => {
-    const family = await createFairSplitCampaign('/start/family', 'Flyer A');
-    const secret = await createFairSplitCampaign('/start/secret', 'Flyer C');
+    const family = await createAcquisitionSplitCampaign('/start/family', 'Flyer A');
+    const secret = await createAcquisitionSplitCampaign('/start/secret', 'Flyer C');
 
     await recordCampaignVisit({ trackingSlug: family.qr.trackingSlug, anonymousVisitorId: 'visitor-a' });
     await recordCampaignVisit({ trackingSlug: family.qr.trackingSlug, anonymousVisitorId: 'visitor-b' });

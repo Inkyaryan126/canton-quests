@@ -1,17 +1,17 @@
 import { cqImages } from './marketing-assets';
 
-export const FAIR_ENTRY_HREF = '/quests';
+export const ACQUISITION_ENTRY_HREF = '/quests';
 
-export const FAIR_LANDING_DESTINATION_PRESETS = [
+export const ACQUISITION_LANDING_DESTINATION_PRESETS = [
   { label: 'Family', path: '/start/family' },
   { label: 'Challenge', path: '/start/challenge' },
   { label: 'Secret', path: '/start/secret' },
 ] as const;
 
-export type FairLandingSlug = 'family' | 'challenge' | 'secret';
+export type AcquisitionLandingSlug = 'family' | 'challenge' | 'secret';
 
 export interface FairLandingContent {
-  slug: FairLandingSlug;
+  slug: AcquisitionLandingSlug;
   title: string;
   description: string;
   ogTitle: string;
@@ -42,7 +42,7 @@ export interface FairLandingContent {
   }>;
 }
 
-export const fairLandingPages: Record<FairLandingSlug, FairLandingContent> = {
+export const acquisitionLandingPages: Record<AcquisitionLandingSlug, FairLandingContent> = {
   family: {
     slug: 'family',
     title: 'Family Canton Adventure | Canton Quests',

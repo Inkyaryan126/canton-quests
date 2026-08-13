@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import FairLandingPage from '@/components/FairLandingPage';
-import { fairLandingPages } from '@/lib/fair-landing-content';
+import AcquisitionLandingPage from '@/components/AcquisitionLandingPage';
+import { acquisitionLandingPages } from '@/lib/acquisition-landing-content';
 
-const content = fairLandingPages.challenge;
+const content = acquisitionLandingPages.challenge;
 
 export const metadata: Metadata = {
   title: content.title,
@@ -15,5 +15,5 @@ export const metadata: Metadata = {
 };
 
 export default function StartChallengePage() {
-  return <FairLandingPage content={content} />;
+  return <AcquisitionLandingPage content={content} />;
 }

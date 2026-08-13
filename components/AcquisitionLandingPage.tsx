@@ -4,15 +4,15 @@ import { ArrowRight, MapPin, Radar, Sparkles, Trophy, Users } from 'lucide-react
 import CinematicFooter from './CinematicFooter';
 import CinematicNav from './CinematicNav';
 import MobileStartBar from './MobileStartBar';
-import { FAIR_ENTRY_HREF, FairLandingContent } from '@/lib/fair-landing-content';
+import { ACQUISITION_ENTRY_HREF, FairLandingContent } from '@/lib/acquisition-landing-content';
 import { cqImages } from '@/lib/marketing-assets';
 
 const proofIcons = [Sparkles, Users, MapPin, Trophy];
 
-export default function FairLandingPage({ content }: { content: FairLandingContent }) {
+export default function AcquisitionLandingPage({ content }: { content: FairLandingContent }) {
   return (
     <div className={`cq-home-shell cq-fair-shell cq-fair-${content.theme}`}>
-      <CinematicNav eventHref={FAIR_ENTRY_HREF} />
+      <CinematicNav eventHref={ACQUISITION_ENTRY_HREF} />
 
       <main className="cq-fair-main">
         <section className="cq-fair-hero" aria-labelledby={`${content.slug}-headline`}>
@@ -26,7 +26,7 @@ export default function FairLandingPage({ content }: { content: FairLandingConte
               ))}
             </div>
             <div className="cq-fair-actions">
-              <Link href={FAIR_ENTRY_HREF} className="cq-gold-button" data-fair-cta={content.slug}>
+              <Link href={ACQUISITION_ENTRY_HREF} className="cq-gold-button" data-fair-cta={content.slug}>
                 {content.cta}
                 <ArrowRight size={18} aria-hidden="true" />
               </Link>
@@ -101,7 +101,7 @@ export default function FairLandingPage({ content }: { content: FairLandingConte
           <div>
             <span>Same Game. Same Rewards.</span>
             <h2>Start Quest {'->'} choose Missions {'->'} submit proof {'->'} earn XP {'->'} climb Leaderboard.</h2>
-            <Link href={FAIR_ENTRY_HREF} className="cq-gold-button">
+            <Link href={ACQUISITION_ENTRY_HREF} className="cq-gold-button">
               {content.cta}
               <ArrowRight size={18} aria-hidden="true" />
             </Link>
@@ -110,7 +110,7 @@ export default function FairLandingPage({ content }: { content: FairLandingConte
       </main>
 
       <CinematicFooter />
-      <MobileStartBar href={FAIR_ENTRY_HREF} label={content.cta} eyebrow="Mission ready" />
+      <MobileStartBar href={ACQUISITION_ENTRY_HREF} label={content.cta} eyebrow="Mission ready" />
     </div>
   );
 }

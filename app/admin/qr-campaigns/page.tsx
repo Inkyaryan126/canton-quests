@@ -13,7 +13,7 @@ import {
 } from '@/lib/types';
 import { createQrSvgDataUri } from '@/lib/qr-svg';
 import { GAME_MASTER_DISPLAY_NAME, getGameMasterGreeting } from '@/lib/admin-persona';
-import { FAIR_LANDING_DESTINATION_PRESETS } from '@/lib/fair-landing-content';
+import { ACQUISITION_LANDING_DESTINATION_PRESETS } from '@/lib/acquisition-landing-content';
 
 interface CampaignApiState {
   campaigns: QrCampaign[];
@@ -264,7 +264,7 @@ export default function QrCampaignsPage() {
               <label className="cq-gm-label">Destination</label>
               <input value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} className="cq-gm-input" required />
               <div className="cq-gm-preset-row" aria-label="Evergreen start destination presets">
-                {FAIR_LANDING_DESTINATION_PRESETS.map((preset) => (
+                {ACQUISITION_LANDING_DESTINATION_PRESETS.map((preset) => (
                   <button
                     key={preset.path}
                     type="button"
