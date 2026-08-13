@@ -13,6 +13,7 @@ import {
 } from '@/lib/types';
 import { createQrSvgDataUri } from '@/lib/qr-svg';
 import { GAME_MASTER_DISPLAY_NAME, getGameMasterGreeting } from '@/lib/admin-persona';
+import { FAIR_LANDING_DESTINATION_PRESETS } from '@/lib/fair-landing-content';
 
 interface CampaignApiState {
   campaigns: QrCampaign[];
@@ -46,6 +47,7 @@ type CampaignPostAction =
       campaignId: string;
       flyerVariantIds: string[];
       distributorIds: string[];
+      destinationUrlByFlyerVariantId?: Record<string, string>;
     };
 
 const emptyState: CampaignApiState = {
@@ -55,6 +57,14 @@ const emptyState: CampaignApiState = {
   qrCodes: [],
   analytics: null,
 };
+
+function getFairDestinationForFlyer(flyerName: string): string | undefined {
+  const normalized = flyerName.trim().toLowerCase();
+  if (/\b(a|family)\b/.test(normalized)) return '/start/family';
+  if (/\b(b|challenge)\b/.test(normalized)) return '/start/challenge';
+  if (/\b(c|secret)\b/.test(normalized)) return '/start/secret';
+  return undefined;
+}
 
 export default function QrCampaignsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -71,6 +81,7 @@ export default function QrCampaignsPage() {
   const [distributorNotes, setDistributorNotes] = useState('');
   const [selectedFlyerIds, setSelectedFlyerIds] = useState<string[]>([]);
   const [selectedDistributorIds, setSelectedDistributorIds] = useState<string[]>([]);
+  const [useFairDestinationSplit, setUseFairDestinationSplit] = useState(false);
 
   const selectedCampaign = state.campaigns.find((campaign) => campaign.id === selectedCampaignId) || state.campaigns[0];
   const campaignId = selectedCampaign?.id || '';
@@ -172,11 +183,20 @@ export default function QrCampaignsPage() {
 
   const handleBatchGenerate = async () => {
     if (!campaignId) return;
+    const destinationUrlByFlyerVariantId = useFairDestinationSplit
+      ? Object.fromEntries(
+          campaignFlyers
+            .filter((flyer) => selectedFlyerIds.includes(flyer.id))
+            .map((flyer) => [flyer.id, getFairDestinationForFlyer(flyer.name)])
+            .filter((entry): entry is [string, string] => Boolean(entry[1]))
+        )
+      : undefined;
     const data = await postAction({
       action: 'generate_batch',
       campaignId,
       flyerVariantIds: selectedFlyerIds,
       distributorIds: selectedDistributorIds,
+      destinationUrlByFlyerVariantId,
     });
     setMessage(`${data.qrCodes.length} Flyer x Distributor tracking QR records are ready.`);
     await loadCampaigns(campaignId);
@@ -243,6 +263,18 @@ export default function QrCampaignsPage() {
               <input value={campaignName} onChange={(event) => setCampaignName(event.target.value)} className="cq-gm-input" required />
               <label className="cq-gm-label">Destination</label>
               <input value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} className="cq-gm-input" required />
+              <div className="cq-gm-preset-row" aria-label="Evergreen start destination presets">
+                {FAIR_LANDING_DESTINATION_PRESETS.map((preset) => (
+                  <button
+                    key={preset.path}
+                    type="button"
+                    onClick={() => setDestinationUrl(preset.path)}
+                    className="cq-gm-mini-button"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
               <label className="cq-gm-label">Campaign notes</label>
               <textarea value={campaignNotes} onChange={(event) => setCampaignNotes(event.target.value)} className="cq-gm-input min-h-20" />
               <button className="btn btn-primary w-full" type="submit">Create Campaign</button>
@@ -315,6 +347,14 @@ export default function QrCampaignsPage() {
                   <h2 className="cq-gm-heading">Batch Generate</h2>
                   <p className="text-xs text-stone-400">Select flyer variants and distributors, then generate every Flyer x Distributor combination.</p>
                 </div>
+                <label className="cq-gm-check">
+                  <input
+                    type="checkbox"
+                    checked={useFairDestinationSplit}
+                    onChange={(event) => setUseFairDestinationSplit(event.target.checked)}
+                  />
+                  <span>A/B/C start destinations</span>
+                </label>
                 <button
                   onClick={handleBatchGenerate}
                   disabled={!campaignId || selectedFlyerIds.length === 0 || selectedDistributorIds.length === 0}
@@ -325,9 +365,10 @@ export default function QrCampaignsPage() {
               </div>
             </section>
 
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               <AnalyticsList title="Flyer Performance" rows={analytics?.flyerPerformance || []} />
               <AnalyticsList title="Distributor Performance" rows={analytics?.distributorPerformance || []} />
+              <AnalyticsList title="Destination Performance" rows={analytics?.destinationPerformance || []} />
               <AnalyticsList title="Combination Performance" rows={analytics?.combinationPerformance || []} />
             </section>
 
@@ -355,6 +396,7 @@ export default function QrCampaignsPage() {
                           <div className="min-w-0 space-y-1">
                             <h3 className="font-black text-white">{flyer?.name} / {distributor?.name}</h3>
                             <p className="text-xs text-stone-400">{selectedCampaign?.name}</p>
+                            <p className="text-xs text-cyan-100 break-all">Destination: {qr.destinationUrl}</p>
                             <p className="text-[11px] text-amber-200 break-all">{qr.trackingUrl}</p>
                           </div>
                         </div>
@@ -376,8 +418,8 @@ export default function QrCampaignsPage() {
             <section className="cq-gm-panel p-5 space-y-2 print:hidden">
               <h2 className="cq-gm-heading">Game Master Operating Notes</h2>
               <ol className="list-decimal pl-5 text-sm text-stone-300 space-y-1">
-                <li>Create the campaign and confirm its destination.</li>
-                <li>Add three flyer variants and three distributors.</li>
+                <li>Create the campaign and choose a destination preset or enter a custom path.</li>
+                <li>For the evergreen split, turn on the checkbox so Flyer A {'->'} Family, Flyer B {'->'} Challenge, and Flyer C {'->'} Secret are stored on the generated QR records.</li>
                 <li>Select all six records and generate the nine combinations.</li>
                 <li>Print this sheet and place the matching QR on each physical flyer batch.</li>
                 <li>Return here to compare flyer, distributor, and exact combination performance.</li>

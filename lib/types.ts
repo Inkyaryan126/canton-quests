@@ -272,6 +272,7 @@ export interface CampaignAnalytics {
   activeQrCodes: number;
   flyerPerformance: CampaignAnalyticsRow[];
   distributorPerformance: CampaignAnalyticsRow[];
+  destinationPerformance: CampaignAnalyticsRow[];
   combinationPerformance: CampaignCombinationAnalyticsRow[];
 }
 

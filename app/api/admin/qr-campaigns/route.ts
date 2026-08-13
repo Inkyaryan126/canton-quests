@@ -78,6 +78,10 @@ export async function POST(request: Request) {
         campaignId: body.campaignId,
         flyerVariantIds: Array.isArray(body.flyerVariantIds) ? body.flyerVariantIds : [],
         distributorIds: Array.isArray(body.distributorIds) ? body.distributorIds : [],
+        destinationUrlByFlyerVariantId:
+          body.destinationUrlByFlyerVariantId && typeof body.destinationUrlByFlyerVariantId === 'object'
+            ? body.destinationUrlByFlyerVariantId
+            : undefined,
       });
       return NextResponse.json({ success: true, qrCodes });
     }

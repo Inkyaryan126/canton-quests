@@ -358,6 +358,7 @@ export async function generateCampaignQrCodes(input: {
   campaignId: string;
   flyerVariantIds: string[];
   distributorIds: string[];
+  destinationUrlByFlyerVariantId?: Record<string, string>;
 }): Promise<CampaignQrCode[]> {
   const bundle = await getCampaignBundle();
   const campaign = bundle.campaigns.find((item) => item.id === input.campaignId);
@@ -373,6 +374,7 @@ export async function generateCampaignQrCodes(input: {
   const created: CampaignQrCode[] = [];
   for (const flyer of flyers) {
     for (const distributor of distributors) {
+      const destinationUrl = toAbsoluteDestination(input.destinationUrlByFlyerVariantId?.[flyer.id] || campaign.destinationUrl);
       const existing = bundle.qrCodes.find(
         (item) =>
           item.campaignId === campaign.id &&
@@ -380,6 +382,15 @@ export async function generateCampaignQrCodes(input: {
           item.distributorId === distributor.id
       );
       if (existing) {
+        if (existing.destinationUrl !== destinationUrl) {
+          existing.destinationUrl = destinationUrl;
+          if (isSupabaseAdminConfigured && supabaseAdmin) {
+            await supabaseAdmin
+              .from('campaign_qr_codes')
+              .update({ destination_url: destinationUrl })
+              .eq('id', existing.id);
+          }
+        }
         created.push(existing);
         continue;
       }
@@ -391,7 +402,7 @@ export async function generateCampaignQrCodes(input: {
         flyerVariantId: flyer.id,
         distributorId: distributor.id,
         internalName: `${campaign.name} / ${flyer.name} / ${distributor.name}`,
-        destinationUrl: campaign.destinationUrl,
+        destinationUrl,
         trackingSlug,
         trackingUrl: trackingUrlForSlug(trackingSlug),
         status: 'active',
@@ -513,6 +524,19 @@ function countUnique(visits: CampaignVisit[]): number {
   return new Set(visits.map((visit) => visit.anonymousVisitorId)).size;
 }
 
+function groupVisitsByDestination(visits: CampaignVisit[]) {
+  const destinations = Array.from(new Set(visits.map((visit) => visit.destinationUrl))).sort();
+  return destinations.map((destination) => {
+    const destinationVisits = visits.filter((visit) => visit.destinationUrl === destination);
+    return {
+      id: destination,
+      label: destination,
+      visits: destinationVisits.length,
+      uniqueVisitors: countUnique(destinationVisits),
+    };
+  });
+}
+
 export async function getCampaignAnalytics(campaignId: string): Promise<CampaignAnalytics> {
   const bundle = await getCampaignBundle();
   const campaignVisits = bundle.visits.filter((visit) => visit.campaignId === campaignId);
@@ -533,6 +557,7 @@ export async function getCampaignAnalytics(campaignId: string): Promise<Campaign
       const visits = campaignVisits.filter((visit) => visit.distributorId === distributor.id);
       return { id: distributor.id, label: distributor.name, visits: visits.length, uniqueVisitors: countUnique(visits) };
     }),
+    destinationPerformance: groupVisitsByDestination(campaignVisits),
     combinationPerformance: campaignQrs.map((qr) => {
       const flyer = flyers.find((item) => item.id === qr.flyerVariantId);
       const distributor = distributors.find((item) => item.id === qr.distributorId);
