@@ -112,7 +112,7 @@ describe('Phase 2 — Real-World Game Layer Engine', () => {
     it('enforces location radius on location-verified quests', () => {
       const player = setCurrentPlayer('Tester_Geo_Proximity', '📍');
       const quest = SEED_QUESTS.find((q) => q.requireQrAndLocation) || SEED_QUESTS[0];
-      const submittedContent = quest.verificationType === 'qr' ? 'AURA-BREW-2026' : 'checkin';
+      const submittedContent = quest.verificationType === 'qr' ? 'CQ-AURA-FOUNDER' : 'checkin';
 
       // Submit from far away (0,0)
       const farResult = submitQuestProof({
@@ -140,7 +140,7 @@ describe('Phase 2 — Real-World Game Layer Engine', () => {
       });
 
       expect(nearResult.success).toBe(true);
-      expect(nearResult.awardedPoints).toBe(quest.pointValue);
+      expect(nearResult.awardedPoints).toBe(quest.xpReward || quest.pointValue);
     });
   });
 });

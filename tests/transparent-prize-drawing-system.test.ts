@@ -646,7 +646,7 @@ describe('Canton Quests — Transparent Prize Drawing System', () => {
     expect(pageCode).toContain('Frozen Ledger Cryptographic Fingerprint');
     expect(pageCode).toContain('COPY HASH');
     expect(pageCode).toContain('Public Entry Ledger Breakdown');
-    expect(pageCode).toContain('Official Event Winners');
+    expect(pageCode).toContain('Official Quest Winners');
   });
 
   // 31. Duplicate public labels are disambiguated with publicParticipantId.
@@ -1262,7 +1262,7 @@ describe('Canton Quests — Transparent Prize Drawing System', () => {
     expect(publicPageCode).toContain('p.drawMethod === \'manual_external\' || p.isSystemVerified === false');
     expect(publicPageCode).toContain("prize.isSystemVerified === false");
     expect(publicPageCode).toContain('Status: Not System Verified');
-    expect(publicPageCode).toContain('Official Event Results');
+    expect(publicPageCode).toContain('Official Quest Results');
     expect(publicPageCode).toContain('Audited & System Verified');
   });
 });

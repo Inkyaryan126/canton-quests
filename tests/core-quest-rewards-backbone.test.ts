@@ -53,6 +53,8 @@ describe('Canton Quests — Core Quest Rewards Backbone Suite', () => {
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
       submittedContent: '1897',
+      userLat: quest.location?.latitude,
+      userLon: quest.location?.longitude,
     });
 
     expect(result.success).toBe(true);
@@ -104,7 +106,7 @@ describe('Canton Quests — Core Quest Rewards Backbone Suite', () => {
   it('6. Verified proof awards XP exactly once', () => {
     const player = setCurrentPlayer('Agent_XP_Once_Tester', '🎯');
     const startXp = player.totalXp;
-    const quest = SEED_QUESTS[0]; // Check-in quest (50 XP)
+    const quest = getQuestById('qst-centennial-discovery')!;
 
     const result = submitQuestProof({
       playerId: player.id,
@@ -116,10 +118,10 @@ describe('Canton Quests — Core Quest Rewards Backbone Suite', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.awardedPoints).toBe(50);
+    expect(result.awardedPoints).toBe(quest.xpReward || quest.pointValue);
 
     const updatedPlayer = setCurrentPlayer('Agent_XP_Once_Tester', '🎯');
-    expect(updatedPlayer.totalXp).toBe(startXp + 50);
+    expect(updatedPlayer.totalXp).toBe(startXp + (quest.xpReward || quest.pointValue));
   });
 
   it('7. Verified proof awards drawing entries exactly once', () => {

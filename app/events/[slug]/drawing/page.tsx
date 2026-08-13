@@ -48,7 +48,7 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
             href={`/events/${params.slug}`}
             className="inline-flex items-center text-sm font-mono text-amber-400 hover:text-amber-300 transition-colors"
           >
-            ← Back to Event Details
+            ← Back to Quest Details
           </Link>
           <span className="text-xs font-mono text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1 rounded-full">
             AUDITABLE PRIZE DRAWING SYSTEM
@@ -78,7 +78,7 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                     {data.eventTitle}
                   </h1>
-                  <p className="text-sm font-mono text-slate-400 mt-1">Official Event Prize Drawing</p>
+                  <p className="text-sm font-mono text-slate-400 mt-1">Official Quest Prize Drawing</p>
                 </div>
 
                 {/* Status Badge */}
@@ -186,9 +186,9 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
                 <div className="flex items-center gap-3 mb-6 border-b border-amber-500/20 pb-4">
                   <span className="text-3xl">🏆</span>
                   <div>
-                    <h2 className="text-xl font-extrabold text-amber-200">Official Event Winners</h2>
+                    <h2 className="text-xl font-extrabold text-amber-200">Official Quest Winners</h2>
                     <p className="text-xs text-slate-400 font-mono">
-                      Drawn from locked entry pool • {data.publishedPrizes.some((p) => p.drawMethod === 'manual_external' || p.isSystemVerified === false) ? 'Official Event Results' : 'Audited & System Verified'}
+                      Drawn from locked entry pool • {data.publishedPrizes.some((p) => p.drawMethod === 'manual_external' || p.isSystemVerified === false) ? 'Official Quest Results' : 'Audited & System Verified'}
                     </p>
                   </div>
                 </div>

@@ -105,6 +105,7 @@ const MAX_TRUSTED_GPS_ACCURACY_METERS = 100;
 function getServerProofSecretMaps():
   | {
       QUEST_TARGET_CODE_HASHES: Record<string, string>;
+      STEP_TARGET_CODE_HASHES?: Record<string, string>;
       SECRET_CODE_HASHES: Record<string, string>;
     }
   | undefined {
@@ -119,6 +120,10 @@ function mergeServerQuestTargetCodes(quests: Quest[]): Quest[] {
   return quests.map((quest) => ({
     ...quest,
     targetCode: quest.targetCode || maps.QUEST_TARGET_CODE_HASHES[quest.id],
+    steps: quest.steps?.map((step) => ({
+      ...step,
+      targetCode: step.targetCode || maps.STEP_TARGET_CODE_HASHES?.[step.id],
+    })),
   }));
 }
 
@@ -1686,6 +1691,31 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
         message: 'Your proof submission for this quest is currently under review by a Game Master.',
         awardedPoints: 0,
         drawingEntriesAwarded: 0,
+      };
+    }
+  }
+
+  if (quest.prerequisiteQuestId) {
+    const hasCompletedPrerequisite = existingSubmissions.some(
+      (submission) =>
+        submission.playerId === params.playerId &&
+        submission.eventId === params.eventId &&
+        submission.questId === quest.prerequisiteQuestId &&
+        submission.status === 'verified'
+    );
+
+    if (!hasCompletedPrerequisite) {
+      const failedSubmission = buildRejectedSubmission(
+        params,
+        'Quest prerequisite is locked. Complete the previous mission in this chain first.'
+      );
+      return {
+        success: false,
+        submission: failedSubmission,
+        message: failedSubmission.feedback || 'Quest prerequisite is locked.',
+        awardedPoints: 0,
+        drawingEntriesAwarded: 0,
+        flags: reviewFlags,
       };
     }
   }

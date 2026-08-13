@@ -118,6 +118,8 @@ describe('Canton Quests — Phase 3 Live Weekend Engine', () => {
       eventId,
       proofType: 'passphrase',
       submittedContent: '1897',
+      userLat: quest.location?.latitude,
+      userLon: quest.location?.longitude,
     });
     expect(res1.success).toBe(true);
 
@@ -129,6 +131,8 @@ describe('Canton Quests — Phase 3 Live Weekend Engine', () => {
       eventId,
       proofType: 'passphrase',
       submittedContent: '1897',
+      userLat: quest.location?.latitude,
+      userLon: quest.location?.longitude,
     });
     expect(res2.success).toBe(false);
     expect(res2.message).toContain('Claim limit reached');
@@ -186,6 +190,8 @@ describe('Canton Quests — Phase 3 Live Weekend Engine', () => {
       eventId,
       proofType: 'passphrase',
       submittedContent: '1897',
+      userLat: quest.location?.latitude,
+      userLon: quest.location?.longitude,
     });
 
     expect(res.success).toBe(true);

@@ -252,7 +252,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
                 Current Canton Quest
               </span>
               <h1 className="text-4xl sm:text-6xl font-extrabold text-white leading-[0.9] max-w-xl">
-                {event.title.replace('Canton Quest Weekend #1 — ', '')}
+                {event.title.replace('Canton Quests: Volume 1 - ', '')}
               </h1>
               <p className="text-base text-gray-200 leading-relaxed mt-4 max-w-xl">
                 A real-world adventure across Canton. Choose a mission, visit the location, submit proof, and earn XP.

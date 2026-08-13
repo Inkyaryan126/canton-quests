@@ -29,7 +29,7 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
     const playerA = await upsertPlayerDB('Agent_Alpha_126', '⚡');
     const playerB = await upsertPlayerDB('Agent_Beta_330', '🧭');
 
-    const quest1 = SEED_QUESTS[0]; // Centennial Beacon Check-In (50 XP)
+    const quest1 = SEED_QUESTS.find((quest) => quest.id === 'qst-centennial-discovery')!;
 
     // Player A completes quest 1
     const submitA = await submitQuestProofDB({
@@ -43,7 +43,7 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
     });
 
     expect(submitA.success).toBe(true);
-    expect(submitA.awardedPoints).toBe(50);
+    expect(submitA.awardedPoints).toBe(quest1.xpReward || quest1.pointValue);
 
     // Player B checks the shared event leaderboard
     const leaderboardForB = await getLeaderboardDB(SEED_EVENT.id);
@@ -51,14 +51,14 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
 
     const entryA = leaderboardForB.find((e) => e.playerId === playerA.id);
     expect(entryA).toBeDefined();
-    expect(entryA?.totalPoints).toBeGreaterThanOrEqual(50);
+    expect(entryA?.totalPoints).toBeGreaterThanOrEqual(quest1.xpReward || quest1.pointValue);
   });
 
   it('3. TWO-WAY MULTIPLAYER STATE: Player B completes another quest, Player A sees updated leaderboard', async () => {
     const playerA = await upsertPlayerDB('Agent_Alpha_126', '⚡');
     const playerB = await upsertPlayerDB('Agent_Beta_330', '🧭');
 
-    const quest2 = SEED_QUESTS[9]; // Secret Cipher 77 (750 XP)
+    const quest2 = SEED_QUESTS.find((quest) => quest.id === 'qst-grand-finale-cipher')!;
 
     // Player B completes epic quest 2
     const submitB = await submitQuestProofDB({
@@ -66,18 +66,18 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
       questId: quest2.id,
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
-      submittedContent: 'CYPHER-77',
+      submittedContent: 'CQ-FINAL-KEY',
     });
 
     expect(submitB.success).toBe(true);
-    expect(submitB.awardedPoints).toBe(750);
+    expect(submitB.awardedPoints).toBe(quest2.xpReward || quest2.pointValue);
 
     // Player A inspects leaderboard and progress
     const leaderboardForA = await getLeaderboardDB(SEED_EVENT.id);
     const entryB = leaderboardForA.find((e) => e.playerId === playerB.id);
 
     expect(entryB).toBeDefined();
-    expect(entryB?.totalPoints).toBeGreaterThanOrEqual(750);
+    expect(entryB?.totalPoints).toBeGreaterThanOrEqual(quest2.xpReward || quest2.pointValue);
     expect(entryB?.rank).toBeGreaterThanOrEqual(1);
   });
 
@@ -92,6 +92,8 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
       submittedContent: '1897',
+      userLat: quest.location?.latitude,
+      userLon: quest.location?.longitude,
     });
     expect(first.success).toBe(true);
 
@@ -102,6 +104,8 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
       submittedContent: '1897',
+      userLat: quest.location?.latitude,
+      userLon: quest.location?.longitude,
     });
     expect(second.success).toBe(false);
     expect(second.awardedPoints).toBe(0);

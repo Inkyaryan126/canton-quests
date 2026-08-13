@@ -9,6 +9,7 @@ import {
   getPlayerProgress,
   reviewSubmission,
   initializeGameEngine,
+  getQuestById,
 } from '../lib/game-engine';
 import { SEED_EVENT, SEED_QUESTS } from '../lib/seed-data';
 
@@ -18,13 +19,13 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
     initializeGameEngine();
   });
 
-  it('1. DISCOVER EVENT: retrieves Canton Quest Weekend #1 event', () => {
+  it('1. DISCOVER EVENT: retrieves Canton Quests Volume 1 event', () => {
     const events = getEvents();
     expect(events.length).toBeGreaterThan(0);
 
     const event = getEventBySlug('canton-weekend-1');
     expect(event).toBeDefined();
-    expect(event?.title).toContain('Canton Quest Weekend #1');
+    expect(event?.title).toContain('Canton Quests: Volume 1');
     expect(event?.status).toBe('active');
   });
 
@@ -52,7 +53,7 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
 
   it('4. COMPLETE QUEST & SUBMIT PROOF: verifies check-in and awards points', () => {
     const player = setCurrentPlayer('Agent_Checkin_Tester', '🎯');
-    const quest = SEED_QUESTS[0]; // Centennial Beacon Check-In (50 XP)
+    const quest = getQuestById('qst-centennial-discovery')!;
 
     const result = submitQuestProof({
       playerId: player.id,
@@ -65,7 +66,7 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.awardedPoints).toBe(50);
+    expect(result.awardedPoints).toBe(quest.xpReward || quest.pointValue);
     expect(result.submission.status).toBe('verified');
   });
 
@@ -91,6 +92,8 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
       submittedContent: '1897',
+      userLat: quest.location?.latitude,
+      userLon: quest.location?.longitude,
     });
     expect(successResult.success).toBe(true);
     expect(successResult.awardedPoints).toBe(150);
@@ -126,14 +129,14 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
 
   it('7. SEE LEADERBOARD & PROGRESS: leaderboard reflects updated scores and rank', () => {
     const player = setCurrentPlayer('Agent_Leaderboard_Runner', '🏆');
-    const quest = SEED_QUESTS[9]; // Secret Cipher 77 (750 XP)
+    const quest = getQuestById('qst-grand-finale-cipher')!;
 
     submitQuestProof({
       playerId: player.id,
       questId: quest.id,
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
-      submittedContent: 'CYPHER-77',
+      submittedContent: 'CQ-FINAL-KEY',
     });
 
     const leaderboard = getLeaderboardForEvent(SEED_EVENT.id);
@@ -141,16 +144,16 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
 
     const playerEntry = leaderboard.find((entry) => entry.playerId === player.id);
     expect(playerEntry).toBeDefined();
-    expect(playerEntry?.totalPoints).toBeGreaterThanOrEqual(750);
+    expect(playerEntry?.totalPoints).toBeGreaterThanOrEqual(quest.xpReward || quest.pointValue);
 
     const progress = getPlayerProgress(player.id, SEED_EVENT.id);
-    expect(progress.totalPoints).toBeGreaterThanOrEqual(750);
+    expect(progress.totalPoints).toBeGreaterThanOrEqual(quest.xpReward || quest.pointValue);
     expect(progress.completedCount).toBeGreaterThanOrEqual(1);
   });
 
   it('8. GAME MASTER ADMIN REVIEW: reviews pending photo proof and awards points', () => {
     const player = setCurrentPlayer('Agent_Media_Submitter', '📸');
-    const quest = SEED_QUESTS[2]; // 4th St Mural Photo (200 XP)
+    const quest = getQuestById('qst-4th-st-mural-photo')!;
 
     // Submits photo proof (routed to pending queue)
     const submitRes = submitQuestProof({
@@ -169,9 +172,9 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
     const reviewedSub = reviewSubmission(submitRes.submission.id, 'verified', 'Great pose!');
     expect(reviewedSub).toBeDefined();
     expect(reviewedSub?.status).toBe('verified');
-    expect(reviewedSub?.awardedPoints).toBe(200);
+    expect(reviewedSub?.awardedPoints).toBe(quest.xpReward || quest.pointValue);
 
     const progress = getPlayerProgress(player.id, SEED_EVENT.id);
-    expect(progress.totalPoints).toBeGreaterThanOrEqual(200);
+    expect(progress.totalPoints).toBeGreaterThanOrEqual(quest.xpReward || quest.pointValue);
   });
 });

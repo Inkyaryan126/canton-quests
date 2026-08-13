@@ -55,8 +55,8 @@ export default function LocationVerifier({
         setGpsStatus('denied');
         setErrorMessage(
           err.code === err.PERMISSION_DENIED
-            ? 'Location permission was denied. System will allow non-GPS fallback.'
-            : 'Unable to acquire satellite lock.'
+            ? 'Location permission was denied. GPS-required quests need location access before rewards can be issued.'
+            : 'Unable to acquire satellite lock. Refresh GPS outdoors, closer to the quest node, and try again.'
         );
         if (onLocationVerified) {
           onLocationVerified(0, 0, false);
@@ -129,7 +129,7 @@ export default function LocationVerifier({
           <div className="text-amber-400 font-bold">📍 GPS Signal Unavailable</div>
           <div>{errorMessage}</div>
           <div className="text-gray-400 pt-1">
-            Note: You can still complete passphrase and QR code quests without mandatory GPS permission.
+            GPS-required quests cannot be verified until your device shares an accurate location. Passphrase, photo, video, and non-location QR quests may still be submitted when available.
           </div>
         </div>
       )}

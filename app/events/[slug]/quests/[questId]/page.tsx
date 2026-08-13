@@ -38,6 +38,11 @@ function getClientPlayer(): Player {
   return newPlayer;
 }
 
+function getDirectionsUrl(quest: PublicQuestView) {
+  const place = [quest.location?.name, quest.location?.address].filter(Boolean).join(', ');
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place || 'Canton, Ohio')}`;
+}
+
 export default function QuestDetailPage({
   params,
 }: {
@@ -123,7 +128,7 @@ export default function QuestDetailPage({
         <h1 className="text-2xl font-bold mb-2">Quest Not Found</h1>
         <p className="text-gray-400 text-sm mb-4">Unable to locate quest details.</p>
         <Link href={`/events/${eventSlug}`} className="btn btn-primary text-sm">
-          Return to Event Hub
+          Return to Quest Hub
         </Link>
       </div>
     );
@@ -136,6 +141,7 @@ export default function QuestDetailPage({
   const isLocked = Boolean(quest.prerequisiteQuestId && !completedIds.includes(quest.prerequisiteQuestId));
 
   const currentStepIdx = Math.max(0, existingSubmission?.completedStepOrder || submissionResult?.currentStepCompleted || 0);
+  const directionsUrl = getDirectionsUrl(quest);
 
   const handleLocationVerified = (lat: number, lon: number, proximityOk: boolean, accuracyMeters?: number) => {
     setUserLat(lat);
@@ -212,14 +218,14 @@ export default function QuestDetailPage({
           href={`/events/${eventSlug}`}
           className="inline-flex items-center gap-1 text-xs font-mono text-cyan-400 hover:underline mb-4 font-bold"
         >
-          ← Back to Event
+          ← Back to Quest Hub
         </Link>
 
         {/* Flash Quest Banner if Active */}
         {quest.isFlash && (
           <div className="p-3 bg-red-950/40 border border-red-500/60 rounded-xl mb-4 text-xs font-mono text-red-300 font-bold flex items-center justify-between animate-pulse">
             <span>⚡ POP-UP FLASH QUEST</span>
-            <span>+250 XP BONUS ACTIVE</span>
+            <span>+{quest.pointValue} XP ACTIVE</span>
           </div>
         )}
 
@@ -261,6 +267,14 @@ export default function QuestDetailPage({
               <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Go here</span>
               <strong className="block text-white mt-1">{quest.location?.name || 'Canton, Ohio'}</strong>
               {quest.location?.address && <p className="text-xs text-gray-400 mt-1">{quest.location.address}</p>}
+              <a
+                href={directionsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-secondary text-[11px] px-3 py-2 mt-3 w-full font-bold"
+              >
+                Open Map Directions
+              </a>
             </div>
             <div className="bg-[#090b0c] p-4">
               <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Do this</span>
@@ -274,9 +288,23 @@ export default function QuestDetailPage({
             </div>
           </div>
 
-          {(quest.location?.accessNotes || quest.safetyNotes) && (
-            <div className="p-4 bg-cyan-950/25 border-t border-cyan-500/25 text-xs text-cyan-200 font-mono">
-              Safety note: {quest.safetyNotes || quest.location?.accessNotes}
+          {(quest.location?.accessNotes || quest.location?.openingHours || quest.safetyNotes) && (
+            <div className="p-4 bg-cyan-950/25 border-t border-cyan-500/25 text-xs text-cyan-200 font-mono space-y-2">
+              {quest.location?.openingHours && (
+                <div>
+                  <span className="font-bold text-white">Access window:</span> {quest.location.openingHours}
+                </div>
+              )}
+              {quest.location?.accessNotes && (
+                <div>
+                  <span className="font-bold text-white">Location access:</span> {quest.location.accessNotes}
+                </div>
+              )}
+              {quest.safetyNotes && (
+                <div>
+                  <span className="font-bold text-white">Safety:</span> {quest.safetyNotes}
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -323,7 +351,7 @@ export default function QuestDetailPage({
             </p>
             <div className="pt-2">
               <Link href={`/events/${eventSlug}`} className="btn btn-secondary text-sm px-6">
-                Return to Event Hub →
+                Return to Quest Hub →
               </Link>
             </div>
           </div>

@@ -90,6 +90,15 @@ function getServerQuestTargetCode(questId: string): string | undefined {
   return maps.QUEST_TARGET_CODE_HASHES[questId];
 }
 
+function getServerQuestStepTargetCode(stepId: string): string | undefined {
+  if (typeof window !== 'undefined') return undefined;
+  const nodeRequire = eval('require') as (id: string) => any;
+  const maps = nodeRequire(`${process.cwd()}/lib/quest-proof-secrets.server.json`) as {
+    STEP_TARGET_CODE_HASHES?: Record<string, string>;
+  };
+  return maps.STEP_TARGET_CODE_HASHES?.[stepId];
+}
+
 function mapLocationFromDB(row: any): LocationInfo | undefined {
   if (!row) return undefined;
   return {
@@ -525,6 +534,23 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
     }));
     await supabase.from('quests').upsert(questRows);
 
+    const stepRows = SEED_QUESTS.flatMap((q) =>
+      (q.steps || []).map((step) => ({
+        id: step.id,
+        quest_id: q.id,
+        step_order: step.stepOrder,
+        title: step.title,
+        instructions: step.instructions,
+        verification_type: step.verificationType,
+        target_code: step.targetCode || getServerQuestStepTargetCode(step.id),
+        location_id: step.locationId,
+        radius_meters: step.radiusMeters,
+      }))
+    );
+    if (stepRows.length > 0) {
+      await supabase.from('quest_steps').upsert(stepRows);
+    }
+
     return { success: true, message: 'Supabase database seeded successfully!' };
   } catch (err: any) {
     console.error('Supabase seed error:', err);
@@ -726,6 +752,24 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
           awardedPoints: 0,
           drawingEntriesAwarded: 0,
         };
+      }
+    }
+
+    if (quest.prerequisiteQuestId) {
+      const { data: prerequisiteSubmission, error: prerequisiteError } = await supabaseAdmin
+        .from('quest_submissions')
+        .select('id')
+        .eq('player_id', trustedPlayerId)
+        .eq('event_id', trustedParams.eventId)
+        .eq('quest_id', quest.prerequisiteQuestId)
+        .eq('status', 'verified')
+        .maybeSingle();
+
+      if (prerequisiteError || !prerequisiteSubmission) {
+        return failedSubmissionResult(
+          trustedParams,
+          'Quest prerequisite is locked. Complete the previous mission in this chain first.'
+        );
       }
     }
 

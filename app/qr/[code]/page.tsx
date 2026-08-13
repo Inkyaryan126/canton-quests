@@ -28,9 +28,14 @@ export default function QrGatewayPage({ params }: { params: { code: string } }) 
   const code = decodeURIComponent(params.code);
 
   const [quest, setQuest] = useState<PublicQuestView | null>(null);
+  const [candidateQrQuests, setCandidateQrQuests] = useState<PublicQuestView[]>([]);
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
   const [result, setResult] = useState<SubmitProofResult | null>(null);
+  const [userLat, setUserLat] = useState<number | undefined>(undefined);
+  const [userLon, setUserLon] = useState<number | undefined>(undefined);
+  const [userAccuracyMeters, setUserAccuracyMeters] = useState<number | undefined>(undefined);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,10 +55,12 @@ export default function QrGatewayPage({ params }: { params: { code: string } }) 
       .then((res) => res?.json())
       .then((eventData: { quests?: PublicQuestView[] } | undefined) => {
         if (cancelled || !eventData) return;
-        const match = (eventData.quests || []).find((q) => q.slug.toUpperCase() === code.toUpperCase());
+        const allQuests = eventData.quests || [];
+        const match = allQuests.find((q) => q.slug.toUpperCase() === code.toUpperCase() || q.id.toUpperCase() === code.toUpperCase());
         if (match) {
           setQuest(match);
         }
+        setCandidateQrQuests(allQuests.filter((q) => q.verificationType === 'qr' && q.status === 'active'));
       })
       .catch(() => {
         if (!cancelled) setQuest(null);
@@ -64,22 +71,71 @@ export default function QrGatewayPage({ params }: { params: { code: string } }) 
     };
   }, [code]);
 
-  const handleInstantClaim = async () => {
-    if (!quest || !event || !player) return;
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLat(pos.coords.latitude);
+        setUserLon(pos.coords.longitude);
+        setUserAccuracyMeters(pos.coords.accuracy);
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  }, []);
 
-    const response = await fetch('/api/game/submit', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        playerId: player.id,
-        questId: quest.id,
-        eventId: event.id,
-        proofType: 'qr',
-        submittedContent: code,
-      }),
-    });
-    const res = (await response.json()) as SubmitProofResult;
-    setResult(res);
+  const handleInstantClaim = async () => {
+    if (!event || !player || isClaiming) return;
+    setIsClaiming(true);
+    setResult(null);
+
+    const questsToTry = quest?.verificationType === 'qr' ? [quest] : candidateQrQuests;
+    let lastResult: SubmitProofResult | null = null;
+
+    for (const qrQuest of questsToTry) {
+      const response = await fetch('/api/game/submit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          playerId: player.id,
+          questId: qrQuest.id,
+          eventId: event.id,
+          proofType: 'qr',
+          submittedContent: code,
+          userLat,
+          userLon,
+          userAccuracyMeters,
+        }),
+      });
+      const res = (await response.json()) as SubmitProofResult;
+      lastResult = res;
+      if (res.success) {
+        setQuest(qrQuest);
+        setResult(res);
+        setIsClaiming(false);
+        return;
+      }
+    }
+
+    setResult(
+      lastResult || {
+        success: false,
+        submission: {
+          id: 'qr-no-match',
+          questId: '',
+          playerId: player.id,
+          eventId: event.id,
+          proofType: 'qr',
+          status: 'rejected',
+          awardedPoints: 0,
+          submittedAt: new Date().toISOString(),
+        },
+        message: 'No active QR mission accepted this signal. Check the card, location, and event window.',
+        awardedPoints: 0,
+        drawingEntriesAwarded: 0,
+      }
+    );
+    setIsClaiming(false);
   };
 
   return (
@@ -100,17 +156,21 @@ export default function QrGatewayPage({ params }: { params: { code: string } }) 
             Passcode Token: <span className="text-cyan-400 font-mono">{code}</span>
           </h1>
 
-          {quest ? (
+          {quest || candidateQrQuests.length > 0 ? (
             <div className="space-y-4">
               <div className="p-4 bg-obsidian/70 rounded-xl border border-gray-800 text-left space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-gray-400">IDENTIFIED QUEST:</span>
-                  <span className="badge badge-medium">{quest.difficulty}</span>
+                  <span className="text-xs font-mono text-gray-400">{quest ? 'IDENTIFIED QUEST:' : 'FIELD QR READY:'}</span>
+                  {quest && <span className="badge badge-medium">{quest.difficulty}</span>}
                 </div>
-                <h3 className="text-lg font-bold text-white">{quest.title}</h3>
-                <p className="text-xs text-gray-300 line-clamp-2">{quest.description}</p>
+                <h3 className="text-lg font-bold text-white">{quest ? quest.title : 'Unknown QR Signal'}</h3>
+                <p className="text-xs text-gray-300 line-clamp-2">
+                  {quest
+                    ? quest.description
+                    : 'Stay near the official Canton Quests QR card and claim the signal. Location-bound QR missions need GPS permission.'}
+                </p>
                 <div className="text-amber-400 font-display font-extrabold text-sm pt-1">
-                  Value: +{quest.pointValue} XP
+                  {quest ? `Value: +${quest.pointValue} XP` : `${candidateQrQuests.length} active QR mission(s) available`}
                 </div>
               </div>
 
@@ -129,9 +189,10 @@ export default function QrGatewayPage({ params }: { params: { code: string } }) 
                 {!result?.success && (
                   <button
                     onClick={handleInstantClaim}
-                    className="btn btn-primary w-full py-3 text-sm font-bold"
+                    disabled={isClaiming}
+                    className="btn btn-primary w-full py-3 text-sm font-bold disabled:opacity-60"
                   >
-                    ⚡ CLAIM QR QUEST XP (+{quest.pointValue} XP)
+                    {isClaiming ? 'Checking QR signal...' : quest ? `⚡ CLAIM QR QUEST XP (+${quest.pointValue} XP)` : '⚡ CLAIM QR SIGNAL'}
                   </button>
                 )}
 
