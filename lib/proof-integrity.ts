@@ -3,6 +3,22 @@
 import { Quest, QuestSubmission, ProofReviewFlag, SubmitProofParams } from './types';
 import { checkProximity } from './geo';
 
+function proofDigest(value: string): string | undefined {
+  if (typeof window !== 'undefined') return undefined;
+  const nodeRequire = eval('require') as (id: string) => any;
+  return nodeRequire('crypto').createHash('sha256').update(value.trim().toUpperCase()).digest('hex');
+}
+
+function proofMatches(inputValue: string | undefined, targetValue: string | undefined): boolean {
+  const input = (inputValue || '').trim().toUpperCase();
+  const target = (targetValue || '').trim();
+  if (!input || !target) return false;
+  if (target.toLowerCase().startsWith('sha256:')) {
+    return proofDigest(input) === target.slice('sha256:'.length).toLowerCase();
+  }
+  return input === target.toUpperCase();
+}
+
 /**
  * Analyzes a proposed submission for suspicious patterns and returns automated review flags.
  */
@@ -73,9 +89,7 @@ export function evaluateProofIntegrity(
 
   // 6. Malformed QR Flag
   if (quest.verificationType === 'qr' && quest.targetCode) {
-    const input = (params.submittedContent || '').trim().toUpperCase();
-    const target = quest.targetCode.trim().toUpperCase();
-    if (input !== target) {
+    if (!proofMatches(params.submittedContent, quest.targetCode)) {
       flags.push('MALFORMED_QR');
     }
   }

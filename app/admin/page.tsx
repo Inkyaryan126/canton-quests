@@ -781,7 +781,7 @@ export default function AdminPage() {
                     type="text"
                     value={qTargetCode}
                     onChange={(e) => setQTargetCode(e.target.value)}
-                    placeholder="e.g. 1897 or AURA-BREW-2026"
+                    placeholder="Enter private answer or QR passcode"
                     className="input-field font-mono uppercase"
                   />
                 </div>

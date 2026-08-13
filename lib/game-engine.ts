@@ -4,8 +4,14 @@ import {
   Player,
   QuestEvent,
   Quest,
+  QuestStep,
   QuestSubmission,
   ScoreLedgerEntry,
+  DrawingEntryLedgerEntry,
+  EventDrawingLedgerLock,
+  PublicDrawingLedgerProjection,
+  PublicPlayerDrawingEntry,
+  PublicQuestView,
   LeaderboardEntry,
   PlayerEventProgress,
   ProofVerificationType,
@@ -61,6 +67,8 @@ const STORAGE_KEYS = {
   QUESTS: 'canton_quests_quests',
   SUBMISSIONS: 'canton_quests_submissions',
   SCORE_LEDGER: 'canton_quests_score_ledger',
+  DRAWING_LEDGER: 'canton_quests_drawing_ledger',
+  DRAWING_LOCKS: 'canton_quests_drawing_locks',
   TEAMS: 'canton_quests_teams',
   TEAM_MEMBERS: 'canton_quests_team_members',
   ACTIVITY_LOG: 'canton_quests_activity_log',
@@ -81,7 +89,61 @@ const STORAGE_KEYS = {
 
 const inMemoryStore = new Map<string, any>();
 
+const MAX_TRUSTED_GPS_ACCURACY_METERS = 100;
+
+function getServerProofSecretMaps():
+  | {
+      QUEST_TARGET_CODE_HASHES: Record<string, string>;
+      SECRET_CODE_HASHES: Record<string, string>;
+    }
+  | undefined {
+  if (typeof window !== 'undefined') return undefined;
+  const nodeRequire = eval('require') as (id: string) => any;
+  return nodeRequire(`${process.cwd()}/lib/quest-proof-secrets.server.json`);
+}
+
+function mergeServerQuestTargetCodes(quests: Quest[]): Quest[] {
+  const maps = getServerProofSecretMaps();
+  if (!maps) return quests;
+  return quests.map((quest) => ({
+    ...quest,
+    targetCode: quest.targetCode || maps.QUEST_TARGET_CODE_HASHES[quest.id],
+  }));
+}
+
+function mergeServerSecretCodes(codes: SecretCode[]): SecretCode[] {
+  const maps = getServerProofSecretMaps();
+  if (!maps) return codes;
+  return codes.map((code) => ({
+    ...code,
+    code: code.code || maps.SECRET_CODE_HASHES[code.id] || '',
+  }));
+}
+
+function proofDigest(value: string): string | undefined {
+  if (typeof window !== 'undefined') return undefined;
+  const nodeRequire = eval('require') as (id: string) => any;
+  return nodeRequire('crypto').createHash('sha256').update(value.trim().toUpperCase()).digest('hex');
+}
+
+function proofMatches(inputValue: string | undefined, targetValue: string | undefined): boolean {
+  const input = (inputValue || '').trim().toUpperCase();
+  const target = (targetValue || '').trim();
+  if (!input || !target) return false;
+  if (target.toLowerCase().startsWith('sha256:')) {
+    return proofDigest(input) === target.slice('sha256:'.length).toLowerCase();
+  }
+  return input === target.toUpperCase();
+}
+
 function getStoredItem<T>(key: string, fallback: T): T {
+  const resolvedFallback =
+    key === STORAGE_KEYS.QUESTS
+      ? (mergeServerQuestTargetCodes(fallback as Quest[]) as T)
+      : key === STORAGE_KEYS.SECRET_CODES
+        ? (mergeServerSecretCodes(fallback as SecretCode[]) as T)
+        : fallback;
+
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       const data = localStorage.getItem(key);
@@ -90,7 +152,7 @@ function getStoredItem<T>(key: string, fallback: T): T {
       console.error(`Error reading ${key} from localStorage`, e);
     }
   }
-  return inMemoryStore.has(key) ? inMemoryStore.get(key) : fallback;
+  return inMemoryStore.has(key) ? inMemoryStore.get(key) : resolvedFallback;
 }
 
 function setStoredItem<T>(key: string, value: T): void {
@@ -110,7 +172,7 @@ export function initializeGameEngine(): void {
     setStoredItem(STORAGE_KEYS.EVENTS, [SEED_EVENT]);
   }
   if (getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.QUESTS, SEED_QUESTS);
+    setStoredItem(STORAGE_KEYS.QUESTS, mergeServerQuestTargetCodes(SEED_QUESTS));
   }
   if (getStoredItem<LocationInfo[]>(STORAGE_KEYS.LOCATIONS, []).length === 0) {
     setStoredItem(STORAGE_KEYS.LOCATIONS, SEED_LOCATIONS);
@@ -128,7 +190,7 @@ export function initializeGameEngine(): void {
     setStoredItem(STORAGE_KEYS.COLLECTIBLES, SEED_COLLECTIBLES);
   }
   if (getStoredItem<SecretCode[]>(STORAGE_KEYS.SECRET_CODES, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.SECRET_CODES, SEED_SECRET_CODES);
+    setStoredItem(STORAGE_KEYS.SECRET_CODES, mergeServerSecretCodes(SEED_SECRET_CODES));
   }
   if (getStoredItem<LiveAnnouncement[]>(STORAGE_KEYS.ANNOUNCEMENTS, []).length === 0) {
     setStoredItem(STORAGE_KEYS.ANNOUNCEMENTS, SEED_ANNOUNCEMENTS);
@@ -359,7 +421,6 @@ export function getQuestTemplates(): QuestTemplate[] {
         verificationType: 'qr',
         pointValue: 100,
         difficulty: 'easy',
-        targetCode: 'CANTON-EMBLEM-2026',
         proofRequirement: 'Scan or enter QR passcode displayed at partner location.',
         requireQrAndLocation: true,
       },
@@ -671,9 +732,8 @@ export function redeemSecretCode(
   initializeGameEngine();
   const codes = getStoredItem<SecretCode[]>(STORAGE_KEYS.SECRET_CODES, SEED_SECRET_CODES);
   const redemptions = getStoredItem<CodeRedemption[]>(STORAGE_KEYS.CODE_REDEMPTIONS, []);
-  const cleanCode = codeStr.trim().toUpperCase();
 
-  const targetCode = codes.find((c) => c.eventId === eventId && c.code === cleanCode && c.isActive);
+  const targetCode = codes.find((c) => c.eventId === eventId && proofMatches(codeStr, c.code) && c.isActive);
   if (!targetCode) {
     return { success: false, message: 'Invalid or inactive secret passcode!', pointsAwarded: 0 };
   }
@@ -708,25 +768,25 @@ export function redeemSecretCode(
     playerId,
     points: targetCode.bonusPoints,
     category: 'secret_code',
-    description: `Redeemed Secret Code: ${targetCode.code}`,
+    description: 'Redeemed Secret Code',
   });
 
   let grantedCol: Collectible | undefined = undefined;
   if (targetCode.grantCollectibleId) {
-    grantedCol = awardCollectible(playerId, targetCode.grantCollectibleId, `Secret Code: ${targetCode.code}`);
+    grantedCol = awardCollectible(playerId, targetCode.grantCollectibleId, 'Secret Code');
   }
 
   const player = getAllPlayers().find((p) => p.id === playerId);
   logActivity({
     type: 'code_redeemed',
     actorName: player?.displayName || 'Player',
-    title: `Passcode Redeemed: ${targetCode.code}`,
+    title: 'Passcode Redeemed',
     details: `+${targetCode.bonusPoints} XP awarded`,
   });
 
   return {
     success: true,
-    message: `Passcode ${targetCode.code} Cracked! +${targetCode.bonusPoints} XP awarded!`,
+    message: `Passcode cracked! +${targetCode.bonusPoints} XP awarded!`,
     pointsAwarded: targetCode.bonusPoints,
     collectibleAwarded: grantedCol,
   };
@@ -1401,6 +1461,139 @@ export function getAllSubmissions(): QuestSubmission[] {
   return getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
 }
 
+function getLatestQuestProgressSubmission(
+  submissions: QuestSubmission[],
+  playerId: string,
+  questId: string
+): QuestSubmission | undefined {
+  return submissions
+    .filter((s) => s.playerId === playerId && s.questId === questId)
+    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0];
+}
+
+function buildRejectedSubmission(
+  params: SubmitProofParams,
+  message: string,
+  fields: Partial<QuestSubmission> = {}
+): QuestSubmission {
+  return {
+    id: `sub-failed-${Date.now()}`,
+    questId: params.questId,
+    playerId: params.playerId,
+    eventId: params.eventId,
+    proofType: params.proofType,
+    status: 'rejected',
+    awardedPoints: 0,
+    drawingEntriesAwarded: 0,
+    feedback: message,
+    submittedAt: new Date().toISOString(),
+    ...fields,
+  };
+}
+
+function getQuestTargetCoordinates(quest: Quest): { lat?: number; lon?: number; radiusMeters: number } {
+  return {
+    lat: quest.location?.latitude,
+    lon: quest.location?.longitude,
+    radiusMeters: quest.radiusMeters || quest.location?.radiusMeters || 100,
+  };
+}
+
+function validateLocationProof(
+  params: SubmitProofParams,
+  quest: Quest,
+  step?: QuestStep
+): { ok: true; distanceMeters?: number; message: string } | { ok: false; submission: QuestSubmission; message: string } {
+  const targetLat = step?.location?.latitude ?? quest.location?.latitude;
+  const targetLon = step?.location?.longitude ?? quest.location?.longitude;
+  const requiredRadius = step?.radiusMeters || quest.radiusMeters || quest.location?.radiusMeters || 100;
+
+  if (targetLat === undefined || targetLon === undefined) {
+    const message = 'Authoritative quest location is missing; Game Master review is required.';
+    return { ok: false, submission: buildRejectedSubmission(params, message), message };
+  }
+
+  if (params.userLat === undefined || params.userLon === undefined) {
+    const message = 'GPS location verification required. Please enable location services.';
+    return { ok: false, submission: buildRejectedSubmission(params, message), message };
+  }
+
+  if (
+    params.userAccuracyMeters !== undefined &&
+    Number.isFinite(params.userAccuracyMeters) &&
+    params.userAccuracyMeters > MAX_TRUSTED_GPS_ACCURACY_METERS
+  ) {
+    const message = `GPS accuracy is too weak for reward verification (${Math.round(params.userAccuracyMeters)}m). Refresh GPS closer to the node.`;
+    return {
+      ok: false,
+      submission: buildRejectedSubmission(params, message, {
+        userLat: params.userLat,
+        userLon: params.userLon,
+      }),
+      message,
+    };
+  }
+
+  const prox = checkProximity(
+    { latitude: params.userLat, longitude: params.userLon, accuracy: params.userAccuracyMeters },
+    targetLat,
+    targetLon,
+    requiredRadius
+  );
+
+  if (!prox.isWithinRadius) {
+    return {
+      ok: false,
+      submission: buildRejectedSubmission(params, prox.message, {
+        userLat: params.userLat,
+        userLon: params.userLon,
+        distanceFromLocation: prox.distanceMeters,
+      }),
+      message: prox.message,
+    };
+  }
+
+  return {
+    ok: true,
+    distanceMeters: prox.distanceMeters,
+    message: `GPS Location verified! Signal confirmed (${prox.distanceMeters}m from target).`,
+  };
+}
+
+function verifyStepProof(
+  params: SubmitProofParams,
+  quest: Quest,
+  step: QuestStep
+): {
+  status: 'verified' | 'pending' | 'rejected';
+  message: string;
+  distanceMeters?: number;
+} {
+  if (step.verificationType === 'passphrase' || step.verificationType === 'qr') {
+    if (proofMatches(params.submittedContent, step.targetCode)) {
+      return { status: 'verified', message: `Step ${step.stepOrder} verified.` };
+    }
+    return { status: 'rejected', message: `Step ${step.stepOrder} verification failed. Incorrect answer or unverified proof.` };
+  }
+
+  if (step.verificationType === 'gps' || step.verificationType === 'checkin') {
+    const locationResult = validateLocationProof(params, quest, step);
+    if (!locationResult.ok) {
+      return { status: 'rejected', message: locationResult.message };
+    }
+    return { status: 'verified', message: locationResult.message, distanceMeters: locationResult.distanceMeters };
+  }
+
+  if (step.verificationType === 'photo' || step.verificationType === 'video' || step.verificationType === 'game_master') {
+    if (!params.proofUrl && !params.submittedContent) {
+      return { status: 'rejected', message: `Step ${step.stepOrder} requires proof details before Game Master review.` };
+    }
+    return { status: 'pending', message: `Step ${step.stepOrder} submitted for Game Master review.` };
+  }
+
+  return { status: 'rejected', message: `Unsupported step verification type: ${step.verificationType}` };
+}
+
 export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   initializeGameEngine();
   const event = getEvents().find((e) => e.id === params.eventId);
@@ -1454,9 +1647,11 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     }
   }
 
-  const existingSub = existingSubmissions.find(
-    (s) => s.playerId === params.playerId && s.questId === params.questId
+  const verifiedExistingSub = existingSubmissions.find(
+    (s) => s.playerId === params.playerId && s.questId === params.questId && s.status === 'verified'
   );
+  const existingSub =
+    verifiedExistingSub || getLatestQuestProgressSubmission(existingSubmissions, params.playerId, params.questId);
 
   if (existingSub) {
     if (existingSub.status === 'verified') {
@@ -1465,6 +1660,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
         submission: existingSub,
         message: 'Quest already completed! Points have already been awarded.',
         awardedPoints: 0,
+        drawingEntriesAwarded: 0,
       };
     }
     if (existingSub.status === 'pending') {
@@ -1473,6 +1669,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
         submission: existingSub,
         message: 'Your proof submission for this quest is currently under review by a Game Master.',
         awardedPoints: 0,
+        drawingEntriesAwarded: 0,
       };
     }
   }
@@ -1480,60 +1677,53 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   let proximityChecked = false;
   let distanceFromLoc: number | undefined = undefined;
 
-  if (
-    (quest.requireLocationVerification || quest.requireQrAndLocation || quest.verificationType === 'checkin') &&
-    quest.location &&
-    quest.location.latitude &&
-    quest.location.longitude
-  ) {
-    const requiredRadius = quest.radiusMeters || quest.location.radiusMeters || 100;
+  const requiresStrictGps =
+    quest.verificationType === 'checkin' ||
+    quest.verificationType === 'gps' ||
+    quest.requireLocationVerification ||
+    quest.requireQrAndLocation;
 
-    if (params.userLat !== undefined && params.userLon !== undefined) {
-      const prox = checkProximity(
-        { latitude: params.userLat, longitude: params.userLon },
-        quest.location.latitude,
-        quest.location.longitude,
-        requiredRadius
-      );
-      distanceFromLoc = prox.distanceMeters;
-      proximityChecked = true;
+  if (requiresStrictGps && (params.userLat === undefined || params.userLon === undefined)) {
+    const failedSubmission = buildRejectedSubmission(params, 'GPS location verification required. Please enable location services.');
+    return {
+      success: false,
+      submission: failedSubmission,
+      message: failedSubmission.feedback || 'GPS location verification required. Please enable location services.',
+      awardedPoints: 0,
+      drawingEntriesAwarded: 0,
+      flags: reviewFlags,
+    };
+  }
 
-      if (!prox.isWithinRadius) {
-        return {
-          success: false,
-          submission: {
-            id: `sub-failed-${Date.now()}`,
-            questId: params.questId,
-            playerId: params.playerId,
-            eventId: params.eventId,
-            proofType: params.proofType,
-            status: 'rejected',
-            awardedPoints: 0,
-            submittedAt: new Date().toISOString(),
-            userLat: params.userLat,
-            userLon: params.userLon,
-            distanceFromLocation: prox.distanceMeters,
-          },
-          message: prox.message,
-          awardedPoints: 0,
-          flags: reviewFlags,
-        };
-      }
+  if (requiresStrictGps || params.userLat !== undefined || params.userLon !== undefined) {
+    const locationResult = validateLocationProof(params, quest);
+    if (!locationResult.ok) {
+      return {
+        success: false,
+        submission: locationResult.submission,
+        message: locationResult.message,
+        awardedPoints: 0,
+        drawingEntriesAwarded: 0,
+        flags: reviewFlags,
+      };
     }
+    distanceFromLoc = locationResult.distanceMeters;
+    proximityChecked = true;
   }
 
   let isAutoVerified = false;
   let validationMessage = '';
+  let isMultiStepProgress = false;
+  let currentStepCompletedOrder: number | undefined = undefined;
+  let nextUnlockedStep: QuestStep | undefined = undefined;
 
-  if (quest.verificationType === 'checkin') {
+  if (quest.verificationType === 'checkin' || quest.verificationType === 'gps') {
     isAutoVerified = true;
     validationMessage = proximityChecked
-      ? `Check-in verified! Location signal confirmed (${distanceFromLoc}m from target).`
+      ? `GPS Location verified! Signal confirmed (${distanceFromLoc}m from target).`
       : 'Check-in verified! Field beacon active.';
   } else if (quest.verificationType === 'passphrase') {
-    const input = (params.submittedContent || '').trim().toUpperCase();
-    const target = (quest.targetCode || '').trim().toUpperCase();
-    if (input === target) {
+    if (proofMatches(params.submittedContent, quest.targetCode)) {
       isAutoVerified = true;
       validationMessage = 'Cipher Cracked! Passphrase verified successfully.';
     } else {
@@ -1546,6 +1736,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
         submittedContent: params.submittedContent,
         status: 'rejected',
         awardedPoints: 0,
+        drawingEntriesAwarded: 0,
         feedback: 'Incorrect passphrase code. Inspect the location closely.',
         submittedAt: new Date().toISOString(),
       };
@@ -1555,13 +1746,12 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
         submission: failedSub,
         message: 'Incorrect passcode frequency! Re-examine the location or plaque.',
         awardedPoints: 0,
+        drawingEntriesAwarded: 0,
         flags: reviewFlags,
       };
     }
   } else if (quest.verificationType === 'qr') {
-    const input = (params.submittedContent || '').trim().toUpperCase();
-    const target = (quest.targetCode || '').trim().toUpperCase();
-    if (input === target) {
+    if (proofMatches(params.submittedContent, quest.targetCode)) {
       isAutoVerified = true;
       validationMessage = quest.requireQrAndLocation
         ? `QR Emblem & Physical Proximity Verified (${distanceFromLoc !== undefined ? `${distanceFromLoc}m` : 'Location confirmed'})! Quest Completed.`
@@ -1576,6 +1766,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
         submittedContent: params.submittedContent,
         status: 'rejected',
         awardedPoints: 0,
+        drawingEntriesAwarded: 0,
         feedback: 'Invalid QR token code.',
         submittedAt: new Date().toISOString(),
       };
@@ -1585,12 +1776,91 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
         submission: failedSub,
         message: 'Invalid QR Code token! Make sure you are scanning an official Canton Quests QR emblem.',
         awardedPoints: 0,
+        drawingEntriesAwarded: 0,
         flags: reviewFlags,
       };
     }
-  } else if (quest.verificationType === 'photo' || quest.verificationType === 'video') {
+  } else if (quest.verificationType === 'photo' || quest.verificationType === 'video' || quest.verificationType === 'game_master') {
     isAutoVerified = false;
-    validationMessage = 'Media proof submitted! Routed to Game Master review queue.';
+    validationMessage = quest.verificationType === 'game_master'
+      ? 'Submitted for Game Master manual approval.'
+      : 'Media proof submitted! Routed to Game Master review queue.';
+  } else if (quest.verificationType === 'multi_step') {
+    const steps = quest.steps || [];
+    const completedSoFar = existingSub ? (existingSub.completedStepOrder || 0) : 0;
+    const expectedStepIdx = completedSoFar;
+    const requestedStepIdx = params.stepIndex ?? expectedStepIdx;
+
+    if (requestedStepIdx !== expectedStepIdx) {
+      return {
+        success: false,
+        submission: {
+          id: `sub-failed-${Date.now()}`,
+          questId: params.questId,
+          playerId: params.playerId,
+          eventId: params.eventId,
+          proofType: params.proofType,
+          status: 'rejected',
+          awardedPoints: 0,
+          submittedAt: new Date().toISOString(),
+        },
+        message: `Invalid step sequence. You must complete step ${expectedStepIdx + 1} next.`,
+        awardedPoints: 0,
+        drawingEntriesAwarded: 0,
+      };
+    }
+
+    const targetStep = steps[requestedStepIdx];
+    if (!targetStep) {
+      return {
+        success: false,
+        submission: {
+          id: `sub-failed-${Date.now()}`,
+          questId: params.questId,
+          playerId: params.playerId,
+          eventId: params.eventId,
+          proofType: params.proofType,
+          status: 'rejected',
+          awardedPoints: 0,
+          submittedAt: new Date().toISOString(),
+        },
+        message: 'Invalid step index for multi-step quest.',
+        awardedPoints: 0,
+        drawingEntriesAwarded: 0,
+      };
+    }
+
+    const stepResult = verifyStepProof(params, quest, targetStep);
+    if (stepResult.distanceMeters !== undefined) {
+      distanceFromLoc = stepResult.distanceMeters;
+    }
+
+    if (stepResult.status === 'pending') {
+      currentStepCompletedOrder = requestedStepIdx + 1;
+      validationMessage = stepResult.message;
+    } else if (stepResult.status === 'rejected') {
+      return {
+        success: false,
+        submission: buildRejectedSubmission(params, stepResult.message),
+        message: stepResult.message,
+        awardedPoints: 0,
+        drawingEntriesAwarded: 0,
+      };
+    }
+
+    if (stepResult.status === 'pending') {
+      isMultiStepProgress = false;
+      currentStepCompletedOrder = completedSoFar;
+    } else if (requestedStepIdx < steps.length - 1) {
+      isMultiStepProgress = true;
+      currentStepCompletedOrder = requestedStepIdx + 1;
+      nextUnlockedStep = steps[requestedStepIdx + 1];
+      validationMessage = `Step ${requestedStepIdx + 1} completed! Next step unlocked: ${nextUnlockedStep.title}`;
+    } else {
+      isAutoVerified = true;
+      currentStepCompletedOrder = steps.length;
+      validationMessage = 'All multi-step objectives completed! Quest fully verified.';
+    }
   }
 
   if (params.isHardModeOptIn && !isAutoVerified && quest.verificationType === 'passphrase') {
@@ -1614,6 +1884,8 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     updateQuest(quest.id, { currentClaims: claimPlacement });
   }
 
+  const drawingEntriesCount = quest.drawingEntryReward ?? 1;
+
   const newSubmission: QuestSubmission = {
     id: `sub-${Date.now()}`,
     questId: params.questId,
@@ -1623,8 +1895,10 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     proofType: params.proofType,
     submittedContent: params.submittedContent,
     proofUrl: params.proofUrl,
-    status: isAutoVerified ? 'verified' : 'pending',
-    awardedPoints: isAutoVerified ? quest.pointValue : 0,
+    status: isMultiStepProgress ? 'in_progress' : isAutoVerified ? 'verified' : 'pending',
+    awardedPoints: isAutoVerified ? (quest.xpReward || quest.pointValue) : 0,
+    drawingEntriesAwarded: isAutoVerified ? drawingEntriesCount : 0,
+    completedStepOrder: currentStepCompletedOrder,
     reviewFlags: reviewFlags.length > 0 ? reviewFlags : undefined,
     submittedAt: new Date().toISOString(),
     reviewedAt: isAutoVerified ? new Date().toISOString() : undefined,
@@ -1638,10 +1912,11 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   setStoredItem(STORAGE_KEYS.SUBMISSIONS, updatedSubmissions);
 
   let awardedPoints = 0;
+  let drawingEntriesAwarded = 0;
   let grantedCol: Collectible | undefined = undefined;
 
   if (isAutoVerified) {
-    let basePoints = quest.pointValue;
+    let basePoints = quest.xpReward || quest.pointValue;
 
     const multiplier = getActiveBonusMultiplier(params.eventId, quest.category);
     basePoints = Math.round(basePoints * multiplier);
@@ -1660,7 +1935,9 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     }
 
     awardedPoints = basePoints;
+    drawingEntriesAwarded = drawingEntriesCount;
 
+    // 1. Award Persistent XP
     recordScoreLedger({
       eventId: params.eventId,
       playerId: params.playerId,
@@ -1670,6 +1947,17 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
       points: awardedPoints,
       category: quest.category,
       description: `Completed ${quest.title}${multiplier > 1.0 ? ` (${multiplier}x Bonus)` : ''}`,
+    });
+
+    // 2. Award Event-Scoped Drawing Entries
+    awardDrawingEntries({
+      eventId: params.eventId,
+      playerId: params.playerId,
+      questId: params.questId,
+      submissionId: newSubmission.id,
+      entriesCount: drawingEntriesAwarded,
+      sourceType: 'quest_completion',
+      reason: `Completed quest: ${quest.title}`,
     });
 
     incrementCrowdObjective(params.eventId, 1);
@@ -1683,7 +1971,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
       type: 'quest_completed',
       actorName: player?.displayName || 'Player',
       title: `Quest Completed: ${quest.title}`,
-      details: `+${awardedPoints} XP awarded`,
+      details: `+${awardedPoints} XP, +${drawingEntriesAwarded} Drawing Entries awarded`,
     });
   }
 
@@ -1692,6 +1980,10 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     submission: newSubmission,
     message: validationMessage,
     awardedPoints,
+    drawingEntriesAwarded,
+    currentStepCompleted: currentStepCompletedOrder,
+    nextStepUnlocked: nextUnlockedStep,
+    isQuestFullyCompleted: isAutoVerified,
     claimPlacement,
     collectibleAwarded: grantedCol,
     flags: reviewFlags,
@@ -1701,6 +1993,21 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
 export function recordScoreLedger(entryData: Omit<ScoreLedgerEntry, 'id' | 'awardedAt'>): ScoreLedgerEntry {
   initializeGameEngine();
   const ledger = getStoredItem<ScoreLedgerEntry[]>(STORAGE_KEYS.SCORE_LEDGER, []);
+
+  // Idempotency check: if score for (eventId, playerId, questId) already exists with points > 0, do not duplicate!
+  if (entryData.questId && entryData.points > 0) {
+    const existing = ledger.find(
+      (e) =>
+        e.eventId === entryData.eventId &&
+        e.playerId === entryData.playerId &&
+        e.questId === entryData.questId &&
+        e.points > 0
+    );
+    if (existing) {
+      return existing;
+    }
+  }
+
   const newEntry: ScoreLedgerEntry = {
     ...entryData,
     id: `sc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -1719,6 +2026,146 @@ export function recordScoreLedger(entryData: Omit<ScoreLedgerEntry, 'id' | 'awar
   }
 
   return newEntry;
+}
+
+// -----------------------------------------------------------------------------
+// Core Quest Rewards Backbone — Drawing Entry Ledger Subsystem
+// -----------------------------------------------------------------------------
+
+export function awardDrawingEntries(
+  entryData: Omit<DrawingEntryLedgerEntry, 'id' | 'createdAt'>
+): DrawingEntryLedgerEntry {
+  initializeGameEngine();
+  const ledger = getStoredItem<DrawingEntryLedgerEntry[]>(STORAGE_KEYS.DRAWING_LEDGER, []);
+
+  if (entryData.questId && entryData.entriesCount > 0) {
+    const existing = ledger.find(
+      (e) =>
+        e.eventId === entryData.eventId &&
+        e.playerId === entryData.playerId &&
+        e.questId === entryData.questId &&
+        e.entriesCount > 0
+    );
+    if (existing) {
+      return existing;
+    }
+  }
+
+  const newEntry: DrawingEntryLedgerEntry = {
+    ...entryData,
+    id: `dw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    createdAt: new Date().toISOString(),
+  };
+
+  setStoredItem(STORAGE_KEYS.DRAWING_LEDGER, [...ledger, newEntry]);
+  return newEntry;
+}
+
+export function getDrawingEntriesForEvent(eventId: string): DrawingEntryLedgerEntry[] {
+  initializeGameEngine();
+  const ledger = getStoredItem<DrawingEntryLedgerEntry[]>(STORAGE_KEYS.DRAWING_LEDGER, []);
+  return ledger.filter((e) => e.eventId === eventId);
+}
+
+export function getDrawingEntriesForPlayer(playerId: string, eventId?: string): DrawingEntryLedgerEntry[] {
+  initializeGameEngine();
+  const ledger = getStoredItem<DrawingEntryLedgerEntry[]>(STORAGE_KEYS.DRAWING_LEDGER, []);
+  return ledger.filter((e) => e.playerId === playerId && (!eventId || e.eventId === eventId));
+}
+
+export function getPublicDrawingLedgerProjection(eventId: string): PublicDrawingLedgerProjection {
+  initializeGameEngine();
+  const entries = getDrawingEntriesForEvent(eventId);
+  const players = getAllPlayers();
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+  const lock = locks.find((l) => l.eventId === eventId);
+
+  const playerMap: Record<string, { label: string; count: number }> = {};
+  let totalEntriesAcrossAllPlayers = 0;
+
+  entries.forEach((e) => {
+    totalEntriesAcrossAllPlayers += e.entriesCount;
+    if (!playerMap[e.playerId]) {
+      const playerObj = players.find((p) => p.id === e.playerId);
+      let label = playerObj?.displayName || 'Anonymous Agent';
+      if (playerObj && 'isMinor' in playerObj && playerObj.isMinor === true) {
+        label = `Agent #${e.playerId.slice(-4)}`;
+      }
+      playerMap[e.playerId] = { label, count: 0 };
+    }
+    playerMap[e.playerId].count += e.entriesCount;
+  });
+
+  const playerEntries: PublicPlayerDrawingEntry[] = Object.values(playerMap).map((pm) => ({
+    playerPublicLabel: pm.label,
+    totalQualifiedEntries: pm.count,
+  }));
+
+  return {
+    eventId,
+    totalEntriesAcrossAllPlayers,
+    ledgerLockStatus: lock && lock.isLocked ? 'locked' : 'unlocked',
+    ledgerLockTimestamp: lock && lock.isLocked ? lock.lockedAt || null : null,
+    playerEntries,
+  };
+}
+
+export function lockDrawingLedger(
+  eventId: string,
+  lockReason?: string,
+  adminIdentity?: string
+): EventDrawingLedgerLock {
+  initializeGameEngine();
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+  const newLock: EventDrawingLedgerLock = {
+    eventId,
+    isLocked: true,
+    lockedAt: new Date().toISOString(),
+    lockReason: lockReason || 'Administrative Ledger Lock',
+    lockedBy: adminIdentity || 'GM Admin',
+  };
+  const filtered = locks.filter((l) => l.eventId !== eventId);
+  setStoredItem(STORAGE_KEYS.DRAWING_LOCKS, [...filtered, newLock]);
+  return newLock;
+}
+
+export function exportDrawingLedgerSnapshot(eventId: string): {
+  snapshot: Array<{ playerPublicLabel: string; entriesCount: number; questId?: string; createdAt: string }>;
+  snapshotHash: string;
+} {
+  initializeGameEngine();
+  const entries = getDrawingEntriesForEvent(eventId);
+  const players = getAllPlayers();
+
+  const snapshot = entries
+    .map((e) => {
+      const playerObj = players.find((p) => p.id === e.playerId);
+      const label = playerObj?.displayName || 'Anonymous Agent';
+      return {
+        playerPublicLabel: label,
+        entriesCount: e.entriesCount,
+        questId: e.questId,
+        createdAt: e.createdAt,
+      };
+    })
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  const jsonString = JSON.stringify(snapshot);
+  const nodeRequire = typeof require === 'function' ? require : undefined;
+  if (!nodeRequire) {
+    throw new Error('Synchronous SHA-256 export hashing requires a Node.js runtime.');
+  }
+  const snapshotHash = `SHA256-${nodeRequire('crypto').createHash('sha256').update(jsonString).digest('hex')}`;
+
+  return { snapshot, snapshotHash };
+}
+
+export function getPublicQuestView(quest: Quest): PublicQuestView {
+  const { targetCode, gmNotes, ...safeQuest } = quest;
+  if (safeQuest.steps) {
+    safeQuest.steps = safeQuest.steps.map(({ targetCode: _targetCode, ...stepRest }) => stepRest);
+  }
+  return safeQuest;
 }
 
 export function getLeaderboardForEvent(eventId: string): LeaderboardEntry[] {
@@ -1847,7 +2294,24 @@ export function reviewSubmission(
 
   if (newStatus === 'verified') {
     const quest = getQuestById(sub.questId);
-    sub.awardedPoints = quest ? quest.pointValue : 100;
+    const isMultiStepQuest = quest?.verificationType === 'multi_step';
+    const totalStepCount = quest?.steps?.length || 0;
+    const approvedStepOrder = sub.completedStepOrder || 0;
+
+    if (isMultiStepQuest && approvedStepOrder > 0 && approvedStepOrder < totalStepCount) {
+      sub.status = 'in_progress';
+      sub.awardedPoints = 0;
+      sub.drawingEntriesAwarded = 0;
+      setStoredItem(STORAGE_KEYS.SUBMISSIONS, submissions);
+      return sub;
+    }
+
+    const xp = quest ? (quest.xpReward || quest.pointValue) : 100;
+    const entries = quest ? (quest.drawingEntryReward ?? 1) : 1;
+
+    sub.awardedPoints = xp;
+    sub.drawingEntriesAwarded = entries;
+
     recordScoreLedger({
       eventId: sub.eventId,
       playerId: sub.playerId,
@@ -1857,6 +2321,16 @@ export function reviewSubmission(
       points: sub.awardedPoints,
       category: quest ? quest.category : 'admin_approved',
       description: `Media submission approved for ${quest ? quest.title : 'Quest'}`,
+    });
+
+    awardDrawingEntries({
+      eventId: sub.eventId,
+      playerId: sub.playerId,
+      questId: sub.questId,
+      submissionId: sub.id,
+      entriesCount: entries,
+      sourceType: 'quest_completion',
+      reason: `Media submission approved for ${quest ? quest.title : 'Quest'}`,
     });
   }
 

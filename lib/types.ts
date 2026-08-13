@@ -28,9 +28,23 @@ export type QuestCategory =
   | 'secret'
   | 'finale';
 
-export type ProofVerificationType = 'checkin' | 'qr' | 'passphrase' | 'photo' | 'video';
+export type ProofVerificationType =
+  | 'checkin'
+  | 'qr'
+  | 'passphrase'
+  | 'photo'
+  | 'video'
+  | 'gps'
+  | 'game_master'
+  | 'multi_step';
 
-export type SubmissionStatus = 'pending' | 'verified' | 'rejected' | 'retry_requested';
+export type SubmissionStatus =
+  | 'not_started'
+  | 'in_progress'
+  | 'pending'
+  | 'verified'
+  | 'rejected'
+  | 'retry_requested';
 
 export type QuestUnlockConditionType = 'none' | 'prerequisite' | 'scheduled' | 'manual' | 'collectible_set';
 
@@ -167,6 +181,24 @@ export interface GeneratedQR {
   createdAt: string;
 }
 
+export interface QuestStep {
+  id: string;
+  questId: string;
+  stepOrder: number;
+  title: string;
+  instructions: string;
+  verificationType: ProofVerificationType;
+  targetCode?: string;
+  locationId?: string;
+  location?: LocationInfo;
+  radiusMeters?: number;
+}
+
+export type PublicQuestStep = Omit<QuestStep, 'targetCode'>;
+export type PublicQuestView = Omit<Quest, 'targetCode' | 'gmNotes' | 'steps'> & {
+  steps?: PublicQuestStep[];
+};
+
 export interface Quest {
   id: string;
   eventId: string;
@@ -177,6 +209,8 @@ export interface Quest {
   description: string;
   instructions: string;
   pointValue: number;
+  xpReward?: number;
+  drawingEntryReward?: number;
   difficulty: QuestDifficulty;
   category: QuestCategory;
   verificationType: ProofVerificationType;
@@ -188,6 +222,11 @@ export interface Quest {
   status: 'active' | 'inactive' | 'draft';
   sortOrder: number;
   createdAt: string;
+
+  // Safety, GM & Multi-step Fields
+  safetyNotes?: string;
+  gmNotes?: string;
+  steps?: QuestStep[];
 
   // Phase 2, 3 & 4 Fields
   radiusMeters?: number;
@@ -216,6 +255,8 @@ export interface QuestSubmission {
   proofUrl?: string;
   status: SubmissionStatus;
   awardedPoints: number;
+  drawingEntriesAwarded?: number;
+  completedStepOrder?: number;
   feedback?: string;
   reviewerNotes?: string;
   reviewFlags?: ProofReviewFlag[];
@@ -240,6 +281,39 @@ export interface ScoreLedgerEntry {
   description: string;
   awardedAt: string;
   adminIdentity?: string;
+}
+
+export interface DrawingEntryLedgerEntry {
+  id: string;
+  eventId: string;
+  playerId: string;
+  questId?: string;
+  submissionId?: string;
+  entriesCount: number;
+  sourceType: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface EventDrawingLedgerLock {
+  eventId: string;
+  isLocked: boolean;
+  lockedAt?: string;
+  lockReason?: string;
+  lockedBy?: string;
+}
+
+export interface PublicPlayerDrawingEntry {
+  playerPublicLabel: string;
+  totalQualifiedEntries: number;
+}
+
+export interface PublicDrawingLedgerProjection {
+  eventId: string;
+  totalEntriesAcrossAllPlayers: number;
+  ledgerLockStatus: 'unlocked' | 'locked';
+  ledgerLockTimestamp: string | null;
+  playerEntries: PublicPlayerDrawingEntry[];
 }
 
 export interface LeaderboardEntry {
@@ -273,8 +347,10 @@ export interface SubmitProofParams {
   proofUrl?: string;
   userLat?: number;
   userLon?: number;
+  userAccuracyMeters?: number;
   teamId?: string;
   isHardModeOptIn?: boolean;
+  stepIndex?: number;
 }
 
 export interface SubmitProofResult {
@@ -282,6 +358,10 @@ export interface SubmitProofResult {
   submission: QuestSubmission;
   message: string;
   awardedPoints: number;
+  drawingEntriesAwarded?: number;
+  currentStepCompleted?: number;
+  nextStepUnlocked?: QuestStep;
+  isQuestFullyCompleted?: boolean;
   unlockedQuestId?: string;
   teamPointsAwarded?: number;
   claimPlacement?: number;

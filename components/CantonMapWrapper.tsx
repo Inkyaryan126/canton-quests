@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Quest } from '@/lib/types';
+import { PublicQuestView } from '@/lib/types';
 
 const CantonMap = dynamic(() => import('./CantonMap'), {
   ssr: false,
@@ -14,14 +14,14 @@ const CantonMap = dynamic(() => import('./CantonMap'), {
 });
 
 interface WrapperProps {
-  quests: Quest[];
+  quests: PublicQuestView[];
   eventSlug: string;
   completedQuestIds?: string[];
   pendingQuestIds?: string[];
   userLat?: number;
   userLon?: number;
   onLocateMe?: () => void;
-  onSelectQuest?: (quest: Quest) => void;
+  onSelectQuest?: (quest: PublicQuestView) => void;
 }
 
 export default function CantonMapWrapper(props: WrapperProps) {

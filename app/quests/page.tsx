@@ -7,8 +7,7 @@ import { ArrowRight, Filter, MapPin, Radar, Search, Zap } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
-import { Quest, QuestEvent } from '@/lib/types';
-import { getEvents, getQuestsForEvent } from '@/lib/game-engine';
+import { PublicQuestView, QuestCategory, QuestEvent } from '@/lib/types';
 import {
   cleanQuestTitle,
   cqImages,
@@ -20,7 +19,7 @@ import {
   rarityClassName,
 } from '@/lib/marketing-assets';
 
-type QuestFilter = 'all' | 'flash' | 'secret' | Quest['category'];
+type QuestFilter = 'all' | 'flash' | 'secret' | QuestCategory;
 
 const filters: { label: string; value: QuestFilter }[] = [
   { label: 'All', value: 'all' },
@@ -34,14 +33,23 @@ const filters: { label: string; value: QuestFilter }[] = [
 
 export default function QuestsPage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
-  const [quests, setQuests] = useState<Quest[]>([]);
+  const [quests, setQuests] = useState<PublicQuestView[]>([]);
   const [activeFilter, setActiveFilter] = useState<QuestFilter>('all');
 
   useEffect(() => {
-    const loadedEvents = getEvents();
-    const active = getActiveEvent(loadedEvents);
-    setEvents(loadedEvents);
-    setQuests(active ? getQuestsForEvent(active.id) : []);
+    fetch('/api/game/events')
+      .then((res) => res.json())
+      .then((data: { events?: QuestEvent[] }) => {
+        const loadedEvents = data.events || [];
+        const active = getActiveEvent(loadedEvents);
+        setEvents(loadedEvents);
+        if (!active) return;
+        return fetch(`/api/game/events/${active.slug}`);
+      })
+      .then((res) => res?.json())
+      .then((data: { quests?: PublicQuestView[] } | undefined) => {
+        setQuests(data?.quests || []);
+      });
   }, []);
 
   const activeEvent = getActiveEvent(events);

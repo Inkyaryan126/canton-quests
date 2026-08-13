@@ -111,7 +111,8 @@ describe('Phase 2 — Real-World Game Layer Engine', () => {
   describe('4. Combined QR + Location Proximity Verification', () => {
     it('enforces location radius on location-verified quests', () => {
       const player = setCurrentPlayer('Tester_Geo_Proximity', '📍');
-      const quest = SEED_QUESTS.find((q) => q.requireLocationVerification) || SEED_QUESTS[0];
+      const quest = SEED_QUESTS.find((q) => q.requireQrAndLocation) || SEED_QUESTS[0];
+      const submittedContent = quest.verificationType === 'qr' ? 'AURA-BREW-2026' : 'checkin';
 
       // Submit from far away (0,0)
       const farResult = submitQuestProof({
@@ -119,7 +120,7 @@ describe('Phase 2 — Real-World Game Layer Engine', () => {
         questId: quest.id,
         eventId: SEED_EVENT.id,
         proofType: quest.verificationType,
-        submittedContent: quest.targetCode || 'checkin',
+        submittedContent,
         userLat: 0,
         userLon: 0,
       });
@@ -133,7 +134,7 @@ describe('Phase 2 — Real-World Game Layer Engine', () => {
         questId: quest.id,
         eventId: SEED_EVENT.id,
         proofType: quest.verificationType,
-        submittedContent: quest.targetCode || 'checkin',
+        submittedContent,
         userLat: quest.location?.latitude || 40.7989,
         userLon: quest.location?.longitude || -81.3748,
       });

@@ -60,6 +60,8 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
       eventId: SEED_EVENT.id,
       proofType: 'checkin',
       submittedContent: 'GPS Checkin Confirmed',
+      userLat: 40.7989,
+      userLon: -81.3748,
     });
 
     expect(result.success).toBe(true);

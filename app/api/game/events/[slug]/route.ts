@@ -5,6 +5,7 @@ import {
   getLeaderboardDB,
   getPlayerProgressDB,
 } from '@/lib/supabase-db';
+import { getPublicQuestView } from '@/lib/game-engine';
 
 export async function GET(
   request: Request,
@@ -21,12 +22,13 @@ export async function GET(
     }
 
     const quests = await getQuestsForEventDB(event.id);
+    const safeQuests = quests.map(getPublicQuestView);
     const leaderboard = await getLeaderboardDB(event.id);
     const progress = playerId ? await getPlayerProgressDB(playerId, event.id) : null;
 
     return NextResponse.json({
       event,
-      quests,
+      quests: safeQuests,
       leaderboard,
       progress,
     });

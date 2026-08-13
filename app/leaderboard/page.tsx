@@ -8,13 +8,21 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import { LeaderboardEntry, Player, QuestEvent, TeamLeaderboardEntry } from '@/lib/types';
-import {
-  getCurrentPlayer,
-  getEvents,
-  getLeaderboardForEvent,
-  getTeamLeaderboardForEvent,
-} from '@/lib/game-engine';
 import { cqImages, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
+
+function getClientPlayer(): Player {
+  const stored = window.localStorage.getItem('canton_quests_current_player');
+  if (stored) return JSON.parse(stored) as Player;
+  return {
+    id: 'plr-local-viewer',
+    displayName: 'Canton Explorer',
+    avatarUrl: '⚡',
+    role: 'player',
+    totalXp: 0,
+    level: 1,
+    createdAt: new Date().toISOString(),
+  };
+}
 
 export default function LeaderboardPage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
@@ -23,15 +31,21 @@ export default function LeaderboardPage() {
   const [teamEntries, setTeamEntries] = useState<TeamLeaderboardEntry[]>([]);
 
   useEffect(() => {
-    const loadedEvents = getEvents();
-    const active = getActiveEvent(loadedEvents);
-    setEvents(loadedEvents);
-    setCurrentPlayer(getCurrentPlayer());
-
-    if (active) {
-      setEntries(getLeaderboardForEvent(active.id));
-      setTeamEntries(getTeamLeaderboardForEvent(active.id));
-    }
+    setCurrentPlayer(getClientPlayer());
+    fetch('/api/game/events')
+      .then((res) => res.json())
+      .then((data: { events?: QuestEvent[] }) => {
+        const loadedEvents = data.events || [];
+        const active = getActiveEvent(loadedEvents);
+        setEvents(loadedEvents);
+        if (!active) return;
+        return fetch(`/api/game/events/${active.slug}`);
+      })
+      .then((res) => res?.json())
+      .then((data: { leaderboard?: LeaderboardEntry[] } | undefined) => {
+        setEntries(data?.leaderboard || []);
+        setTeamEntries([]);
+      });
   }, []);
 
   const activeEvent = getActiveEvent(events);

@@ -177,4 +177,25 @@ Each entry follows the standard ADR structure:
 - **Consequences**: PostgreSQL schema guarantees that no spectator session token hash can ever record more than one vote row for a given audience event. Attempts to insert duplicate votes fail instantly at the database level with a `unique_violation`.
 - **Status**: **ACCEPTED**
 
+---
+
+## ADR-016: Authoritative Core Quest Rewards Backbone, Public Security Sanitization, Mandatory GPS Location Verification & Multi-Step Sequence Protection
+- **Date**: 2026-08-12
+- **Decision**:
+  1. Enforce an authoritative quest proof verification and reward issuance engine where verified proof awards persistent XP and event-scoped drawing entries exactly once per quest per player.
+  2. Enforce mandatory GPS location coordinates (`userLat`, `userLon`) and distance radius checks for `gps` verification type and quests with `requireLocationVerification: true`. Submissions without coordinates or outside the location radius are rejected with zero rewards.
+  3. Enforce sequential step order verification (`completedStepOrder`) for multi-step quests (`verificationType = 'multi_step'`). Submissions out of order or with invalid step codes are rejected, and rewards are issued only upon final step completion.
+  4. Double-sanitize public quest reads via `getPublicQuestView` in all public APIs (`/api/game/events/[slug]`) and React client components (`app/events/[slug]/quests/[questId]/page.tsx`), stripping secret passphrases/codes (`targetCode`), internal GM notes (`gmNotes`), and step target codes before exposure to the browser.
+  5. In database migrations, replace raw public ledger reads with sanitized projection views (`public_drawing_ledger_projection`) exposing public player display labels (`display_name` / `Agent #XXXX`), total entries, and lock metadata without exposing sensitive player UUIDs, submission IDs, or internal GM notes.
+  6. In Supabase-configured environments, proof submission uses a server-authoritative service-role path with Supabase Auth JWT identity resolution. If the server cannot verify identity or lacks service-role configuration, the submission fails closed instead of delegating to the local engine.
+  7. Positive quest-completion XP idempotency is enforced at the database layer with a partial unique index on quest-completion score ledger rows, separate from manual/admin/bonus score categories.
+- **Reason**:
+  - Exposing secret target codes or GM notes in public API routes or React state allowed players to bypass puzzle challenges.
+  - Allowing GPS auto-verification without location coordinates or distance checking permitted players to claim rewards without physically visiting real-world locations.
+  - Allowing multi-step step index skipping permitted players to bypass intermediate puzzle steps.
+  - Exposing raw drawing ledger rows leaked player identities and submission links in public database queries.
+  - Falling back to the local in-memory engine while Supabase was configured allowed browser-supplied identity and reward state to influence production reward issuance.
+- **Alternatives Evaluated**: Relying solely on client-side button disables for GPS verification; returning full quest objects with target codes to client components; exposing raw drawing ledger tables to public RLS policies.
+- **Consequences**: Public API routes and client pages consume strictly sanitized quest objects. GPS verification requires active location coordinates within the specified radius. Multi-step progression is enforced server-side. Database tables enforce unique constraints (`uq_player_event_quest_drawing`, `uq_score_quest_completion_xp`) and sanitized projection views. Supabase reward issuance requires authenticated player identity and service-role writes; local fallback is limited to unconfigured development/test environments.
+- **Status**: **ACCEPTED**
 

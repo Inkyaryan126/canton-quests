@@ -3,19 +3,37 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Quest, QuestState, Player } from '@/lib/types';
-import { calculateQuestState } from '@/lib/game-engine';
+import { PublicQuestView, QuestState } from '@/lib/types';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
 
 interface CantonMapProps {
-  quests: Quest[];
+  quests: PublicQuestView[];
   eventSlug: string;
   completedQuestIds?: string[];
   pendingQuestIds?: string[];
   userLat?: number;
   userLon?: number;
   onLocateMe?: () => void;
-  onSelectQuest?: (quest: Quest) => void;
+  onSelectQuest?: (quest: PublicQuestView) => void;
+}
+
+function calculatePublicQuestState(
+  quest: PublicQuestView,
+  completedQuestIds: string[],
+  pendingQuestIds: string[],
+  nowMs: number = Date.now()
+): QuestState {
+  if (completedQuestIds.includes(quest.id)) return 'completed';
+  if (pendingQuestIds.includes(quest.id)) return 'pending';
+  if (quest.status === 'inactive' || quest.status === 'draft') return 'hidden';
+  if (quest.claimLimit && quest.currentClaims && quest.currentClaims >= quest.claimLimit) return 'claimed_out';
+  if (quest.prerequisiteQuestId && !completedQuestIds.includes(quest.prerequisiteQuestId)) return 'locked';
+  if (quest.startsAt && new Date(quest.startsAt).getTime() > nowMs) return 'locked';
+  if (quest.isFlash) {
+    if (quest.expiresAt && new Date(quest.expiresAt).getTime() <= nowMs) return 'expired';
+    return 'flash';
+  }
+  return 'available';
 }
 
 // Canton, OH Center (Centennial Plaza)
@@ -37,7 +55,7 @@ export default function CantonMap({
   const userMarkerRef = useRef<L.Marker | null>(null);
 
   const [selectedQuest, setSelectedQuest] = useState<{
-    quest: Quest;
+    quest: PublicQuestView;
     state: QuestState;
     distanceStr?: string;
   } | null>(null);
@@ -80,7 +98,7 @@ export default function CantonMap({
       const lon = quest.location?.longitude;
       if (lat === undefined || lon === undefined) return;
 
-      const state = calculateQuestState(quest, completedQuestIds, pendingQuestIds);
+      const state = calculatePublicQuestState(quest, completedQuestIds, pendingQuestIds);
       if (state === 'hidden') return;
 
       // Calculate distance if user location is available

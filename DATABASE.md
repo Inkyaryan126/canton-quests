@@ -100,6 +100,15 @@ The Canton Quests data architecture relies on PostgreSQL (hosted via Supabase) w
 - **Purpose**: Ledger of point transactions awarded to players and teams.
 - **Fields**: `id` (uuid, PK), `event_id` (uuid, FK events), `player_id` (uuid, FK players), `team_id` (uuid, FK teams), `quest_id` (uuid, FK quests), `points_awarded` (integer), `category` (text), `awarded_at` (timestamptz).
 
+### 3.15.1 Core Quest Rewards Backbone
+- **Purpose**: Authoritative reward chain for `event -> quest -> proof submission -> server verification -> persistent XP -> event-scoped drawing entries`.
+- **Security Boundary**: Browser clients must use sanitized quest projections and server APIs. Raw `quests.target_code`, `quests.gm_notes`, and `quest_steps.target_code` remain server/database-side for verification only.
+- **XP Idempotency**: Positive quest-completion XP is protected by a database partial unique index on `score_ledger(event_id, player_id, quest_id)` where `category = 'quest_completion'`. Manual/admin/bonus score transactions use different categories and are not blocked by this quest-completion idempotency rule.
+- **Drawing Entries**: `drawing_entry_ledger` entries are scoped to the event where they were earned and are unique per `(event_id, player_id, quest_id)` for quest completions. Persistent XP may span events; drawing entries do not.
+- **Public Transparency**: Raw `drawing_entry_ledger` is not publicly readable. Public transparency uses `public_drawing_ledger_projection`, a security-barrier view exposing public player labels, per-event qualified entry totals, total qualified event entries, and ledger lock metadata without raw `player_id`, `submission_id`, internal reasons, or audit metadata.
+- **Multi-Step Progression**: `quest_submissions.completed_step_order` persists current player quest progression. Server verification determines the next valid step; clients cannot skip ahead by submitting an arbitrary step index. Quest-level XP and drawing entries are issued only after full quest completion.
+- **GPS Verification**: GPS/check-in rewards require player coordinates, authoritative quest or step coordinates, radius validation, and server-side distance checks. Missing or outside-radius submissions award zero XP and zero drawing entries.
+
 ### 3.16 `achievements` & `player_achievements`
 - **Purpose**: Permanent milestone badges (e.g. "Canton Historian").
 - **Fields**: `id` (uuid, PK), `title` (text), `badge_icon_url` (text), `criteria` (jsonb).

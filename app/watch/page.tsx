@@ -15,7 +15,6 @@ import {
   PublicGameFeedItem,
   SpectatorSystemSettings,
 } from '@/lib/types';
-import { getCurrentPlayer } from '@/lib/game-engine';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 const VOTES_LOCAL_STORAGE_KEY = 'canton_spectator_voted_options';
@@ -191,9 +190,10 @@ export default function WatchPage() {
           // ignore
         }
       } else {
-        const player = getCurrentPlayer();
-        if (player?.id) {
-          headers['x-player-token'] = player.id;
+        const localProfile = localStorage.getItem('canton_quests_current_player') || localStorage.getItem('canton_player_profile');
+        if (localProfile) {
+          const player = JSON.parse(localProfile) as { id?: string };
+          if (player.id) headers['x-player-token'] = player.id;
         }
       }
 

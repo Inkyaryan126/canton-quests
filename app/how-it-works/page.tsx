@@ -19,7 +19,6 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import { QuestEvent } from '@/lib/types';
-import { getEvents } from '@/lib/game-engine';
 import { cqImages, getActiveEvent } from '@/lib/marketing-assets';
 
 const steps = [
@@ -62,7 +61,9 @@ export default function HowItWorksPage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
 
   useEffect(() => {
-    setEvents(getEvents());
+    fetch('/api/game/events')
+      .then((res) => res.json())
+      .then((data: { events?: QuestEvent[] }) => setEvents(data.events || []));
   }, []);
 
   const activeEvent = getActiveEvent(events);

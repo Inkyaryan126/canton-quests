@@ -2,13 +2,42 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { setCurrentPlayer, completeSpectatorConversion } from '@/lib/game-engine';
+import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 interface EnterGameModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSessionUpdate: (params: { ageAcknowledged: boolean; safetyAcknowledged: boolean; isMinor?: boolean }) => Promise<void>;
+}
+
+function createLocalPlayer(callsign: string): Player {
+  const player: Player = {
+    id: `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    displayName: callsign,
+    avatarUrl: '⚡',
+    role: 'player',
+    totalXp: 0,
+    level: 1,
+    createdAt: new Date().toISOString(),
+  };
+  localStorage.setItem('canton_quests_current_player', JSON.stringify(player));
+  localStorage.setItem('canton_player_profile', JSON.stringify(player));
+  return player;
+}
+
+function syncConvertedPlayer(callsign: string, playerId: string): void {
+  const player: Player = {
+    id: playerId,
+    displayName: callsign,
+    avatarUrl: '⚡',
+    role: 'player',
+    totalXp: 0,
+    level: 1,
+    createdAt: new Date().toISOString(),
+  };
+  localStorage.setItem('canton_quests_current_player', JSON.stringify(player));
+  localStorage.setItem('canton_player_profile', JSON.stringify(player));
 }
 
 export default function EnterGameModal({
@@ -65,8 +94,8 @@ export default function EnterGameModal({
     setErrorMsg(null);
 
     try {
-      // 1. Initial candidate player profile via game engine
-      const player = setCurrentPlayer(trimmed, '⚡');
+      // 1. Initial local candidate player profile. Server conversion remains authoritative.
+      const player = createLocalPlayer(trimmed);
 
       // 2. Derive token for server conversion (verified Supabase JWT if configured, or local dev token)
       const headers: Record<string, string> = {
@@ -102,9 +131,9 @@ export default function EnterGameModal({
         throw new Error(data.error || 'Server conversion failed');
       }
 
-      // 4. Synchronize canonical game engine state & spectator profile with server-derived DB player ID
+      // 4. Synchronize local spectator profile with server-derived DB player ID.
       const finalPlayerId = data.session?.convertedToPlayerId || player.id;
-      completeSpectatorConversion(trimmed, finalPlayerId);
+      syncConvertedPlayer(trimmed, finalPlayerId);
 
       onClose();
       router.push('/');

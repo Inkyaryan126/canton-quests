@@ -2,18 +2,36 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Quest, QuestState } from '@/lib/types';
-import { calculateQuestState } from '@/lib/game-engine';
+import { PublicQuestView, QuestState } from '@/lib/types';
 
 interface QuestCardProps {
-  quest: Quest;
+  quest: PublicQuestView;
   eventSlug: string;
   isCompleted?: boolean;
   isPending?: boolean;
-  allQuests?: Quest[];
+  allQuests?: PublicQuestView[];
   completedQuestIds?: string[];
   pendingQuestIds?: string[];
   distanceStr?: string;
+}
+
+function calculatePublicQuestState(
+  quest: PublicQuestView,
+  completedQuestIds: string[],
+  pendingQuestIds: string[],
+  nowMs: number = Date.now()
+): QuestState {
+  if (completedQuestIds.includes(quest.id)) return 'completed';
+  if (pendingQuestIds.includes(quest.id)) return 'pending';
+  if (quest.status === 'inactive' || quest.status === 'draft') return 'hidden';
+  if (quest.claimLimit && quest.currentClaims && quest.currentClaims >= quest.claimLimit) return 'claimed_out';
+  if (quest.prerequisiteQuestId && !completedQuestIds.includes(quest.prerequisiteQuestId)) return 'locked';
+  if (quest.startsAt && new Date(quest.startsAt).getTime() > nowMs) return 'locked';
+  if (quest.isFlash) {
+    if (quest.expiresAt && new Date(quest.expiresAt).getTime() <= nowMs) return 'expired';
+    return 'flash';
+  }
+  return 'available';
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -54,7 +72,7 @@ export default function QuestCard({
     ? 'completed'
     : isPending
     ? 'pending'
-    : calculateQuestState(quest, completedQuestIds, pendingQuestIds);
+    : calculatePublicQuestState(quest, completedQuestIds, pendingQuestIds);
 
   // Find prerequisite quest title if locked by prerequisite
   const prereqQuest = quest.prerequisiteQuestId

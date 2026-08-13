@@ -3,66 +3,82 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
-import { Quest, QuestEvent, Player, SubmitProofResult, GeneratedQR } from '@/lib/types';
-import {
-  getEvents,
-  getQuestsForEvent,
-  getCurrentPlayer,
-  submitQuestProof,
-  resolveQRToken,
-} from '@/lib/game-engine';
+import { QuestEvent, Player, SubmitProofResult, PublicQuestView } from '@/lib/types';
+
+function getClientPlayer(): Player {
+  const stored = window.localStorage.getItem('canton_quests_current_player');
+  if (stored) {
+    return JSON.parse(stored) as Player;
+  }
+
+  const newPlayer: Player = {
+    id: `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    displayName: 'Canton Explorer',
+    avatarUrl: '⚡',
+    role: 'player',
+    totalXp: 0,
+    level: 1,
+    createdAt: new Date().toISOString(),
+  };
+  window.localStorage.setItem('canton_quests_current_player', JSON.stringify(newPlayer));
+  return newPlayer;
+}
 
 export default function QrGatewayPage({ params }: { params: { code: string } }) {
   const code = decodeURIComponent(params.code);
 
-  const [quest, setQuest] = useState<Quest | null>(null);
+  const [quest, setQuest] = useState<PublicQuestView | null>(null);
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
   const [result, setResult] = useState<SubmitProofResult | null>(null);
-  const [generatedQR, setGeneratedQR] = useState<GeneratedQR | null>(null);
 
   useEffect(() => {
-    const events = getEvents();
-    const activeEvent = events.find((e) => e.status === 'active') || events[0];
-    if (!activeEvent) return;
-
-    setEvent(activeEvent);
-    const quests = getQuestsForEvent(activeEvent.id);
-
-    // 1. Check generated QR tokens
-    const gen = resolveQRToken(code);
-    if (gen) {
-      setGeneratedQR(gen);
-      const targetQuest = quests.find((q) => q.id === gen.targetId || q.slug === gen.targetId);
-      if (targetQuest) {
-        setQuest(targetQuest);
-      }
-    } else {
-      // 2. Direct quest code match
-      const match = quests.find(
-        (q) =>
-          (q.targetCode && q.targetCode.toUpperCase() === code.toUpperCase()) ||
-          q.slug.toUpperCase() === code.toUpperCase()
-      );
-      if (match) {
-        setQuest(match);
-      }
-    }
-
-    const p = getCurrentPlayer();
+    let cancelled = false;
+    const p = getClientPlayer();
     setPlayer(p);
+
+    fetch('/api/game/events')
+      .then((res) => res.json())
+      .then((eventsData: { events?: QuestEvent[] }) => {
+        if (cancelled) return;
+        const activeEvent = eventsData.events?.find((item) => item.status === 'active') || eventsData.events?.[0];
+        if (!activeEvent) return;
+
+        setEvent(activeEvent);
+        return fetch(`/api/game/events/${activeEvent.slug}?playerId=${encodeURIComponent(p.id)}`);
+      })
+      .then((res) => res?.json())
+      .then((eventData: { quests?: PublicQuestView[] } | undefined) => {
+        if (cancelled || !eventData) return;
+        const match = (eventData.quests || []).find((q) => q.slug.toUpperCase() === code.toUpperCase());
+        if (match) {
+          setQuest(match);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setQuest(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [code]);
 
-  const handleInstantClaim = () => {
+  const handleInstantClaim = async () => {
     if (!quest || !event || !player) return;
 
-    const res = submitQuestProof({
-      playerId: player.id,
-      questId: quest.id,
-      eventId: event.id,
-      proofType: 'qr',
-      submittedContent: code,
+    const response = await fetch('/api/game/submit', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        playerId: player.id,
+        questId: quest.id,
+        eventId: event.id,
+        proofType: 'qr',
+        submittedContent: code,
+      }),
     });
+    const res = (await response.json()) as SubmitProofResult;
     setResult(res);
   };
 
@@ -83,12 +99,6 @@ export default function QrGatewayPage({ params }: { params: { code: string } }) 
           <h1 className="text-2xl font-extrabold text-white">
             Passcode Token: <span className="text-cyan-400 font-mono">{code}</span>
           </h1>
-
-          {generatedQR && (
-            <div className="text-xs text-amber-400 font-mono">
-              Label: <span className="text-white font-bold">{generatedQR.label}</span>
-            </div>
-          )}
 
           {quest ? (
             <div className="space-y-4">

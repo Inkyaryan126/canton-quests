@@ -20,8 +20,7 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import PlayerIdentityBar from '@/components/PlayerIdentityBar';
-import { Player, Quest, QuestEvent } from '@/lib/types';
-import { getCurrentPlayer, getEvents, getQuestsForEvent } from '@/lib/game-engine';
+import { Player, PublicQuestView, QuestEvent } from '@/lib/types';
 import {
   cleanQuestTitle,
   cqImages,
@@ -33,6 +32,22 @@ import {
   questCategoryLabels,
   rarityClassName,
 } from '@/lib/marketing-assets';
+
+function getClientPlayer(): Player {
+  const stored = window.localStorage.getItem('canton_quests_current_player');
+  if (stored) return JSON.parse(stored) as Player;
+  const player: Player = {
+    id: `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    displayName: 'Canton Explorer',
+    avatarUrl: '⚡',
+    role: 'player',
+    totalXp: 0,
+    level: 1,
+    createdAt: new Date().toISOString(),
+  };
+  window.localStorage.setItem('canton_quests_current_player', JSON.stringify(player));
+  return player;
+}
 
 const featureBlocks = [
   {
@@ -60,16 +75,23 @@ const featureBlocks = [
 export default function HomePage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
-  const [quests, setQuests] = useState<Quest[]>([]);
+  const [quests, setQuests] = useState<PublicQuestView[]>([]);
 
   useEffect(() => {
-    const loadedEvents = getEvents();
-    const loadedPlayer = getCurrentPlayer();
-    const active = getActiveEvent(loadedEvents);
-
-    setEvents(loadedEvents);
-    setCurrentPlayerState(loadedPlayer);
-    setQuests(active ? getQuestsForEvent(active.id) : []);
+    setCurrentPlayerState(getClientPlayer());
+    fetch('/api/game/events')
+      .then((res) => res.json())
+      .then((data: { events?: QuestEvent[] }) => {
+        const loadedEvents = data.events || [];
+        const active = getActiveEvent(loadedEvents);
+        setEvents(loadedEvents);
+        if (!active) return;
+        return fetch(`/api/game/events/${active.slug}`);
+      })
+      .then((res) => res?.json())
+      .then((data: { quests?: PublicQuestView[] } | undefined) => {
+        setQuests(data?.quests || []);
+      });
   }, []);
 
   const activeEvent = getActiveEvent(events);

@@ -767,7 +767,7 @@ export default function LiveDirectorDashboard() {
             <h3 className="text-base font-bold text-white">🔑 Create Secret Passcode Drop</h3>
             <form onSubmit={handleCreateCode} className="space-y-3">
               <div>
-                <label className="text-gray-400 block mb-1">Passcode (e.g. FOUNDER2026)</label>
+                <label className="text-gray-400 block mb-1">Passcode</label>
                 <input
                   type="text"
                   value={codeStr}

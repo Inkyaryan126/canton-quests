@@ -84,10 +84,13 @@ export const destinationCards = [
 
 export const proofTypeLabels: Record<Quest['verificationType'], string> = {
   checkin: 'GPS Check-In',
+  gps: 'GPS Location',
   qr: 'QR Scan',
   passphrase: 'Passphrase',
   photo: 'Photo Proof',
   video: 'Video Proof',
+  game_master: 'Game Master Approval',
+  multi_step: 'Multi-Step Mission',
 };
 
 export const questCategoryLabels: Record<Quest['category'], string> = {

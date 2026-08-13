@@ -2,44 +2,61 @@
 
 import { useState, useEffect } from 'react';
 import { Player } from '@/lib/types';
-import { getCurrentPlayer, setCurrentPlayer, getAllPlayers } from '@/lib/game-engine';
 
 interface PlayerIdentityBarProps {
   onPlayerChanged?: (player: Player) => void;
 }
 
 const AVATARS = ['⚡', '🧭', '🔍', '🏆', '🎯', '🦅', '👾', '🔥'];
+const PLAYER_STORAGE_KEY = 'canton_quests_current_player';
+
+function getStoredPlayer(): Player {
+  const stored = window.localStorage.getItem(PLAYER_STORAGE_KEY);
+  if (stored) return JSON.parse(stored) as Player;
+
+  const player: Player = {
+    id: `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    displayName: 'Canton Explorer',
+    avatarUrl: '⚡',
+    role: 'player',
+    totalXp: 0,
+    level: 1,
+    createdAt: new Date().toISOString(),
+  };
+  window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(player));
+  return player;
+}
+
+function saveStoredPlayer(displayName: string, avatarUrl: string): Player {
+  const existing = getStoredPlayer();
+  const updated: Player = {
+    ...existing,
+    displayName,
+    avatarUrl,
+  };
+  window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(updated));
+  return updated;
+}
 
 export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBarProps) {
   const [player, setPlayer] = useState<Player | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('⚡');
-  const [existingPlayers, setExistingPlayers] = useState<Player[]>([]);
 
   useEffect(() => {
-    const current = getCurrentPlayer();
+    const current = getStoredPlayer();
     setPlayer(current);
     setNameInput(current.displayName);
     setSelectedAvatar(current.avatarUrl || '⚡');
-    setExistingPlayers(getAllPlayers());
   }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameInput.trim()) return;
 
-    const updated = setCurrentPlayer(nameInput.trim(), selectedAvatar);
+    const updated = saveStoredPlayer(nameInput.trim(), selectedAvatar);
     setPlayer(updated);
-    setIsEditing(false);
-    if (onPlayerChanged) onPlayerChanged(updated);
-  };
-
-  const handleSelectExisting = (p: Player) => {
-    const updated = setCurrentPlayer(p.displayName, p.avatarUrl || '⚡');
-    setPlayer(updated);
-    setNameInput(p.displayName);
-    setSelectedAvatar(p.avatarUrl || '⚡');
     setIsEditing(false);
     if (onPlayerChanged) onPlayerChanged(updated);
   };
@@ -109,24 +126,6 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
                 </button>
               ))}
             </div>
-
-            {existingPlayers.length > 0 && (
-              <div className="mt-1 pt-1 border-t border-gray-800">
-                <span className="text-[10px] text-gray-400 font-mono block mb-1">Quick Select Demo Agent:</span>
-                <div className="flex flex-wrap gap-1">
-                  {existingPlayers.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleSelectExisting(p)}
-                      className="text-[11px] bg-gray-800 hover:bg-amber-500/20 text-gray-300 px-2 py-0.5 rounded border border-gray-700 font-mono"
-                    >
-                      {p.avatarUrl} {p.displayName}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </form>
         )}
       </div>

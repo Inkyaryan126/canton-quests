@@ -7,28 +7,22 @@ import { ArrowRight, CalendarDays, MapPin, Radio, ShieldCheck, Zap } from 'lucid
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
-import { EventReadiness, QuestEvent } from '@/lib/types';
-import { getEventReadinessCheck, getEvents } from '@/lib/game-engine';
+import { QuestEvent } from '@/lib/types';
 import { cqImages, destinationCards, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
 
 export default function EventsPage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
-  const [metrics, setMetrics] = useState<Record<string, EventReadiness['metrics']>>({});
 
   useEffect(() => {
-    const loadedEvents = getEvents();
-    setEvents(loadedEvents);
-
-    const metricMap: Record<string, EventReadiness['metrics']> = {};
-    loadedEvents.forEach((event) => {
-      metricMap[event.id] = getEventReadinessCheck(event.id).metrics;
-    });
-    setMetrics(metricMap);
+    fetch('/api/game/events')
+      .then((res) => res.json())
+      .then((data: { events?: QuestEvent[] }) => {
+        setEvents(data.events || []);
+      });
   }, []);
 
   const activeEvent = getActiveEvent(events);
   const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events';
-  const activeMetrics = activeEvent ? metrics[activeEvent.id] : undefined;
 
   return (
     <div className="cq-home-shell">
@@ -69,12 +63,12 @@ export default function EventsPage() {
           </div>
           <div>
             <Zap size={22} aria-hidden="true" />
-            <strong>{activeMetrics?.totalXp || 0} XP</strong>
+            <strong>0 XP</strong>
             <span>available score</span>
           </div>
           <div>
             <Radio size={22} aria-hidden="true" />
-            <strong>{activeMetrics?.totalQuests || 0}</strong>
+            <strong>0</strong>
             <span>missions</span>
           </div>
         </section>
@@ -93,7 +87,6 @@ export default function EventsPage() {
 
           <div className="cq-event-grid">
             {events.map((event, index) => {
-              const eventMetrics = metrics[event.id];
               const image = index % 2 === 0 ? cqImages.heroCityBeam : cqImages.cantonSign;
 
               return (
@@ -107,8 +100,8 @@ export default function EventsPage() {
                     <p>{event.description}</p>
                     <div className="cq-event-card-meta">
                       <span>{formatEventWindow(event)}</span>
-                      <span>{eventMetrics?.totalQuests || 0} missions</span>
-                      <span>{eventMetrics?.totalXp || 0} XP</span>
+                      <span>missions hidden until event entry</span>
+                      <span>XP revealed in mission board</span>
                     </div>
                     <Link href={`/events/${event.slug}`} className="cq-gold-button">
                       START QUEST

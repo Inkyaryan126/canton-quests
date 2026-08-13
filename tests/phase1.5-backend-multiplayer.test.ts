@@ -38,6 +38,8 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
       eventId: SEED_EVENT.id,
       proofType: 'checkin',
       submittedContent: 'GPS Checkin Confirmed',
+      userLat: 40.7989,
+      userLon: -81.3748,
     });
 
     expect(submitA.success).toBe(true);

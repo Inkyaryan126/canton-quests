@@ -4,7 +4,18 @@ import { submitQuestProofDB } from '@/lib/supabase-db';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { playerId, questId, eventId, proofType, submittedContent, proofUrl } = body;
+    const {
+      playerId,
+      questId,
+      eventId,
+      proofType,
+      submittedContent,
+      proofUrl,
+      userLat,
+      userLon,
+      userAccuracyMeters,
+      stepIndex,
+    } = body;
 
     if (!playerId || !questId || !eventId || !proofType) {
       return NextResponse.json(
@@ -13,14 +24,24 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await submitQuestProofDB({
-      playerId,
-      questId,
-      eventId,
-      proofType,
-      submittedContent,
-      proofUrl,
-    });
+    const authHeader = request.headers.get('authorization') || '';
+    const authToken = authHeader.replace(/^Bearer\s+/i, '').trim() || undefined;
+
+    const result = await submitQuestProofDB(
+      {
+        playerId,
+        questId,
+        eventId,
+        proofType,
+        submittedContent,
+        proofUrl,
+        userLat,
+        userLon,
+        userAccuracyMeters,
+        stepIndex,
+      },
+      authToken
+    );
 
     return NextResponse.json(result);
   } catch (error: any) {

@@ -8,35 +8,44 @@ import PlayerIdentityBar from '@/components/PlayerIdentityBar';
 import QuestCard from '@/components/QuestCard';
 import Leaderboard from '@/components/Leaderboard';
 import CantonMapWrapper from '@/components/CantonMapWrapper';
-import TeamHub from '@/components/TeamHub';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
 import MobileStartBar from '@/components/MobileStartBar';
 import {
   QuestEvent,
-  Quest,
+  PublicQuestView,
   Player,
   LeaderboardEntry,
   TeamLeaderboardEntry,
   PlayerEventProgress,
-  Team,
-  TeamMember,
   PlayerCollectible,
   NPCCharacter,
 } from '@/lib/types';
-import {
-  getEventBySlug,
-  getQuestsForEvent,
-  getCurrentPlayer,
-  getLeaderboardForEvent,
-  getTeamLeaderboardForEvent,
-  getPlayerProgress,
-  getTeamForPlayer,
-  redeemSecretCode,
-  getCollectiblesForPlayer,
-  getNPCCharacters,
-} from '@/lib/game-engine';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
 import { cleanQuestTitle, cqImages, formatEventWindow } from '@/lib/marketing-assets';
+
+interface FeedbackState {
+  type: 'quest_completed';
+  title: string;
+  message: string;
+  pointsAwarded?: number;
+  unlockedQuestTitle?: string;
+}
+
+function getClientPlayer(): Player {
+  const stored = window.localStorage.getItem('canton_quests_current_player');
+  if (stored) return JSON.parse(stored) as Player;
+  const player: Player = {
+    id: `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    displayName: 'Canton Explorer',
+    avatarUrl: '⚡',
+    role: 'player',
+    totalXp: 0,
+    level: 1,
+    createdAt: new Date().toISOString(),
+  };
+  window.localStorage.setItem('canton_quests_current_player', JSON.stringify(player));
+  return player;
+}
 
 function getEventCountdown(event: QuestEvent) {
   const now = Date.now();
@@ -77,13 +86,11 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   const eventSlug = params.slug;
 
   const [event, setEvent] = useState<QuestEvent | null>(null);
-  const [quests, setQuests] = useState<Quest[]>([]);
+  const [quests, setQuests] = useState<PublicQuestView[]>([]);
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [teamLeaderboard, setTeamLeaderboard] = useState<TeamLeaderboardEntry[]>([]);
   const [progress, setProgress] = useState<PlayerEventProgress | null>(null);
-  const [team, setTeam] = useState<Team | undefined>(undefined);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   // Phase 3 Live States
   const [collectibles, setCollectibles] = useState<PlayerCollectible[]>([]);
@@ -103,35 +110,29 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   const [userLon, setUserLon] = useState<number | undefined>(undefined);
 
   // Feedback Modal State
-  const [feedback, setFeedback] = useState<any | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
 
   const refreshData = useCallback(() => {
-    const foundEvent = getEventBySlug(eventSlug);
-    if (!foundEvent) return;
-
-    setEvent(foundEvent);
-    const eventQuests = getQuestsForEvent(foundEvent.id);
-    setQuests(eventQuests);
-
-    const player = getCurrentPlayer();
+    const player = getClientPlayer();
     setCurrentPlayerState(player);
 
-    const lb = getLeaderboardForEvent(foundEvent.id);
-    setLeaderboard(lb);
-
-    const teamLb = getTeamLeaderboardForEvent(foundEvent.id);
-    setTeamLeaderboard(teamLb);
-
-    const pProgress = getPlayerProgress(player.id, foundEvent.id);
-    setProgress(pProgress);
-
-    const teamInfo = getTeamForPlayer(player.id, foundEvent.id);
-    setTeam(teamInfo.team);
-    setTeamMembers(teamInfo.members);
-
-    // Phase 3 Live Data
-    setCollectibles(getCollectiblesForPlayer(player.id));
-    setNpcs(getNPCCharacters(foundEvent.id));
+    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`)
+      .then((res) => res.json())
+      .then((data: {
+        event?: QuestEvent;
+        quests?: PublicQuestView[];
+        leaderboard?: LeaderboardEntry[];
+        progress?: PlayerEventProgress;
+      }) => {
+        if (!data.event) return;
+        setEvent(data.event);
+        setQuests(data.quests || []);
+        setLeaderboard(data.leaderboard || []);
+        setTeamLeaderboard([]);
+        setProgress(data.progress || null);
+        setCollectibles([]);
+        setNpcs([]);
+      });
   }, [eventSlug]);
 
   useEffect(() => {
@@ -159,16 +160,32 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   }, []);
 
   // Handle Passcode Redemption
-  const handleRedeemPasscode = (e: React.FormEvent) => {
+  const handleRedeemPasscode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event || !currentPlayer || !passcodeInput.trim()) return;
 
-    const res = redeemSecretCode(passcodeInput, currentPlayer.id, event.id);
+    const response = await fetch('/api/game/secret-code', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        code: passcodeInput,
+        playerId: currentPlayer.id,
+        eventId: event.id,
+      }),
+    });
+    const res = (await response.json()) as {
+      success: boolean;
+      message: string;
+      pointsAwarded: number;
+      collectibleAwarded?: { name: string };
+    };
     setPasscodeResult(res);
     if (res.success) {
       setFeedback({
+        type: 'quest_completed',
         title: '🔑 SECRET PASSCODE CRACKED!',
-        points: res.pointsAwarded,
+        message: res.message,
+        pointsAwarded: res.pointsAwarded,
         unlockedQuestTitle: res.collectibleAwarded ? `Unlocked Collectible: ${res.collectibleAwarded.name}` : undefined,
       });
       setPasscodeInput('');
@@ -345,7 +362,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
               type="text"
               value={passcodeInput}
               onChange={(e) => setPasscodeInput(e.target.value.toUpperCase())}
-              placeholder="e.g. FOUNDER2026 or COURIER77"
+              placeholder="Enter your event passcode"
               className="input-field text-xs uppercase tracking-wider font-bold flex-1"
             />
             <button type="submit" className="btn btn-cyan text-xs py-2 px-4 whitespace-nowrap font-bold">
@@ -599,14 +616,16 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
 
         {/* TAB 3: SQUAD OPERATIONS */}
         {activeTab === 'teams' && currentPlayer && (
-          <section className="animate-fade-in">
-            <TeamHub
-              eventId={event.id}
-              currentPlayer={currentPlayer}
-              team={team}
-              teamMembers={teamMembers}
-              onTeamUpdated={refreshData}
-            />
+          <section className="glass-panel p-6 space-y-3 animate-fade-in border-cyan-500/30">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              👥 Squad Operations
+            </h2>
+            <p className="text-sm text-gray-300 font-mono">
+              Team creation and joining are handled by server-side operations in the live game environment.
+            </p>
+            <p className="text-xs text-cyan-300 font-mono">
+              Current agent: {currentPlayer.displayName}
+            </p>
           </section>
         )}
 

@@ -7,7 +7,7 @@ import { checkProximity, formatDistance } from '@/lib/geo';
 interface LocationVerifierProps {
   location?: LocationInfo;
   requiredRadiusMeters?: number;
-  onLocationVerified?: (userLat: number, userLon: number, isProximityOk: boolean) => void;
+  onLocationVerified?: (userLat: number, userLon: number, isProximityOk: boolean, accuracyMeters?: number) => void;
 }
 
 export default function LocationVerifier({
@@ -38,6 +38,7 @@ export default function LocationVerifier({
       (pos) => {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
+        const accuracy = pos.coords.accuracy;
         setGpsStatus('acquired');
 
         if (targetLat !== undefined && targetLon !== undefined) {
@@ -46,7 +47,7 @@ export default function LocationVerifier({
           setIsWithinRadius(prox.isWithinRadius);
 
           if (onLocationVerified) {
-            onLocationVerified(lat, lon, prox.isWithinRadius);
+            onLocationVerified(lat, lon, prox.isWithinRadius, accuracy);
           }
         }
       },
