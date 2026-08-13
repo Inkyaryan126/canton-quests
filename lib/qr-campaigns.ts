@@ -123,6 +123,21 @@ function trackingUrlForSlug(slug: string): string {
   return `${getCampaignPublicBaseUrl().replace(/\/$/, '')}/go/${slug}`;
 }
 
+export interface CampaignQrPrintRecord {
+  campaign: QrCampaign;
+  flyer: CampaignFlyerVariant;
+  distributor: CampaignDistributor;
+  qrCode: CampaignQrCode;
+}
+
+export type CampaignSafeOperationKind = 'deleted' | 'deactivated' | 'archived' | 'blocked' | 'dry_run';
+
+export interface CampaignSafeOperationResult {
+  kind: CampaignSafeOperationKind;
+  message: string;
+  requiresConfirmation?: boolean;
+}
+
 export function classifyUserAgent(userAgent?: string | null): string {
   const ua = (userAgent || '').toLowerCase();
   if (!ua) return 'unknown';
@@ -275,6 +290,19 @@ export async function createQrCampaign(input: {
 
   campaignStore.campaigns.unshift(campaign);
   return campaign;
+}
+
+export async function findCampaignByNameOrId(identifier: string): Promise<QrCampaign | undefined> {
+  const clean = identifier.trim();
+  if (!clean) return undefined;
+  const cleanLower = clean.toLowerCase();
+  const bundle = await getCampaignBundle();
+  return bundle.campaigns.find(
+    (campaign) =>
+      campaign.id === clean ||
+      campaign.slug === cleanLower ||
+      campaign.name.toLowerCase() === cleanLower
+  );
 }
 
 export async function createCampaignFlyerVariant(input: {
@@ -439,6 +467,57 @@ export async function generateCampaignQrCodes(input: {
   return created;
 }
 
+export function getAbcDestinationForFlyerName(flyerName: string, flyerIndex?: number): string | undefined {
+  const normalized = flyerName.trim().toLowerCase();
+  if (/\b(a|family)\b/.test(normalized) || flyerIndex === 0) return '/start/family';
+  if (/\b(b|challenge)\b/.test(normalized) || flyerIndex === 1) return '/start/challenge';
+  if (/\b(c|secret)\b/.test(normalized) || flyerIndex === 2) return '/start/secret';
+  return undefined;
+}
+
+export async function setupStreetTeamCampaign(input: {
+  campaignName: string;
+  flyerNames: string[];
+  distributorNames: string[];
+  abcStartDestinations?: boolean;
+}): Promise<CampaignQrPrintRecord[]> {
+  if (input.flyerNames.length === 0) throw new Error('At least one flyer variant is required.');
+  if (input.distributorNames.length === 0) throw new Error('At least one distributor is required.');
+
+  const campaign = await createQrCampaign({ name: input.campaignName, destinationUrl: '/quests' });
+  const flyers: CampaignFlyerVariant[] = [];
+  for (const name of input.flyerNames) {
+    flyers.push(await createCampaignFlyerVariant({ campaignId: campaign.id, name }));
+  }
+
+  const distributors: CampaignDistributor[] = [];
+  for (const name of input.distributorNames) {
+    distributors.push(await createCampaignDistributor({ campaignId: campaign.id, name }));
+  }
+
+  const destinationUrlByFlyerVariantId = input.abcStartDestinations
+    ? Object.fromEntries(
+        flyers
+          .map((flyer, index) => [flyer.id, getAbcDestinationForFlyerName(flyer.name, index)])
+          .filter((entry): entry is [string, string] => Boolean(entry[1]))
+      )
+    : undefined;
+
+  const qrCodes = await generateCampaignQrCodes({
+    campaignId: campaign.id,
+    flyerVariantIds: flyers.map((flyer) => flyer.id),
+    distributorIds: distributors.map((distributor) => distributor.id),
+    destinationUrlByFlyerVariantId,
+  });
+
+  return qrCodes.map((qrCode) => ({
+    campaign,
+    qrCode,
+    flyer: flyers.find((flyer) => flyer.id === qrCode.flyerVariantId)!,
+    distributor: distributors.find((distributor) => distributor.id === qrCode.distributorId)!,
+  }));
+}
+
 export async function resolveCampaignQrCode(slug: string): Promise<CampaignQrCode | undefined> {
   const cleanSlug = slug.trim().toLowerCase();
   if (!/^[a-z0-9-]{6,120}$/.test(cleanSlug)) return undefined;
@@ -463,6 +542,193 @@ export async function setCampaignQrCodeStatus(qrCodeId: string, status: Campaign
   if (!qr) return undefined;
   qr.status = status;
   return qr;
+}
+
+async function setCampaignStatus(campaignId: string, status: CampaignEntityStatus): Promise<QrCampaign | undefined> {
+  const updatedAt = nowIso();
+  if (isSupabaseAdminConfigured && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin
+      .from('qr_campaigns')
+      .update({ status, updated_at: updatedAt })
+      .eq('id', campaignId)
+      .select('*')
+      .single();
+    if (!error && data) return mapCampaign(data);
+  }
+
+  const campaign = campaignStore.campaigns.find((item) => item.id === campaignId);
+  if (!campaign) return undefined;
+  campaign.status = status;
+  campaign.updatedAt = updatedAt;
+  return campaign;
+}
+
+async function setFlyerStatus(flyerId: string, status: CampaignEntityStatus): Promise<CampaignFlyerVariant | undefined> {
+  if (isSupabaseAdminConfigured && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin
+      .from('campaign_flyer_variants')
+      .update({ status })
+      .eq('id', flyerId)
+      .select('*')
+      .single();
+    if (!error && data) return mapFlyer(data);
+  }
+
+  const flyer = campaignStore.flyerVariants.find((item) => item.id === flyerId);
+  if (!flyer) return undefined;
+  flyer.status = status;
+  return flyer;
+}
+
+async function setDistributorStatus(distributorId: string, status: CampaignEntityStatus): Promise<CampaignDistributor | undefined> {
+  if (isSupabaseAdminConfigured && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin
+      .from('campaign_distributors')
+      .update({ status })
+      .eq('id', distributorId)
+      .select('*')
+      .single();
+    if (!error && data) return mapDistributor(data);
+  }
+
+  const distributor = campaignStore.distributors.find((item) => item.id === distributorId);
+  if (!distributor) return undefined;
+  distributor.status = status;
+  return distributor;
+}
+
+export async function archiveCampaign(campaignId: string): Promise<CampaignSafeOperationResult> {
+  const campaign = await setCampaignStatus(campaignId, 'inactive');
+  if (!campaign) return { kind: 'blocked', message: 'Campaign not found.' };
+  return { kind: 'archived', message: `Campaign archived: ${campaign.name}. Historical analytics are preserved.` };
+}
+
+export async function deleteUnusedCampaign(campaignId: string, confirmed: boolean): Promise<CampaignSafeOperationResult> {
+  const bundle = await getCampaignBundle();
+  const campaign = bundle.campaigns.find((item) => item.id === campaignId);
+  if (!campaign) return { kind: 'blocked', message: 'Campaign not found.' };
+
+  const qrCount = bundle.qrCodes.filter((qr) => qr.campaignId === campaignId).length;
+  const visitCount = bundle.visits.filter((visit) => visit.campaignId === campaignId).length;
+  if (qrCount > 0 || visitCount > 0) {
+    return {
+      kind: 'blocked',
+      message: `Campaign has ${qrCount} QR code(s) and ${visitCount} recorded visit(s). Archive it instead to preserve attribution history.`,
+    };
+  }
+
+  if (!confirmed) {
+    return {
+      kind: 'dry_run',
+      requiresConfirmation: true,
+      message: `Campaign is unused and can be permanently deleted. Re-run with explicit confirmation to delete ${campaign.name}.`,
+    };
+  }
+
+  if (isSupabaseAdminConfigured && supabaseAdmin) {
+    const { error } = await supabaseAdmin.from('qr_campaigns').delete().eq('id', campaignId);
+    if (error) return { kind: 'blocked', message: error.message };
+  }
+
+  campaignStore.campaigns = campaignStore.campaigns.filter((item) => item.id !== campaignId);
+  campaignStore.flyerVariants = campaignStore.flyerVariants.filter((item) => item.campaignId !== campaignId);
+  campaignStore.distributors = campaignStore.distributors.filter((item) => item.campaignId !== campaignId);
+  return { kind: 'deleted', message: `Unused campaign permanently deleted: ${campaign.name}.` };
+}
+
+export async function deleteOrDeactivateFlyer(flyerId: string, confirmed: boolean): Promise<CampaignSafeOperationResult> {
+  const bundle = await getCampaignBundle();
+  const flyer = bundle.flyerVariants.find((item) => item.id === flyerId);
+  if (!flyer) return { kind: 'blocked', message: 'Flyer variant not found.' };
+
+  const qrCount = bundle.qrCodes.filter((qr) => qr.flyerVariantId === flyerId).length;
+  const visitCount = bundle.visits.filter((visit) => visit.flyerVariantId === flyerId).length;
+  if (qrCount > 0 || visitCount > 0) {
+    const updated = await setFlyerStatus(flyerId, 'inactive');
+    if (!updated) return { kind: 'blocked', message: 'Flyer variant not found.' };
+    return {
+      kind: 'deactivated',
+      message: `Flyer variant deactivated because it is referenced by ${qrCount} QR code(s) and ${visitCount} visit(s).`,
+    };
+  }
+
+  if (!confirmed) {
+    return {
+      kind: 'dry_run',
+      requiresConfirmation: true,
+      message: `Flyer variant is unused and can be permanently deleted. Re-run with explicit confirmation to delete ${flyer.name}.`,
+    };
+  }
+
+  if (isSupabaseAdminConfigured && supabaseAdmin) {
+    const { error } = await supabaseAdmin.from('campaign_flyer_variants').delete().eq('id', flyerId);
+    if (error) return { kind: 'blocked', message: error.message };
+  }
+  campaignStore.flyerVariants = campaignStore.flyerVariants.filter((item) => item.id !== flyerId);
+  return { kind: 'deleted', message: `Unused flyer variant permanently deleted: ${flyer.name}.` };
+}
+
+export async function deleteOrDeactivateDistributor(distributorId: string, confirmed: boolean): Promise<CampaignSafeOperationResult> {
+  const bundle = await getCampaignBundle();
+  const distributor = bundle.distributors.find((item) => item.id === distributorId);
+  if (!distributor) return { kind: 'blocked', message: 'Distributor not found.' };
+
+  const qrCount = bundle.qrCodes.filter((qr) => qr.distributorId === distributorId).length;
+  const visitCount = bundle.visits.filter((visit) => visit.distributorId === distributorId).length;
+  if (qrCount > 0 || visitCount > 0) {
+    const updated = await setDistributorStatus(distributorId, 'inactive');
+    if (!updated) return { kind: 'blocked', message: 'Distributor not found.' };
+    return {
+      kind: 'deactivated',
+      message: `Distributor deactivated because it is referenced by ${qrCount} QR code(s) and ${visitCount} visit(s).`,
+    };
+  }
+
+  if (!confirmed) {
+    return {
+      kind: 'dry_run',
+      requiresConfirmation: true,
+      message: `Distributor is unused and can be permanently deleted. Re-run with explicit confirmation to delete ${distributor.name}.`,
+    };
+  }
+
+  if (isSupabaseAdminConfigured && supabaseAdmin) {
+    const { error } = await supabaseAdmin.from('campaign_distributors').delete().eq('id', distributorId);
+    if (error) return { kind: 'blocked', message: error.message };
+  }
+  campaignStore.distributors = campaignStore.distributors.filter((item) => item.id !== distributorId);
+  return { kind: 'deleted', message: `Unused distributor permanently deleted: ${distributor.name}.` };
+}
+
+export async function deleteOrDeactivateQrCode(qrCodeId: string, confirmed: boolean): Promise<CampaignSafeOperationResult> {
+  const bundle = await getCampaignBundle();
+  const qrCode = bundle.qrCodes.find((item) => item.id === qrCodeId);
+  if (!qrCode) return { kind: 'blocked', message: 'QR code not found.' };
+
+  const visitCount = bundle.visits.filter((visit) => visit.qrCodeId === qrCodeId).length;
+  if (visitCount > 0) {
+    const updated = await setCampaignQrCodeStatus(qrCodeId, 'inactive');
+    if (!updated) return { kind: 'blocked', message: 'QR code not found.' };
+    return {
+      kind: 'deactivated',
+      message: `QR code deactivated because it has ${visitCount} recorded visit(s). Attribution history is preserved.`,
+    };
+  }
+
+  if (!confirmed) {
+    return {
+      kind: 'dry_run',
+      requiresConfirmation: true,
+      message: `QR code has no visit history and can be permanently deleted. Re-run with explicit confirmation to delete ${qrCode.trackingSlug}.`,
+    };
+  }
+
+  if (isSupabaseAdminConfigured && supabaseAdmin) {
+    const { error } = await supabaseAdmin.from('campaign_qr_codes').delete().eq('id', qrCodeId);
+    if (error) return { kind: 'blocked', message: error.message };
+  }
+  campaignStore.qrCodes = campaignStore.qrCodes.filter((item) => item.id !== qrCodeId);
+  return { kind: 'deleted', message: `Unused QR code permanently deleted: ${qrCode.trackingSlug}.` };
 }
 
 export async function recordCampaignVisit(input: {

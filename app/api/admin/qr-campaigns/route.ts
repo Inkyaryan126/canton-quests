@@ -2,9 +2,14 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { ADMIN_COOKIE_NAME, authorizeGameMasterRequest, verifyAdminSecret } from '@/lib/admin-auth';
 import {
+  archiveCampaign,
   createCampaignDistributor,
   createCampaignFlyerVariant,
   createQrCampaign,
+  deleteOrDeactivateDistributor,
+  deleteOrDeactivateFlyer,
+  deleteOrDeactivateQrCode,
+  deleteUnusedCampaign,
   generateCampaignQrCodes,
   getCampaignAnalytics,
   getCampaignBundle,
@@ -19,7 +24,12 @@ function isAuthorized(request: Request): boolean {
   const headerSession = authorizeGameMasterRequest(headersObj);
   if (headerSession.isAdmin) return true;
 
-  const adminCookie = cookies().get(ADMIN_COOKIE_NAME)?.value;
+  let adminCookie: string | undefined;
+  try {
+    adminCookie = cookies().get(ADMIN_COOKIE_NAME)?.value;
+  } catch {
+    return false;
+  }
   return Boolean(adminCookie && verifyAdminSecret(adminCookie));
 }
 
@@ -86,8 +96,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, qrCodes });
     }
 
+    if (action === 'archive_campaign') {
+      const result = await archiveCampaign(String(body.campaignId || ''));
+      return NextResponse.json({ success: result.kind !== 'blocked', result }, { status: result.kind === 'blocked' ? 400 : 200 });
+    }
+
+    if (action === 'delete_campaign') {
+      const result = await deleteUnusedCampaign(String(body.campaignId || ''), body.confirmed === true);
+      return NextResponse.json({ success: result.kind !== 'blocked', result }, { status: result.kind === 'blocked' ? 400 : 200 });
+    }
+
+    if (action === 'delete_flyer_variant') {
+      const result = await deleteOrDeactivateFlyer(String(body.id || ''), body.confirmed === true);
+      return NextResponse.json({ success: result.kind !== 'blocked', result }, { status: result.kind === 'blocked' ? 400 : 200 });
+    }
+
+    if (action === 'delete_distributor') {
+      const result = await deleteOrDeactivateDistributor(String(body.id || ''), body.confirmed === true);
+      return NextResponse.json({ success: result.kind !== 'blocked', result }, { status: result.kind === 'blocked' ? 400 : 200 });
+    }
+
+    if (action === 'delete_qr_code') {
+      const result = await deleteOrDeactivateQrCode(String(body.id || ''), body.confirmed === true);
+      return NextResponse.json({ success: result.kind !== 'blocked', result }, { status: result.kind === 'blocked' ? 400 : 200 });
+    }
+
     return NextResponse.json({ error: `Unknown QR campaign action: ${action}` }, { status: 400 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'QR campaign action failed.' }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'QR campaign action failed.' }, { status: 400 });
   }
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Copy, Download, Printer, QrCode, Sparkles } from 'lucide-react';
+import { Archive, ArrowLeft, Copy, Download, Power, Printer, QrCode, Sparkles, Trash2 } from 'lucide-react';
 import {
   CampaignAnalytics,
   CampaignDistributor,
@@ -48,6 +48,16 @@ type CampaignPostAction =
       flyerVariantIds: string[];
       distributorIds: string[];
       destinationUrlByFlyerVariantId?: Record<string, string>;
+    }
+  | {
+      action: 'archive_campaign' | 'delete_campaign';
+      campaignId: string;
+      confirmed?: boolean;
+    }
+  | {
+      action: 'delete_flyer_variant' | 'delete_distributor' | 'delete_qr_code';
+      id: string;
+      confirmed?: boolean;
     };
 
 const emptyState: CampaignApiState = {
@@ -98,6 +108,7 @@ export default function QrCampaignsPage() {
     () => state.qrCodes.filter((qr) => qr.campaignId === campaignId),
     [state.qrCodes, campaignId]
   );
+  const campaignVisits = state.analytics?.totalVisits || 0;
 
   const loadCampaigns = useCallback(async (nextCampaignId?: string) => {
     const targetCampaignId = nextCampaignId || selectedCampaignId;
@@ -202,6 +213,13 @@ export default function QrCampaignsPage() {
     await loadCampaigns(campaignId);
   };
 
+  const handleSafeAction = async (body: CampaignPostAction, confirmation: string) => {
+    if (!window.confirm(confirmation)) return;
+    const data = await postAction(body);
+    setMessage(data.result?.message || 'QR campaign record updated.');
+    await loadCampaigns(campaignId);
+  };
+
   const toggle = (id: string, values: string[], setValues: (next: string[]) => void) => {
     setValues(values.includes(id) ? values.filter((item) => item !== id) : [...values, id]);
   };
@@ -298,7 +316,32 @@ export default function QrCampaignsPage() {
               {selectedCampaign && (
                 <div className="text-xs text-stone-300 space-y-1">
                   <p>Destination: <span className="text-amber-200">{selectedCampaign.destinationUrl}</span></p>
+                  <p>Status: <span className={selectedCampaign.status === 'active' ? 'text-emerald-200' : 'text-stone-400'}>{selectedCampaign.status.toUpperCase()}</span></p>
                   <p>Operator: {GAME_MASTER_DISPLAY_NAME}</p>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSafeAction(
+                        { action: 'archive_campaign', campaignId },
+                        'ARCHIVE this campaign? Existing QR attribution and visit analytics will be preserved.'
+                      )}
+                      className="cq-gm-mini-button border-orange-300/40 text-orange-100"
+                    >
+                      <Archive size={14} /> ARCHIVE
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSafeAction(
+                        { action: 'delete_campaign', campaignId, confirmed: true },
+                        campaignQrs.length || campaignVisits
+                          ? 'DELETE is blocked when a campaign has QR codes or visit history. The server will preserve analytics and explain why.'
+                          : 'DELETE this unused campaign permanently? This is only allowed when no QR codes or visits exist.'
+                      )}
+                      className="cq-gm-mini-button border-red-400/50 text-red-100"
+                    >
+                      <Trash2 size={14} /> DELETE UNUSED
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -309,12 +352,32 @@ export default function QrCampaignsPage() {
               <input value={flyerDescription} onChange={(event) => setFlyerDescription(event.target.value)} className="cq-gm-input" placeholder="Optional description" />
               <button className="cq-gm-button w-full" type="submit">Add Flyer</button>
               <div className="space-y-2">
-                {campaignFlyers.map((flyer) => (
-                  <label key={flyer.id} className="cq-gm-check">
-                    <input type="checkbox" checked={selectedFlyerIds.includes(flyer.id)} onChange={() => toggle(flyer.id, selectedFlyerIds, setSelectedFlyerIds)} />
-                    <span>{flyer.name}</span>
-                  </label>
-                ))}
+                {campaignFlyers.map((flyer) => {
+                  const flyerQrCount = campaignQrs.filter((qr) => qr.flyerVariantId === flyer.id).length;
+                  const flyerVisitCount = analytics?.flyerPerformance.find((row) => row.id === flyer.id)?.visits || 0;
+                  const willDeactivate = flyerQrCount > 0 || flyerVisitCount > 0;
+                  return (
+                    <div key={flyer.id} className="cq-gm-check items-start justify-between">
+                      <label className="flex min-w-0 items-center gap-2">
+                        <input type="checkbox" checked={selectedFlyerIds.includes(flyer.id)} onChange={() => toggle(flyer.id, selectedFlyerIds, setSelectedFlyerIds)} />
+                        <span className="truncate">{flyer.name} <span className="text-stone-500">({flyer.status})</span></span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleSafeAction(
+                          { action: 'delete_flyer_variant', id: flyer.id, confirmed: true },
+                          willDeactivate
+                            ? 'DEACTIVATE this flyer variant? Existing QR and visit attribution will be preserved.'
+                            : 'DELETE this unused flyer variant permanently?'
+                        )}
+                        className={willDeactivate ? 'cq-gm-mini-button border-orange-300/40 text-orange-100' : 'cq-gm-mini-button border-red-400/40 text-red-100'}
+                      >
+                        {willDeactivate ? <Power size={13} /> : <Trash2 size={13} />}
+                        {willDeactivate ? 'DEACTIVATE' : 'DELETE UNUSED'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </form>
 
@@ -324,12 +387,32 @@ export default function QrCampaignsPage() {
               <input value={distributorNotes} onChange={(event) => setDistributorNotes(event.target.value)} className="cq-gm-input" placeholder="Optional notes" />
               <button className="cq-gm-button w-full" type="submit">Add Distributor</button>
               <div className="space-y-2">
-                {campaignDistributors.map((distributor) => (
-                  <label key={distributor.id} className="cq-gm-check">
-                    <input type="checkbox" checked={selectedDistributorIds.includes(distributor.id)} onChange={() => toggle(distributor.id, selectedDistributorIds, setSelectedDistributorIds)} />
-                    <span>{distributor.name}</span>
-                  </label>
-                ))}
+                {campaignDistributors.map((distributor) => {
+                  const distributorQrCount = campaignQrs.filter((qr) => qr.distributorId === distributor.id).length;
+                  const distributorVisitCount = analytics?.distributorPerformance.find((row) => row.id === distributor.id)?.visits || 0;
+                  const willDeactivate = distributorQrCount > 0 || distributorVisitCount > 0;
+                  return (
+                    <div key={distributor.id} className="cq-gm-check items-start justify-between">
+                      <label className="flex min-w-0 items-center gap-2">
+                        <input type="checkbox" checked={selectedDistributorIds.includes(distributor.id)} onChange={() => toggle(distributor.id, selectedDistributorIds, setSelectedDistributorIds)} />
+                        <span className="truncate">{distributor.name} <span className="text-stone-500">({distributor.status})</span></span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleSafeAction(
+                          { action: 'delete_distributor', id: distributor.id, confirmed: true },
+                          willDeactivate
+                            ? 'DEACTIVATE this distributor? Existing QR and visit attribution will be preserved.'
+                            : 'DELETE this unused distributor permanently?'
+                        )}
+                        className={willDeactivate ? 'cq-gm-mini-button border-orange-300/40 text-orange-100' : 'cq-gm-mini-button border-red-400/40 text-red-100'}
+                      >
+                        {willDeactivate ? <Power size={13} /> : <Trash2 size={13} />}
+                        {willDeactivate ? 'DEACTIVATE' : 'DELETE UNUSED'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </form>
           </div>
@@ -381,6 +464,7 @@ export default function QrCampaignsPage() {
                   {campaignQrs.map((qr) => {
                     const flyer = campaignFlyers.find((item) => item.id === qr.flyerVariantId);
                     const distributor = campaignDistributors.find((item) => item.id === qr.distributorId);
+                    const qrVisitCount = analytics?.combinationPerformance.find((row) => row.qrCodeId === qr.id)?.visits || 0;
                     const dataUri = createQrSvgDataUri(qr.trackingUrl);
                     return (
                       <article key={qr.id} className="bg-black/50 border border-amber-300/20 p-4 space-y-3">
@@ -396,6 +480,7 @@ export default function QrCampaignsPage() {
                           <div className="min-w-0 space-y-1">
                             <h3 className="font-black text-white">{flyer?.name} / {distributor?.name}</h3>
                             <p className="text-xs text-stone-400">{selectedCampaign?.name}</p>
+                            <p className={qr.status === 'active' ? 'text-xs text-emerald-200' : 'text-xs text-stone-400'}>{qr.status.toUpperCase()} · {qrVisitCount} visits</p>
                             <p className="text-xs text-cyan-100 break-all">Destination: {qr.destinationUrl}</p>
                             <p className="text-[11px] text-amber-200 break-all">{qr.trackingUrl}</p>
                           </div>
@@ -407,6 +492,18 @@ export default function QrCampaignsPage() {
                           <a href={dataUri} download={`${qr.trackingSlug}.svg`} className="cq-gm-mini-button">
                             <Download size={14} /> SVG
                           </a>
+                          <button
+                            onClick={() => handleSafeAction(
+                              { action: 'delete_qr_code', id: qr.id, confirmed: qrVisitCount === 0 },
+                              qrVisitCount > 0
+                                ? 'DEACTIVATE this QR code? The scan record will remain so attribution history is preserved.'
+                                : 'DELETE this unused QR code permanently? There is no recorded visit history for this code.'
+                            )}
+                            className={qrVisitCount > 0 ? 'cq-gm-mini-button border-orange-300/40 text-orange-100' : 'cq-gm-mini-button border-red-400/50 text-red-100'}
+                          >
+                            {qrVisitCount > 0 ? <Power size={14} /> : <Trash2 size={14} />}
+                            {qrVisitCount > 0 ? 'DEACTIVATE' : 'DELETE UNUSED'}
+                          </button>
                         </div>
                       </article>
                     );

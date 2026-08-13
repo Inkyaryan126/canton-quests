@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "qr:campaign": "vite-node scripts/qr-campaign-cli.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.1",
