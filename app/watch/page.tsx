@@ -15,6 +15,8 @@ import {
   PublicGameFeedItem,
   SpectatorSystemSettings,
 } from '@/lib/types';
+import { getCurrentPlayer } from '@/lib/game-engine';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 const VOTES_LOCAL_STORAGE_KEY = 'canton_spectator_voted_options';
 
@@ -163,10 +165,10 @@ export default function WatchPage() {
     return () => clearInterval(interval);
   }, [fetchData, isPollingActive]);
 
-  // Active audience event (priority: voting_active, then closed/resolved)
+  // Active audience event (priority: voting_active, then tallying_closed/effect_applied/resolved)
   const activeEvent =
     events.find((e) => e.status === 'voting_active') ||
-    events.find((e) => ['closed', 'resolved'].includes(e.status)) ||
+    events.find((e) => ['tallying_closed', 'effect_applied', 'resolved'].includes(e.status)) ||
     null;
 
   const currentOptions = activeEvent ? optionsMap[activeEvent.id] || [] : [];
@@ -177,9 +179,27 @@ export default function WatchPage() {
     if (!activeEvent) return { success: false, error: 'No active event' };
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData?.session?.access_token) {
+            headers['Authorization'] = `Bearer ${sessionData.session.access_token}`;
+          }
+        } catch {
+          // ignore
+        }
+      } else {
+        const player = getCurrentPlayer();
+        if (player?.id) {
+          headers['x-player-token'] = player.id;
+        }
+      }
+
       const res = await fetch('/api/game/spectator', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           audienceEventId: activeEvent.id,
           optionId,
@@ -411,21 +431,43 @@ export default function WatchPage() {
       {/* Floating Sticky Conversion Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#0b0f17]/95 border-t border-amber-500/40 p-3 backdrop-blur-md">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div>
-            <span className="font-extrabold text-white text-xs block">
-              READY TO JOIN DOWNTOWN CANTON FIELD OPS?
-            </span>
-            <span className="text-[10px] text-gray-400 font-mono hidden sm:block">
-              Convert your spectator session into an active agent profile in 1 tap.
-            </span>
-          </div>
+          {convertedPlayerId ? (
+            <>
+              <div>
+                <span className="font-extrabold text-white text-xs block">
+                  AGENT PROFILE LINKED ({convertedPlayerId})
+                </span>
+                <span className="text-[10px] text-emerald-400 font-mono hidden sm:block">
+                  Your spectator session is converted. Ready to complete field quests in Canton.
+                </span>
+              </div>
 
-          <button
-            onClick={() => setIsEnterGameModalOpen(true)}
-            className="btn btn-primary text-xs py-2 px-4 font-mono font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform whitespace-nowrap"
-          >
-            🚀 ENTER THE GAME NOW →
-          </button>
+              <a
+                href="/"
+                className="btn btn-primary text-xs py-2 px-4 font-mono font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform whitespace-nowrap"
+              >
+                🎮 RETURN TO GAME →
+              </a>
+            </>
+          ) : (
+            <>
+              <div>
+                <span className="font-extrabold text-white text-xs block">
+                  READY TO JOIN DOWNTOWN CANTON FIELD OPS?
+                </span>
+                <span className="text-[10px] text-gray-400 font-mono hidden sm:block">
+                  Convert your spectator session into an active agent profile in 1 tap.
+                </span>
+              </div>
+
+              <button
+                onClick={() => setIsEnterGameModalOpen(true)}
+                className="btn btn-primary text-xs py-2 px-4 font-mono font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform whitespace-nowrap"
+              >
+                🚀 ENTER THE GAME NOW →
+              </button>
+            </>
+          )}
         </div>
       </div>
 

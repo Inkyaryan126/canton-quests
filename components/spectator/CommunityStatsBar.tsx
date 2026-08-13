@@ -40,7 +40,7 @@ export default function CommunityStatsBar({
           📍 ACTIVE DISTRICTS
         </span>
         <span className="text-xl font-extrabold text-emerald-400 font-mono block">
-          4
+          {activeDistrictCount}
         </span>
         <span className="text-[9px] text-gray-500 font-mono block">Canton Downtown Sprint</span>
       </div>

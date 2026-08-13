@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
-import { createSessionTokenHash, createIpHash } from '@/lib/spectator-engine';
+import {
+  createSessionTokenHash,
+  createIpHash,
+  extractCookieValue,
+  getServerDerivedAuthenticatedPlayerId,
+  SPECTATOR_COOKIE_NAME,
+  PLAYER_COOKIE_NAME,
+} from '@/lib/spectator-engine';
 import {
   registerOrUpdateSpectatorSessionDB,
   convertSpectatorToPlayerDB,
@@ -14,11 +21,7 @@ import {
   getDistrictActivityDB,
   getSpectatorSessionCountDB,
 } from '@/lib/spectator-db';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { SEED_DEMO_PLAYERS } from '@/lib/seed-data';
-
-const SPECTATOR_COOKIE_NAME = 'cg_spec_token';
-const PLAYER_COOKIE_NAME = 'cg_player_token';
+import * as supabaseModule from '@/lib/supabase';
 
 // In-memory sliding-window IP rate limiter: max 5 vote attempts per minute per IP hash
 const rateLimitWindowMs = 60 * 1000;
@@ -42,61 +45,28 @@ function checkRateLimit(ipHash: string): { allowed: boolean; remaining: number }
   return { allowed: true, remaining: maxRequestsPerWindow - entry.count };
 }
 
-function getOrGenerateSessionToken(): { token: string; isNew: boolean } {
-  const cookieStore = cookies();
-  const existingCookie = cookieStore.get(SPECTATOR_COOKIE_NAME)?.value;
+function getOrGenerateSessionToken(request?: Request): { token: string; isNew: boolean } {
+  try {
+    const cookieStore = cookies();
+    const existingCookie = cookieStore.get(SPECTATOR_COOKIE_NAME)?.value;
 
-  if (existingCookie) {
-    return { token: existingCookie, isNew: false };
+    if (existingCookie) {
+      return { token: existingCookie, isNew: false };
+    }
+  } catch {
+    // Fallback if cookies() context is unavailable in direct route test execution
+  }
+
+  if (request) {
+    const rawCookieHeader = request.headers.get('cookie');
+    const existingFromHeader = extractCookieValue(rawCookieHeader, SPECTATOR_COOKIE_NAME);
+    if (existingFromHeader) {
+      return { token: existingFromHeader, isNew: false };
+    }
   }
 
   const newToken = `spec_${crypto.randomUUID()}`;
   return { token: newToken, isNew: true };
-}
-
-async function getServerDerivedAuthenticatedPlayerId(request: Request, bodyPlayerId?: string): Promise<string | undefined> {
-  const cookieStore = cookies();
-  const playerToken =
-    cookieStore.get(PLAYER_COOKIE_NAME)?.value ||
-    request.headers.get('x-player-token') ||
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-
-  const effectiveToken = playerToken || bodyPlayerId;
-
-  if (!effectiveToken) {
-    return undefined;
-  }
-
-  if (isSupabaseConfigured && supabase) {
-    try {
-      // Strictly verify token with Supabase Auth (cryptographic JWT signature verification)
-      const { data: authUser, error: authError } = await supabase.auth.getUser(effectiveToken);
-      if (authUser?.user && !authError) {
-        const { data: playerByUserId } = await supabase
-          .from('players')
-          .select('id')
-          .eq('user_id', authUser.user.id)
-          .maybeSingle();
-        if (playerByUserId) {
-          return playerByUserId.id;
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  // Local engine fallback: check if effectiveToken matches a valid player ID or seed demo player
-  if (effectiveToken && (effectiveToken.startsWith('player-') || effectiveToken.startsWith('plr-'))) {
-    return effectiveToken;
-  }
-
-  const demoPlayer = SEED_DEMO_PLAYERS.find((p) => p.id === effectiveToken || p.userId === effectiveToken);
-  if (demoPlayer) {
-    return demoPlayer.id;
-  }
-
-  return undefined;
 }
 
 export async function GET(request: Request) {
@@ -156,7 +126,7 @@ export async function POST(request: Request) {
       '127.0.0.1';
     const ipHash = createIpHash(clientIp);
 
-    const { token: sessionToken, isNew } = getOrGenerateSessionToken();
+    const { token: sessionToken, isNew } = getOrGenerateSessionToken(request);
     const sessionTokenHash = createSessionTokenHash(sessionToken);
 
     // 1. Session Registration
@@ -196,34 +166,80 @@ export async function POST(request: Request) {
       return response;
     }
 
-    // 2. Spectator-to-Player Conversion (Server-Verified Auth Required)
+    // 2. Spectator-to-Player Conversion (Server-Verified Spectator / Player Session)
     if (action === 'convert_to_player') {
-      const authenticatedPlayerId = await getServerDerivedAuthenticatedPlayerId(request, body.playerId);
-      const requestedPlayerId = body.playerId;
+      const rawCookieHeader = request.headers.get('cookie');
+      const specCookieToken = extractCookieValue(rawCookieHeader, SPECTATOR_COOKIE_NAME);
 
-      if (!authenticatedPlayerId || (requestedPlayerId && requestedPlayerId !== authenticatedPlayerId)) {
+      if (!specCookieToken || isNew) {
         return NextResponse.json(
-          {
-            success: false,
-            error: 'Unauthorized: Converting session to player requires verified player authentication',
-          },
-          { status: 401 }
+          { success: false, error: 'Valid spectator session required for conversion. Please visit /watch first.' },
+          { status: 400 }
         );
       }
 
-      const updated = await convertSpectatorToPlayerDB(sessionTokenHash, authenticatedPlayerId);
+      let authenticatedPlayerId: string | undefined;
+
+      if (supabaseModule.isSupabaseConfigured) {
+        if (!supabaseModule.supabaseAdmin) {
+          return NextResponse.json({ success: false, error: 'Server configuration error' }, { status: 500 });
+        }
+
+        // Verify spectator session ALREADY exists in spectator_sessions DB table
+        const { data: sessionRow } = await supabaseModule.supabaseAdmin
+          .from('spectator_sessions')
+          .select('converted_to_player_id')
+          .eq('session_token_hash', sessionTokenHash)
+          .maybeSingle();
+
+        if (!sessionRow) {
+          return NextResponse.json(
+            { success: false, error: 'No active spectator session found for conversion. Please visit /watch first.' },
+            { status: 400 }
+          );
+        }
+
+        if (sessionRow.converted_to_player_id) {
+          authenticatedPlayerId = sessionRow.converted_to_player_id;
+        } else {
+          // Check if caller has verified Supabase Auth JWT in Authorization header
+          const derivedPlayerId = await getServerDerivedAuthenticatedPlayerId(request);
+          if (derivedPlayerId) {
+            authenticatedPlayerId = derivedPlayerId;
+          } else {
+            // Generate a fresh UUID-compatible player ID SERVER-SIDE. DO NOT trust body.playerId!
+            authenticatedPlayerId = crypto.randomUUID();
+          }
+        }
+      } else {
+        // Local dev mode fallback (non-Supabase)
+        const derivedPlayerId = await getServerDerivedAuthenticatedPlayerId(request);
+        authenticatedPlayerId = derivedPlayerId || body.playerId || `plr-${crypto.randomUUID()}`;
+      }
+
+      const targetPlayerId: string = authenticatedPlayerId || crypto.randomUUID();
+      const updated = await convertSpectatorToPlayerDB(sessionTokenHash, targetPlayerId);
+
+      if (!updated) {
+        return NextResponse.json(
+          { success: false, error: 'No active spectator session found for conversion. Please visit /watch first.' },
+          { status: 400 }
+        );
+      }
+
+      const canonicalPlayerId: string = updated.convertedToPlayerId || targetPlayerId;
 
       const response = NextResponse.json({
         success: true,
         session: {
-          convertedToPlayerId: updated?.convertedToPlayerId,
-          lastSeenAt: updated?.lastSeenAt,
+          convertedToPlayerId: canonicalPlayerId,
+          lastSeenAt: updated.lastSeenAt,
         },
       });
 
       response.cookies.set({
         name: PLAYER_COOKIE_NAME,
-        value: authenticatedPlayerId,
+        value: canonicalPlayerId,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',

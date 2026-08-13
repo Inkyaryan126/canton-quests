@@ -1,6 +1,6 @@
 // Canton Quests — Spectator Supabase Service Layer (Phase 5.1 Spectator Engine)
 
-import { supabase, supabaseAdmin, isSupabaseConfigured } from './supabase';
+import * as supabaseModule from './supabase';
 import {
   AudienceEvent,
   PublicAudienceEvent,
@@ -24,15 +24,15 @@ export async function registerOrUpdateSpectatorSessionDB(params: {
   ageAcknowledged?: boolean;
   safetyAcknowledged?: boolean;
 }): Promise<SpectatorSession> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.registerOrUpdateSpectatorSession(params);
   }
 
-  if (!supabaseAdmin) {
+  if (!supabaseModule.supabaseAdmin) {
     throw new Error('Supabase Service Role client is required for spectator session registration.');
   }
 
-  const { data, error } = await supabaseAdmin.rpc('register_or_update_spectator_session', {
+  const { data, error } = await supabaseModule.supabaseAdmin.rpc('register_or_update_spectator_session', {
     p_session_token_hash: params.sessionTokenHash,
     p_ip_hash: params.ipHash,
     p_is_minor: params.isMinor ?? null,
@@ -61,15 +61,40 @@ export async function convertSpectatorToPlayerDB(
   sessionTokenHash: string,
   playerId: string
 ): Promise<SpectatorSession | null> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.convertSpectatorToPlayer(sessionTokenHash, playerId);
   }
 
-  if (!supabaseAdmin) {
+  if (!supabaseModule.supabaseAdmin) {
     throw new Error('Supabase Service Role client is required for spectator session conversion.');
   }
 
-  const { data, error } = await supabaseAdmin.rpc('convert_spectator_session_to_player', {
+  // Ensure player row exists in database if p_player_id is a UUID
+  try {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(playerId);
+    if (isUuid) {
+      const { data: existingPlayer } = await supabaseModule.supabaseAdmin
+        .from('players')
+        .select('id')
+        .eq('id', playerId)
+        .maybeSingle();
+
+      if (!existingPlayer) {
+        await supabaseModule.supabaseAdmin.from('players').upsert(
+          {
+            id: playerId,
+            display_name: 'Walk-up Agent',
+            role: 'player',
+          },
+          { onConflict: 'id' }
+        );
+      }
+    }
+  } catch {
+    // Continue with conversion even if player row upsert is handled by triggers
+  }
+
+  const { data, error } = await supabaseModule.supabaseAdmin.rpc('convert_spectator_session_to_player', {
     p_session_token_hash: sessionTokenHash,
     p_player_id: playerId,
   });
@@ -95,16 +120,16 @@ export async function getAudienceEventsDB(
   eventId: string,
   isAdmin: boolean = false
 ): Promise<PublicAudienceEvent[] | AudienceEvent[]> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.getAudienceEvents(eventId, isAdmin);
   }
 
-  if (!supabase) {
+  if (!supabaseModule.supabase) {
     throw new Error('Supabase client is not configured.');
   }
 
   if (isAdmin) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseModule.supabase
       .from('audience_events')
       .select('*')
       .eq('event_id', eventId)
@@ -141,7 +166,7 @@ export async function getAudienceEventsDB(
   }
 
   // Public Spectator View
-  const { data, error } = await supabase
+  const { data, error } = await supabaseModule.supabase
     .from('public_audience_events')
     .select('*')
     .eq('event_id', eventId)
@@ -174,16 +199,16 @@ export async function getAudienceEventOptionsDB(
   audienceEventId: string,
   isAdmin: boolean = false
 ): Promise<PublicAudienceEventOption[] | AudienceEventOption[]> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.getAudienceEventOptions(audienceEventId, isAdmin);
   }
 
-  if (!supabase) {
+  if (!supabaseModule.supabase) {
     throw new Error('Supabase client is not configured.');
   }
 
   if (isAdmin) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseModule.supabase
       .from('audience_event_options')
       .select('*')
       .eq('audience_event_id', audienceEventId)
@@ -206,7 +231,7 @@ export async function getAudienceEventOptionsDB(
   }
 
   // Public View (Masks effectPayload)
-  const { data, error } = await supabase
+  const { data, error } = await supabaseModule.supabase
     .from('public_audience_event_options')
     .select('*')
     .eq('audience_event_id', audienceEventId)
@@ -234,11 +259,11 @@ export async function castSpectatorVoteDB(params: {
   ipHash: string;
   playerId?: string;
 }): Promise<{ success: boolean; error?: string; code?: string; newVoteCount?: number }> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.castSpectatorVote(params);
   }
 
-  if (!supabaseAdmin) {
+  if (!supabaseModule.supabaseAdmin) {
     return {
       success: false,
       error: 'Supabase Service Role configuration missing for spectator vote execution',
@@ -246,7 +271,7 @@ export async function castSpectatorVoteDB(params: {
     };
   }
 
-  const { data, error } = await supabaseAdmin.rpc('cast_spectator_vote', {
+  const { data, error } = await supabaseModule.supabaseAdmin.rpc('cast_spectator_vote', {
     p_audience_event_id: params.audienceEventId,
     p_option_id: params.optionId,
     p_session_token_hash: params.sessionTokenHash,
@@ -280,15 +305,15 @@ export async function getPublicGameFeedDB(
   eventId: string,
   limit: number = 50
 ): Promise<PublicGameFeedItem[]> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.getPublicGameFeed(eventId, limit);
   }
 
-  if (!supabase) {
+  if (!supabaseModule.supabase) {
     throw new Error('Supabase client is not configured.');
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseModule.supabase
     .from('public_game_feed')
     .select('*')
     .eq('event_id', eventId)
@@ -320,16 +345,16 @@ export async function getHostBroadcastsDB(
   eventId: string,
   isAdmin: boolean = false
 ): Promise<HostBroadcast[]> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.getHostBroadcasts(eventId, isAdmin);
   }
 
-  if (!supabase) {
+  if (!supabaseModule.supabase) {
     throw new Error('Supabase client is not configured.');
   }
 
   if (isAdmin) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseModule.supabase
       .from('host_broadcasts')
       .select('*')
       .eq('event_id', eventId)
@@ -355,7 +380,7 @@ export async function getHostBroadcastsDB(
   }
 
   // Public Published View — double-sanitized text boundary
-  const { data, error } = await supabase
+  const { data, error } = await supabaseModule.supabase
     .from('public_host_broadcasts')
     .select('*')
     .eq('event_id', eventId)
@@ -381,15 +406,19 @@ export async function getHostBroadcastsDB(
 export async function getSpectatorSystemSettingsDB(
   eventId: string
 ): Promise<SpectatorSystemSettings> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.getSpectatorSystemSettings(eventId);
   }
 
-  if (!supabase) {
-    throw new Error('Supabase client is not configured.');
+  if (!supabaseModule.supabase) {
+    return {
+      eventId,
+      isSpectatorSystemDisabled: false,
+      updatedAt: new Date().toISOString(),
+    };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseModule.supabase
     .from('spectator_system_settings')
     .select('*')
     .eq('event_id', eventId)
@@ -430,16 +459,16 @@ export async function createAudienceEventDB(params: {
   }>;
   createdBy?: string;
 }): Promise<{ event: AudienceEvent; options: AudienceEventOption[] }> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.createAudienceEvent(params);
   }
 
-  if (!supabaseAdmin) {
+  if (!supabaseModule.supabaseAdmin) {
     throw new Error('Supabase Service Role client is required for creating audience events.');
   }
 
   // Check if an active audience event already exists for this game event
-  const { data: activeEvents } = await supabaseAdmin
+  const { data: activeEvents } = await supabaseModule.supabaseAdmin
     .from('audience_events')
     .select('id')
     .eq('event_id', params.eventId)
@@ -452,7 +481,7 @@ export async function createAudienceEventDB(params: {
   const durationMs = (params.durationMinutes || 15) * 60 * 1000;
   const endsAtDate = new Date(now.getTime() + durationMs);
 
-  const { data: eventRow, error: eventError } = await supabaseAdmin
+  const { data: eventRow, error: eventError } = await supabaseModule.supabaseAdmin
     .from('audience_events')
     .insert({
       event_id: params.eventId,
@@ -486,7 +515,7 @@ export async function createAudienceEventDB(params: {
     sort_order: idx + 1,
   }));
 
-  const { data: optionRows, error: optionsError } = await supabaseAdmin
+  const { data: optionRows, error: optionsError } = await supabaseModule.supabaseAdmin
     .from('audience_event_options')
     .insert(optionRowsToInsert)
     .select('*');
@@ -540,16 +569,16 @@ export async function resolveAudienceEventDB(
   overrideReason?: string,
   resolvedBy?: string
 ): Promise<{ success: boolean; winningOption?: AudienceEventOption; effect?: AudienceEffect; error?: string }> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.resolveAudienceEvent(audienceEventId, overrideOptionId, overrideReason, resolvedBy);
   }
 
-  if (!supabaseAdmin) {
+  if (!supabaseModule.supabaseAdmin) {
     return { success: false, error: 'Supabase Service Role configuration missing for resolving audience event.' };
   }
 
   // Fetch event and options
-  const { data: eventRow, error: evtErr } = await supabaseAdmin
+  const { data: eventRow, error: evtErr } = await supabaseModule.supabaseAdmin
     .from('audience_events')
     .select('*')
     .eq('id', audienceEventId)
@@ -559,7 +588,7 @@ export async function resolveAudienceEventDB(
     return { success: false, error: `Event not found in DB: ${evtErr?.message}` };
   }
 
-  const { data: optionRows, error: optErr } = await supabaseAdmin
+  const { data: optionRows, error: optErr } = await supabaseModule.supabaseAdmin
     .from('audience_event_options')
     .select('*')
     .eq('audience_event_id', audienceEventId);
@@ -584,7 +613,7 @@ export async function resolveAudienceEventDB(
   const now = new Date().toISOString();
 
   // Update audience_events
-  const { error: updateErr } = await supabaseAdmin
+  const { error: updateErr } = await supabaseModule.supabaseAdmin
     .from('audience_events')
     .update({
       winning_option_id: winnerRow.id,
@@ -601,7 +630,7 @@ export async function resolveAudienceEventDB(
   }
 
   // Insert audience_effects with full audit & lifecycle context
-  const { data: effectRow, error: effectErr } = await supabaseAdmin
+  const { data: effectRow, error: effectErr } = await supabaseModule.supabaseAdmin
     .from('audience_effects')
     .insert({
       audience_event_id: audienceEventId,
@@ -659,11 +688,11 @@ export async function createHostBroadcastDB(params: {
   priority?: 'low' | 'normal' | 'high' | 'urgent';
   isPublished?: boolean;
 }): Promise<HostBroadcast> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.createHostBroadcast(params);
   }
 
-  if (!supabaseAdmin) {
+  if (!supabaseModule.supabaseAdmin) {
     throw new Error('Supabase Service Role client is required for creating host broadcasts.');
   }
 
@@ -674,7 +703,7 @@ export async function createHostBroadcastDB(params: {
   const cleanHeadline = localEngine.sanitizeTextContent(params.headline);
   const cleanBody = localEngine.sanitizeTextContent(params.body);
 
-  const { data: broadcastRow, error: bErr } = await supabaseAdmin
+  const { data: broadcastRow, error: bErr } = await supabaseModule.supabaseAdmin
     .from('host_broadcasts')
     .insert({
       event_id: params.eventId,
@@ -695,7 +724,7 @@ export async function createHostBroadcastDB(params: {
 
   // If published to public spectators, also insert into public_game_feed
   if (isPublished && ['all', 'spectators'].includes(targetChannel)) {
-    await supabaseAdmin.from('public_game_feed').insert({
+    await supabaseModule.supabaseAdmin.from('public_game_feed').insert({
       event_id: params.eventId,
       feed_type: 'host_broadcast',
       headline: `📢 HOST BROADCAST: ${cleanHeadline}`,
@@ -729,17 +758,17 @@ export async function toggleSpectatorSystemFreezeDB(
   isDisabled: boolean,
   reason?: string
 ): Promise<SpectatorSystemSettings> {
-  if (!isSupabaseConfigured) {
+  if (!supabaseModule.isSupabaseConfigured) {
     return localEngine.toggleSpectatorSystemFreeze(eventId, isDisabled, reason);
   }
 
-  if (!supabaseAdmin) {
+  if (!supabaseModule.supabaseAdmin) {
     throw new Error('Supabase Service Role client is required for setting spectator freeze settings.');
   }
 
   const now = new Date().toISOString();
 
-  const { data: settingsRow, error } = await supabaseAdmin
+  const { data: settingsRow, error } = await supabaseModule.supabaseAdmin
     .from('spectator_system_settings')
     .upsert({
       event_id: eventId,
@@ -765,11 +794,11 @@ export async function toggleSpectatorSystemFreezeDB(
 }
 
 export async function getSpectatorSessionCountDB(eventId: string = 'default-event'): Promise<number> {
-  if (!isSupabaseConfigured || !supabaseAdmin) {
+  if (!supabaseModule.isSupabaseConfigured || !supabaseModule.supabaseAdmin) {
     return localEngine.getSpectatorSessionCount(eventId);
   }
   try {
-    const { count, error } = await supabaseAdmin
+    const { count, error } = await supabaseModule.supabaseAdmin
       .from('spectator_sessions')
       .select('*', { count: 'exact', head: true });
     if (error || count === null) return localEngine.getSpectatorSessionCount(eventId);

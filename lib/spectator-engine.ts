@@ -1,6 +1,8 @@
 // Canton Quests — Spectator Participation Core Engine & Security Boundary (Phase 5.1)
 
 import crypto from 'crypto';
+import * as supabaseModule from './supabase';
+import { SEED_DEMO_PLAYERS } from './seed-data';
 import {
   AudienceEvent,
   PublicAudienceEvent,
@@ -17,6 +19,111 @@ import {
   AudienceEligibilityMode,
   AudienceTargetType,
 } from './types';
+
+export const SPECTATOR_COOKIE_NAME = 'cg_spec_token';
+export const PLAYER_COOKIE_NAME = 'cg_player_token';
+
+export function extractCookieValue(cookieHeader: string | null | undefined, name: string): string | undefined {
+  if (!cookieHeader) return undefined;
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+export async function getServerDerivedAuthenticatedPlayerId(request: Request, bodyPlayerId?: string): Promise<string | undefined> {
+  let cookiePlayerToken: string | undefined;
+  try {
+    const { cookies } = await import('next/headers');
+    try {
+      cookiePlayerToken = cookies().get(PLAYER_COOKIE_NAME)?.value;
+    } catch {
+      // Ignore if cookies() is called outside request scope
+    }
+  } catch {
+    // Fallback if next/headers import is unavailable
+  }
+
+  const rawCookieHeader = request.headers.get('cookie');
+  if (!cookiePlayerToken) {
+    cookiePlayerToken = extractCookieValue(rawCookieHeader, PLAYER_COOKIE_NAME);
+  }
+
+  const authHeader = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  const xPlayerToken = request.headers.get('x-player-token');
+
+  if (supabaseModule.isSupabaseConfigured) {
+    // 1. Check for verified Supabase Auth JWT ONLY from the Authorization bearer header
+    if (authHeader && authHeader.includes('.') && supabaseModule.supabase) {
+      try {
+        const { data: authUser, error: authError } = await supabaseModule.supabase.auth.getUser(authHeader);
+        if (authUser?.user && !authError) {
+          const { data: playerByUserId } = await supabaseModule.supabase
+            .from('players')
+            .select('id')
+            .eq('user_id', authUser.user.id)
+            .maybeSingle();
+          if (playerByUserId?.id) {
+            return playerByUserId.id;
+          }
+        }
+      } catch {
+        // Ignore invalid JWT and continue
+      }
+    }
+
+    // 2. Check for converted spectator session via HTTP-only spectator cookie token (cg_spec_token)
+    const specCookieToken = extractCookieValue(rawCookieHeader, SPECTATOR_COOKIE_NAME);
+    if (specCookieToken && supabaseModule.supabaseAdmin) {
+      try {
+        const sessionTokenHash = createSessionTokenHash(specCookieToken);
+        const { data: sessionRow } = await supabaseModule.supabaseAdmin
+          .from('spectator_sessions')
+          .select('converted_to_player_id')
+          .eq('session_token_hash', sessionTokenHash)
+          .maybeSingle();
+        if (sessionRow?.converted_to_player_id) {
+          return sessionRow.converted_to_player_id;
+        }
+      } catch {
+        // Ignore query error and fall through
+      }
+    }
+
+    // In Supabase mode, raw client-controlled identifiers (x-player-token, body.playerId, cg_player_token,
+    // local plr-* IDs, or arbitrary unverified browser UUIDs) MUST NOT establish authenticated player identity.
+    return undefined;
+  }
+
+  // Local engine fallback (non-Supabase local dev only)
+  const headerToken = authHeader || xPlayerToken;
+  const effectiveToken = headerToken || cookiePlayerToken || bodyPlayerId;
+
+  if (!effectiveToken) {
+    const specCookieToken = extractCookieValue(rawCookieHeader, SPECTATOR_COOKIE_NAME);
+    if (specCookieToken) {
+      const sessionTokenHash = createSessionTokenHash(specCookieToken);
+      const session = spectatorSessionsStore.find((s) => s.sessionTokenHash === sessionTokenHash);
+      if (session?.convertedToPlayerId) {
+        return session.convertedToPlayerId;
+      }
+    }
+    return undefined;
+  }
+
+  if (
+    effectiveToken.startsWith('player-') ||
+    effectiveToken.startsWith('plr-') ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(effectiveToken)
+  ) {
+    return effectiveToken;
+  }
+
+  const demoPlayer = SEED_DEMO_PLAYERS.find((p) => p.id === effectiveToken || p.userId === effectiveToken);
+  if (demoPlayer) {
+    return demoPlayer.id;
+  }
+
+  return undefined;
+}
 
 /**
  * Resolves the server secret salt for spectator token/IP hashing.
@@ -118,7 +225,9 @@ export function convertSpectatorToPlayer(
   playerId: string
 ): SpectatorSession | null {
   const session = spectatorSessionsStore.find((s) => s.sessionTokenHash === sessionTokenHash);
-  if (!session) return null;
+  if (!session) {
+    return null;
+  }
 
   session.convertedToPlayerId = playerId;
   session.lastSeenAt = new Date().toISOString();
@@ -654,6 +763,10 @@ export function resetSpectatorStores(): void {
  * Seeds default demonstration spectator data for in-memory execution when stores are empty.
  */
 export function seedDefaultSpectatorData(eventId: string = 'default-event'): void {
+  // Gate demo spectator seed data in production environment unless explicitly enabled
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_SEED !== 'true') {
+    return;
+  }
   if (audienceEventsStore.some((e) => e.eventId === eventId)) return;
 
   const now = new Date();

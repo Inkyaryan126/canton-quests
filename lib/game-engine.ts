@@ -1034,6 +1034,39 @@ export function getCurrentPlayer(): Player {
   return defaultPlayer;
 }
 
+export function syncCanonicalPlayer(player: Player): void {
+  initializeGameEngine();
+  setStoredItem(STORAGE_KEYS.CURRENT_PLAYER, player);
+
+  const players = getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, SEED_DEMO_PLAYERS);
+  const existingIdx = players.findIndex(
+    (p) => p.id === player.id || p.displayName.toLowerCase() === player.displayName.toLowerCase()
+  );
+
+  if (existingIdx >= 0) {
+    players[existingIdx] = player;
+    setStoredItem(STORAGE_KEYS.PLAYERS, players);
+  } else {
+    setStoredItem(STORAGE_KEYS.PLAYERS, [...players, player]);
+  }
+}
+
+export function completeSpectatorConversion(displayName: string, serverConvertedPlayerId?: string): Player {
+  const player = setCurrentPlayer(displayName, '⚡');
+  if (serverConvertedPlayerId && serverConvertedPlayerId !== player.id) {
+    player.id = serverConvertedPlayerId;
+    syncCanonicalPlayer(player);
+  }
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      localStorage.setItem('canton_player_profile', JSON.stringify(player));
+    } catch {
+      // Ignore storage errors in SSR or restricted environments
+    }
+  }
+  return player;
+}
+
 export function setCurrentPlayer(displayName: string, avatarUrl: string = '⚡'): Player {
   initializeGameEngine();
   const players = getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, SEED_DEMO_PLAYERS);

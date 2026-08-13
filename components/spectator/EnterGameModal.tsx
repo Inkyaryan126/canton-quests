@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { setCurrentPlayer } from '@/lib/game-engine';
+import { setCurrentPlayer, completeSpectatorConversion } from '@/lib/game-engine';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 interface EnterGameModalProps {
   isOpen: boolean;
@@ -64,18 +65,34 @@ export default function EnterGameModal({
     setErrorMsg(null);
 
     try {
-      // 1. Register/retreive player profile via game engine
+      // 1. Initial candidate player profile via game engine
       const player = setCurrentPlayer(trimmed, '⚡');
 
-      // 2. Call server conversion endpoint
+      // 2. Derive token for server conversion (verified Supabase JWT if configured, or local dev token)
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData?.session?.access_token) {
+            headers['Authorization'] = `Bearer ${sessionData.session.access_token}`;
+          }
+        } catch {
+          // ignore
+        }
+      } else {
+        headers['x-player-token'] = player.id;
+      }
+
+      // 3. Call server conversion endpoint
       const res = await fetch('/api/game/spectator', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-player-token': player.id,
-        },
+        headers,
         body: JSON.stringify({
           action: 'convert_to_player',
+          callsign: trimmed,
           playerId: player.id,
         }),
       });
@@ -85,8 +102,10 @@ export default function EnterGameModal({
         throw new Error(data.error || 'Server conversion failed');
       }
 
-      // 3. Store agent identity locally for UI sync
-      localStorage.setItem('canton_player_profile', JSON.stringify(player));
+      // 4. Synchronize canonical game engine state & spectator profile with server-derived DB player ID
+      const finalPlayerId = data.session?.convertedToPlayerId || player.id;
+      completeSpectatorConversion(trimmed, finalPlayerId);
+
       onClose();
       router.push('/');
     } catch (err: any) {
