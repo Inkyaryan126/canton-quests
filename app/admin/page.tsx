@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
+import { GAME_MASTER_DISPLAY_NAME, getGameMasterGreeting } from '@/lib/admin-persona';
 import {
   QuestEvent,
   Quest,
@@ -333,14 +334,14 @@ export default function AdminPage() {
   // Render Passphrase Login Lock Screen if unauthorized
   if (!isAdminAuthenticated) {
     return (
-      <div className="min-h-screen bg-obsidian text-white flex flex-col justify-center items-center p-4 font-mono">
-        <div className="glass-panel p-8 max-w-md w-full border-amber-500/40 glow-amber text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-400 flex items-center justify-center text-3xl mx-auto shadow-lg">
+      <div className="min-h-screen cq-gm-shell text-white flex flex-col justify-center items-center p-4 font-mono">
+        <div className="cq-gm-panel p-8 max-w-md w-full text-center space-y-4">
+          <div className="w-16 h-16 rounded-lg bg-amber-500/15 border border-amber-300/50 flex items-center justify-center text-3xl mx-auto shadow-lg">
             🔐
           </div>
-          <h1 className="text-xl font-bold text-white uppercase">Game Master Authentication</h1>
-          <p className="text-xs text-gray-300">
-            Enter authorized Game Master secret key to access Event Factory and Field Control.
+          <h1 className="text-2xl font-black text-white uppercase">Game Master Authentication</h1>
+          <p className="text-xs text-amber-100/70">
+            Enter the private key to open the Canton command room.
           </p>
 
           <form onSubmit={handleAdminLogin} className="space-y-3 pt-2">
@@ -354,7 +355,7 @@ export default function AdminPage() {
             />
             {authError && <div className="text-red-400 text-xs font-bold">{authError}</div>}
             <button type="submit" className="btn btn-primary w-full py-2.5 text-xs font-bold">
-              🔓 UNLOCK CONTROL ROOM
+              Unlock Control Room
             </button>
           </form>
         </div>
@@ -368,16 +369,16 @@ export default function AdminPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col font-mono text-xs">
+    <div className="min-h-screen cq-gm-shell text-[var(--text-primary)] flex flex-col font-mono text-xs">
       <Header />
 
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 space-y-6">
         {/* Game Master Control Room Banner */}
-        <div className="glass-panel p-5 md:p-6 border-amber-500/40 glow-amber relative space-y-3">
+        <div className="cq-gm-panel p-5 md:p-7 relative space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-3">
             <div className="flex items-center gap-2">
-              <span className="badge badge-medium bg-amber-500/20 text-amber-300 border-amber-500/40 font-mono">
-                👑 EVENT FACTORY & QUEST STUDIO
+              <span className="badge badge-medium bg-amber-500/15 text-amber-200 border-amber-400/40 font-mono">
+                Game Master Command Center
               </span>
               {selectedEvent && (
                 <span className="text-xs text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-800/40 font-bold uppercase">
@@ -389,15 +390,21 @@ export default function AdminPage() {
             <div className="flex items-center gap-2">
               <Link
                 href="/admin/drawing"
-                className="bg-amber-950/80 hover:bg-amber-900 text-amber-200 px-3 py-1.5 rounded-xl border border-amber-700 font-bold flex items-center gap-1.5"
+                className="cq-gm-mini-button"
               >
-                🎁 Prize Drawings
+                Prize Drawing
+              </Link>
+              <Link
+                href="/admin/qr-campaigns"
+                className="cq-gm-mini-button"
+              >
+                QR Campaigns
               </Link>
               <Link
                 href="/admin/live"
-                className="bg-red-950/80 hover:bg-red-900 text-red-200 px-3 py-1.5 rounded-xl border border-red-700 font-bold flex items-center gap-1.5"
+                className="cq-gm-mini-button border-red-500/50 text-red-200"
               >
-                ⚡ Live Director Room
+                Live Control
               </Link>
               {selectedEvent && (
                 <Link
@@ -408,6 +415,24 @@ export default function AdminPage() {
                   👁️ View Player Page
                 </Link>
               )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.32em] text-amber-300/70">Good standing confirmed</p>
+              <h1 className="text-3xl md:text-5xl font-black text-white">{GAME_MASTER_DISPLAY_NAME}</h1>
+              <p className="mt-2 max-w-2xl text-sm md:text-base text-stone-300">{getGameMasterGreeting()}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 min-w-[260px]">
+              <Link href="/admin/live" className="cq-gm-stat">
+                <span>Live Event Control</span>
+                <strong>↗</strong>
+              </Link>
+              <button onClick={() => setActiveTab('submissions')} className="cq-gm-stat text-left">
+                <span>Submission Review</span>
+                <strong>{submissions.filter((s) => s.status === 'pending').length}</strong>
+              </button>
             </div>
           </div>
 
@@ -450,6 +475,21 @@ export default function AdminPage() {
             )}
           </div>
         </div>
+
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Link href="/admin/live" className="cq-gm-panel p-4">
+            <h2 className="cq-gm-heading">Spectator / Watch Controls</h2>
+            <p className="mt-2 text-stone-400">Audience votes, host broadcasts, freezes, and live field effects.</p>
+          </Link>
+          <Link href="/admin/drawing" className="cq-gm-panel p-4">
+            <h2 className="cq-gm-heading">Prize Drawing</h2>
+            <p className="mt-2 text-stone-400">Lock ledgers, execute transparent draws, and publish winners.</p>
+          </Link>
+          <Link href="/admin/qr-campaigns" className="cq-gm-panel p-4">
+            <h2 className="cq-gm-heading">QR Campaigns</h2>
+            <p className="mt-2 text-stone-400">Generate flyer and distributor attribution for field promotion.</p>
+          </Link>
+        </section>
 
         {/* NAVIGATION TABS */}
         <div className="flex border-b border-[var(--border-subtle)] font-bold overflow-x-auto scrollbar-none">

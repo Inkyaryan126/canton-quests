@@ -145,6 +145,152 @@ code, pre, .font-mono {
   background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
 }
 
+.cq-gm-shell {
+  background:
+    linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0 1px, transparent 1px 80px),
+    radial-gradient(circle at 50% -10%, rgba(212, 175, 55, 0.15), transparent 34rem),
+    linear-gradient(180deg, #050607 0%, #11100d 48%, #050607 100%);
+}
+
+.cq-gm-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(212, 175, 55, 0.24);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(20, 18, 14, 0.92), rgba(8, 9, 10, 0.92));
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 246, 204, 0.08);
+}
+
+.cq-gm-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 0 18px, rgba(212, 175, 55, 0.16) 18px 19px, transparent 19px calc(100% - 19px), rgba(212, 175, 55, 0.16) calc(100% - 19px) calc(100% - 18px), transparent calc(100% - 18px)),
+    linear-gradient(0deg, transparent 0 18px, rgba(212, 175, 55, 0.12) 18px 19px, transparent 19px calc(100% - 19px), rgba(212, 175, 55, 0.12) calc(100% - 19px) calc(100% - 18px), transparent calc(100% - 18px));
+}
+
+.cq-gm-heading {
+  color: #fff8df;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.cq-gm-label {
+  display: block;
+  color: rgba(245, 239, 225, 0.62);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.cq-gm-input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff8df;
+  padding: 0.78rem 0.9rem;
+  font-family: var(--font-body);
+}
+
+.cq-gm-input:focus {
+  outline: none;
+  border-color: rgba(251, 191, 36, 0.75);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.16);
+}
+
+.cq-gm-button,
+.cq-gm-mini-button {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 6px;
+  background: rgba(212, 175, 55, 0.1);
+  color: #ffe9a8;
+  padding: 0.72rem 0.9rem;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.cq-gm-button:hover,
+.cq-gm-mini-button:hover {
+  background: rgba(212, 175, 55, 0.18);
+}
+
+.cq-gm-mini-button {
+  min-height: 38px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.72rem;
+}
+
+.cq-gm-check {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid rgba(212, 175, 55, 0.16);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  padding: 0.7rem 0.8rem;
+  color: #f5efe1;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.cq-gm-stat {
+  border: 1px solid rgba(212, 175, 55, 0.24);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.52);
+  padding: 1rem;
+}
+
+.cq-gm-stat span {
+  display: block;
+  color: rgba(245, 239, 225, 0.58);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.cq-gm-stat strong {
+  display: block;
+  color: #fbbf24;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+@media print {
+  .cq-gm-shell {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .cq-gm-panel,
+  .cq-gm-stat {
+    break-inside: avoid;
+    background: #fff !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+    color: #000 !important;
+  }
+
+  .cq-gm-panel::before {
+    display: none;
+  }
+}
+
 /* Inputs & Form Elements */
 .input-field {
   width: 100%;

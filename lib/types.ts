@@ -181,6 +181,100 @@ export interface GeneratedQR {
   createdAt: string;
 }
 
+export type CampaignEntityStatus = 'active' | 'inactive';
+
+export interface QrCampaign {
+  id: string;
+  name: string;
+  slug: string;
+  destinationUrl: string;
+  description?: string;
+  notes?: string;
+  status: CampaignEntityStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CampaignFlyerVariant {
+  id: string;
+  campaignId: string;
+  name: string;
+  description?: string;
+  notes?: string;
+  status: CampaignEntityStatus;
+  createdAt: string;
+}
+
+export interface CampaignDistributor {
+  id: string;
+  campaignId: string;
+  name: string;
+  notes?: string;
+  status: CampaignEntityStatus;
+  createdAt: string;
+}
+
+export interface CampaignQrCode {
+  id: string;
+  campaignId: string;
+  flyerVariantId: string;
+  distributorId: string;
+  internalName: string;
+  destinationUrl: string;
+  trackingSlug: string;
+  trackingUrl: string;
+  status: CampaignEntityStatus;
+  createdAt: string;
+}
+
+export interface CampaignVisit {
+  id: string;
+  campaignId: string;
+  flyerVariantId: string;
+  distributorId: string;
+  qrCodeId: string;
+  destinationUrl: string;
+  anonymousVisitorId: string;
+  referrer?: string;
+  userAgentClass?: string;
+  createdAt: string;
+}
+
+export interface CampaignBundle {
+  campaigns: QrCampaign[];
+  flyerVariants: CampaignFlyerVariant[];
+  distributors: CampaignDistributor[];
+  qrCodes: CampaignQrCode[];
+  visits: CampaignVisit[];
+}
+
+export interface CampaignAnalyticsRow {
+  id: string;
+  label: string;
+  visits: number;
+  uniqueVisitors: number;
+}
+
+export interface CampaignCombinationAnalyticsRow {
+  qrCodeId: string;
+  flyerVariantId: string;
+  distributorId: string;
+  label: string;
+  trackingSlug: string;
+  visits: number;
+  uniqueVisitors: number;
+}
+
+export interface CampaignAnalytics {
+  campaignId: string;
+  totalVisits: number;
+  uniqueVisitors: number;
+  activeQrCodes: number;
+  flyerPerformance: CampaignAnalyticsRow[];
+  distributorPerformance: CampaignAnalyticsRow[];
+  combinationPerformance: CampaignCombinationAnalyticsRow[];
+}
+
 export interface QuestStep {
   id: string;
   questId: string;
