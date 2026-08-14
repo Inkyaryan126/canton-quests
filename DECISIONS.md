@@ -220,3 +220,26 @@ Each entry follows the standard ADR structure:
 - **Alternatives Evaluated**: Selecting winners on live un-frozen entry pools; relying on client-side random number generators; exposing internal player UUIDs on public winner pages; allowing silent draw result deletion.
 - **Consequences**: Drawing entry pools are frozen with real SHA-256 hashes prior to drawing. Public drawing pages present auditable proof and privacy-safe winner labels. Game Master operations require authorization. Multiple prizes honor weighted units and 1-prize-per-player equity.
 - **Status**: **ACCEPTED**
+
+---
+
+## ADR-018: High-Resolution Deterministic Promotional Flyer Generation & Automated Compositing Pipeline
+- **Date**: 2026-08-13
+- **Decision**:
+  1. Add a dedicated, deterministic promotional flyer generation pipeline (`lib/qr-flyer-generator.ts`) integrated into the QR campaign CLI (`scripts/qr-campaign-cli.ts`).
+  2. Implement strict category-to-master routing (`Family` -> `Family_Flyer_Master`, `Challenge` -> `Challenge_Flyer_Master`, `Secret` -> `Secret_Flyer_Master`).
+  3. Define deterministic pixel coordinates and dimensions for the white placement boxes across all 3 master flyers (`Challenge`: 500x728 with box at left=313, top=504, width=155, height=143, qrSize=138; `Family`: 500x729 with box at left=343, top=514, width=127, height=129, qrSize=121; `Secret`: 500x729 with box at left=305, top=484, width=138, height=138, qrSize=132).
+  4. Generate high-error-correction ('H') black-on-white QR codes using real canonical URLs (`https://www.divinedesigndestinations.com/go/<slug>`) without decorative distortions.
+  5. Composite QR codes directly into master artwork using `sharp`, preserving original master artwork resolution without stretching.
+  6. Generate deterministic, collision-resistant filenames (`01-family-dustin.png`, `02-challenge-steve.png`, etc.) and a standardized `manifest.csv` containing complete assignment metadata.
+  7. Fail closed immediately with descriptive errors if any master image is missing, if a flyer type is unknown, or if any tracking URL is missing.
+- **Reason**:
+  - Street team marketing requires physical flyers with individual attribution tracking for distributors. Manual flyer production is slow, error-prone, and risks misaligned or distorted QR codes.
+  - Fail-closed validation prevents accidental distribution of broken or misattributed marketing materials.
+- **Alternatives Evaluated**:
+  - Manual graphic design adjustments in Figma/Photoshop (unscalable, non-deterministic).
+  - Client-side browser canvas rendering (unsuitable for headless CLI workflows and script automation).
+- **Consequences**:
+  - CLI command `npm run qr:campaign -- flyers --campaign "<name>" --masters "<path>" --output "<path>"` consumes authoritative active QR assignments and outputs finished, print-ready composite PNGs and `manifest.csv`.
+- **Status**: **ACCEPTED**
+
