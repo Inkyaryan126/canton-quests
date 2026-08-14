@@ -3,11 +3,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Filter, MapPin, Radar, Search, Zap } from 'lucide-react';
+import {
+  ArrowRight,
+  Compass,
+  Filter,
+  KeyRound,
+  MapPin,
+  Radar,
+  Search,
+  Sparkles,
+  Trophy,
+  Zap,
+} from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
-import { PublicQuestView, QuestCategory, QuestEvent } from '@/lib/types';
+import PlayerIdentityBar from '@/components/PlayerIdentityBar';
+import { Player, PublicQuestView, QuestCategory, QuestEvent, StartingPath } from '@/lib/types';
 import {
   cleanQuestTitle,
   cqImages,
@@ -20,23 +32,46 @@ import {
 } from '@/lib/marketing-assets';
 
 type QuestFilter = 'all' | 'flash' | 'secret' | QuestCategory;
+type PathFilter = 'all' | StartingPath;
 
-const filters: { label: string; value: QuestFilter }[] = [
-  { label: 'All', value: 'all' },
+const categoryFilters: { label: string; value: QuestFilter }[] = [
+  { label: 'All Types', value: 'all' },
   { label: 'Landmarks', value: 'exploration' },
-  { label: 'Puzzles', value: 'puzzle' },
-  { label: 'Arts', value: 'creative' },
+  { label: 'Puzzles & Ciphers', value: 'puzzle' },
+  { label: 'Arts & Media', value: 'creative' },
   { label: 'Partner Stops', value: 'business_partner' },
   { label: 'Flash Drops', value: 'flash' },
   { label: 'Hidden', value: 'secret' },
 ];
 
+const pathFilters: { label: string; value: PathFilter; icon: any; color: string; desc: string }[] = [
+  { label: 'All City Quests', value: 'all', icon: Sparkles, color: '#f59e0b', desc: 'Complete citywide mission grid' },
+  { label: 'Family District', value: 'family', icon: Compass, color: '#f59e0b', desc: 'Downtown Arts & Centennial Plaza' },
+  { label: 'Challenge District', value: 'challenge', icon: Zap, color: '#ef4444', desc: '9th St Skate Park & Athletic Corridor' },
+  { label: 'Secret District', value: 'secret', icon: KeyRound, color: '#a855f7', desc: 'West Lawn & Memorial Cipher Corridor' },
+];
+
 export default function QuestsPage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
   const [quests, setQuests] = useState<PublicQuestView[]>([]);
-  const [activeFilter, setActiveFilter] = useState<QuestFilter>('all');
+  const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<QuestFilter>('all');
+  const [activePathFilter, setActivePathFilter] = useState<PathFilter>('all');
 
   useEffect(() => {
+    const headers: Record<string, string> = {};
+    const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
+    if (authToken) {
+      headers['authorization'] = `Bearer ${authToken}`;
+    }
+
+    fetch('/api/auth/me', { headers })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.player) setCurrentPlayer(data.player);
+      })
+      .catch(() => {});
+
     fetch('/api/game/events')
       .then((res) => res.json())
       .then((data: { events?: QuestEvent[] }) => {
@@ -59,13 +94,26 @@ export default function QuestsPage() {
     return quests
       .filter((quest) => quest.status === 'active')
       .filter((quest) => {
-        if (activeFilter === 'all') return true;
-        if (activeFilter === 'flash') return quest.isFlash;
-        if (activeFilter === 'secret') return !!quest.isSecret;
-        return quest.category === activeFilter;
+        // 1. Path filter
+        if (activePathFilter !== 'all') {
+          if (quest.startingPath !== activePathFilter) return false;
+        }
+        // 2. Category filter
+        if (activeCategoryFilter === 'all') return true;
+        if (activeCategoryFilter === 'flash') return quest.isFlash;
+        if (activeCategoryFilter === 'secret') return !!quest.isSecret;
+        return quest.category === activeCategoryFilter;
       })
-      .sort((a, b) => b.pointValue - a.pointValue);
-  }, [activeFilter, quests]);
+      .sort((a, b) => {
+        // Prioritize quests on player's chosen starting path
+        if (currentPlayer?.selectedStartingPath) {
+          const aMatch = a.startingPath === currentPlayer.selectedStartingPath ? 1 : 0;
+          const bMatch = b.startingPath === currentPlayer.selectedStartingPath ? 1 : 0;
+          if (bMatch !== aMatch) return bMatch - aMatch;
+        }
+        return b.pointValue - a.pointValue;
+      });
+  }, [activeCategoryFilter, activePathFilter, quests, currentPlayer]);
 
   const topQuest = filteredQuests[0] || quests[0];
 
@@ -76,18 +124,19 @@ export default function QuestsPage() {
       <main className="cq-page-main">
         <section className="cq-page-hero cq-page-hero-split">
           <div>
-            <span className="cq-kicker">QUEST DISCOVERY</span>
-            <h1>PICK A QUEST.</h1>
+            <span className="cq-kicker">CANTON MISSION GRID</span>
+            <h1>LIVE QUEST BOARD</h1>
             <p>
-              Choose one mission, go to the location, complete the proof, and earn XP.
+              Explore real Canton landmarks. Solve clues, verify check-ins, record video celebrations,
+              and earn XP on the official city leaderboard.
             </p>
             <div className="cq-page-actions">
               <Link href={eventHref} className="cq-gold-button">
-                START QUEST
+                START PLAYING
                 <ArrowRight size={17} aria-hidden="true" />
               </Link>
-              <Link href="/how-it-works" className="cq-dark-button">
-                HOW IT WORKS
+              <Link href="/profile" className="cq-dark-button">
+                MY PROFILE & ACHIEVEMENTS
               </Link>
             </div>
           </div>
@@ -96,11 +145,37 @@ export default function QuestsPage() {
           </div>
         </section>
 
+        {/* Identity & Starting Path Bar */}
+        <section className="max-w-6xl mx-auto px-4 mb-4">
+          <PlayerIdentityBar onPlayerChanged={setCurrentPlayer} />
+        </section>
+
+        {/* Path Guidance Alert */}
+        <section className="max-w-6xl mx-auto px-4 mb-6">
+          <div className="p-4 rounded-2xl bg-stone-900/80 border border-stone-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <Sparkles size={18} className="text-amber-400 shrink-0" />
+              <div>
+                <strong className="text-white block font-mono">Three Starting Districts • Open City Grid</strong>
+                <span className="text-stone-300 font-body">
+                  Your starting path guides where to begin, but never restricts you. You can solve any quest in any order across Canton!
+                </span>
+              </div>
+            </div>
+            <Link
+              href="/start/family"
+              className="text-amber-400 hover:text-amber-300 font-mono underline underline-offset-2 shrink-0"
+            >
+              Explore Starting Paths →
+            </Link>
+          </div>
+        </section>
+
         {topQuest && (
           <section className="cq-feature-panel">
             <Image src={getQuestImage(topQuest, 0)} alt={`${cleanQuestTitle(topQuest.title)} featured quest`} fill sizes="100vw" />
             <div>
-              <span className="cq-kicker">BEST FIRST PICK</span>
+              <span className="cq-kicker">FEATURED MISSION</span>
               <h2>{cleanQuestTitle(topQuest.title)}</h2>
               <p>{topQuest.description}</p>
               <Link href={`${eventHref}/quests/${topQuest.id}`} className="cq-gold-button">
@@ -112,10 +187,43 @@ export default function QuestsPage() {
         )}
 
         <section className="cq-page-section">
+          {/* Starting District Filter Tabs */}
+          <div className="mb-6">
+            <div className="text-xs font-mono font-bold text-stone-400 uppercase tracking-wider mb-2">
+              Filter By District / Starting Path:
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {pathFilters.map((p) => {
+                const Icon = p.icon;
+                const isActive = activePathFilter === p.value;
+                return (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => setActivePathFilter(p.value)}
+                    className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+                      isActive
+                        ? 'bg-stone-900 border-2 font-bold shadow-lg scale-[1.02]'
+                        : 'bg-stone-950/60 border-stone-800 hover:border-stone-700 text-stone-400'
+                    }`}
+                    style={{ borderColor: isActive ? p.color : undefined }}
+                  >
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="text-xs font-mono text-white font-bold">{p.label}</span>
+                      <Icon size={14} style={{ color: p.color }} />
+                    </div>
+                    <span className="text-[10px] text-stone-400 font-body truncate">{p.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mission Type Category Filters */}
           <div className="cq-section-heading">
             <div>
-              <span className="cq-kicker">AVAILABLE NOW</span>
-              <h2>MISSION BOARD</h2>
+              <span className="cq-kicker">MISSION BOARD</span>
+              <h2>ALL ACTIVE MISSIONS</h2>
             </div>
             <div className="cq-filter-label">
               <Filter size={16} aria-hidden="true" />
@@ -123,13 +231,13 @@ export default function QuestsPage() {
             </div>
           </div>
 
-          <div className="cq-filter-row" aria-label="Quest filters">
-            {filters.map((filter) => (
+          <div className="cq-filter-row" aria-label="Quest categories">
+            {categoryFilters.map((filter) => (
               <button
                 key={filter.value}
                 type="button"
-                onClick={() => setActiveFilter(filter.value)}
-                className={activeFilter === filter.value ? 'is-active' : ''}
+                onClick={() => setActiveCategoryFilter(filter.value)}
+                className={activeCategoryFilter === filter.value ? 'is-active' : ''}
               >
                 {filter.label}
               </button>
@@ -139,6 +247,7 @@ export default function QuestsPage() {
           <div className="cq-quest-grid cq-quest-grid-large">
             {filteredQuests.map((quest, index) => {
               const rarity = getQuestRarity(quest);
+              const isRecommended = quest.startingPath && quest.startingPath === currentPlayer?.selectedStartingPath;
 
               return (
                 <Link href={`${eventHref}/quests/${quest.id}`} className="cq-quest-card" key={quest.id}>
@@ -150,6 +259,11 @@ export default function QuestsPage() {
                       sizes="(max-width: 760px) 100vw, 33vw"
                     />
                     <span className={`cq-rarity ${rarityClassName[rarity] || ''}`}>{rarity}</span>
+                    {isRecommended && (
+                      <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-amber-500 text-black font-mono font-extrabold text-[10px] uppercase tracking-wider shadow-lg">
+                        ★ Recommended For You
+                      </span>
+                    )}
                   </div>
                   <div className="cq-quest-body">
                     <div className="cq-quest-meta">
@@ -178,8 +292,8 @@ export default function QuestsPage() {
           {filteredQuests.length === 0 && (
             <div className="cq-empty-state">
               <Search size={24} aria-hidden="true" />
-              <h3>No missions in this filter.</h3>
-              <p>Switch categories to see the rest of the mission board.</p>
+              <h3>No missions matching this district & type filter.</h3>
+              <p>Switch district tabs or categories above to explore the rest of Canton.</p>
             </div>
           )}
         </section>

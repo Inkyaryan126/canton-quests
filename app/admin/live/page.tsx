@@ -13,7 +13,6 @@ import {
   CrowdObjective,
   BonusWindow,
   LeaderboardEntry,
-  TeamLeaderboardEntry,
   EventActivityItem,
   Player,
   AudienceEvent,
@@ -34,7 +33,6 @@ import {
   getQuestsForEvent,
   getAllSubmissions,
   getLeaderboardForEvent,
-  getTeamLeaderboardForEvent,
   setEventPhase,
   toggleEventPause,
   createAnnouncement,
@@ -65,7 +63,6 @@ export default function LiveDirectorDashboard() {
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [teamLeaderboard, setTeamLeaderboard] = useState<TeamLeaderboardEntry[]>([]);
   const [announcements, setAnnouncements] = useState<LiveAnnouncement[]>([]);
   const [npcs, setNpcs] = useState<NPCCharacter[]>([]);
   const [crowdObjectives, setCrowdObjectives] = useState<CrowdObjective[]>([]);
@@ -204,7 +201,6 @@ export default function LiveDirectorDashboard() {
       setEvent(null);
       setQuests([]);
       setLeaderboard([]);
-      setTeamLeaderboard([]);
       setAnnouncements([]);
       setNpcs([]);
       setCrowdObjectives([]);
@@ -220,7 +216,6 @@ export default function LiveDirectorDashboard() {
     if (activeEvt) {
       setQuests(getQuestsForEvent(activeEvt.id));
       setLeaderboard(getLeaderboardForEvent(activeEvt.id));
-      setTeamLeaderboard(getTeamLeaderboardForEvent(activeEvt.id));
       setAnnouncements(getAnnouncements(activeEvt.id));
       setNpcs(getNPCCharacters(activeEvt.id));
       setCrowdObjectives(getCrowdObjectives(activeEvt.id));
@@ -892,9 +887,9 @@ export default function LiveDirectorDashboard() {
             </div>
 
             <div className="bg-obsidian/80 p-3 rounded-xl border border-gray-800 text-center">
-              <span className="text-[10px] text-gray-400 block uppercase">Top Squad</span>
+              <span className="text-[10px] text-gray-400 block uppercase">Ranked Agents</span>
               <span className="text-cyan-400 font-extrabold text-sm truncate block">
-                {teamLeaderboard[0]?.teamName || 'None'}
+                {leaderboard.length} on Board
               </span>
             </div>
 
@@ -2211,7 +2206,7 @@ export default function LiveDirectorDashboard() {
                 <textarea
                   value={annMessage}
                   onChange={(e) => setAnnMessage(e.target.value)}
-                  placeholder="e.g. First 5 teams to Centennial Plaza earn bonus +200 XP!"
+                  placeholder="e.g. First 5 agents to Centennial Plaza earn bonus +200 XP!"
                   className="input-field text-xs h-20"
                   required
                 />

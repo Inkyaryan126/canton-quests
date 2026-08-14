@@ -13,15 +13,17 @@ import {
   PlayerEventProgress,
   SubmitProofParams,
   SubmitProofResult,
-  Team,
-  TeamMember,
-  TeamLeaderboardEntry,
   EventActivityItem,
   EventPhaseType,
   LiveAnnouncement,
   SecretCode,
   Collectible,
   PlayerCollectible,
+  Achievement,
+  PlayerAchievement,
+  StartingPath,
+  QuestPath,
+  DistrictContentSummary,
   NPCCharacter,
   BusinessPartnerInfo,
   CrowdObjective,
@@ -49,9 +51,8 @@ import {
   SEED_EVENT,
   SEED_QUESTS,
   SEED_DEMO_PLAYERS,
-  SEED_TEAMS,
-  SEED_TEAM_MEMBERS,
   SEED_COLLECTIBLES,
+  SEED_ACHIEVEMENTS,
   SEED_SECRET_CODES,
   SEED_ANNOUNCEMENTS,
   SEED_NPCS,
@@ -61,6 +62,12 @@ import {
   SEED_PRIZES,
 } from './seed-data';
 import * as localEngine from './game-engine';
+import {
+  resolveAuthenticatedPlayerId as resolveAuthPlayerIdHelper,
+  resolveAuthenticatedPlayer as resolveAuthPlayerHelper,
+  resolveAuthenticatedSupabaseUser,
+  sanitizePlayerForPublic,
+} from './supabase-auth';
 
 const DRAWABLE_LEDGER_STATUSES: DrawingStatus[] = ['locked', 'drawn'];
 const PUBLISHABLE_LEDGER_STATUSES: DrawingStatus[] = ['drawn'];
@@ -197,6 +204,32 @@ export function mapQuestFromDB(row: any): Quest {
     hints: row.hints,
     riskReward: row.risk_reward,
     requiredCollectibleId: row.required_collectible_id,
+    startingPath: (row.starting_path as QuestPath) || 'family',
+  };
+}
+
+export function mapPlayerFromDB(row: any): Player {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_url || '⚡',
+    role: row.role || 'player',
+    totalXp: row.total_xp || 0,
+    level: row.level || 1,
+    selectedStartingPath: (row.selected_starting_path as StartingPath) || 'family',
+    acquisitionSource: row.acquisition_source || 'main_site',
+    bio: row.bio,
+    tagline: row.tagline,
+    hometown: row.hometown,
+    themeColor: row.theme_color,
+    favoriteStyle: row.favorite_style,
+    selectedFlair: row.selected_flair,
+    showcaseBadges: row.showcase_badges,
+    isMinor: row.is_minor,
+    email: row.email,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -223,38 +256,11 @@ function mapEventFromDB(row: any): QuestEvent {
   };
 }
 
-function mapPlayerFromDB(row: any): Player {
-  return {
-    id: row.id,
-    userId: row.user_id,
-    displayName: row.display_name,
-    avatarUrl: row.avatar_url,
-    role: row.role,
-    totalXp: row.total_xp,
-    level: row.level,
-    createdAt: row.created_at,
-  };
-}
-
-function mapTeamFromDB(row: any): Team {
-  return {
-    id: row.id,
-    eventId: row.event_id,
-    name: row.name,
-    joinCode: row.join_code,
-    captainId: row.captain_id,
-    avatarSymbol: row.avatar_symbol,
-    totalPoints: row.total_points || 0,
-    createdAt: row.created_at,
-  };
-}
-
 function mapSubmissionFromDB(row: any): QuestSubmission {
   return {
     id: row.id,
     questId: row.quest_id,
     playerId: row.player_id,
-    teamId: row.team_id,
     eventId: row.event_id,
     proofType: row.proof_type,
     submittedContent: row.submitted_content,
@@ -297,27 +303,7 @@ function failedSubmissionResult(params: SubmitProofParams, message: string): Sub
 }
 
 async function resolveAuthenticatedPlayerId(authToken?: string): Promise<string> {
-  if (!supabase || !authToken) {
-    throw new Error('Authenticated player session is required.');
-  }
-
-  const { data: userData, error: userError } = await supabase.auth.getUser(authToken);
-  if (userError || !userData.user) {
-    throw new Error('Authenticated player session is invalid.');
-  }
-
-  const db = supabaseAdmin || supabase;
-  const { data: player, error: playerError } = await db
-    .from('players')
-    .select('id')
-    .eq('user_id', userData.user.id)
-    .single();
-
-  if (playerError || !player) {
-    throw new Error('Authenticated user is not linked to a Canton Quests player.');
-  }
-
-  return player.id;
+  return resolveAuthPlayerIdHelper(authToken);
 }
 
 function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -641,6 +627,162 @@ export async function getCollectiblesForPlayerDB(playerId: string): Promise<Play
   return localEngine.getCollectiblesForPlayer(playerId);
 }
 
+// 5b. ACHIEVEMENTS DB
+export async function getAchievementsDB(): Promise<Achievement[]> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getAchievements();
+  const { data, error } = await supabase.from('achievements').select('*');
+  if (error || !data || data.length === 0) return localEngine.getAchievements();
+  return data.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    badgeSymbol: row.badge_symbol,
+    category: row.category,
+    rarity: row.rarity,
+    district: row.district,
+  }));
+}
+
+export async function getAchievementsForPlayerDB(playerId: string): Promise<PlayerAchievement[]> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getAchievementsForPlayer(playerId);
+  const db = supabaseAdmin || supabase;
+  const { data, error } = await db
+    .from('player_achievements')
+    .select('*, achievements(*)')
+    .eq('player_id', playerId)
+    .order('earned_at', { ascending: false });
+  if (error || !data || data.length === 0) return localEngine.getAchievementsForPlayer(playerId);
+  return data.map((row) => ({
+    id: row.id,
+    playerId: row.player_id,
+    achievementId: row.achievement_id,
+    achievementSlug: row.achievement_slug,
+    eventId: row.event_id,
+    earnedAt: row.earned_at,
+    provenance: row.provenance,
+    achievement: row.achievements
+      ? {
+          id: row.achievements.id,
+          slug: row.achievements.slug,
+          name: row.achievements.name,
+          description: row.achievements.description,
+          badgeSymbol: row.achievements.badge_symbol,
+          category: row.achievements.category,
+          rarity: row.achievements.rarity,
+          district: row.achievements.district,
+        }
+      : undefined,
+  }));
+}
+
+export async function awardAchievementDB(
+  playerId: string,
+  achievementSlug: string,
+  eventId?: string,
+  provenance?: string
+): Promise<PlayerAchievement | undefined> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.awardAchievement(playerId, achievementSlug, eventId, provenance);
+  }
+  const { data: achievement } = await supabaseAdmin
+    .from('achievements')
+    .select('*')
+    .eq('slug', achievementSlug)
+    .maybeSingle();
+
+  if (!achievement) return localEngine.awardAchievement(playerId, achievementSlug, eventId, provenance);
+
+  const { data: existing } = await supabaseAdmin
+    .from('player_achievements')
+    .select('*')
+    .eq('player_id', playerId)
+    .eq('achievement_slug', achievementSlug)
+    .maybeSingle();
+
+  if (existing) {
+    return {
+      id: existing.id,
+      playerId: existing.player_id,
+      achievementId: existing.achievement_id,
+      achievementSlug: existing.achievement_slug,
+      eventId: existing.event_id,
+      earnedAt: existing.earned_at,
+      provenance: existing.provenance,
+      achievement: {
+        id: achievement.id,
+        slug: achievement.slug,
+        name: achievement.name,
+        description: achievement.description,
+        badgeSymbol: achievement.badge_symbol,
+        category: achievement.category,
+        rarity: achievement.rarity,
+        district: achievement.district,
+      },
+    };
+  }
+
+  const { data: inserted } = await supabaseAdmin
+    .from('player_achievements')
+    .insert({
+      player_id: playerId,
+      achievement_id: achievement.id,
+      achievement_slug: achievement.slug,
+      event_id: eventId,
+      provenance: provenance || 'Server verified accomplishment',
+    })
+    .select()
+    .single();
+
+  if (!inserted) return localEngine.awardAchievement(playerId, achievementSlug, eventId, provenance);
+
+  return {
+    id: inserted.id,
+    playerId: inserted.player_id,
+    achievementId: inserted.achievement_id,
+    achievementSlug: inserted.achievement_slug,
+    eventId: inserted.event_id,
+    earnedAt: inserted.earned_at,
+    provenance: inserted.provenance,
+    achievement: {
+      id: achievement.id,
+      slug: achievement.slug,
+      name: achievement.name,
+      description: achievement.description,
+      badgeSymbol: achievement.badge_symbol,
+      category: achievement.category,
+      rarity: achievement.rarity,
+      district: achievement.district,
+    },
+  };
+}
+
+export async function awardDay1XpLeaderBonusDB(eventId: string, isRehearsal: boolean = false) {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.awardDay1XpLeaderBonus(eventId, isRehearsal);
+  }
+  return localEngine.awardDay1XpLeaderBonus(eventId, isRehearsal);
+}
+
+export async function getDistrictContentSummaryDB(
+  eventId: string,
+  district: StartingPath
+): Promise<DistrictContentSummary> {
+  if (!isSupabaseConfigured || !supabase) {
+    return localEngine.getDistrictContentSummary(eventId, district);
+  }
+  return localEngine.getDistrictContentSummary(eventId, district);
+}
+
+export async function getAllDistrictsContentSummaryDB(
+  eventId: string
+): Promise<Record<StartingPath, DistrictContentSummary>> {
+  if (!isSupabaseConfigured || !supabase) {
+    return localEngine.getAllDistrictsContentSummary(eventId);
+  }
+  return localEngine.getAllDistrictsContentSummary(eventId);
+}
+
 // 6. QUESTS & LOCATIONS API
 export async function getQuestsForEventDB(eventId: string): Promise<Quest[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getQuestsForEvent(eventId);
@@ -675,26 +817,147 @@ export async function createLocationDB(locData: Omit<LocationInfo, 'id'>): Promi
   return localEngine.createLocation(locData);
 }
 
-// 7. PLAYERS & TEAMS DB
-export async function upsertPlayerDB(displayName: string, avatarUrl: string = '⚡'): Promise<Player> {
-  if (!isSupabaseConfigured || !supabase) return localEngine.setCurrentPlayer(displayName, avatarUrl);
-  return localEngine.setCurrentPlayer(displayName, avatarUrl);
+// 7. PLAYERS DB & PROFILE
+export async function getPlayerByIdDB(playerId: string): Promise<Player | undefined> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getPlayerById(playerId);
+  const db = supabaseAdmin || supabase;
+  const { data, error } = await db.from('players').select('*').eq('id', playerId).maybeSingle();
+  if (error || !data) return localEngine.getPlayerById(playerId);
+  return mapPlayerFromDB(data);
 }
 
-export async function createTeamDB(eventId: string, name: string, captainId: string, avatarSymbol: string = '🛡️'): Promise<Team> {
-  if (!isSupabaseConfigured || !supabase) return localEngine.createTeam(eventId, name, captainId, avatarSymbol);
-  return localEngine.createTeam(eventId, name, captainId, avatarSymbol);
+export async function getPlayerByUserIdDB(userId: string): Promise<Player | undefined> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getPlayerByUserId(userId);
+  const db = supabaseAdmin || supabase;
+  const { data, error } = await db.from('players').select('*').eq('user_id', userId).maybeSingle();
+  if (error || !data) return undefined;
+  return mapPlayerFromDB(data);
 }
 
-export async function joinTeamByCodeDB(joinCode: string, playerId: string, eventId: string) {
-  if (!isSupabaseConfigured || !supabase) return localEngine.joinTeamByCode(joinCode, playerId, eventId);
-  return localEngine.joinTeamByCode(joinCode, playerId, eventId);
+export async function claimLegacyPlayerByEmailDB(userId: string, email: string): Promise<Player | undefined> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.claimLegacyPlayerByEmail(userId, email);
+  const db = supabaseAdmin || supabase;
+  const { data: legacy, error: findErr } = await db
+    .from('players')
+    .select('*')
+    .ilike('email', email)
+    .is('user_id', null)
+    .maybeSingle();
+
+  if (findErr || !legacy) return undefined;
+
+  const { data: updated, error: updateErr } = await db
+    .from('players')
+    .update({
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', legacy.id)
+    .select()
+    .single();
+
+  if (updateErr || !updated) return undefined;
+  return mapPlayerFromDB(updated);
 }
 
-export async function getTeamLeaderboardDB(eventId: string): Promise<TeamLeaderboardEntry[]> {
-  if (!isSupabaseConfigured || !supabase) return localEngine.getTeamLeaderboardForEvent(eventId);
-  return localEngine.getTeamLeaderboardForEvent(eventId);
+export async function upsertPlayerDB(
+  params:
+    | {
+        id?: string;
+        userId?: string;
+        displayName: string;
+        avatarUrl?: string;
+        selectedStartingPath?: StartingPath;
+        acquisitionSource?: string;
+        bio?: string;
+        tagline?: string;
+        hometown?: string;
+        themeColor?: string;
+        favoriteStyle?: string;
+        selectedFlair?: string;
+        showcaseBadges?: string[];
+        isMinor?: boolean;
+        email?: string;
+      }
+    | string,
+  avatarUrlFallback: string = '⚡'
+): Promise<Player> {
+  const p =
+    typeof params === 'string'
+      ? { displayName: params, avatarUrl: avatarUrlFallback }
+      : params;
+
+  if (!isSupabaseConfigured || !supabase) {
+    return localEngine.registerPlayer(p);
+  }
+
+  const db = supabaseAdmin || supabase;
+  const cleanName = (p.displayName || 'Canton Explorer').trim();
+
+  // If player ID is provided, update
+  if (p.id) {
+    const updatePayload: any = {
+      display_name: cleanName,
+      avatar_url: p.avatarUrl || '⚡',
+      selected_starting_path: p.selectedStartingPath || 'family',
+      bio: p.bio,
+      tagline: p.tagline,
+      hometown: p.hometown,
+      theme_color: p.themeColor,
+      favorite_style: p.favoriteStyle,
+      selected_flair: p.selectedFlair,
+      showcase_badges: p.showcaseBadges,
+      updated_at: new Date().toISOString(),
+    };
+    if (p.userId) updatePayload.user_id = p.userId;
+    if (p.email) updatePayload.email = p.email;
+
+    const { data, error } = await db
+      .from('players')
+      .update(updatePayload)
+      .eq('id', p.id)
+      .select()
+      .single();
+
+    if (!error && data) return mapPlayerFromDB(data);
+  }
+
+  // Otherwise insert or fetch
+  const { data: inserted, error: insertErr } = await db
+    .from('players')
+    .insert({
+      user_id: p.userId,
+      email: p.email,
+      display_name: cleanName,
+      avatar_url: p.avatarUrl || '⚡',
+      selected_starting_path: p.selectedStartingPath || 'family',
+      acquisition_source: p.acquisitionSource || 'main_site',
+      bio: p.bio,
+      tagline: p.tagline,
+      hometown: p.hometown,
+      theme_color: p.themeColor,
+      favorite_style: p.favoriteStyle,
+      selected_flair: p.selectedFlair,
+      showcase_badges: p.showcaseBadges,
+      is_minor: p.isMinor || false,
+    })
+    .select()
+    .single();
+
+  if (!insertErr && inserted) return mapPlayerFromDB(inserted);
+
+  return localEngine.registerPlayer(p);
 }
+
+export {
+  resolveAuthenticatedPlayerId,
+  resolveAuthenticatedPlayer,
+  resolveAuthenticatedSupabaseUser,
+  resolveOrCreatePlayerForAuthUser,
+  sendEmailOtp,
+  verifyEmailOtp,
+  sanitizePlayerForPublic,
+} from './supabase-auth';
 
 // 8. PROOF SUBMISSION & SCORING
 export async function submitQuestProofDB(params: SubmitProofParams, authToken?: string): Promise<SubmitProofResult> {
@@ -778,17 +1041,6 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
 
     const verification = verifyAutomatedProof(trustedParams, quest, completedStepOrder);
 
-    let teamId: string | undefined = undefined;
-    const { data: teamMember } = await supabaseAdmin
-      .from('team_members')
-      .select('team_id, teams!inner(event_id)')
-      .eq('player_id', trustedPlayerId)
-      .eq('teams.event_id', trustedParams.eventId)
-      .maybeSingle();
-    if (teamMember?.team_id) {
-      teamId = teamMember.team_id;
-    }
-
     // Pre-check: Reject submission immediately if event drawing ledger is locked
     if (isSupabaseAdminConfigured && supabaseAdmin) {
       const { data: lockRow } = await supabaseAdmin
@@ -813,7 +1065,6 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
     const subRecord = {
       quest_id: trustedParams.questId,
       player_id: trustedPlayerId,
-      team_id: teamId,
       event_id: trustedParams.eventId,
       proof_type: trustedParams.proofType,
       submitted_content: trustedParams.submittedContent,
@@ -846,7 +1097,6 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
       const scoreInsert = await supabaseAdmin.from('score_ledger').insert({
         event_id: trustedParams.eventId,
         player_id: trustedPlayerId,
-        team_id: teamId,
         quest_id: trustedParams.questId,
         submission_id: dbSub.id,
         points: verification.awardedPoints,

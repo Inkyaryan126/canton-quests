@@ -20,6 +20,7 @@ import {
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
+import FastPlayerOnboardForm from '@/components/FastPlayerOnboardForm';
 import { ACQUISITION_ENTRY_HREF } from '@/lib/acquisition-landing-content';
 import { cqImages } from '@/lib/marketing-assets';
 
@@ -47,25 +48,23 @@ export default function FamilyLanding() {
               </p>
               <p className="text-gray-200 text-base leading-relaxed">
                 Canton is hiding missions, clues, strange landmarks, and challenges in plain sight.
-                Gather your crew, choose a quest from the live board, and turn the city into a shared real-world adventure.
+                Enter your callsign below and turn the city into a shared real-world adventure.
               </p>
             </div>
 
             <div className="cq-fair-actions mt-6">
-              <Link
-                href={ACQUISITION_ENTRY_HREF}
-                className="cq-gold-button font-display font-extrabold text-base py-3.5 px-7"
-                data-cta="start-family-quest"
-                data-fair-cta="family"
-              >
-                START THE FAMILY QUEST
-                <ArrowRight size={19} aria-hidden="true" />
-              </Link>
+              <FastPlayerOnboardForm
+                startingPath="family"
+                acquisitionSource="family_flyer"
+                buttonLabel="START FAMILY QUEST"
+                themeAccent="#f59e0b"
+                redirectTo={ACQUISITION_ENTRY_HREF}
+              />
             </div>
 
             <div className="mt-4 flex items-center gap-2 text-xs font-mono text-amber-300/90 font-bold">
               <ShieldCheck size={15} className="text-emerald-400 shrink-0" aria-hidden="true" />
-              <span>Zero App Store Download · Free Instant Walk-Up Play</span>
+              <span>Zero App Store Download · Free Instant Walk-Up Play · One City Leaderboard</span>
             </div>
           </div>
 

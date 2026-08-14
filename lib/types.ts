@@ -69,6 +69,10 @@ export interface City {
   createdAt: string;
 }
 
+export type StartingPath = 'family' | 'challenge' | 'secret';
+
+export type QuestPath = StartingPath | 'cross_city';
+
 export interface Player {
   id: string;
   userId?: string;
@@ -78,38 +82,58 @@ export interface Player {
   totalXp: number;
   level: number;
   createdAt: string;
+  selectedStartingPath?: StartingPath;
+  acquisitionSource?: string;
+  bio?: string;
+  tagline?: string;
+  hometown?: string;
+  themeColor?: string;
+  favoriteStyle?: string;
+  selectedFlair?: string;
+  showcaseBadges?: string[];
+  isMinor?: boolean;
+  email?: string;
+  updatedAt?: string;
 }
 
-export interface Team {
+export type AchievementCategory = 'path' | 'district' | 'exploration' | 'competitive' | 'special';
+
+export interface Achievement {
   id: string;
-  eventId: string;
+  slug: string;
   name: string;
-  joinCode: string;
-  captainId: string;
-  avatarSymbol?: string;
-  totalPoints: number;
-  createdAt: string;
+  description: string;
+  badgeSymbol: string;
+  category: AchievementCategory;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  district?: StartingPath;
 }
 
-export interface TeamMember {
+export interface PlayerAchievement {
   id: string;
-  teamId: string;
   playerId: string;
-  joinedAt: string;
-  player?: Player;
+  achievementId: string;
+  achievementSlug: string;
+  eventId?: string;
+  earnedAt: string;
+  provenance?: string;
+  achievement?: Achievement;
 }
 
-export interface TeamLeaderboardEntry {
-  rank: number;
-  teamId: string;
-  teamName: string;
-  joinCode: string;
-  captainId: string;
-  captainName: string;
-  memberCount: number;
-  totalPoints: number;
-  questsCompletedCount: number;
-  lastScoreTime?: string;
+export interface DistrictContentSummary {
+  district: StartingPath;
+  name: string;
+  approximateArea: string;
+  flavor: string;
+  activeQuestsCount: number;
+  totalAvailableXp: number;
+  questTypes: Record<string, number>;
+  gpsQuestsCount: number;
+  qrQuestsCount: number;
+  photoQuestsCount: number;
+  puzzleQuestsCount: number;
+  brokenQuestsCount: number;
+  contentGaps: string[];
 }
 
 export interface LocationInfo {
@@ -338,13 +362,13 @@ export interface Quest {
   riskReward?: { hardModeBonus: number; failurePenalty: number };
   requiredCollectibleId?: string;
   qrCodeIdentifier?: string;
+  startingPath?: QuestPath;
 }
 
 export interface QuestSubmission {
   id: string;
   questId: string;
   playerId: string;
-  teamId?: string;
   eventId: string;
   proofType: ProofVerificationType;
   submittedContent?: string;
@@ -369,7 +393,6 @@ export interface ScoreLedgerEntry {
   id: string;
   eventId: string;
   playerId: string;
-  teamId?: string;
   questId?: string;
   submissionId?: string;
   points: number;
@@ -580,7 +603,6 @@ export interface LeaderboardEntry {
   totalPoints: number;
   questsCompletedCount: number;
   lastScoreTime?: string;
-  teamName?: string;
 }
 
 export interface PlayerEventProgress {
@@ -590,7 +612,6 @@ export interface PlayerEventProgress {
   completedCount: number;
   availableCount: number;
   rank: number;
-  team?: Team;
   isQualifiedForFinale?: boolean;
 }
 
@@ -604,7 +625,6 @@ export interface SubmitProofParams {
   userLat?: number;
   userLon?: number;
   userAccuracyMeters?: number;
-  teamId?: string;
   isHardModeOptIn?: boolean;
   stepIndex?: number;
 }
@@ -619,7 +639,6 @@ export interface SubmitProofResult {
   nextStepUnlocked?: QuestStep;
   isQuestFullyCompleted?: boolean;
   unlockedQuestId?: string;
-  teamPointsAwarded?: number;
   claimPlacement?: number;
   collectibleAwarded?: Collectible;
   flags?: ProofReviewFlag[];
@@ -729,7 +748,6 @@ export interface FinaleQualification {
   id: string;
   eventId: string;
   playerId: string;
-  teamId?: string;
   qualifiedAt: string;
   qualificationReason: string;
   isWildcard: boolean;
@@ -750,8 +768,6 @@ export interface EventActivityItem {
   id: string;
   type:
     | 'player_joined'
-    | 'team_created'
-    | 'team_joined'
     | 'quest_completed'
     | 'flash_activated'
     | 'submission_pending'
@@ -786,7 +802,7 @@ export type AudienceEventStatus =
 
 export type AudienceEligibilityMode = 'all_spectators' | 'authenticated_only' | 'exclude_active_players';
 
-export type AudienceTargetType = 'category' | 'quest' | 'team' | 'zone' | 'citywide';
+export type AudienceTargetType = 'category' | 'quest' | 'zone' | 'citywide';
 
 export interface AudienceEvent {
   id: string;

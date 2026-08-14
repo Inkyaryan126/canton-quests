@@ -2,10 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateDistanceMeters, checkProximity, formatDistance } from '../lib/geo';
 import {
   calculateQuestState,
-  createTeam,
-  joinTeamByCode,
-  getTeamForPlayer,
-  getTeamLeaderboardForEvent,
+  getLeaderboardForEvent,
   submitQuestProof,
   initializeGameEngine,
   setCurrentPlayer,
@@ -82,29 +79,35 @@ describe('Phase 2 — Real-World Game Layer Engine', () => {
     });
   });
 
-  describe('3. Team Operations & Scoring', () => {
-    it('creates team, generates join code, and allows joining by code', () => {
-      const player1 = setCurrentPlayer('Captain_Alpha_Test', '🛡️');
-      const player2 = setCurrentPlayer('Rover_Beta_Test', '⚔️');
+  describe('3. Individual Player Progression & Leaderboard Scoring', () => {
+    it('creates individual player, tracks XP, and calculates individual rank on event leaderboard', () => {
+      const player1 = setCurrentPlayer('SoloAgent_Alpha_Test', '🛡️');
+      const player2 = setCurrentPlayer('SoloAgent_Beta_Test', '⚔️');
 
-      const newTeam = createTeam(SEED_EVENT.id, 'Test Vanguard Squad', player1.id, '🛡️');
-      expect(newTeam.name).toBe('Test Vanguard Squad');
-      expect(newTeam.joinCode).toMatch(/^CQ-[A-Z0-9]{4}$/);
+      expect(player1.id).toBeDefined();
+      expect(player2.id).toBeDefined();
 
-      const joinRes = joinTeamByCode(newTeam.joinCode, player2.id, SEED_EVENT.id);
-      expect(joinRes.success).toBe(true);
-      expect(joinRes.team?.id).toBe(newTeam.id);
+      const quest = SEED_QUESTS[0];
+      const subRes = submitQuestProof({
+        playerId: player1.id,
+        questId: quest.id,
+        eventId: SEED_EVENT.id,
+        proofType: quest.verificationType,
+        submittedContent: quest.verificationType === 'qr' ? 'CQ-AURA-FOUNDER' : 'checkin',
+        userLat: quest.location?.latitude || 40.7989,
+        userLon: quest.location?.longitude || -81.3748,
+      });
 
-      const teamInfo = getTeamForPlayer(player2.id, SEED_EVENT.id);
-      expect(teamInfo.team?.id).toBe(newTeam.id);
-      expect(teamInfo.members.length).toBe(2);
-    });
+      expect(subRes.success).toBe(true);
+      expect(subRes.awardedPoints).toBeGreaterThan(0);
 
-    it('calculates team leaderboard score from team member quest completions', () => {
-      const teamLeaderboard = getTeamLeaderboardForEvent(SEED_EVENT.id);
-      expect(teamLeaderboard.length).toBeGreaterThan(0);
-      expect(teamLeaderboard[0].rank).toBe(1);
-      expect(teamLeaderboard[0].totalPoints).toBeGreaterThanOrEqual(0);
+      const leaderboard = getLeaderboardForEvent(SEED_EVENT.id);
+      expect(leaderboard.length).toBeGreaterThan(0);
+      expect(leaderboard[0].rank).toBe(1);
+
+      const p1Entry = leaderboard.find((e) => e.playerId === player1.id);
+      expect(p1Entry).toBeDefined();
+      expect(p1Entry?.totalPoints).toBeGreaterThanOrEqual(subRes.awardedPoints);
     });
   });
 

@@ -8,7 +8,6 @@ import {
   QuestEvent,
   Quest,
   QuestSubmission,
-  Team,
   EventActivityItem,
   EventReadiness,
   LocationInfo,
@@ -29,7 +28,6 @@ import {
   duplicateQuest,
   updateEventStatus,
   triggerFlashQuest,
-  getTeamLeaderboardForEvent,
   getActivityLog,
   getEventReadinessCheck,
   createEventWizard,
@@ -57,13 +55,12 @@ export default function AdminPage() {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [locations, setLocations] = useState<LocationInfo[]>([]);
   const [submissions, setSubmissions] = useState<QuestSubmission[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
   const [activityLog, setActivityLog] = useState<EventActivityItem[]>([]);
   const [generatedQrs, setGeneratedQrs] = useState<GeneratedQR[]>([]);
 
   // Navigation & Active Tab State
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'readiness' | 'events' | 'quests' | 'locations' | 'qr' | 'submissions' | 'teams'
+    'overview' | 'readiness' | 'events' | 'quests' | 'locations' | 'qr' | 'submissions'
   >('overview');
 
   // Action Notification State
@@ -118,7 +115,6 @@ export default function AdminPage() {
       setEvents([]);
       setSelectedEvent(null);
       setQuests([]);
-      setTeams([]);
       setReadiness(null);
       setGeneratedQrs([]);
       setLocations([]);
@@ -134,7 +130,6 @@ export default function AdminPage() {
 
     if (activeEvt) {
       setQuests(getQuestsForEvent(activeEvt.id));
-      setTeams(getTeamLeaderboardForEvent(activeEvt.id));
       setReadiness(getEventReadinessCheck(activeEvt.id));
       setGeneratedQrs(getGeneratedQRs(activeEvt.id));
     }
@@ -501,7 +496,6 @@ export default function AdminPage() {
             { id: 'locations', label: '📍 Locations' },
             { id: 'qr', label: '📱 QR Studio' },
             { id: 'submissions', label: `📥 Proof Queue (${submissions.filter((s) => s.status === 'pending').length})` },
-            { id: 'teams', label: '👥 Squad Roster' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -532,8 +526,8 @@ export default function AdminPage() {
                 </span>
               </div>
               <div className="glass-card p-4 text-center">
-                <span className="text-gray-400 block text-[10px] uppercase">Active Squads</span>
-                <span className="text-cyan-400 font-extrabold text-2xl">{teams.length}</span>
+                <span className="text-gray-400 block text-[10px] uppercase">Active Locations</span>
+                <span className="text-cyan-400 font-extrabold text-2xl">{locations.length}</span>
               </div>
               <div className="glass-card p-4 text-center">
                 <span className="text-gray-400 block text-[10px] uppercase">Generated QRs</span>

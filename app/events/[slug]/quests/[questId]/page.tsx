@@ -165,9 +165,15 @@ export default function QuestDetailPage({
         content = 'Centennial GPS Location Checked In';
       }
 
+      const headers: Record<string, string> = { 'content-type': 'application/json' };
+      const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
+      if (authToken) {
+        headers['authorization'] = `Bearer ${authToken}`;
+      }
+
       const response = await fetch('/api/game/submit', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers,
         body: JSON.stringify({
           playerId: player.id,
           questId: quest.id,

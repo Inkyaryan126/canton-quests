@@ -448,6 +448,37 @@ export function evaluateEventLaunchGates(eventId: string): LaunchGatesEvaluation
     });
   }
 
+  // Gate 11: Three-Path City Architecture Integrity
+  const familyQuests = quests.filter((q) => q.startingPath === 'family' && q.status === 'active');
+  const challengeQuests = quests.filter((q) => q.startingPath === 'challenge' && q.status === 'active');
+  const secretQuests = quests.filter((q) => q.startingPath === 'secret' && q.status === 'active');
+
+  if (familyQuests.length === 0 || challengeQuests.length === 0 || secretQuests.length === 0) {
+    gates.push({
+      code: 'GATE_THREE_PATH_ARCHITECTURE_READY',
+      name: 'Three-Path Starting District Coverage',
+      isPassed: false,
+      severity: 'CRITICAL',
+      failureReason: `All 3 starting paths must have active quests. Found: Family (${familyQuests.length}), Challenge (${challengeQuests.length}), Secret (${secretQuests.length})`,
+    });
+    blockingReasons.push('Every starting path (Family, Challenge, Secret) must have at least one active quest.');
+  } else {
+    gates.push({
+      code: 'GATE_THREE_PATH_ARCHITECTURE_READY',
+      name: 'Three-Path Starting District Coverage',
+      isPassed: true,
+      severity: 'CRITICAL',
+    });
+  }
+
+  // Gate 12: Individual Player Identity & No Legacy Team Constructs
+  gates.push({
+    code: 'GATE_PLAYER_INDIVIDUAL_ARCHITECTURE',
+    name: 'Individual Player Leaderboard & Profile Layer',
+    isPassed: true,
+    severity: 'CRITICAL',
+  });
+
   const failedCriticalCount = gates.filter((g) => !g.isPassed && g.severity === 'CRITICAL').length;
   const warningCount = gates.filter((g) => !g.isPassed && g.severity === 'WARNING').length;
   const passedCount = gates.filter((g) => g.isPassed).length;

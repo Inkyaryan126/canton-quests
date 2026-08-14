@@ -23,6 +23,7 @@ import {
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
+import FastPlayerOnboardForm from '@/components/FastPlayerOnboardForm';
 import { ACQUISITION_ENTRY_HREF } from '@/lib/acquisition-landing-content';
 import { cqImages } from '@/lib/marketing-assets';
 
@@ -37,7 +38,7 @@ export default function ChallengeLanding() {
           <div className="cq-fair-copy">
             <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 font-mono text-xs font-bold tracking-wider uppercase">
               <Radio size={14} className="text-cyan-400 animate-pulse" aria-hidden="true" />
-              <span>COMPETITIVE SQUAD CHALLENGE // LIVE GRID</span>
+              <span>COMPETITIVE LIVE GRID // CITYWIDE PLAYERS</span>
             </div>
 
             <h1 id="challenge-headline" className="text-white">
@@ -51,20 +52,18 @@ export default function ChallengeLanding() {
             <div className="cq-fair-support mt-3">
               <p className="text-gray-200 text-base leading-relaxed">
                 Hidden codes. Real locations. Timed flash drops. Cryptographic ciphers. Live leaderboard pressure.
-                Some squads play one mission. The best crews conquer the whole board. Where does your team stand?
+                Enter your callsign and jump straight into the individual competition.
               </p>
             </div>
 
             <div className="cq-fair-actions mt-6">
-              <Link
-                href={ACQUISITION_ENTRY_HREF}
-                className="cq-gold-button font-display font-extrabold text-base py-3.5 px-7 shadow-lg shadow-cyan-900/30"
-                data-cta="accept-challenge"
-                data-fair-cta="challenge"
-              >
-                ACCEPT THE CHALLENGE
-                <ArrowRight size={19} aria-hidden="true" />
-              </Link>
+              <FastPlayerOnboardForm
+                startingPath="challenge"
+                acquisitionSource="challenge_flyer"
+                buttonLabel="ACCEPT THE CHALLENGE"
+                themeAccent="#ef4444"
+                redirectTo={ACQUISITION_ENTRY_HREF}
+              />
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-mono text-cyan-200/90 font-bold">
@@ -72,7 +71,7 @@ export default function ChallengeLanding() {
                 <Zap size={13} className="text-cyan-400" /> LIVE SCORE LEDGER
               </span>
               <span className="inline-flex items-center gap-1.5 bg-cyan-950/60 border border-cyan-500/40 px-2.5 py-1 rounded-md">
-                <ShieldCheck size={13} className="text-emerald-400" /> ZERO PAY-TO-WIN
+                <ShieldCheck size={13} className="text-emerald-400" /> INDIVIDUAL LEADERBOARD
               </span>
             </div>
           </div>
@@ -151,21 +150,21 @@ export default function ChallengeLanding() {
               <span className="text-xs font-mono text-cyan-400 uppercase font-bold block">04 // Live Ranks</span>
               <strong className="text-white text-lg block mt-1">Board Dominance</strong>
               <p className="text-gray-300 text-xs mt-2 leading-relaxed">
-                Real-time scoreboard recalculation tracking individual agents and registered squads.
+                Real-time scoreboard recalculation tracking all verified field agents across Canton.
               </p>
             </div>
           </div>
         </section>
 
-        {/* SQUAD SPECIALIZATION SECTION */}
+        {/* FIELD ARCHETYPES SECTION */}
         <section className="cq-fair-sections mt-6" aria-labelledby="squad-roles">
           <div className="col-span-full mb-2">
-            <span className="text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">TACTICAL ROSTER</span>
+            <span className="text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">TACTICAL PROFILES</span>
             <h2 id="squad-roles" className="text-2xl sm:text-4xl font-extrabold text-white mt-1">
-              SQUAD SPECIALIZATION & SPEED ROLES
+              EXPLORER ARCHETYPES & SPEED TACTICS
             </h2>
             <p className="text-gray-300 text-sm mt-1 max-w-2xl">
-              The highest-scoring crews divide responsibilities on the fly to minimize traversal delays and crack clues fast.
+              The highest-scoring agents master distinct field capabilities to minimize traversal delays and crack clues fast.
             </p>
           </div>
 
@@ -224,7 +223,7 @@ export default function ChallengeLanding() {
             <div className="bg-[#03070a]/90 border border-amber-500/25 p-3.5 rounded-xl">
               <strong className="text-white text-sm block mb-1">Zero Pay-To-Win</strong>
               <p className="text-gray-300">
-                You cannot purchase hints, skips, or leaderboard ranking. Pure observation, speed, and teamwork determine the championship.
+                You cannot purchase hints, skips, or leaderboard ranking. Pure observation, speed, and problem-solving determine the ranking.
               </p>
             </div>
             <div className="bg-[#03070a]/90 border border-amber-500/25 p-3.5 rounded-xl">

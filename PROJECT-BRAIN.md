@@ -29,7 +29,7 @@ When Canton Quests activates for a weekend:
 | Generic Scavenger Hunt App | Canton Quests |
 | :--- | :--- |
 | Static list of GPS check-ins & basic trivia. | Multi-layered narrative events with flash quests, live NPCs, and surprise drops. |
-| Pay-to-win mechanics or paywalled hints. | Pure skill, creativity, observation, strategy, and teamwork. |
+| Pay-to-win mechanics or paywalled hints. | Pure skill, creativity, observation, speed, and individual tactical strategy. |
 | Favors whoever can drive the fastest for 48 hours. | Multi-tier scoring & non-punitive mechanics allowing 1-day players to win categories. |
 | Isolated user tapping on a phone screen. | High-energy, highly shareable real-world adventure bringing foot traffic to local businesses. |
 | White-label corporate utility. | Strong local identity, mysterious urban mythology, and distinct visual/tonal vibe. |
@@ -43,8 +43,8 @@ When Canton Quests activates for a weekend:
    - *Time*: 2–4 hours total.
    - *Needs*: Low barrier to entry, instant delight, clear safety guidance, zero frustration.
 
-2. **The Hardcore Competitive Teams**
-   - *Goal*: Strategic dominance, maximum points, secret quest unlocking, topping the leaderboard.
+2. **The Hardcore Competitive Players**
+   - *Goal*: Strategic dominance, maximum XP, secret quest unlocking, topping the individual leaderboard.
    - *Time*: Full weekend (10+ hours).
    - *Needs*: High depth, complex multi-stage puzzle chains, high-tier achievements, tactical trade-offs.
 
@@ -80,6 +80,7 @@ When Canton Quests activates for a weekend:
 3. **Safety Is Architecture**: Safe paths, daytime-preferred zones, clear physical boundaries, and strict conduct rules are embedded into every quest.
 4. **Local Empowerment**: Canton businesses, landmarks, and cultural assets are celebrated heroes of the game world.
 5. **Progressive Complexity**: Simple enough for anyone to join in 60 seconds; deep enough to intrigue veteran puzzle solvers.
+6. **Pure Individual Competition**: Canton Quests is played and scored by individual players without team join codes or squad administration barriers.
 
 ---
 
@@ -94,6 +95,7 @@ While **Canton, Ohio** is our initial launch pad and testing ground, the underly
 ### Confirmed Decisions
 - **Launch Location**: Canton, Ohio.
 - **Game Identity**: City-scale game, not a generic SaaS tool.
+- **Player Model**: Pure individual player competition without squad / team membership mechanics.
 - **Visual Identity**: Official canonical logo locked at `public/brand/canton-quests-master-logo.png`.
 - **Scoring Philosophy**: Non-punitive scoring allowing partial-weekend players to compete for distinct category championships.
 - **Tech Foundation**: Web-first PWA approach (Next.js, TypeScript, Supabase) for frictionless zero-download onboarding via QR code scanning.
@@ -101,7 +103,6 @@ While **Canton, Ohio** is our initial launch pad and testing ground, the underly
 
 ### Open Questions (To Be Tested in Beta)
 - What is the optimal ratio of instant automated check-ins (QR/GPS) versus manual AI/admin-reviewed submissions (photo/video)?
-- Should team sizes be hard-capped at 4 players or flexible (1–6)?
 - How far in advance should quest starting locations be revealed before a weekend event launches?
 
 ---

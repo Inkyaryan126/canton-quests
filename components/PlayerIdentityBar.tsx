@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Player } from '@/lib/types';
+import Link from 'next/link';
+import { User, Shield, Compass, Zap, KeyRound, Sparkles, Award } from 'lucide-react';
+import { Player, StartingPath } from '@/lib/types';
 
 interface PlayerIdentityBarProps {
   onPlayerChanged?: (player: Player) => void;
@@ -11,8 +13,16 @@ const AVATARS = ['⚡', '🧭', '🔍', '🏆', '🎯', '🦅', '👾', '🔥'];
 const PLAYER_STORAGE_KEY = 'canton_quests_current_player';
 
 function getStoredPlayer(): Player {
-  const stored = window.localStorage.getItem(PLAYER_STORAGE_KEY);
-  if (stored) return JSON.parse(stored) as Player;
+  if (typeof window !== 'undefined') {
+    const stored = window.localStorage.getItem(PLAYER_STORAGE_KEY);
+    if (stored) {
+      try {
+        return JSON.parse(stored) as Player;
+      } catch {
+        // ignore
+      }
+    }
+  }
 
   const player: Player = {
     id: `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -21,105 +31,213 @@ function getStoredPlayer(): Player {
     role: 'player',
     totalXp: 0,
     level: 1,
+    selectedStartingPath: 'family',
+    acquisitionSource: 'main_site',
     createdAt: new Date().toISOString(),
   };
-  window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(player));
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(player));
+  }
   return player;
 }
 
-function saveStoredPlayer(displayName: string, avatarUrl: string): Player {
+function saveStoredPlayer(displayName: string, avatarUrl: string, path: StartingPath = 'family'): Player {
   const existing = getStoredPlayer();
   const updated: Player = {
     ...existing,
     displayName,
     avatarUrl,
+    selectedStartingPath: path,
   };
-  window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(updated));
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(updated));
+  }
   return updated;
 }
+
+const pathBadgeStyles: Record<StartingPath, { label: string; bg: string; text: string; border: string; icon: any }> = {
+  family: { label: 'Family Path', bg: 'bg-amber-500/15', text: 'text-amber-300', border: 'border-amber-500/40', icon: Compass },
+  challenge: { label: 'Challenge Path', bg: 'bg-red-500/15', text: 'text-red-300', border: 'border-red-500/40', icon: Zap },
+  secret: { label: 'Secret Path', bg: 'bg-purple-500/15', text: 'text-purple-300', border: 'border-purple-500/40', icon: KeyRound },
+};
 
 export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBarProps) {
   const [player, setPlayer] = useState<Player | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('⚡');
+  const [selectedPath, setSelectedPath] = useState<StartingPath>('family');
 
   useEffect(() => {
-    const current = getStoredPlayer();
-    setPlayer(current);
-    setNameInput(current.displayName);
-    setSelectedAvatar(current.avatarUrl || '⚡');
+    const headers: Record<string, string> = {};
+    const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+    fetch('/api/auth/me', { headers })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isAuthenticated && data.player) {
+          setPlayer(data.player);
+          setNameInput(data.player.displayName);
+          setSelectedAvatar(data.player.avatarUrl || '⚡');
+          setSelectedPath(data.player.selectedStartingPath || 'family');
+        } else {
+          const current = getStoredPlayer();
+          setPlayer(current);
+          setNameInput(current.displayName);
+          setSelectedAvatar(current.avatarUrl || '⚡');
+          setSelectedPath(current.selectedStartingPath || 'family');
+        }
+      })
+      .catch(() => {
+        const current = getStoredPlayer();
+        setPlayer(current);
+        setNameInput(current.displayName);
+        setSelectedAvatar(current.avatarUrl || '⚡');
+        setSelectedPath(current.selectedStartingPath || 'family');
+      });
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameInput.trim()) return;
 
-    const updated = saveStoredPlayer(nameInput.trim(), selectedAvatar);
-    setPlayer(updated);
-    setIsEditing(false);
-    if (onPlayerChanged) onPlayerChanged(updated);
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+      const res = await fetch('/api/player/profile', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          playerId: player?.id,
+          displayName: nameInput.trim(),
+          avatarUrl: selectedAvatar,
+          selectedStartingPath: selectedPath,
+        }),
+      });
+      const data = await res.json();
+      const updated = data.player || saveStoredPlayer(nameInput.trim(), selectedAvatar, selectedPath);
+      setPlayer(updated);
+      setIsEditing(false);
+      if (onPlayerChanged) onPlayerChanged(updated);
+    } catch {
+      const updated = saveStoredPlayer(nameInput.trim(), selectedAvatar, selectedPath);
+      setPlayer(updated);
+      setIsEditing(false);
+      if (onPlayerChanged) onPlayerChanged(updated);
+    }
   };
 
   if (!player) return null;
 
+  const currentPath = player.selectedStartingPath || 'family';
+  const pathMeta = pathBadgeStyles[currentPath] || pathBadgeStyles.family;
+  const PathIcon = pathMeta.icon;
+
   return (
-    <div className="glass-panel p-3 mb-6 flex flex-wrap items-center justify-between gap-3 border-amber-500/20">
+    <div className="glass-panel p-3.5 mb-6 rounded-2xl border border-stone-800 bg-stone-950/80 shadow-lg flex flex-wrap items-center justify-between gap-3">
+      {/* Player Bio Snippet */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-xl">
+        <div
+          className="w-11 h-11 rounded-2xl bg-stone-900 border flex items-center justify-center text-2xl shrink-0 shadow-inner"
+          style={{ borderColor: player.themeColor || '#f59e0b' }}
+        >
           {player.avatarUrl || '⚡'}
         </div>
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-display font-bold text-white">{player.displayName}</span>
-            <span className="badge badge-medium text-[10px] py-0 px-2">Level {player.level}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-display font-black text-white text-base tracking-tight">
+              {player.displayName}
+            </span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 border border-stone-700">
+              Level {player.level || 1}
+            </span>
+            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${pathMeta.bg} ${pathMeta.text} ${pathMeta.border}`}>
+              <PathIcon size={11} />
+              {pathMeta.label}
+            </span>
           </div>
-          <p className="text-xs text-gray-400 font-mono">Total XP: {player.totalXp} XP</p>
+
+          <div className="flex items-center gap-3 text-xs text-stone-400 font-mono mt-0.5">
+            <span className="text-amber-400 font-bold">{player.totalXp || 0} XP</span>
+            {player.tagline && (
+              <span className="italic text-stone-400 truncate max-w-[200px]">
+                &quot;{player.tagline}&quot;
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
-      <div>
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        <Link
+          href="/profile"
+          className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-200 text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+        >
+          <User size={13} className="text-amber-400" />
+          <span>Profile & Badges</span>
+        </Link>
+
         {!isEditing ? (
           <button
+            type="button"
             onClick={() => setIsEditing(true)}
-            className="btn btn-secondary text-xs px-3 py-1.5 min-h-[36px]"
+            className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-300 text-xs font-mono transition-colors cursor-pointer"
           >
-            ✏️ Switch / Edit Agent
+            ✏️ Quick Edit
           </button>
         ) : (
-          <form onSubmit={handleSave} className="flex flex-col gap-2 p-3 bg-obsidian/90 rounded-xl border border-amber-500/30">
+          <form onSubmit={handleSave} className="flex flex-col gap-2 p-3 bg-stone-900 rounded-xl border border-amber-500/40 absolute z-30 right-4 mt-2 shadow-2xl">
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
-                placeholder="Enter Player Name..."
-                className="input-field text-xs min-h-[36px] py-1 px-3"
+                placeholder="Enter Callsign..."
+                className="px-2.5 py-1.5 text-xs rounded-lg bg-stone-950 border border-stone-700 text-white font-mono"
                 autoFocus
               />
-              <button type="submit" className="btn btn-primary text-xs px-3 py-1.5 min-h-[36px]">
+              <button type="submit" className="px-3 py-1.5 rounded-lg bg-amber-500 text-black text-xs font-mono font-bold cursor-pointer">
                 Save
               </button>
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="btn btn-secondary text-xs px-2 py-1.5 min-h-[36px]"
+                className="px-2 py-1.5 rounded-lg bg-stone-800 text-stone-300 text-xs font-mono cursor-pointer"
               >
                 ✕
               </button>
             </div>
-            
-            <div className="flex items-center gap-1.5 mt-1 overflow-x-auto pb-1">
-              <span className="text-[10px] text-gray-400 font-mono mr-1">Icon:</span>
+
+            {/* Path Selection */}
+            <div className="flex items-center gap-1.5 pt-1 border-t border-stone-800">
+              {(['family', 'challenge', 'secret'] as StartingPath[]).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setSelectedPath(p)}
+                  className={`text-[10px] font-mono px-2 py-1 rounded border capitalize cursor-pointer ${
+                    selectedPath === p ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold' : 'border-stone-800 text-stone-400'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-1 overflow-x-auto pb-1">
               {AVATARS.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
                   onClick={() => setSelectedAvatar(emoji)}
-                  className={`w-7 h-7 rounded-lg text-sm flex items-center justify-center border transition-all ${
+                  className={`w-6 h-6 rounded text-xs flex items-center justify-center border transition-all cursor-pointer ${
                     selectedAvatar === emoji
-                      ? 'border-amber-400 bg-amber-500/20 scale-110'
-                      : 'border-transparent hover:bg-gray-800'
+                      ? 'border-amber-400 bg-amber-500/20'
+                      : 'border-transparent hover:bg-stone-800'
                   }`}
                 >
                   {emoji}

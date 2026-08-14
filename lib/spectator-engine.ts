@@ -1350,8 +1350,8 @@ export function seedDefaultSpectatorData(eventId: string = 'default-event'): voi
   const opt3: AudienceEventOption = {
     id: 'opt-demo-3',
     audienceEventId: demoEvent.id,
-    optionLabel: 'Grant +50 XP Boost to Trailing Squads',
-    optionDescription: 'Boosts teams outside the top 3 leaderboard spots to close the competitive gap.',
+    optionLabel: 'Grant +50 XP Boost to Trailing Agents',
+    optionDescription: 'Boosts agents outside the top 3 leaderboard spots to close the competitive gap.',
     effectPayload: { catchupBonus: 50 },
     voteCount: 15,
     sortOrder: 3,

@@ -90,7 +90,7 @@ export const destinationCards = [
     title: 'Arts District Murals',
     label: 'Photo Proof',
     image: cqImages.octopusMural,
-    copy: 'Street art becomes a field objective for creative teams and hidden-route hunters.',
+    copy: 'Street art becomes a field objective for creative agents and hidden-route hunters.',
   },
 ];
 

@@ -15,7 +15,6 @@ import {
   PublicQuestView,
   Player,
   LeaderboardEntry,
-  TeamLeaderboardEntry,
   PlayerEventProgress,
   PlayerCollectible,
   NPCCharacter,
@@ -89,7 +88,6 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   const [quests, setQuests] = useState<PublicQuestView[]>([]);
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [teamLeaderboard, setTeamLeaderboard] = useState<TeamLeaderboardEntry[]>([]);
   const [progress, setProgress] = useState<PlayerEventProgress | null>(null);
 
   // Phase 3 Live States
@@ -101,7 +99,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   const [passcodeResult, setPasscodeResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Navigation & View Filters
-  const [activeTab, setActiveTab] = useState<'quests' | 'map' | 'teams' | 'leaderboard' | 'collectibles' | 'rules'>('quests');
+  const [activeTab, setActiveTab] = useState<'quests' | 'map' | 'leaderboard' | 'collectibles' | 'rules'>('quests');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'default' | 'nearest' | 'points'>('default');
 
@@ -128,7 +126,6 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
         setEvent(data.event);
         setQuests(data.quests || []);
         setLeaderboard(data.leaderboard || []);
-        setTeamLeaderboard([]);
         setProgress(data.progress || null);
         setCollectibles([]);
         setNpcs([]);
@@ -207,11 +204,18 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
 
   const activeFlashQuests = quests.filter((q) => q.isFlash && q.status === 'active');
   const activeNpc = npcs[0];
+  const playerChosenPath = currentPlayer?.selectedStartingPath || 'family';
+  const pathQuests = quests.filter(
+    (q) => q.startingPath === playerChosenPath && q.status === 'active' && !progress?.completedQuestIds.includes(q.id)
+  );
+  const uncompletedActive = quests.filter(
+    (q) => q.status === 'active' && !progress?.completedQuestIds.includes(q.id)
+  );
+
   const recommendedQuest =
     activeFlashQuests[0] ||
-    quests
-      .filter((quest) => quest.status === 'active' && !progress?.completedQuestIds.includes(quest.id))
-      .sort((a, b) => b.pointValue - a.pointValue)[0] ||
+    pathQuests.sort((a, b) => b.pointValue - a.pointValue)[0] ||
+    uncompletedActive.sort((a, b) => b.pointValue - a.pointValue)[0] ||
     quests[0];
   const countdown = getEventCountdown(event);
 
@@ -478,16 +482,6 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
             Map
           </button>
           <button
-            onClick={() => setActiveTab('teams')}
-            className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
-              activeTab === 'teams'
-                ? 'border-amber-400 text-amber-400'
-                : 'border-transparent text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            Team
-          </button>
-          <button
             onClick={() => setActiveTab('leaderboard')}
             className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
               activeTab === 'leaderboard'
@@ -614,27 +608,11 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
           </section>
         )}
 
-        {/* TAB 3: SQUAD OPERATIONS */}
-        {activeTab === 'teams' && currentPlayer && (
-          <section className="glass-panel p-6 space-y-3 animate-fade-in border-cyan-500/30">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              👥 Squad Operations
-            </h2>
-            <p className="text-sm text-gray-300 font-mono">
-              Team creation and joining are handled by server-side operations in the live game environment.
-            </p>
-            <p className="text-xs text-cyan-300 font-mono">
-              Current agent: {currentPlayer.displayName}
-            </p>
-          </section>
-        )}
-
-        {/* TAB 4: LEADERBOARD */}
+        {/* TAB 3: LEADERBOARD */}
         {activeTab === 'leaderboard' && currentPlayer && (
           <section className="animate-fade-in">
             <Leaderboard
               entries={leaderboard}
-              teamEntries={teamLeaderboard}
               currentPlayerId={currentPlayer.id}
             />
           </section>

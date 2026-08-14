@@ -4,6 +4,14 @@ import { describe, expect, it, beforeEach, vi } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
+
 (globalThis as any).React = React;
 import { GET as trackingGet } from '../app/go/[slug]/route';
 import FamilyLanding from '../components/landing/FamilyLanding';

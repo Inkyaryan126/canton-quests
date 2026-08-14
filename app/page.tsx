@@ -20,6 +20,7 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import PlayerIdentityBar from '@/components/PlayerIdentityBar';
+import ThreePathSelector from '@/components/ThreePathSelector';
 import { Player, PublicQuestView, QuestEvent } from '@/lib/types';
 import {
   cleanQuestTitle,
@@ -198,10 +199,20 @@ export default function HomePage() {
             <div className="cq-player-panel" aria-label="Player identity setup">
               <div className="cq-panel-header">
                 <span>STEP 1</span>
-                <strong>Create your callsign, then start the quest.</strong>
+                <strong>Create your callsign, then choose your starting path.</strong>
               </div>
               <PlayerIdentityBar onPlayerChanged={setCurrentPlayerState} />
             </div>
+
+            <ThreePathSelector
+              currentPath={currentPlayer?.selectedStartingPath || 'family'}
+              onSelectPath={(path) => {
+                if (currentPlayer) {
+                  setCurrentPlayerState({ ...currentPlayer, selectedStartingPath: path });
+                }
+              }}
+              eventSlug={activeEvent?.slug || 'canton-launch-2026'}
+            />
           </div>
         </section>
 

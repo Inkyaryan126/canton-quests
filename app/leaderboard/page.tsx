@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Crown, Medal, Radio, Shield, Trophy, UserRound, Zap } from 'lucide-react';
+import { Crown, Medal, Radio, Trophy, Zap } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
-import { LeaderboardEntry, Player, QuestEvent, TeamLeaderboardEntry } from '@/lib/types';
+import { LeaderboardEntry, Player, QuestEvent } from '@/lib/types';
 import { cqImages, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
 
 function getClientPlayer(): Player {
@@ -28,7 +28,6 @@ export default function LeaderboardPage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [teamEntries, setTeamEntries] = useState<TeamLeaderboardEntry[]>([]);
 
   useEffect(() => {
     setCurrentPlayer(getClientPlayer());
@@ -44,7 +43,6 @@ export default function LeaderboardPage() {
       .then((res) => res?.json())
       .then((data: { leaderboard?: LeaderboardEntry[] } | undefined) => {
         setEntries(data?.leaderboard || []);
-        setTeamEntries([]);
       });
   }, []);
 
@@ -91,9 +89,9 @@ export default function LeaderboardPage() {
             <span>ranked agents</span>
           </div>
           <div>
-            <Shield size={20} aria-hidden="true" />
-            <strong>{teamEntries.length}</strong>
-            <span>active squads</span>
+            <Trophy size={20} aria-hidden="true" />
+            <strong>{topThree.length > 0 ? `${topThree[0].totalPoints} XP` : '0 XP'}</strong>
+            <span>current top score</span>
           </div>
         </section>
 
@@ -135,7 +133,7 @@ export default function LeaderboardPage() {
                       {isCurrent && <span>YOU</span>}
                     </h3>
                     <p>
-                      {entry.teamName || 'Solo Agent'} · {entry.questsCompletedCount} mission
+                      Agent · {entry.questsCompletedCount} mission
                       {entry.questsCompletedCount === 1 ? '' : 's'} completed
                     </p>
                   </div>
@@ -143,34 +141,6 @@ export default function LeaderboardPage() {
                 </article>
               );
             })}
-          </div>
-        </section>
-
-        <section className="cq-page-section cq-board-section">
-          <div className="cq-section-heading">
-            <div>
-              <span className="cq-kicker">SQUAD PRESSURE</span>
-              <h2>TEAM STANDINGS</h2>
-            </div>
-            <Trophy className="cq-heading-icon" size={32} aria-hidden="true" />
-          </div>
-
-          <div className="cq-rank-list">
-            {teamEntries.map((team) => (
-              <article key={team.teamId}>
-                <div className="cq-rank-number">#{team.rank}</div>
-                <div className="cq-rank-avatar">
-                  <UserRound size={20} aria-hidden="true" />
-                </div>
-                <div className="cq-rank-name">
-                  <h3>{team.teamName}</h3>
-                  <p>
-                    {team.memberCount} agents · Captain {team.captainName} · Code {team.joinCode}
-                  </p>
-                </div>
-                <strong>{team.totalPoints} XP</strong>
-              </article>
-            ))}
           </div>
         </section>
       </main>

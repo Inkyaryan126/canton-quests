@@ -97,20 +97,20 @@ export const acquisitionLandingPages: Record<AcquisitionLandingSlug, FairLanding
     ogDescription:
       'High-stakes real-world city competition in Canton, Ohio. Crack ciphers, hit flash drops, score XP, and climb the leaderboard.',
     theme: 'challenge',
-    eyebrow: 'COMPETITIVE SQUAD CHALLENGE // LIVE GRID',
+    eyebrow: 'COMPETITIVE LIVE GRID // CITYWIDE PLAYERS',
     headline: 'THINK YOU CAN BEAT CANTON?',
     secondaryHeadline: "THE CITY IS THE BOARD. YOU'RE IN THE RACE.",
     support: [
       "CANTON IS THE BOARD. YOU'RE THE PLAYER.",
       'Hidden codes. Real locations. Timed flash drops. Cryptographic ciphers. Live leaderboard pressure.',
-      'Some squads play one mission. The best crews conquer the whole board. Where does your team stand?',
+      'Some players solve one mission. The top agents conquer the whole board. Where do you stand on the leaderboard?',
     ],
     cta: 'ACCEPT THE CHALLENGE',
     heroImage: cqImages.mapHud,
     heroImageAlt: 'Canton Quests game map interface with tactical HUD',
     proofPoints: ['HIDDEN CODES', 'GPS CHECK-INS', 'TIMED FLASH DROPS', 'LIVE LEADERBOARDS'],
     flow: ['COMPLETE QUESTS', 'EARN XP', 'EARN DRAWING ENTRIES', 'CLIMB THE BOARD'],
-    challengeLine: 'The leaderboard updates in real time. Squads are already scoring.',
+    challengeLine: 'The leaderboard updates in real time. Field agents are already scoring.',
     sections: [
       {
         eyebrow: 'Tactical Scoring Matrix',
@@ -118,9 +118,9 @@ export const acquisitionLandingPages: Record<AcquisitionLandingSlug, FairLanding
         body: 'Base quest XP, sequential cipher locks, and live flash drops feed into the real-time scoring ledger. Zero pay-to-win mechanics.',
       },
       {
-        eyebrow: 'Squad Traversal',
-        title: 'Divide roles and conquer route geometry.',
-        body: 'The strongest competitive teams assign navigators, code readers, field scouts, and proof specialists to maximize points per hour.',
+        eyebrow: 'Strategic Traversal',
+        title: 'Master route geometry and cipher speed.',
+        body: 'The strongest competitive agents optimize their path across downtown, crack codes swiftly, and submit verified proof to dominate the leaderboard.',
       },
     ],
   },

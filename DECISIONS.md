@@ -367,3 +367,130 @@ Each entry follows the standard ADR structure:
 - **Consequences**:
   - Field Game Masters possess complete real-time situational awareness, 1-click drill verification, and deterministic fail-safe emergency controls.
 - **Status**: **ACCEPTED**
+
+---
+
+## ADR-023: Total Removal of Team / Squad System in Favor of Pure Individual Player Competition
+- **Date**: 2026-08-14
+- **Decision**:
+  1. Complete removal of the team / squad system across the entire Canton Quests repository to align with the core product vision: Canton Quests is strictly an **INDIVIDUAL PLAYER** outdoor competition.
+  2. Canonical operational model:
+     $$\text{PLAYER} \rightarrow \text{QUEST} \rightarrow \text{PROOF / VERIFICATION} \rightarrow \text{XP} \rightarrow \text{INDIVIDUAL LEADERBOARD} \rightarrow \text{LIVE GAME EVENTS} \rightarrow \text{SPECTATOR INFLUENCE} \rightarrow \text{FINALE / DRAWINGS}$$
+  3. Clean elimination of player-facing squad constructs:
+     - Removed `Team`, `TeamMember`, and `TeamLeaderboardEntry` runtime interfaces from `lib/types.ts`.
+     - Removed `teamId` and `teamName` fields from `LeaderboardEntry`, `PlayerEventProgress`, `SubmitProofParams`, `SubmitProofResult`, `QuestSubmission`, and `ScoreLedgerEntry`.
+     - Removed team storage keys (`STORAGE_KEYS.TEAMS`, `STORAGE_KEYS.TEAM_MEMBERS`) and engine functions (`createTeam`, `joinTeamByCode`, `getTeamForPlayer`, `getTeamLeaderboardForEvent`).
+     - Removed seed teams and members (`SEED_TEAMS`, `SEED_TEAM_MEMBERS`) from `lib/seed-data.ts`.
+     - Deleted dead `components/TeamHub.tsx` component.
+  4. Streamlined UI & Cockpits:
+     - `components/Leaderboard.tsx`: Converted to clean, responsive, single-mode individual leaderboard.
+     - `app/leaderboard/page.tsx`: Removed `teamEntries` state, active squads card, and team standings section.
+     - `app/events/[slug]/page.tsx`: Removed `'teams'` active tab, Squad Operations section, and squad props.
+     - `app/admin/live/page.tsx` & `app/admin/page.tsx`: Removed team leaderboard lookups, squad tabs, and replaced squad metrics with verified agent rankings and location metrics.
+     - Copy updates across landing pages (`/start/challenge`, `/fair/challenge`, `/how-it-works`) emphasizing individual explorer archetypes and individual leaderboard supremacy.
+  5. Preserved Marketing Campaign Attributions:
+     - Clarified architectural boundary: Physical flyer distribution campaigns (e.g. `street_team` channel, `Canton Quests Street Team 2026`) are marketing attribution channels for promotional print flyers and NOT in-game teams. These remain 100% intact.
+  6. Verified Empirical Proof:
+     - Added comprehensive invariant suite `tests/phase5.6-individual-player-model.test.ts`.
+     - All 19 test suites and 308 tests passing cleanly with zero errors.
+- **Reason**:
+  - Teams and join codes added unnecessary cognitive load, code bloat, and confusion for walk-up festival players and casual explorers. Pure individual player competition simplifies the rules, improves onboarding speed, and makes leaderboard standings immediately intuitive.
+- **Alternatives Evaluated**:
+  - Hiding team UI with CSS while preserving backend calculations (rejected: dead code debt and architectural ambiguity).
+- **Consequences**:
+  - Clean, cohesive, lightning-fast architecture with 0 team dependencies and pure individual player tracking.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-024: Player Identity, Profile Personalization, and Three-Path City Architecture
+- **Date**: 2026-08-14
+- **Decision**:
+  1. **Canonical Product & Competition Flow**:
+     $$\text{ACCOUNT} \rightarrow \text{PLAYER PROFILE} \rightarrow \text{STARTING PATH} \rightarrow \text{QUESTS ACROSS CANTON} \rightarrow \text{PROOF / VERIFICATION} \rightarrow \text{XP} \rightarrow \text{INDIVIDUAL LEADERBOARD} \rightarrow \text{ACHIEVEMENTS} \rightarrow \text{SPECTATOR INFLUENCE} \rightarrow \text{FINALE} \rightarrow \text{PRIZE ELIGIBILITY}$$
+  2. **Fast Player Accounts & Optional Personalization**:
+     - Fast player accounts are required to submit proofs, earn XP, unlock achievements, and rank on the city leaderboard.
+     - 10-second fast callsign registration (`FastPlayerOnboardForm`, `/api/auth/register`, `/api/auth/login`, `/api/auth/me`).
+     - Player profile customization is 100% optional: players may customize bio, motto/tagline, hometown, avatar icon, theme color accent, favorite playstyle, selected title flair, and minor privacy status (`app/profile/page.tsx`, `/api/player/profile`).
+  3. **Three Starting Paths — Open City Grid Invariant**:
+     - Canton Quests has three starting paths corresponding to approximate geographic starting districts in Canton to naturally distribute player traffic:
+       - **FAMILY**: Downtown / Arts District (Centennial Plaza, 4th St Mural, Aura Craft Coffee, Canton Palace Theatre, The Onesto, Civic Seal).
+       - **CHALLENGE**: Southwest / Central Athletic (Arcade Vault, Hall of Fame Marker, planned 9th St Skate Park).
+       - **SECRET**: Northwest / Historical Mystery (McKinley Memorial Stone Stair Cipher, Frankenstein Monument at West Lawn, Founder's Three Locks sequential cipher).
+     - **Open Grid Rule**: Starting paths determine where a player is encouraged to start; paths **NEVER** restrict which quests a player may complete. All players compete on **ONE individual citywide leaderboard** and can solve any quest across Canton in any sequence.
+     - **Attribution Separation**: Player acquisition source (`family_flyer`, `challenge_flyer`, `secret_flyer`, `main_site`, specific QR campaign slug) is tracked independently from `selectedStartingPath`.
+  4. **Dynamic Achievements Engine**:
+     - Added canonical achievements catalog (`SEED_ACHIEVEMENTS`, `achievements` table, `player_achievements` table) rewarding diverse play styles:
+       - Pathfinder (`pathfinder-family`, `pathfinder-challenge`, `pathfinder-secret`): First quest completed on starting path.
+       - District Sweeps (`district-sweep-family`, `district-sweep-challenge`, `district-sweep-secret`): All active quests completed within a district.
+       - Triple Threat (`triple-threat`): Solved missions across all three districts.
+       - City Nomad (`nomad`): Solved missions across all three districts in a single day.
+       - Day 1 Conqueror (`day-one-king`): Finished Day 1 ranked #1 in XP.
+     - Real-time automatic evaluation hooked into `submitQuestProof` and Game Master `reviewSubmission` approvals.
+  5. **Day 1 #1 XP Leader Bonus Engine (+5 Prize Entries)**:
+     - Awarded after Day 1 concludes via authoritative GM trigger (`awardDay1XpLeaderBonus`, `/api/admin/day1-bonus`).
+     - Awards `+5` entries to the transparent prize drawing ledger (`awardDrawingEntries`, `drawing_entry_ledger`) and the `day-one-king` achievement.
+     - Idempotency guard: enforces exact 1-time execution per event.
+     - Deterministic tie-breaker: earliest timestamp of achieving the top score wins.
+     - Full rehearsal sandbox simulation support (`isRehearsal: true`).
+  6. **District Content Auditing & Gap Reporting**:
+     - Added `getDistrictContentSummary` and `getAllDistrictsContentSummary` reporting active quest count, total available XP, and specific district content gaps (e.g. 9th Street Skate Park and Mother Gooseland area field drops).
+  7. **Launch Gate Verification**:
+     - Added hard launch gates `GATE_THREE_PATH_ARCHITECTURE_READY` and `GATE_PLAYER_INDIVIDUAL_ARCHITECTURE` into `lib/event-readiness.ts`.
+  8. **Verified Empirical Proof**:
+     - Added comprehensive test suite `tests/player-identity-three-path-architecture.test.ts`.
+     - All 20 test suites and 324 unit/integration tests passing cleanly.
+- **Reason**:
+  - Distributes physical foot traffic naturally across Canton while maintaining a single, unified citywide competition. Provides fast onboarding with delightful optional personalization and rich achievement rewards.
+- **Alternatives Evaluated**:
+  - Building three separate games or locking quests by path (rejected: fragments player base and violates the open city exploration vision).
+  - Reintroducing team models (rejected: explicitly banned per ADR-023).
+- **Consequences**:
+  - Canton Quests functions as ONE cohesive game with THREE starting doors, transparent prize equity, and a mobile-first player profile experience.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-025: Authoritative Supabase Auth Integration, Cryptographic Email OTP, Safe Legacy Player Claiming, and Impersonation Elimination
+- **Date**: 2026-08-14
+- **Decision**:
+  1. **Authoritative Identity Chain**:
+     $$\text{SUPABASE AUTH USER (auth.users)} \rightarrow \text{players.user\_id} \rightarrow \text{players.id} \rightarrow \text{EVENT PROGRESS / SUBMISSIONS / XP / ACHIEVEMENTS / PRIZE ENTRIES}$$
+     - A player's public callsign or display name is an identifier for public leaderboards and feeds; it is **NEVER** an authentication credential.
+     - A client-supplied `playerId` or `canton_player_id` cookie alone can never authorize profile mutations, quest proof submissions, score adjustments, or prize awards.
+  2. **Elimination of Insecure Login Paths**:
+     - Removed `authenticatePlayer(identifier, password)` from `lib/game-engine.ts` which allowed anyone to impersonate players by entering public callsigns.
+     - Updated `/api/auth/login` to require Supabase Email OTP (`send_otp` / `verify_otp`) or verified JWT sessions. Unverified callsign/email login attempts are strictly rejected with HTTP 401.
+  3. **Passwordless Email OTP & Verified Session Flows**:
+     - Created `lib/supabase-auth.ts` providing canonical OTP send (`sendEmailOtp`), OTP verification (`verifyEmailOtp`), session resolution (`resolveAuthenticatedSupabaseUser`, `resolveAuthenticatedPlayer`, `resolveAuthenticatedPlayerId`), and safe profile creation (`resolveOrCreatePlayerForAuthUser`).
+     - Upgraded `FastPlayerOnboardForm.tsx` and `EnterGameModal.tsx` to 2-step passwordless verification (Callsign + Email $\rightarrow$ 6-digit Magic Code $\rightarrow$ Enter Canton Quests).
+  4. **Safe Legacy Player Account Claiming**:
+     - Players created prior to Supabase Auth integration are safely claimed when a player verifies ownership of their registered email address via Supabase Auth OTP (`LOWER(players.email) = LOWER(auth.email) AND players.user_id IS NULL`).
+     - Preserves 100% of historical XP, quest completions, unlocked achievements, and prize drawing ledger entries.
+     - Missing email accounts are never guessed; callsign collisions create independent player IDs rather than overwriting existing player profiles.
+  5. **Fail-Closed Session Verification & Authorization**:
+     - `/api/auth/me` resolves identity strictly from verified Supabase Auth tokens; if a `canton_player_id` cookie conflicts with the authenticated user, it fails closed.
+     - `/api/player/profile` restricts profile modifications to the server-resolved player ID; forged client-supplied `body.playerId` attempts are rejected with HTTP 403.
+     - `/api/game/submit` validates `Authorization: Bearer <token>` through `resolveAuthenticatedPlayerId`; forged claimant submissions are rejected with zero XP mutation.
+     - Spectator session tokens (`cg_spec_token`) cannot be used as player auth.
+  6. **Database Schema & RLS Hardening**:
+     - Created migration `supabase/migrations/20260814010000_critical_player_auth_remediation.sql`.
+     - Unique partial index `idx_players_user_id_unique` on `players(user_id) WHERE user_id IS NOT NULL`.
+     - Index `idx_players_email_lower` on `players(LOWER(email))`.
+     - Trigger `trg_prevent_player_user_id_tampering` preventing modification of `user_id` once established.
+     - Hardened Row Level Security (RLS) policies on `public.players` and `public.quest_submissions`.
+  7. **Public Privacy Protection**:
+     - `sanitizePlayerForPublic` strips `email` and `user_id` from public leaderboards, activity feeds, and audience watch endpoints.
+  8. **Empirical Verification**:
+     - Created test suite `tests/critical-player-authentication-remediation.test.ts` covering Mandatory Security Tests A through H and Three-Path functional flows.
+     - All 21 test suites (342 tests) passing, `npx tsc --noEmit` passing with 0 errors, `npm run lint` passing with 0 warnings, and Next.js production build passing with 0 errors.
+- **Reason**:
+  - The previous login endpoint allowed impersonation of any player on the public leaderboard simply by submitting their callsign. Cryptographic Supabase Auth OTP eliminates account hijacking while preserving a frictionless, passwordless 10-second onboarding experience.
+- **Alternatives Evaluated**:
+  - Traditional passwords with complex requirements (rejected: causes high friction outdoors on mobile devices).
+  - Web3 / wallet login (rejected: overly complex for general Canton festival audiences).
+  - Ephemeral anonymous tokens only (rejected: does not survive device loss or allow cross-device recovery for prize redemption).
+- **Consequences**:
+  - Rock-solid, cryptographically verified player identity root with seamless mobile OTP UX, safe legacy player preservation, and complete elimination of callsign impersonation vulnerabilities.
+- **Status**: **ACCEPTED**
+

@@ -20,6 +20,7 @@ import {
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
+import FastPlayerOnboardForm from '@/components/FastPlayerOnboardForm';
 import { ACQUISITION_ENTRY_HREF } from '@/lib/acquisition-landing-content';
 import { cqImages } from '@/lib/marketing-assets';
 
@@ -49,25 +50,23 @@ export default function SecretLanding() {
               </p>
               <p className="text-gray-200 text-base leading-relaxed">
                 Graves. Symbols. Forgotten names. Architectural dates. Multi-step cipher locks hiding in plain sight.
-                Canton Quests turns those hidden details into real missions. One of them begins with the Founder Cipher.
+                Enter your callsign to claim this frequency and begin the investigation.
               </p>
             </div>
 
             <div className="cq-fair-actions mt-6">
-              <Link
-                href={ACQUISITION_ENTRY_HREF}
-                className="cq-gold-button font-display font-extrabold text-base py-3.5 px-7 shadow-lg shadow-purple-900/30"
-                data-cta="enter-the-quest"
-                data-fair-cta="secret"
-              >
-                ENTER THE QUEST
-                <ArrowRight size={19} aria-hidden="true" />
-              </Link>
+              <FastPlayerOnboardForm
+                startingPath="secret"
+                acquisitionSource="secret_flyer"
+                buttonLabel="INITIALIZE CIPHER AGENT"
+                themeAccent="#a855f7"
+                redirectTo={ACQUISITION_ENTRY_HREF}
+              />
             </div>
 
             <div className="mt-4 flex items-center gap-2 text-xs font-mono text-purple-200/90 font-bold">
               <Lock size={14} className="text-amber-400 shrink-0" aria-hidden="true" />
-              <span>Unlisted Field Frequency Active · Zero Mandatory Signup</span>
+              <span>Unlisted Field Frequency Active · Individual Leaderboard Sync</span>
             </div>
           </div>
 

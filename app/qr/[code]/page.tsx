@@ -93,9 +93,15 @@ export default function QrGatewayPage({ params }: { params: { code: string } }) 
     let lastResult: SubmitProofResult | null = null;
 
     for (const qrQuest of questsToTry) {
+      const headers: Record<string, string> = { 'content-type': 'application/json' };
+      const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
+      if (authToken) {
+        headers['authorization'] = `Bearer ${authToken}`;
+      }
+
       const response = await fetch('/api/game/submit', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers,
         body: JSON.stringify({
           playerId: player.id,
           questId: qrQuest.id,

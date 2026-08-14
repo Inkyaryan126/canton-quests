@@ -15,9 +15,6 @@ import {
   LeaderboardEntry,
   PlayerEventProgress,
   ProofVerificationType,
-  Team,
-  TeamMember,
-  TeamLeaderboardEntry,
   QuestState,
   SubmitProofParams,
   SubmitProofResult,
@@ -28,6 +25,11 @@ import {
   CodeRedemption,
   Collectible,
   PlayerCollectible,
+  Achievement,
+  PlayerAchievement,
+  StartingPath,
+  QuestPath,
+  DistrictContentSummary,
   NPCCharacter,
   BusinessPartnerInfo,
   CrowdObjective,
@@ -59,9 +61,8 @@ import {
   SEED_EVENT,
   SEED_QUESTS,
   SEED_DEMO_PLAYERS,
-  SEED_TEAMS,
-  SEED_TEAM_MEMBERS,
   SEED_COLLECTIBLES,
+  SEED_ACHIEVEMENTS,
   SEED_SECRET_CODES,
   SEED_ANNOUNCEMENTS,
   SEED_NPCS,
@@ -83,14 +84,14 @@ const STORAGE_KEYS = {
   SCORE_LEDGER: 'canton_quests_score_ledger',
   DRAWING_LEDGER: 'canton_quests_drawing_ledger',
   DRAWING_LOCKS: 'canton_quests_drawing_locks',
-  TEAMS: 'canton_quests_teams',
-  TEAM_MEMBERS: 'canton_quests_team_members',
   ACTIVITY_LOG: 'canton_quests_activity_log',
   ANNOUNCEMENTS: 'canton_quests_announcements',
   SECRET_CODES: 'canton_quests_secret_codes',
   CODE_REDEMPTIONS: 'canton_quests_code_redemptions',
   COLLECTIBLES: 'canton_quests_collectibles',
   PLAYER_COLLECTIBLES: 'canton_quests_player_collectibles',
+  ACHIEVEMENTS: 'canton_quests_achievements',
+  PLAYER_ACHIEVEMENTS: 'canton_quests_player_achievements',
   NPCS: 'canton_quests_npcs',
   PARTNERS: 'canton_quests_partners',
   CROWD_OBJECTIVES: 'canton_quests_crowd_objectives',
@@ -200,14 +201,11 @@ export function initializeGameEngine(): void {
   if (getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, []).length === 0) {
     setStoredItem(STORAGE_KEYS.PLAYERS, JSON.parse(JSON.stringify(SEED_DEMO_PLAYERS)));
   }
-  if (getStoredItem<Team[]>(STORAGE_KEYS.TEAMS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.TEAMS, JSON.parse(JSON.stringify(SEED_TEAMS)));
-  }
-  if (getStoredItem<TeamMember[]>(STORAGE_KEYS.TEAM_MEMBERS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.TEAM_MEMBERS, JSON.parse(JSON.stringify(SEED_TEAM_MEMBERS)));
-  }
   if (getStoredItem<Collectible[]>(STORAGE_KEYS.COLLECTIBLES, []).length === 0) {
     setStoredItem(STORAGE_KEYS.COLLECTIBLES, JSON.parse(JSON.stringify(SEED_COLLECTIBLES)));
+  }
+  if (getStoredItem<Achievement[]>(STORAGE_KEYS.ACHIEVEMENTS, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.parse(JSON.stringify(SEED_ACHIEVEMENTS)));
   }
   if (getStoredItem<SecretCode[]>(STORAGE_KEYS.SECRET_CODES, []).length === 0) {
     setStoredItem(STORAGE_KEYS.SECRET_CODES, mergeServerSecretCodes(JSON.parse(JSON.stringify(SEED_SECRET_CODES))));
@@ -862,6 +860,131 @@ export function getCollectiblesForPlayer(playerId: string): PlayerCollectible[] 
     }));
 }
 
+// 5b. ACHIEVEMENTS ENGINE
+export function getAchievements(): Achievement[] {
+  initializeGameEngine();
+  return getStoredItem<Achievement[]>(STORAGE_KEYS.ACHIEVEMENTS, SEED_ACHIEVEMENTS);
+}
+
+export function getAchievementsForPlayer(playerId: string): PlayerAchievement[] {
+  initializeGameEngine();
+  const achievements = getAchievements();
+  const playerAchievements = getStoredItem<PlayerAchievement[]>(STORAGE_KEYS.PLAYER_ACHIEVEMENTS, []);
+  return playerAchievements
+    .filter((pa) => pa.playerId === playerId)
+    .map((pa) => ({
+      ...pa,
+      achievement: achievements.find((a) => a.slug === pa.achievementSlug || a.id === pa.achievementId),
+    }));
+}
+
+export function awardAchievement(
+  playerId: string,
+  achievementSlug: string,
+  eventId?: string,
+  provenance?: string
+): PlayerAchievement | undefined {
+  initializeGameEngine();
+  const achievements = getAchievements();
+  const achievement = achievements.find((a) => a.slug === achievementSlug || a.id === achievementSlug);
+  if (!achievement) return undefined;
+
+  const existingList = getStoredItem<PlayerAchievement[]>(STORAGE_KEYS.PLAYER_ACHIEVEMENTS, []);
+  const alreadyEarned = existingList.find(
+    (pa) => pa.playerId === playerId && (pa.achievementSlug === achievement.slug || pa.achievementId === achievement.id)
+  );
+  if (alreadyEarned) {
+    return {
+      ...alreadyEarned,
+      achievement,
+    };
+  }
+
+  const newRecord: PlayerAchievement = {
+    id: `pach-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    playerId,
+    achievementId: achievement.id,
+    achievementSlug: achievement.slug,
+    eventId,
+    earnedAt: new Date().toISOString(),
+    provenance: provenance || 'Server verified accomplishment',
+    achievement,
+  };
+
+  setStoredItem(STORAGE_KEYS.PLAYER_ACHIEVEMENTS, [...existingList, newRecord]);
+
+  const player = getAllPlayers().find((p) => p.id === playerId);
+  logActivity({
+    type: 'collectible_earned',
+    actorName: player?.displayName || 'Player',
+    title: `Achievement Unlocked: ${achievement.name}`,
+    details: `${achievement.badgeSymbol} ${achievement.description}`,
+  });
+
+  return newRecord;
+}
+
+export function evaluatePlayerAchievements(playerId: string, eventId: string): PlayerAchievement[] {
+  initializeGameEngine();
+  const player = getAllPlayers().find((p) => p.id === playerId);
+  if (!player) return [];
+
+  const submissions = getAllSubmissions().filter(
+    (s) => s.playerId === playerId && s.eventId === eventId && s.status === 'verified'
+  );
+  const completedQuestIds = new Set(submissions.map((s) => s.questId));
+  const quests = getQuestsForEvent(eventId);
+
+  const completedQuests = quests.filter((q) => completedQuestIds.has(q.id));
+  const completedPaths = new Set(completedQuests.map((q) => q.startingPath).filter(Boolean));
+
+  const newlyAwarded: PlayerAchievement[] = [];
+
+  // 1. Pathfinder for chosen starting path
+  const chosenPath = player.selectedStartingPath || 'family';
+  const hasCompletedChosenPath = completedQuests.some((q) => q.startingPath === chosenPath);
+  if (hasCompletedChosenPath) {
+    const slug = `pathfinder-${chosenPath}`;
+    const res = awardAchievement(playerId, slug, eventId, `Completed first ${chosenPath} mission`);
+    if (res) newlyAwarded.push(res);
+  }
+
+  // 2. Triple Threat (Family, Challenge, Secret)
+  if (completedPaths.has('family') && completedPaths.has('challenge') && completedPaths.has('secret')) {
+    const res = awardAchievement(playerId, 'triple-threat', eventId, 'Completed missions across all 3 starting paths');
+    if (res) newlyAwarded.push(res);
+  }
+
+  // 3. District Sweeps
+  for (const path of ['family', 'challenge', 'secret'] as StartingPath[]) {
+    const activeDistrictQuests = quests.filter((q) => q.startingPath === path && q.status === 'active');
+    if (activeDistrictQuests.length > 0 && activeDistrictQuests.every((q) => completedQuestIds.has(q.id))) {
+      const res = awardAchievement(playerId, `district-sweep-${path}`, eventId, `Swept all active missions in ${path} district`);
+      if (res) newlyAwarded.push(res);
+    }
+  }
+
+  // 4. Nomad: Completed missions across all 3 districts within same day
+  const submissionsByDay = new Map<string, Set<string>>();
+  for (const sub of submissions) {
+    const day = sub.submittedAt.slice(0, 10);
+    const q = quests.find((item) => item.id === sub.questId);
+    if (q?.startingPath && q.startingPath !== 'cross_city') {
+      if (!submissionsByDay.has(day)) submissionsByDay.set(day, new Set());
+      submissionsByDay.get(day)!.add(q.startingPath);
+    }
+  }
+  for (const [, paths] of submissionsByDay) {
+    if (paths.has('family') && paths.has('challenge') && paths.has('secret')) {
+      const res = awardAchievement(playerId, 'nomad', eventId, 'Completed all 3 districts in a single day');
+      if (res) newlyAwarded.push(res);
+      break;
+    }
+  }
+
+  return newlyAwarded;
+}
+
 export function getNPCCharacters(eventId: string): NPCCharacter[] {
   initializeGameEngine();
   const npcs = getStoredItem<NPCCharacter[]>(STORAGE_KEYS.NPCS, SEED_NPCS);
@@ -1199,6 +1322,172 @@ export function getAllPlayers(): Player[] {
   return getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, SEED_DEMO_PLAYERS);
 }
 
+export function getPlayerById(playerId: string): Player | undefined {
+  initializeGameEngine();
+  const players = getAllPlayers();
+  return players.find((p) => p.id === playerId);
+}
+
+export function getPlayerByUserId(userId: string): Player | undefined {
+  initializeGameEngine();
+  const players = getAllPlayers();
+  return players.find((p) => p.userId === userId);
+}
+
+export function claimLegacyPlayerByEmail(userId: string, email: string): Player | undefined {
+  initializeGameEngine();
+  const players = getAllPlayers();
+  const cleanEmail = email.trim().toLowerCase();
+  const legacy = players.find(
+    (p) => p.email && p.email.toLowerCase() === cleanEmail && !p.userId
+  );
+  if (legacy) {
+    legacy.userId = userId;
+    legacy.updatedAt = new Date().toISOString();
+    setStoredItem(STORAGE_KEYS.PLAYERS, players);
+    return legacy;
+  }
+  return undefined;
+}
+
+export function registerPlayer(params: {
+  displayName: string;
+  userId?: string;
+  email?: string;
+  password?: string;
+  avatarUrl?: string;
+  selectedStartingPath?: StartingPath;
+  acquisitionSource?: string;
+  isMinor?: boolean;
+  bio?: string;
+  tagline?: string;
+  hometown?: string;
+  themeColor?: string;
+  favoriteStyle?: string;
+  selectedFlair?: string;
+}): Player {
+  initializeGameEngine();
+  const cleanName = sanitizeTextContent(params.displayName || '').trim();
+  if (!cleanName || cleanName.length < 2) {
+    throw new Error('Callsign must be at least 2 characters.');
+  }
+
+  const players = getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, SEED_DEMO_PLAYERS);
+
+  // 1. If userId is provided, check if player already exists for this authenticated user
+  if (params.userId) {
+    const existingByUser = players.find((p) => p.userId === params.userId);
+    if (existingByUser) {
+      const updated: Player = {
+        ...existingByUser,
+        displayName: cleanName,
+        email: params.email ? params.email.trim().toLowerCase() : existingByUser.email,
+        selectedStartingPath: params.selectedStartingPath || existingByUser.selectedStartingPath || 'family',
+        acquisitionSource: existingByUser.acquisitionSource || params.acquisitionSource || 'main_site',
+        avatarUrl: params.avatarUrl || existingByUser.avatarUrl || '⚡',
+        bio: params.bio !== undefined ? sanitizeTextContent(params.bio) : existingByUser.bio,
+        tagline: params.tagline !== undefined ? sanitizeTextContent(params.tagline) : existingByUser.tagline,
+        hometown: params.hometown !== undefined ? sanitizeTextContent(params.hometown) : existingByUser.hometown,
+        themeColor: params.themeColor || existingByUser.themeColor,
+        favoriteStyle: params.favoriteStyle || existingByUser.favoriteStyle,
+        selectedFlair: params.selectedFlair || existingByUser.selectedFlair,
+        isMinor: params.isMinor !== undefined ? params.isMinor : existingByUser.isMinor,
+        updatedAt: new Date().toISOString(),
+      };
+      const updatedPlayers = players.map((p) => (p.id === existingByUser.id ? updated : p));
+      setStoredItem(STORAGE_KEYS.PLAYERS, updatedPlayers);
+      setStoredItem(STORAGE_KEYS.CURRENT_PLAYER, updated);
+      return updated;
+    }
+
+    // 2. Check if an unlinked legacy account exists for the verified email
+    if (params.email) {
+      const cleanEmail = params.email.trim().toLowerCase();
+      const legacy = players.find((p) => p.email && p.email.toLowerCase() === cleanEmail && !p.userId);
+      if (legacy) {
+        legacy.userId = params.userId;
+        legacy.displayName = cleanName || legacy.displayName;
+        legacy.updatedAt = new Date().toISOString();
+        const updatedPlayers = players.map((p) => (p.id === legacy.id ? legacy : p));
+        setStoredItem(STORAGE_KEYS.PLAYERS, updatedPlayers);
+        setStoredItem(STORAGE_KEYS.CURRENT_PLAYER, legacy);
+        return legacy;
+      }
+    }
+  }
+
+  // 3. Create a brand new player
+  const newPlayer: Player = {
+    id: `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    userId: params.userId,
+    displayName: cleanName,
+    email: params.email?.trim().toLowerCase(),
+    avatarUrl: params.avatarUrl || '⚡',
+    role: 'player',
+    totalXp: 0,
+    level: 1,
+    selectedStartingPath: params.selectedStartingPath || 'family',
+    acquisitionSource: params.acquisitionSource || 'main_site',
+    bio: params.bio ? sanitizeTextContent(params.bio) : undefined,
+    tagline: params.tagline ? sanitizeTextContent(params.tagline) : undefined,
+    hometown: params.hometown ? sanitizeTextContent(params.hometown) : undefined,
+    themeColor: params.themeColor,
+    favoriteStyle: params.favoriteStyle,
+    selectedFlair: params.selectedFlair,
+    isMinor: params.isMinor,
+    createdAt: new Date().toISOString(),
+  };
+
+  const updatedPlayers = [...players, newPlayer];
+  setStoredItem(STORAGE_KEYS.PLAYERS, updatedPlayers);
+  setStoredItem(STORAGE_KEYS.CURRENT_PLAYER, newPlayer);
+
+  logActivity({
+    type: 'player_joined',
+    actorName: newPlayer.displayName,
+    title: `Agent Registered: ${newPlayer.displayName}`,
+    details: `Selected path: ${newPlayer.selectedStartingPath?.toUpperCase()} (Acquisition: ${newPlayer.acquisitionSource})`,
+  });
+
+  return newPlayer;
+}
+
+export function updatePlayerProfile(playerId: string, updates: Partial<Player>): Player {
+  initializeGameEngine();
+  const players = getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, SEED_DEMO_PLAYERS);
+  const player = players.find((p) => p.id === playerId);
+  if (!player) {
+    throw new Error('Player not found.');
+  }
+
+  // Never allow changing immutable id or acquisition source
+  const updated: Player = {
+    ...player,
+    displayName: updates.displayName ? sanitizeTextContent(updates.displayName).trim() : player.displayName,
+    avatarUrl: updates.avatarUrl || player.avatarUrl,
+    selectedStartingPath: updates.selectedStartingPath || player.selectedStartingPath,
+    bio: updates.bio !== undefined ? sanitizeTextContent(updates.bio) : player.bio,
+    tagline: updates.tagline !== undefined ? sanitizeTextContent(updates.tagline) : player.tagline,
+    hometown: updates.hometown !== undefined ? sanitizeTextContent(updates.hometown) : player.hometown,
+    themeColor: updates.themeColor || player.themeColor,
+    favoriteStyle: updates.favoriteStyle || player.favoriteStyle,
+    selectedFlair: updates.selectedFlair || player.selectedFlair,
+    showcaseBadges: updates.showcaseBadges || player.showcaseBadges,
+    isMinor: updates.isMinor !== undefined ? updates.isMinor : player.isMinor,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const updatedPlayers = players.map((p) => (p.id === playerId ? updated : p));
+  setStoredItem(STORAGE_KEYS.PLAYERS, updatedPlayers);
+
+  const current = getStoredItem<Player | null>(STORAGE_KEYS.CURRENT_PLAYER, null);
+  if (current && current.id === playerId) {
+    setStoredItem(STORAGE_KEYS.CURRENT_PLAYER, updated);
+  }
+
+  return updated;
+}
+
 export function getEvents(): QuestEvent[] {
   initializeGameEngine();
   return getStoredItem<QuestEvent[]>(STORAGE_KEYS.EVENTS, [SEED_EVENT]);
@@ -1292,193 +1581,6 @@ export function triggerFlashQuest(questId: string, durationMinutes: number = 30)
   }
 
   return updated;
-}
-
-export function generateJoinCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = 'CQ-';
-  for (let i = 0; i < 4; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
-}
-
-export function createTeam(eventId: string, name: string, captainId: string, avatarSymbol: string = '🛡️'): Team {
-  initializeGameEngine();
-  const teams = getStoredItem<Team[]>(STORAGE_KEYS.TEAMS, SEED_TEAMS);
-  const members = getStoredItem<TeamMember[]>(STORAGE_KEYS.TEAM_MEMBERS, SEED_TEAM_MEMBERS);
-
-  let joinCode = generateJoinCode();
-  while (teams.some((t) => t.joinCode === joinCode)) {
-    joinCode = generateJoinCode();
-  }
-
-  const newTeam: Team = {
-    id: `team-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    eventId,
-    name: name.trim(),
-    joinCode,
-    captainId,
-    avatarSymbol,
-    totalPoints: 0,
-    createdAt: new Date().toISOString(),
-  };
-
-  const newMember: TeamMember = {
-    id: `tm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    teamId: newTeam.id,
-    playerId: captainId,
-    joinedAt: new Date().toISOString(),
-  };
-
-  setStoredItem(STORAGE_KEYS.TEAMS, [...teams, newTeam]);
-  setStoredItem(STORAGE_KEYS.TEAM_MEMBERS, [...members, newMember]);
-
-  const captain = getAllPlayers().find((p) => p.id === captainId);
-  logActivity({
-    type: 'team_created',
-    actorName: captain?.displayName || 'Player',
-    title: `Team Formed: ${newTeam.name}`,
-    details: `Join Code: ${newTeam.joinCode}`,
-  });
-
-  return newTeam;
-}
-
-export function joinTeamByCode(joinCode: string, playerId: string, eventId: string): { success: boolean; team?: Team; message: string } {
-  initializeGameEngine();
-  const teams = getStoredItem<Team[]>(STORAGE_KEYS.TEAMS, SEED_TEAMS);
-  const members = getStoredItem<TeamMember[]>(STORAGE_KEYS.TEAM_MEMBERS, SEED_TEAM_MEMBERS);
-
-  const cleanCode = joinCode.trim().toUpperCase();
-  const targetTeam = teams.find((t) => t.eventId === eventId && t.joinCode === cleanCode);
-
-  if (!targetTeam) {
-    return { success: false, message: 'Invalid team join code! Please double-check the code.' };
-  }
-
-  const isAlreadyMember = members.some((m) => m.teamId === targetTeam.id && m.playerId === playerId);
-  if (isAlreadyMember) {
-    return { success: true, team: targetTeam, message: `You are already a member of ${targetTeam.name}!` };
-  }
-
-  const otherTeamIds = teams.filter((t) => t.eventId === eventId).map((t) => t.id);
-  const filteredMembers = members.filter((m) => !(m.playerId === playerId && otherTeamIds.includes(m.teamId)));
-
-  const newMember: TeamMember = {
-    id: `tm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    teamId: targetTeam.id,
-    playerId,
-    joinedAt: new Date().toISOString(),
-  };
-
-  setStoredItem(STORAGE_KEYS.TEAM_MEMBERS, [...filteredMembers, newMember]);
-
-  const player = getAllPlayers().find((p) => p.id === playerId);
-  logActivity({
-    type: 'team_joined',
-    actorName: player?.displayName || 'Player',
-    title: `Joined Team: ${targetTeam.name}`,
-    details: `Agent joined squad ${targetTeam.joinCode}`,
-  });
-
-  return { success: true, team: targetTeam, message: `Successfully joined ${targetTeam.name}!` };
-}
-
-export function getTeamForPlayer(playerId: string, eventId: string): { team?: Team; members: TeamMember[] } {
-  initializeGameEngine();
-  const teams = getStoredItem<Team[]>(STORAGE_KEYS.TEAMS, SEED_TEAMS);
-  const members = getStoredItem<TeamMember[]>(STORAGE_KEYS.TEAM_MEMBERS, SEED_TEAM_MEMBERS);
-  const players = getAllPlayers();
-
-  const playerTeamMember = members.find((m) => {
-    if (m.playerId !== playerId) return false;
-    const teamObj = teams.find((t) => t.id === m.teamId);
-    return teamObj && teamObj.eventId === eventId;
-  });
-
-  if (!playerTeamMember) return { team: undefined, members: [] };
-
-  const team = teams.find((t) => t.id === playerTeamMember.teamId);
-  const teamMembers = members
-    .filter((m) => m.teamId === playerTeamMember.teamId)
-    .map((m) => ({
-      ...m,
-      player: players.find((p) => p.id === m.playerId),
-    }));
-
-  return { team, members: teamMembers };
-}
-
-export function getTeamLeaderboardForEvent(eventId: string): TeamLeaderboardEntry[] {
-  initializeGameEngine();
-  const teams = getStoredItem<Team[]>(STORAGE_KEYS.TEAMS, SEED_TEAMS).filter((t) => t.eventId === eventId);
-  const members = getStoredItem<TeamMember[]>(STORAGE_KEYS.TEAM_MEMBERS, SEED_TEAM_MEMBERS);
-  const ledger = getStoredItem<ScoreLedgerEntry[]>(STORAGE_KEYS.SCORE_LEDGER, []);
-  const players = getAllPlayers();
-
-  const teamStats: Record<
-    string,
-    { totalPoints: number; completedQuests: Set<string>; lastScoreTime: string; memberIds: Set<string> }
-  > = {};
-
-  teams.forEach((t) => {
-    teamStats[t.id] = {
-      totalPoints: 0,
-      completedQuests: new Set(),
-      lastScoreTime: t.createdAt,
-      memberIds: new Set(members.filter((m) => m.teamId === t.id).map((m) => m.playerId)),
-    };
-  });
-
-  ledger
-    .filter((entry) => entry.eventId === eventId)
-    .forEach((entry) => {
-      let targetTeamId = entry.teamId;
-      if (!targetTeamId) {
-        const playerTeam = members.find((m) => {
-          if (m.playerId !== entry.playerId) return false;
-          const t = teams.find((team) => team.id === m.teamId);
-          return t && t.eventId === eventId;
-        });
-        if (playerTeam) targetTeamId = playerTeam.teamId;
-      }
-
-      if (targetTeamId && teamStats[targetTeamId]) {
-        teamStats[targetTeamId].totalPoints += entry.points;
-        if (entry.questId) {
-          teamStats[targetTeamId].completedQuests.add(entry.questId);
-        }
-        if (new Date(entry.awardedAt) > new Date(teamStats[targetTeamId].lastScoreTime)) {
-          teamStats[targetTeamId].lastScoreTime = entry.awardedAt;
-        }
-      }
-    });
-
-  const leaderboard: TeamLeaderboardEntry[] = teams.map((team) => {
-    const stats = teamStats[team.id];
-    const captain = players.find((p) => p.id === team.captainId);
-
-    return {
-      rank: 0,
-      teamId: team.id,
-      teamName: team.name,
-      joinCode: team.joinCode,
-      captainId: team.captainId,
-      captainName: captain?.displayName || 'Captain',
-      memberCount: stats ? stats.memberIds.size : 1,
-      totalPoints: stats ? stats.totalPoints : 0,
-      questsCompletedCount: stats ? stats.completedQuests.size : 0,
-      lastScoreTime: stats ? stats.lastScoreTime : team.createdAt,
-    };
-  });
-
-  leaderboard.sort((a, b) => {
-    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-    return new Date(a.lastScoreTime || 0).getTime() - new Date(b.lastScoreTime || 0).getTime();
-  });
-
-  return leaderboard.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
 }
 
 export function getSubmissionsForPlayer(playerId: string, eventId?: string): QuestSubmission[] {
@@ -1948,9 +2050,6 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     });
   }
 
-  const playerTeamInfo = getTeamForPlayer(params.playerId, params.eventId);
-  const teamId = params.teamId || playerTeamInfo.team?.id;
-
   let claimPlacement: number | undefined = undefined;
   if (isAutoVerified) {
     const currentClaims = quest.currentClaims || 0;
@@ -1964,7 +2063,6 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     id: `sub-${Date.now()}`,
     questId: params.questId,
     playerId: params.playerId,
-    teamId,
     eventId: params.eventId,
     proofType: params.proofType,
     submittedContent: params.submittedContent,
@@ -2015,7 +2113,6 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     recordScoreLedger({
       eventId: params.eventId,
       playerId: params.playerId,
-      teamId,
       questId: params.questId,
       submissionId: newSubmission.id,
       points: awardedPoints,
@@ -2044,6 +2141,9 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     if (quest.id === 'qst-centennial-discovery') {
       grantedCol = awardCollectible(params.playerId, 'col-founder-token', 'Centennial Beacon Quest');
     }
+
+    // Evaluate dynamic path and district achievements
+    evaluatePlayerAchievements(params.playerId, params.eventId);
 
     const player = getAllPlayers().find((p) => p.id === params.playerId);
     logActivity({
@@ -3225,8 +3325,6 @@ export function getLeaderboardForEvent(eventId: string): LeaderboardEntry[] {
   initializeGameEngine();
   const ledger = getStoredItem<ScoreLedgerEntry[]>(STORAGE_KEYS.SCORE_LEDGER, []);
   const players = getAllPlayers();
-  const teams = getStoredItem<Team[]>(STORAGE_KEYS.TEAMS, SEED_TEAMS);
-  const members = getStoredItem<TeamMember[]>(STORAGE_KEYS.TEAM_MEMBERS, SEED_TEAM_MEMBERS);
 
   const playerStats: Record<
     string,
@@ -3267,13 +3365,6 @@ export function getLeaderboardForEvent(eventId: string): LeaderboardEntry[] {
       avatarUrl: '⚡',
     };
 
-    const teamMember = members.find((m) => {
-      if (m.playerId !== playerId) return false;
-      const t = teams.find((team) => team.id === m.teamId);
-      return t && t.eventId === eventId;
-    });
-    const teamObj = teamMember ? teams.find((t) => t.id === teamMember.teamId) : undefined;
-
     return {
       rank: 0,
       playerId,
@@ -3282,7 +3373,6 @@ export function getLeaderboardForEvent(eventId: string): LeaderboardEntry[] {
       totalPoints: Math.max(0, stats.totalPoints),
       questsCompletedCount: stats.completedQuestIds.size,
       lastScoreTime: stats.lastScoreTime,
-      teamName: teamObj?.name,
     };
   });
 
@@ -3302,7 +3392,6 @@ export function getPlayerProgress(playerId: string, eventId: string): PlayerEven
   const submissions = getSubmissionsForPlayer(playerId, eventId);
   const quests = getQuestsForEvent(eventId);
   const leaderboard = getLeaderboardForEvent(eventId);
-  const teamInfo = getTeamForPlayer(playerId, eventId);
   const isQualified = isPlayerQualifiedForFinale(playerId, eventId);
 
   const verifiedSubmissions = submissions.filter((s) => s.status === 'verified');
@@ -3321,7 +3410,6 @@ export function getPlayerProgress(playerId: string, eventId: string): PlayerEven
     completedCount: completedQuestIds.length,
     availableCount: quests.length,
     rank: leaderboardEntry ? leaderboardEntry.rank : leaderboard.length + 1,
-    team: teamInfo.team,
     isQualifiedForFinale: isQualified,
   };
 }
@@ -3368,7 +3456,6 @@ export function reviewSubmission(
     recordScoreLedger({
       eventId: sub.eventId,
       playerId: sub.playerId,
-      teamId: sub.teamId,
       questId: sub.questId,
       submissionId: sub.id,
       points: sub.awardedPoints,
@@ -3385,6 +3472,8 @@ export function reviewSubmission(
       sourceType: 'quest_completion',
       reason: `Media submission approved for ${quest ? quest.title : 'Quest'}`,
     });
+
+    evaluatePlayerAchievements(sub.playerId, sub.eventId);
   }
 
   setStoredItem(STORAGE_KEYS.SUBMISSIONS, submissions);
@@ -3405,6 +3494,224 @@ export function logActivity(item: Omit<EventActivityItem, 'id' | 'timestamp'>): 
     timestamp: new Date().toISOString(),
   };
   setStoredItem(STORAGE_KEYS.ACTIVITY_LOG, [newLog, ...logs].slice(0, 50));
+}
+
+// -----------------------------------------------------------------------------
+// Day 1 Leader Bonus & Three-Path District Operations
+// -----------------------------------------------------------------------------
+
+export function awardDay1XpLeaderBonus(
+  eventId: string,
+  isRehearsal: boolean = false
+): {
+  success: boolean;
+  winnerPlayerId?: string;
+  winningPlayerName?: string;
+  topXp?: number;
+  entriesAwarded: number;
+  isDuplicatePrevented?: boolean;
+  tieBroken?: boolean;
+  message: string;
+} {
+  initializeGameEngine();
+  const event = getEvents().find((e) => e.id === eventId);
+  if (!event) {
+    return { success: false, entriesAwarded: 0, message: `Event ${eventId} not found.` };
+  }
+
+  if (event.status === 'draft' || (event as any).status === 'cancelled') {
+    return { success: false, entriesAwarded: 0, message: 'Cancelled or draft events cannot award Day 1 bonuses.' };
+  }
+
+  // Check if already awarded for this event
+  const drawingLedger = getStoredItem<DrawingEntryLedgerEntry[]>(STORAGE_KEYS.DRAWING_LEDGER, []);
+  const existingBonus = drawingLedger.find(
+    (e) => e.eventId === eventId && e.sourceType === 'DAY_1_XP_LEADER_BONUS'
+  );
+
+  if (existingBonus) {
+    const winner = getAllPlayers().find((p) => p.id === existingBonus.playerId);
+    return {
+      success: true,
+      winnerPlayerId: existingBonus.playerId,
+      winningPlayerName: winner?.displayName || 'Day 1 Champion',
+      entriesAwarded: existingBonus.entriesCount,
+      isDuplicatePrevented: true,
+      message: 'Day 1 #1 XP Leader Bonus has already been awarded and recorded in the transparent ledger.',
+    };
+  }
+
+  // Get authoritative leaderboard for this event
+  const leaderboard = getLeaderboardForEvent(eventId);
+  if (leaderboard.length === 0 || leaderboard[0].totalPoints <= 0) {
+    return {
+      success: false,
+      entriesAwarded: 0,
+      message: 'No qualifying player scores recorded for Day 1.',
+    };
+  }
+
+  const topScore = leaderboard[0].totalPoints;
+  const tiedLeaders = leaderboard.filter((entry) => entry.totalPoints === topScore);
+
+  // Deterministic tie-breaker:
+  // 1. If only 1 leader, they win.
+  // 2. If multiple leaders are tied at the top score, the player who reached that score earliest (earliest lastScoreTime) wins.
+  let winnerEntry = tiedLeaders[0];
+  let tieBroken = false;
+  if (tiedLeaders.length > 1) {
+    tieBroken = true;
+    winnerEntry = tiedLeaders.reduce((prev, curr) => {
+      const prevTime = prev.lastScoreTime ? new Date(prev.lastScoreTime).getTime() : Infinity;
+      const currTime = curr.lastScoreTime ? new Date(curr.lastScoreTime).getTime() : Infinity;
+      return currTime < prevTime ? curr : prev;
+    });
+  }
+
+  const winnerPlayer = getAllPlayers().find((p) => p.id === winnerEntry.playerId);
+  if (!winnerPlayer) {
+    return { success: false, entriesAwarded: 0, message: 'Winner player record not found.' };
+  }
+
+  if (isRehearsal) {
+    return {
+      success: true,
+      winnerPlayerId: winnerEntry.playerId,
+      winningPlayerName: winnerEntry.displayName,
+      topXp: topScore,
+      entriesAwarded: 5,
+      tieBroken,
+      message: `[REHEARSAL] Day 1 Bonus would be awarded to ${winnerEntry.displayName} (+5 Drawing Entries). Production data untouched.`,
+    };
+  }
+
+  // Award +5 drawing entries to the verified Day 1 leader
+  awardDrawingEntries({
+    eventId,
+    playerId: winnerEntry.playerId,
+    entriesCount: 5,
+    sourceType: 'DAY_1_XP_LEADER_BONUS',
+    reason: `Day 1 Finalized #1 XP Leader Bonus (${topScore} XP${tieBroken ? ' - Earliest Tiebreaker' : ''})`,
+  });
+
+  // Award Day 1 City Conqueror achievement
+  awardAchievement(
+    winnerEntry.playerId,
+    'day-one-king',
+    eventId,
+    `Finished Day 1 ranked #1 in XP with ${topScore} points`
+  );
+
+  logActivity({
+    type: 'phase_change',
+    actorName: 'Game Master',
+    title: `Day 1 XP Champion Finalized: ${winnerEntry.displayName}`,
+    details: `${winnerEntry.displayName} finished Day 1 at #1 with ${topScore} XP (+5 Prize Entries awarded)`,
+  });
+
+  return {
+    success: true,
+    winnerPlayerId: winnerEntry.playerId,
+    winningPlayerName: winnerEntry.displayName,
+    topXp: topScore,
+    entriesAwarded: 5,
+    tieBroken,
+    message: `Awarded +5 prize entries and 'Day 1 City Conqueror' achievement to ${winnerEntry.displayName}.`,
+  };
+}
+
+export function getDistrictContentSummary(eventId: string, district: StartingPath): DistrictContentSummary {
+  initializeGameEngine();
+  const quests = getQuestsForEvent(eventId).filter((q) => q.startingPath === district);
+  const activeQuests = quests.filter((q) => q.status === 'active');
+  const totalAvailableXp = activeQuests.reduce((sum, q) => sum + (q.xpReward || q.pointValue), 0);
+
+  const questTypes: Record<string, number> = {};
+  let gpsQuestsCount = 0;
+  let qrQuestsCount = 0;
+  let photoQuestsCount = 0;
+  let puzzleQuestsCount = 0;
+  let brokenQuestsCount = 0;
+
+  for (const q of quests) {
+    questTypes[q.verificationType] = (questTypes[q.verificationType] || 0) + 1;
+    if (q.verificationType === 'gps' || q.verificationType === 'checkin' || q.requireLocationVerification) {
+      gpsQuestsCount++;
+    }
+    if (q.verificationType === 'qr' || q.requireQrAndLocation) {
+      qrQuestsCount++;
+    }
+    if (q.verificationType === 'photo' || q.verificationType === 'video') {
+      photoQuestsCount++;
+    }
+    if (q.verificationType === 'passphrase' || q.category === 'puzzle' || q.category === 'secret') {
+      puzzleQuestsCount++;
+    }
+    if (q.status !== 'active') {
+      brokenQuestsCount++;
+    }
+  }
+
+  const contentGaps: string[] = [];
+  if (district === 'challenge') {
+    if (activeQuests.length < 5) {
+      contentGaps.push(
+        'Challenge district needs planned 9th Street Skate Park and Mother Gooseland area scavenger drop quests configured.'
+      );
+    }
+  } else if (district === 'secret') {
+    if (activeQuests.length < 5) {
+      contentGaps.push(
+        'Secret district needs final West Lawn Cemetery daylight verification and additional cipher drop nodes.'
+      );
+    }
+  } else if (district === 'family') {
+    if (activeQuests.length < 3) {
+      contentGaps.push('Family district has low mission count.');
+    }
+  }
+
+  const metaMap: Record<StartingPath, { name: string; approximateArea: string; flavor: string }> = {
+    family: {
+      name: 'Downtown Arts & Central District',
+      approximateArea: 'Downtown Arts District & Centennial Plaza',
+      flavor: 'Explore. Create. Discover. All-ages, murals, local coffee, landmarks.',
+    },
+    challenge: {
+      name: 'Kinetic & Skill Challenge District',
+      approximateArea: '9th Street Skate Park & Athletic Corridor',
+      flavor: 'Move. Compete. Prove Yourself. Physical speed, skill, high XP.',
+    },
+    secret: {
+      name: 'Mystery & Monument Secret District',
+      approximateArea: 'McKinley Monument & West Lawn Corridor',
+      flavor: 'Decode. Investigate. Uncover Canton. Cryptic ciphers, historical mysteries.',
+    },
+  };
+
+  return {
+    district,
+    name: metaMap[district].name,
+    approximateArea: metaMap[district].approximateArea,
+    flavor: metaMap[district].flavor,
+    activeQuestsCount: activeQuests.length,
+    totalAvailableXp,
+    questTypes,
+    gpsQuestsCount,
+    qrQuestsCount,
+    photoQuestsCount,
+    puzzleQuestsCount,
+    brokenQuestsCount,
+    contentGaps,
+  };
+}
+
+export function getAllDistrictsContentSummary(eventId: string): Record<StartingPath, DistrictContentSummary> {
+  return {
+    family: getDistrictContentSummary(eventId, 'family'),
+    challenge: getDistrictContentSummary(eventId, 'challenge'),
+    secret: getDistrictContentSummary(eventId, 'secret'),
+  };
 }
 
 // -----------------------------------------------------------------------------

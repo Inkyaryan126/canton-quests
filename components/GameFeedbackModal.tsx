@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 interface FeedbackData {
-  type: 'quest_completed' | 'team_joined' | 'flash_activated' | 'level_up';
+  type: 'quest_completed' | 'flash_activated' | 'level_up';
   title: string;
   message: string;
   pointsAwarded?: number;
@@ -35,7 +35,7 @@ export default function GameFeedbackModal({ feedback, onClose }: GameFeedbackMod
         </button>
 
         <div className="text-5xl animate-bounce">
-          {feedback.type === 'quest_completed' ? '🎉' : feedback.type === 'team_joined' ? '🛡️' : '⚡'}
+          {feedback.type === 'quest_completed' ? '🎉' : '⚡'}
         </div>
 
         <div>
