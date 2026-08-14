@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import AcquisitionLandingPage from '@/components/AcquisitionLandingPage';
+import FamilyLanding from '@/components/landing/FamilyLanding';
 import { acquisitionLandingPages } from '@/lib/acquisition-landing-content';
 
 const content = acquisitionLandingPages.family;
@@ -15,5 +15,5 @@ export const metadata: Metadata = {
 };
 
 export default function StartFamilyPage() {
-  return <AcquisitionLandingPage content={content} />;
+  return <FamilyLanding />;
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import Header from '@/components/Header';
 import AudienceVoteCard from '@/components/spectator/AudienceVoteCard';
 import HostBroadcastCard from '@/components/spectator/HostBroadcastCard';
@@ -28,7 +29,8 @@ export default function WatchPage() {
   const [settings, setSettings] = useState<SpectatorSystemSettings | null>(null);
   const [districts, setDistricts] = useState<DistrictInfo[]>([]);
   const [activeSpectatorCount, setActiveSpectatorCount] = useState<number>(0);
-  const [parentEventStatus, setParentEventStatus] = useState<'upcoming' | 'active' | 'ended'>('active');
+  const [parentEventStatus, setParentEventStatus] = useState<'upcoming' | 'active' | 'ended' | 'inactive'>('active');
+  const [activeEventTitle, setActiveEventTitle] = useState<string>('Canton Quests: Volume 1 — The Founder\'s Cipher');
 
   // User session state
   const [votedOptions, setVotedOptions] = useState<Record<string, string>>({});
@@ -139,11 +141,15 @@ export default function WatchPage() {
 
       if (mainEventRes) {
         const mainEventData = await mainEventRes.json().catch(() => null);
-        if (mainEventData?.events?.[0]) {
-          const status = mainEventData.events[0].status;
+        if (mainEventData?.events && mainEventData.events.length > 0) {
+          const eventItem = mainEventData.events[0];
+          if (eventItem.title) setActiveEventTitle(eventItem.title);
+          const status = eventItem.status;
           if (status === 'draft') setParentEventStatus('upcoming');
           else if (status === 'completed' || status === 'archived') setParentEventStatus('ended');
           else setParentEventStatus('active');
+        } else if (mainEventData?.events && mainEventData.events.length === 0) {
+          setParentEventStatus('inactive');
         }
       }
 
@@ -336,11 +342,37 @@ export default function WatchPage() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 space-y-6">
         {/* Parent Event Status Banner Frame */}
+        {parentEventStatus === 'inactive' && (
+          <div className="p-6 md:p-8 bg-[#0e131f]/90 border border-gray-800 rounded-2xl space-y-4 text-center">
+            <div className="text-4xl">🌙</div>
+            <span className="inline-block px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-xs font-mono text-cyan-300 font-bold uppercase tracking-wider">
+              AIRWAVES STANDING BY
+            </span>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+              THE CITY IS QUIET — FOR NOW.
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-300 max-w-lg mx-auto leading-relaxed">
+              Canton Quests airwaves activate during live weekend events and pop-up flash missions. Browse available missions, check the leaderboards, or review the rulebook to prepare for the next drop.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <Link href="/quests" className="btn btn-primary text-xs py-2.5 px-4 font-mono font-bold">
+                🗺️ EXPLORE MISSIONS →
+              </Link>
+              <Link href="/how-it-works" className="btn btn-secondary text-xs py-2.5 px-4 font-mono">
+                📖 HOW IT WORKS
+              </Link>
+              <Link href="/leaderboard" className="btn btn-secondary text-xs py-2.5 px-4 font-mono">
+                🏆 LEADERBOARD
+              </Link>
+            </div>
+          </div>
+        )}
+
         {parentEventStatus === 'upcoming' && (
           <div className="p-5 bg-cyan-950/40 border-2 border-cyan-500/50 rounded-2xl space-y-2">
             <div className="flex items-center justify-between">
               <span className="badge badge-medium bg-cyan-500/20 text-cyan-300 font-mono font-bold uppercase">
-                🗓️ UPCOMING EVENT • CANTON VOL. 1
+                🗓️ UPCOMING EVENT • {activeEventTitle}
               </span>
               <span className="text-xs text-gray-400 font-mono">Kickoff: September 4, 2026</span>
             </div>
@@ -359,7 +391,7 @@ export default function WatchPage() {
               </span>
               <span className="text-xs text-gray-400 font-mono font-bold">FINAL RESULTS ARCHIVED</span>
             </div>
-            <h2 className="text-lg font-bold text-white">Canton Quests Season Has Ended</h2>
+            <h2 className="text-lg font-bold text-white">{activeEventTitle} Has Ended</h2>
             <p className="text-xs text-gray-300 leading-relaxed">
               Field operations for this volume are complete. Final spectator vote outcomes and public activity records are archived below.
             </p>
@@ -395,9 +427,9 @@ export default function WatchPage() {
         {convertedPlayerId && (
           <div className="p-3.5 bg-emerald-950/50 border border-emerald-500/40 rounded-xl text-emerald-300 flex items-center justify-between gap-3 font-mono">
             <span>⚡ Welcome back! Your spectator session is linked to Agent Profile ({convertedPlayerId}).</span>
-            <a href="/" className="btn btn-primary text-[11px] py-1 px-3 font-bold">
+            <Link href="/quests" className="btn btn-primary text-[11px] py-1 px-3 font-bold">
               🚀 PLAY NOW →
-            </a>
+            </Link>
           </div>
         )}
 
@@ -442,12 +474,12 @@ export default function WatchPage() {
                 </span>
               </div>
 
-              <a
-                href="/"
+              <Link
+                href="/quests"
                 className="btn btn-primary text-xs py-2 px-4 font-mono font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform whitespace-nowrap"
               >
                 🎮 RETURN TO GAME →
-              </a>
+              </Link>
             </>
           ) : (
             <>

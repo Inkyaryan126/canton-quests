@@ -94,6 +94,7 @@ While **Canton, Ohio** is our initial launch pad and testing ground, the underly
 ### Confirmed Decisions
 - **Launch Location**: Canton, Ohio.
 - **Game Identity**: City-scale game, not a generic SaaS tool.
+- **Visual Identity**: Official canonical logo locked at `public/brand/canton-quests-master-logo.png`.
 - **Scoring Philosophy**: Non-punitive scoring allowing partial-weekend players to compete for distinct category championships.
 - **Tech Foundation**: Web-first PWA approach (Next.js, TypeScript, Supabase) for frictionless zero-download onboarding via QR code scanning.
 - **Safety Guarantee**: Quests are pre-screened for physical safety, traffic control, and property access before going live.
@@ -112,3 +113,16 @@ While **Canton, Ohio** is our initial launch pad and testing ground, the underly
 - ❌ **Do NOT** create quests that require dangerous physical feats, highway crossings, or trespassing onto private residential property.
 - ❌ **Do NOT** force users to install heavy 200MB native app store bundles prior to playing their first mission.
 - ❌ **Do NOT** design scoring systems where missing Friday night means zero chance of winning anything on Sunday.
+- ❌ **Do NOT** generate or introduce alternate CQ logos without an explicit branding decision.
+
+---
+
+## 9. Official Brand & Visual Identity
+
+> **Canonical Brand Rule**:
+> The canonical Canton Quests logo is:
+> `public/brand/canton-quests-master-logo.png`
+>
+> All future Canton Quests visual work must use this artwork or deterministic derivatives of this artwork (e.g. `public/brand/canton-quests-mark.png`, `public/brand/canton-quests-mark-512.png`, `public/brand/canton-quests-mark-192.png`, `public/brand/canton-quests-apple-touch-icon.png`, `public/brand/favicon.ico`).
+>
+> **Do not generate or introduce alternate CQ logos without an explicit branding decision.**

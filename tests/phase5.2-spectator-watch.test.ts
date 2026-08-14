@@ -981,4 +981,136 @@ describe('Phase 5.2 Public Watch Spectator Experience Test Suite', () => {
       expect(settings.disabledReason).toBe('Maintenance Window');
     });
   });
+
+  describe('8. Phase 5.2 Public /watch UI & Spectator Experience Integrations', () => {
+    it('1. Spectator API responds to public anonymous GET requests without credentials', async () => {
+      const { GET } = await import('../app/api/game/spectator/route');
+
+      const req = new Request('http://localhost:3000/api/game/spectator?action=events');
+      const res = await GET(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(Array.isArray(data.events)).toBe(true);
+    });
+
+    it('2. Public audience event payload does not expose internal administrative metadata or secrets', async () => {
+      const { event } = createAudienceEvent({
+        eventId: 'evt-public-test',
+        title: 'Public Modifier Selection',
+        eventType: 'world_event',
+        options: [{ label: 'Double Points Zone' }, { label: 'Speed Clue Drop' }],
+      });
+
+      const publicEvents = getAudienceEvents('evt-public-test', false);
+      const target = publicEvents.find((e) => e.id === event.id);
+
+      expect(target).toBeDefined();
+      expect((target as any).createdBy).toBeUndefined();
+      expect((target as any).resolvedBy).toBeUndefined();
+      expect((target as any).internalNotes).toBeUndefined();
+    });
+
+    it('3. Options endpoint returns sanitized labels and descriptions without server effect payloads', async () => {
+      const { GET } = await import('../app/api/game/spectator/route');
+      const { event } = createAudienceEvent({
+        eventId: 'evt-opts-test',
+        title: 'Choose Destination',
+        eventType: 'audience_vote',
+        options: [
+          { label: 'Centennial Plaza', description: 'Central gathering spot' },
+          { label: '4th Street Murals', description: 'Arts district showcase' },
+        ],
+      });
+
+      const req = new Request(`http://localhost:3000/api/game/spectator?action=options&audienceEventId=${event.id}`);
+      const res = await GET(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.options.length).toBe(2);
+      data.options.forEach((opt: any) => {
+        expect(opt.optionLabel).toBeDefined();
+        expect(opt.effectPayload).toBeUndefined();
+      });
+    });
+
+    it('4. Cancelled audience event is safely removed from active public voting queue while retained for Game Master audits', () => {
+      const { event } = createAudienceEvent({
+        eventId: 'evt-cancelled-test',
+        title: 'Contested Choice',
+        eventType: 'audience_vote',
+        options: [{ label: 'Path A' }, { label: 'Path B' }],
+      });
+
+      // Update status to cancelled in store
+      event.status = 'cancelled';
+
+      const publicEvents = getAudienceEvents('evt-cancelled-test', false) as import('../lib/types').PublicAudienceEvent[];
+      const publicEvt = publicEvents.find((e) => e.id === event.id);
+      expect(publicEvt).toBeUndefined();
+
+      const adminEvents = getAudienceEvents('evt-cancelled-test', true);
+      const adminEvt = adminEvents.find((e) => e.id === event.id);
+      expect(adminEvt?.status).toBe('cancelled');
+    });
+
+    it('5. Overridden audience event indicates manual resolution for audience visibility', () => {
+      const { event, options } = createAudienceEvent({
+        eventId: 'evt-override-test',
+        title: 'Split Decision',
+        eventType: 'audience_vote',
+        options: [{ label: 'Option Alpha' }, { label: 'Option Beta' }],
+      });
+
+      // Simulate GM override
+      event.status = 'resolved';
+      event.isManuallyOverridden = true;
+      event.overrideReason = 'Game Master balance adjustment';
+      event.winningOptionId = options[1].id;
+
+      const publicEvents = getAudienceEvents('evt-override-test', false) as import('../lib/types').PublicAudienceEvent[];
+      const publicEvt = publicEvents.find((e) => e.id === event.id);
+
+      expect(publicEvt?.status).toBe('resolved');
+      expect(publicEvt?.publicWinningOptionId).toBe(options[1].id);
+    });
+
+    it('6. Client source files never reference service-role keys or privileged credentials', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const clientFiles = [
+        'app/watch/page.tsx',
+        'components/spectator/AudienceVoteCard.tsx',
+        'components/spectator/HostBroadcastCard.tsx',
+        'components/spectator/PublicGameFeed.tsx',
+        'components/spectator/DistrictActivityView.tsx',
+        'components/spectator/CommunityStatsBar.tsx',
+        'components/spectator/EnterGameModal.tsx',
+      ];
+
+      for (const relPath of clientFiles) {
+        const fullPath = path.resolve(process.cwd(), relPath);
+        if (fs.existsSync(fullPath)) {
+          const content = fs.readFileSync(fullPath, 'utf8');
+          expect(content).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
+          expect(content).not.toContain('supabaseAdmin');
+          expect(content).not.toContain('service_role');
+        }
+      }
+    });
+
+    it('7. Real spectator conversion flow points to live quest board (/quests)', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const modalPath = path.resolve(process.cwd(), 'components/spectator/EnterGameModal.tsx');
+      const content = fs.readFileSync(modalPath, 'utf8');
+
+      expect(content).toContain("router.push('/quests')");
+    });
+  });
 });

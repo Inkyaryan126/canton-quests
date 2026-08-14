@@ -518,13 +518,317 @@ export async function setupStreetTeamCampaign(input: {
   }));
 }
 
+export const CANONICAL_STREET_TEAM_CAMPAIGN: QrCampaign = {
+  id: 'camp-street-team-2026',
+  name: 'Canton Quests Street Team 2026',
+  slug: 'canton-quests-street-team-2026',
+  destinationUrl: '/quests',
+  description: 'Promotional QR flyer campaign distributed by the Canton street team across Canton, Ohio.',
+  notes: 'Canonical street team campaign for flyers and short slugs.',
+  status: 'active',
+  createdAt: '2026-08-01T00:00:00.000Z',
+  updatedAt: '2026-08-01T00:00:00.000Z',
+};
+
+export const CANONICAL_FLYERS: CampaignFlyerVariant[] = [
+  {
+    id: 'flyer-family',
+    campaignId: 'camp-street-team-2026',
+    name: 'Family',
+    description: 'All-ages family adventure flyer',
+    notes: 'Destination /start/family',
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'flyer-challenge',
+    campaignId: 'camp-street-team-2026',
+    name: 'Challenge',
+    description: 'Competitive squad challenge flyer',
+    notes: 'Destination /start/challenge',
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'flyer-secret',
+    campaignId: 'camp-street-team-2026',
+    name: 'Secret',
+    description: 'Unlisted mystery entry flyer',
+    notes: 'Destination /start/secret',
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+];
+
+export const CANONICAL_DISTRIBUTORS: CampaignDistributor[] = [
+  {
+    id: 'dist-dustin',
+    campaignId: 'camp-street-team-2026',
+    name: 'Dustin',
+    notes: 'Street team lead',
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'dist-emp-1',
+    campaignId: 'camp-street-team-2026',
+    name: 'Employee 1',
+    notes: 'Street team distributor 1',
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'dist-emp-2',
+    campaignId: 'camp-street-team-2026',
+    name: 'Employee 2',
+    notes: 'Street team distributor 2',
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+];
+
+export const CANONICAL_QR_CODES: CampaignQrCode[] = [
+  {
+    id: 'cqr-canonical-f1',
+    campaignId: 'camp-street-team-2026',
+    flyerVariantId: 'flyer-family',
+    distributorId: 'dist-dustin',
+    internalName: 'Canton Quests Street Team 2026 / Family / Dustin',
+    destinationUrl: '/start/family',
+    trackingSlug: 'f1',
+    trackingUrl: trackingUrlForSlug('f1'),
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'cqr-canonical-f2',
+    campaignId: 'camp-street-team-2026',
+    flyerVariantId: 'flyer-family',
+    distributorId: 'dist-emp-1',
+    internalName: 'Canton Quests Street Team 2026 / Family / Employee 1',
+    destinationUrl: '/start/family',
+    trackingSlug: 'f2',
+    trackingUrl: trackingUrlForSlug('f2'),
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'cqr-canonical-f3',
+    campaignId: 'camp-street-team-2026',
+    flyerVariantId: 'flyer-family',
+    distributorId: 'dist-emp-2',
+    internalName: 'Canton Quests Street Team 2026 / Family / Employee 2',
+    destinationUrl: '/start/family',
+    trackingSlug: 'f3',
+    trackingUrl: trackingUrlForSlug('f3'),
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'cqr-canonical-c1',
+    campaignId: 'camp-street-team-2026',
+    flyerVariantId: 'flyer-challenge',
+    distributorId: 'dist-dustin',
+    internalName: 'Canton Quests Street Team 2026 / Challenge / Dustin',
+    destinationUrl: '/start/challenge',
+    trackingSlug: 'c1',
+    trackingUrl: trackingUrlForSlug('c1'),
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'cqr-canonical-c2',
+    campaignId: 'camp-street-team-2026',
+    flyerVariantId: 'flyer-challenge',
+    distributorId: 'dist-emp-1',
+    internalName: 'Canton Quests Street Team 2026 / Challenge / Employee 1',
+    destinationUrl: '/start/challenge',
+    trackingSlug: 'c2',
+    trackingUrl: trackingUrlForSlug('c2'),
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'cqr-canonical-c3',
+    campaignId: 'camp-street-team-2026',
+    flyerVariantId: 'flyer-challenge',
+    distributorId: 'dist-emp-2',
+    internalName: 'Canton Quests Street Team 2026 / Challenge / Employee 2',
+    destinationUrl: '/start/challenge',
+    trackingSlug: 'c3',
+    trackingUrl: trackingUrlForSlug('c3'),
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'cqr-canonical-s1',
+    campaignId: 'camp-street-team-2026',
+    flyerVariantId: 'flyer-secret',
+    distributorId: 'dist-dustin',
+    internalName: 'Canton Quests Street Team 2026 / Secret / Dustin',
+    destinationUrl: '/start/secret',
+    trackingSlug: 's1',
+    trackingUrl: trackingUrlForSlug('s1'),
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'cqr-canonical-s2',
+    campaignId: 'camp-street-team-2026',
+    flyerVariantId: 'flyer-secret',
+    distributorId: 'dist-emp-1',
+    internalName: 'Canton Quests Street Team 2026 / Secret / Employee 1',
+    destinationUrl: '/start/secret',
+    trackingSlug: 's2',
+    trackingUrl: trackingUrlForSlug('s2'),
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+  {
+    id: 'cqr-canonical-s3',
+    campaignId: 'camp-street-team-2026',
+    flyerVariantId: 'flyer-secret',
+    distributorId: 'dist-emp-2',
+    internalName: 'Canton Quests Street Team 2026 / Secret / Employee 2',
+    destinationUrl: '/start/secret',
+    trackingSlug: 's3',
+    trackingUrl: trackingUrlForSlug('s3'),
+    status: 'active',
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+];
+
+export const CANONICAL_SHORT_SLUGS: Record<
+  string,
+  {
+    campaignId: string;
+    campaignName: string;
+    flyerVariantId: string;
+    flyerName: string;
+    distributorId: string;
+    distributorName: string;
+    destinationUrl: string;
+  }
+> = Object.fromEntries(
+  CANONICAL_QR_CODES.map((qr) => {
+    const flyer = CANONICAL_FLYERS.find((f) => f.id === qr.flyerVariantId);
+    const dist = CANONICAL_DISTRIBUTORS.find((d) => d.id === qr.distributorId);
+    return [
+      qr.trackingSlug,
+      {
+        campaignId: qr.campaignId,
+        campaignName: CANONICAL_STREET_TEAM_CAMPAIGN.name,
+        flyerVariantId: qr.flyerVariantId,
+        flyerName: flyer?.name || 'Unknown',
+        distributorId: qr.distributorId,
+        distributorName: dist?.name || 'Unknown',
+        destinationUrl: qr.destinationUrl,
+      },
+    ];
+  })
+);
+
+export function ensureCanonicalStreetTeamInStore(): void {
+  if (!campaignStore.campaigns.some((c) => c.id === CANONICAL_STREET_TEAM_CAMPAIGN.id)) {
+    campaignStore.campaigns.push(CANONICAL_STREET_TEAM_CAMPAIGN);
+  }
+  for (const flyer of CANONICAL_FLYERS) {
+    if (!campaignStore.flyerVariants.some((f) => f.id === flyer.id)) {
+      campaignStore.flyerVariants.push(flyer);
+    }
+  }
+  for (const dist of CANONICAL_DISTRIBUTORS) {
+    if (!campaignStore.distributors.some((d) => d.id === dist.id)) {
+      campaignStore.distributors.push(dist);
+    }
+  }
+  for (const qr of CANONICAL_QR_CODES) {
+    if (!campaignStore.qrCodes.some((q) => q.id === qr.id || q.trackingSlug === qr.trackingSlug)) {
+      campaignStore.qrCodes.push(qr);
+    }
+  }
+}
+
+export async function ensureCanonicalStreetTeamInSupabase(): Promise<boolean> {
+  if (!isSupabaseAdminConfigured || !supabaseAdmin) return false;
+  try {
+    // 1. Upsert campaign
+    await supabaseAdmin.from('qr_campaigns').upsert({
+      id: CANONICAL_STREET_TEAM_CAMPAIGN.id,
+      name: CANONICAL_STREET_TEAM_CAMPAIGN.name,
+      slug: CANONICAL_STREET_TEAM_CAMPAIGN.slug,
+      destination_url: CANONICAL_STREET_TEAM_CAMPAIGN.destinationUrl,
+      description: CANONICAL_STREET_TEAM_CAMPAIGN.description,
+      notes: CANONICAL_STREET_TEAM_CAMPAIGN.notes,
+      status: CANONICAL_STREET_TEAM_CAMPAIGN.status,
+      created_at: CANONICAL_STREET_TEAM_CAMPAIGN.createdAt,
+      updated_at: CANONICAL_STREET_TEAM_CAMPAIGN.updatedAt,
+    });
+
+    // 2. Upsert flyers
+    for (const flyer of CANONICAL_FLYERS) {
+      await supabaseAdmin.from('campaign_flyer_variants').upsert({
+        id: flyer.id,
+        campaign_id: flyer.campaignId,
+        name: flyer.name,
+        description: flyer.description,
+        notes: flyer.notes,
+        status: flyer.status,
+        created_at: flyer.createdAt,
+      });
+    }
+
+    // 3. Upsert distributors
+    for (const dist of CANONICAL_DISTRIBUTORS) {
+      await supabaseAdmin.from('campaign_distributors').upsert({
+        id: dist.id,
+        campaign_id: dist.campaignId,
+        name: dist.name,
+        notes: dist.notes,
+        status: dist.status,
+        created_at: dist.createdAt,
+      });
+    }
+
+    // 4. Upsert QR codes
+    for (const qr of CANONICAL_QR_CODES) {
+      await supabaseAdmin.from('campaign_qr_codes').upsert({
+        id: qr.id,
+        campaign_id: qr.campaignId,
+        flyer_variant_id: qr.flyerVariantId,
+        distributor_id: qr.distributorId,
+        internal_name: qr.internalName,
+        destination_url: qr.destinationUrl,
+        tracking_slug: qr.trackingSlug,
+        status: qr.status,
+        created_at: qr.createdAt,
+      });
+    }
+
+    return true;
+  } catch (err) {
+    console.error('[QR Campaigns] Error ensuring canonical street team in Supabase:', err);
+    return false;
+  }
+}
+
 export async function resolveCampaignQrCode(slug: string): Promise<CampaignQrCode | undefined> {
   const cleanSlug = slug.trim().toLowerCase();
-  if (!/^[a-z0-9-]{6,120}$/.test(cleanSlug)) return undefined;
+  if (!/^[a-z0-9-]{2,120}$/.test(cleanSlug)) return undefined;
   const bundle = await getCampaignBundle();
   const qr = bundle.qrCodes.find((item) => item.trackingSlug === cleanSlug && item.status === 'active');
-  const campaign = qr ? bundle.campaigns.find((item) => item.id === qr.campaignId && item.status === 'active') : undefined;
-  return campaign ? qr : undefined;
+  if (qr) {
+    const campaign = bundle.campaigns.find((item) => item.id === qr.campaignId && item.status === 'active');
+    if (campaign) return qr;
+  }
+
+  // Canonical short slug fallback for street team campaign
+  const canonicalQr = CANONICAL_QR_CODES.find((item) => item.trackingSlug === cleanSlug);
+  if (canonicalQr) {
+    return canonicalQr;
+  }
+
+  return undefined;
 }
 
 export async function setCampaignQrCodeStatus(qrCodeId: string, status: CampaignEntityStatus): Promise<CampaignQrCode | undefined> {
@@ -737,7 +1041,7 @@ export async function recordCampaignVisit(input: {
   referrer?: string | null;
   userAgent?: string | null;
   at?: Date;
-}): Promise<{ qrCode?: CampaignQrCode; visit?: CampaignVisit; rateLimited: boolean }> {
+}): Promise<{ qrCode?: CampaignQrCode; visit?: CampaignVisit; rateLimited: boolean; error?: string }> {
   const qrCode = await resolveCampaignQrCode(input.trackingSlug);
   if (!qrCode) return { rateLimited: false };
 
@@ -763,7 +1067,7 @@ export async function recordCampaignVisit(input: {
   };
 
   if (isSupabaseAdminConfigured && supabaseAdmin) {
-    const { data, error } = await supabaseAdmin
+    let insertResult = await supabaseAdmin
       .from('campaign_visits')
       .insert({
         id: visit.id,
@@ -779,9 +1083,44 @@ export async function recordCampaignVisit(input: {
       })
       .select('*')
       .single();
-    if (!error && data) return { qrCode, visit: mapVisit(data), rateLimited: false };
+
+    if (insertResult.error) {
+      // If foreign key constraint failed on canonical record, seed canonical entities in Supabase and retry once
+      const isCanonical = CANONICAL_QR_CODES.some((c) => c.id === qrCode.id || c.trackingSlug === qrCode.trackingSlug);
+      if (isCanonical) {
+        const seeded = await ensureCanonicalStreetTeamInSupabase();
+        if (seeded) {
+          insertResult = await supabaseAdmin
+            .from('campaign_visits')
+            .insert({
+              id: visit.id,
+              campaign_id: visit.campaignId,
+              flyer_variant_id: visit.flyerVariantId,
+              distributor_id: visit.distributorId,
+              qr_code_id: visit.qrCodeId,
+              destination_url: visit.destinationUrl,
+              anonymous_visitor_id: visit.anonymousVisitorId,
+              referrer: visit.referrer,
+              user_agent_class: visit.userAgentClass,
+              created_at: visit.createdAt,
+            })
+            .select('*')
+            .single();
+        }
+      }
+    }
+
+    if (insertResult.error) {
+      console.error('[QR Campaigns] Supabase visit insert failed:', insertResult.error);
+      return { qrCode, rateLimited: false, error: insertResult.error.message };
+    }
+
+    if (insertResult.data) {
+      return { qrCode, visit: mapVisit(insertResult.data), rateLimited: false };
+    }
   }
 
+  ensureCanonicalStreetTeamInStore();
   campaignStore.visits.push(visit);
   return { qrCode, visit, rateLimited: false };
 }

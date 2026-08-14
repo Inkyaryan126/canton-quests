@@ -436,14 +436,50 @@ code, pre, .font-mono {
 .cq-nav-logo {
   display: inline-flex;
   align-items: center;
+  gap: 0.65rem;
   min-height: 52px;
+  text-decoration: none;
 }
 
-.cq-nav-logo img {
-  width: min(206px, 42vw);
-  height: auto;
-  object-fit: contain;
-  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55));
+.cq-nav-logo-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  filter: drop-shadow(0 4px 12px rgba(240, 201, 120, 0.25));
+  transition: transform 0.2s ease;
+}
+
+.cq-nav-logo:hover .cq-nav-logo-mark {
+  transform: scale(1.04);
+}
+
+.cq-nav-brand-lockup {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.cq-nav-brand-title {
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+.cq-gold-text {
+  color: #f59e0b;
+}
+
+.cq-nav-brand-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #06b6d4;
+  text-transform: uppercase;
+  margin-top: 3px;
 }
 
 .cq-nav-links,
@@ -2075,7 +2111,27 @@ code, pre, .font-mono {
   font-size: 0.72rem;
 }
 
-.cq-footer > div:first-child,
+.cq-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.cq-footer-brand-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 0.92rem;
+  letter-spacing: 0.05em;
+  color: #ffffff;
+  display: block;
+}
+
+.cq-footer-brand-text p {
+  color: #8d887e;
+  font-size: 0.72rem;
+  margin-top: 1px;
+}
+
 .cq-footer-links a {
   display: flex;
   align-items: center;
@@ -2083,8 +2139,8 @@ code, pre, .font-mono {
 }
 
 .cq-footer img {
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
 }
 
@@ -2381,8 +2437,18 @@ code, pre, .font-mono {
 }
 
 @media (max-width: 520px) {
-  .cq-nav-logo img {
-    width: 154px;
+  .cq-nav-logo-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .cq-nav-brand-title {
+    font-size: 0.95rem;
+  }
+
+  .cq-nav-brand-subtitle {
+    font-size: 0.5rem;
+    letter-spacing: 0.12em;
   }
 
   .cq-nav-cta {

@@ -563,6 +563,212 @@ export async function createAudienceEventDB(params: {
   return { event: createdEvent, options: createdOptions };
 }
 
+export async function activateAudienceEventDB(
+  audienceEventId: string,
+  startsAt?: string,
+  durationMinutes: number = 5,
+  activatedBy: string = 'Game Director'
+): Promise<{ success: boolean; event?: AudienceEvent; error?: string }> {
+  if (!supabaseModule.isSupabaseConfigured) {
+    return localEngine.activateAudienceEvent(audienceEventId, startsAt, durationMinutes, activatedBy);
+  }
+
+  if (!supabaseModule.supabaseAdmin) {
+    return { success: false, error: 'Supabase Service Role configuration missing for activating audience event.' };
+  }
+
+  const now = startsAt ? new Date(startsAt) : new Date();
+  const ends = new Date(now.getTime() + durationMinutes * 60 * 1000);
+
+  const { data, error } = await supabaseModule.supabaseAdmin
+    .from('audience_events')
+    .update({
+      status: 'voting_active',
+      starts_at: now.toISOString(),
+      ends_at: ends.toISOString(),
+      is_paused: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', audienceEventId)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: error?.message || 'Failed to activate audience event' };
+  }
+
+  // Create broadcast
+  await createHostBroadcastDB({
+    eventId: data.event_id,
+    headline: `🗳️ LIVE AUDIENCE VOTE OPENED: ${data.title}`,
+    body: data.description || 'Watchers: cast your votes now on the public airwaves to decide the next city modifier!',
+    tone: 'flash',
+    targetChannel: 'all',
+    priority: 'high',
+    isPublished: true,
+  });
+
+  return {
+    success: true,
+    event: {
+      id: data.id,
+      eventId: data.event_id,
+      title: data.title,
+      description: data.description,
+      eventType: data.event_type,
+      eligibilityMode: data.eligibility_mode,
+      targetType: data.target_type,
+      targetId: data.target_id,
+      maxVotesPerSession: data.max_votes_per_session,
+      startsAt: data.starts_at,
+      endsAt: data.ends_at,
+      status: data.status,
+      isPaused: data.is_paused,
+      winningOptionId: data.winning_option_id,
+      isManuallyOverridden: data.is_manually_overridden,
+      overrideReason: data.override_reason,
+      resolvedBy: data.resolved_by,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    },
+  };
+}
+
+export async function closeAudienceVotingDB(
+  audienceEventId: string,
+  closedBy: string = 'Game Director'
+): Promise<{ success: boolean; event?: AudienceEvent; error?: string }> {
+  if (!supabaseModule.isSupabaseConfigured) {
+    return localEngine.closeAudienceVoting(audienceEventId, closedBy);
+  }
+
+  if (!supabaseModule.supabaseAdmin) {
+    return { success: false, error: 'Supabase Service Role configuration missing for closing audience voting.' };
+  }
+
+  const { data, error } = await supabaseModule.supabaseAdmin
+    .from('audience_events')
+    .update({
+      status: 'tallying_closed',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', audienceEventId)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: error?.message || 'Failed to close audience voting' };
+  }
+
+  return {
+    success: true,
+    event: {
+      id: data.id,
+      eventId: data.event_id,
+      title: data.title,
+      description: data.description,
+      eventType: data.event_type,
+      eligibilityMode: data.eligibility_mode,
+      targetType: data.target_type,
+      targetId: data.target_id,
+      maxVotesPerSession: data.max_votes_per_session,
+      startsAt: data.starts_at,
+      endsAt: data.ends_at,
+      status: data.status,
+      isPaused: data.is_paused,
+      winningOptionId: data.winning_option_id,
+      isManuallyOverridden: data.is_manually_overridden,
+      overrideReason: data.override_reason,
+      resolvedBy: data.resolved_by,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    },
+  };
+}
+
+export async function cancelAudienceEventDB(
+  audienceEventId: string,
+  cancellationReason: string,
+  cancelledBy: string = 'Game Director'
+): Promise<{ success: boolean; event?: AudienceEvent; error?: string }> {
+  if (!supabaseModule.isSupabaseConfigured) {
+    return localEngine.cancelAudienceEvent(audienceEventId, cancellationReason, cancelledBy);
+  }
+
+  if (!supabaseModule.supabaseAdmin) {
+    return { success: false, error: 'Supabase Service Role configuration missing for cancelling audience event.' };
+  }
+
+  const { data, error } = await supabaseModule.supabaseAdmin
+    .from('audience_events')
+    .update({
+      status: 'cancelled',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', audienceEventId)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: error?.message || 'Failed to cancel audience event' };
+  }
+
+  await createHostBroadcastDB({
+    eventId: data.event_id,
+    headline: `⛔ AUDIENCE DECISION CANCELLED`,
+    body: `The active decision "${data.title}" has been cancelled by the Game Master. Reason: ${cancellationReason}`,
+    tone: 'urgent',
+    targetChannel: 'all',
+    priority: 'high',
+    isPublished: true,
+  });
+
+  return {
+    success: true,
+    event: {
+      id: data.id,
+      eventId: data.event_id,
+      title: data.title,
+      description: data.description,
+      eventType: data.event_type,
+      eligibilityMode: data.eligibility_mode,
+      targetType: data.target_type,
+      targetId: data.target_id,
+      maxVotesPerSession: data.max_votes_per_session,
+      startsAt: data.starts_at,
+      endsAt: data.ends_at,
+      status: data.status,
+      isPaused: data.is_paused,
+      winningOptionId: data.winning_option_id,
+      isManuallyOverridden: data.is_manually_overridden,
+      overrideReason: data.override_reason,
+      resolvedBy: data.resolved_by,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    },
+  };
+}
+
+export async function getLiveEventTimelineDB(
+  eventId: string,
+  limit: number = 50,
+  includeRehearsal: boolean = true
+): Promise<import('./types').LiveEventTimelineEntry[]> {
+  return localEngine.getLiveEventTimeline(eventId, limit, includeRehearsal);
+}
+
+export async function runAudienceVoteSimulationDB(
+  eventId: string = 'default-event',
+  params?: {
+    title?: string;
+    optionsCount?: number;
+    votesCount?: number;
+    preferredOptionIndex?: number;
+  }
+): Promise<import('./types').AudienceVoteSimulationResult> {
+  return localEngine.runAudienceVoteSimulation(eventId, params);
+}
+
 export async function resolveAudienceEventDB(
   audienceEventId: string,
   overrideOptionId?: string,
@@ -586,6 +792,49 @@ export async function resolveAudienceEventDB(
 
   if (evtErr || !eventRow) {
     return { success: false, error: `Event not found in DB: ${evtErr?.message}` };
+  }
+
+  // Idempotency: If already resolved, return existing winner
+  if (eventRow.status === 'resolved') {
+    const { data: opt } = await supabaseModule.supabaseAdmin
+      .from('audience_event_options')
+      .select('*')
+      .eq('id', eventRow.winning_option_id)
+      .maybeSingle();
+
+    const { data: eff } = await supabaseModule.supabaseAdmin
+      .from('audience_effects')
+      .select('*')
+      .eq('audience_event_id', audienceEventId)
+      .maybeSingle();
+
+    return {
+      success: true,
+      winningOption: opt
+        ? {
+            id: opt.id,
+            audienceEventId: opt.audience_event_id,
+            optionLabel: opt.option_label,
+            optionDescription: opt.option_description,
+            effectPayload: opt.effect_payload,
+            voteCount: opt.vote_count,
+            sortOrder: opt.sort_order,
+            createdAt: opt.created_at,
+          }
+        : undefined,
+      effect: eff
+        ? {
+            id: eff.id,
+            audienceEventId: eff.audience_event_id,
+            effectType: eff.effect_type,
+            payload: eff.payload,
+            status: eff.status,
+            appliedAt: eff.applied_at,
+            resolvedAt: eff.resolved_at,
+            createdAt: eff.created_at,
+          }
+        : undefined,
+    };
   }
 
   const { data: optionRows, error: optErr } = await supabaseModule.supabaseAdmin
@@ -648,6 +897,25 @@ export async function resolveAudienceEventDB(
   if (effectErr || !effectRow) {
     return { success: false, error: `Failed to record audience_effect: ${effectErr?.message}` };
   }
+
+  // Create Automated Broadcast
+  const broadcastHeadline = isOverridden
+    ? `⚡ GAME MASTER OVERRIDE: ${winnerRow.option_label}`
+    : `🏆 THE AUDIENCE HAS SPOKEN: ${winnerRow.option_label}`;
+
+  const broadcastBody = isOverridden
+    ? `The Game Master has resolved the decision: "${winnerRow.option_label}". Reason: ${overrideReason || 'Game Master Decision'}`
+    : `The watchers have chosen "${winnerRow.option_label}" with ${winnerRow.vote_count} community votes! Active gameplay modifiers are now in effect.`;
+
+  await createHostBroadcastDB({
+    eventId: eventRow.event_id,
+    headline: broadcastHeadline,
+    body: broadcastBody,
+    tone: isOverridden ? 'urgent' : 'theatrical',
+    targetChannel: 'all',
+    priority: 'high',
+    isPublished: true,
+  });
 
   const winningOption: AudienceEventOption = {
     id: winnerRow.id,

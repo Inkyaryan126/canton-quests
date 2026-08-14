@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { GeneratedQR } from '@/lib/types';
 import { getEvents, getGeneratedQRs } from '@/lib/game-engine';
+import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 
 export default function PrintableQrSheetPage() {
   const [qrs, setQrs] = useState<GeneratedQR[]>([]);
@@ -21,9 +22,12 @@ export default function PrintableQrSheetPage() {
     <div className="min-h-screen bg-white text-black p-8 font-mono">
       {/* Header */}
       <div className="border-b-2 border-black pb-4 mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">CANTON QUESTS — OFFICIAL FIELD QR SHEET</h1>
-          <p className="text-xs text-gray-700 pt-1">Event: {eventTitle} • Generated for Field Deployment</p>
+        <div className="flex items-center gap-3">
+          <CantonQuestsLogo variant="mark" size={44} className="rounded-lg" />
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight">CANTON QUESTS — OFFICIAL FIELD QR SHEET</h1>
+            <p className="text-xs text-gray-700 pt-1">Event: {eventTitle} • Generated for Field Deployment</p>
+          </div>
         </div>
         <button
           onClick={() => window.print()}
@@ -41,9 +45,12 @@ export default function PrintableQrSheetPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
           {qrs.map((qr) => (
             <div key={qr.id} className="border-2 border-black p-4 rounded-lg flex flex-col items-center text-center space-y-3">
-              <span className="text-[10px] uppercase font-bold tracking-widest bg-gray-200 px-2 py-0.5 rounded">
-                OFFICIAL GAME EMBLEM
-              </span>
+              <div className="flex items-center gap-1.5 bg-gray-100 border border-gray-300 px-2.5 py-1 rounded">
+                <CantonQuestsLogo variant="mark" size={16} />
+                <span className="text-[10px] uppercase font-bold tracking-widest text-black">
+                  OFFICIAL GAME EMBLEM
+                </span>
+              </div>
 
               {/* QR Simulation Frame */}
               <div className="w-36 h-36 border-4 border-black p-2 flex flex-col items-center justify-center bg-gray-50 font-bold text-xs space-y-1">

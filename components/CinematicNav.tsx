@@ -1,7 +1,6 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { cqImages } from '@/lib/marketing-assets';
+import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 
 interface CinematicNavProps {
   eventHref: string;
@@ -11,7 +10,13 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
   return (
     <nav className="cq-nav" aria-label="Primary navigation">
       <Link href="/" className="cq-nav-logo" aria-label="Canton Quests home">
-        <Image src={cqImages.logoNav} alt="Canton Quests" width={206} height={64} priority />
+        <CantonQuestsLogo variant="mark" size={44} priority className="cq-nav-logo-mark" />
+        <div className="cq-nav-brand-lockup">
+          <span className="cq-nav-brand-title">
+            CANTON <span className="cq-gold-text">QUESTS</span>
+          </span>
+          <span className="cq-nav-brand-subtitle">CITY ADVENTURE</span>
+        </div>
       </Link>
 
       <div className="cq-nav-links">

@@ -48,6 +48,10 @@ import {
   PublicDrawingPageData,
   DrawingLedgerReview,
   DrawProvider,
+  FinalQuestEventMetrics,
+  FinalQuestTrailStep,
+  FinalQuestTicketRange,
+  FinalQuestDrawReceipt,
 } from './types';
 import {
   SEED_CITY,
@@ -185,46 +189,46 @@ function setStoredItem<T>(key: string, value: T): void {
 // Ensure default seed data is initialized in storage
 export function initializeGameEngine(): void {
   if (getStoredItem<QuestEvent[]>(STORAGE_KEYS.EVENTS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.EVENTS, [SEED_EVENT]);
+    setStoredItem(STORAGE_KEYS.EVENTS, [JSON.parse(JSON.stringify(SEED_EVENT))]);
   }
   if (getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.QUESTS, mergeServerQuestTargetCodes(SEED_QUESTS));
+    setStoredItem(STORAGE_KEYS.QUESTS, mergeServerQuestTargetCodes(JSON.parse(JSON.stringify(SEED_QUESTS))));
   }
   if (getStoredItem<LocationInfo[]>(STORAGE_KEYS.LOCATIONS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.LOCATIONS, SEED_LOCATIONS);
+    setStoredItem(STORAGE_KEYS.LOCATIONS, JSON.parse(JSON.stringify(SEED_LOCATIONS)));
   }
   if (getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.PLAYERS, SEED_DEMO_PLAYERS);
+    setStoredItem(STORAGE_KEYS.PLAYERS, JSON.parse(JSON.stringify(SEED_DEMO_PLAYERS)));
   }
   if (getStoredItem<Team[]>(STORAGE_KEYS.TEAMS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.TEAMS, SEED_TEAMS);
+    setStoredItem(STORAGE_KEYS.TEAMS, JSON.parse(JSON.stringify(SEED_TEAMS)));
   }
   if (getStoredItem<TeamMember[]>(STORAGE_KEYS.TEAM_MEMBERS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.TEAM_MEMBERS, SEED_TEAM_MEMBERS);
+    setStoredItem(STORAGE_KEYS.TEAM_MEMBERS, JSON.parse(JSON.stringify(SEED_TEAM_MEMBERS)));
   }
   if (getStoredItem<Collectible[]>(STORAGE_KEYS.COLLECTIBLES, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.COLLECTIBLES, SEED_COLLECTIBLES);
+    setStoredItem(STORAGE_KEYS.COLLECTIBLES, JSON.parse(JSON.stringify(SEED_COLLECTIBLES)));
   }
   if (getStoredItem<SecretCode[]>(STORAGE_KEYS.SECRET_CODES, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.SECRET_CODES, mergeServerSecretCodes(SEED_SECRET_CODES));
+    setStoredItem(STORAGE_KEYS.SECRET_CODES, mergeServerSecretCodes(JSON.parse(JSON.stringify(SEED_SECRET_CODES))));
   }
   if (getStoredItem<LiveAnnouncement[]>(STORAGE_KEYS.ANNOUNCEMENTS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.ANNOUNCEMENTS, SEED_ANNOUNCEMENTS);
+    setStoredItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.parse(JSON.stringify(SEED_ANNOUNCEMENTS)));
   }
   if (getStoredItem<NPCCharacter[]>(STORAGE_KEYS.NPCS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.NPCS, SEED_NPCS);
+    setStoredItem(STORAGE_KEYS.NPCS, JSON.parse(JSON.stringify(SEED_NPCS)));
   }
   if (getStoredItem<BusinessPartnerInfo[]>(STORAGE_KEYS.PARTNERS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.PARTNERS, SEED_PARTNERS);
+    setStoredItem(STORAGE_KEYS.PARTNERS, JSON.parse(JSON.stringify(SEED_PARTNERS)));
   }
   if (getStoredItem<CrowdObjective[]>(STORAGE_KEYS.CROWD_OBJECTIVES, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.CROWD_OBJECTIVES, SEED_CROWD_OBJECTIVES);
+    setStoredItem(STORAGE_KEYS.CROWD_OBJECTIVES, JSON.parse(JSON.stringify(SEED_CROWD_OBJECTIVES)));
   }
   if (getStoredItem<BonusWindow[]>(STORAGE_KEYS.BONUS_WINDOWS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.BONUS_WINDOWS, SEED_BONUS_WINDOWS);
+    setStoredItem(STORAGE_KEYS.BONUS_WINDOWS, JSON.parse(JSON.stringify(SEED_BONUS_WINDOWS)));
   }
   if (getStoredItem<Prize[]>(STORAGE_KEYS.PRIZES, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.PRIZES, SEED_PRIZES);
+    setStoredItem(STORAGE_KEYS.PRIZES, JSON.parse(JSON.stringify(SEED_PRIZES)));
   }
 }
 
@@ -965,6 +969,12 @@ export function getActiveBonusMultiplier(eventId: string, category?: Quest['cate
   return activeWindow ? activeWindow.multiplier : 1.0;
 }
 
+export function getBonusWindows(eventId: string): BonusWindow[] {
+  initializeGameEngine();
+  const windows = getStoredItem<BonusWindow[]>(STORAGE_KEYS.BONUS_WINDOWS, SEED_BONUS_WINDOWS);
+  return windows.filter((w) => w.eventId === eventId);
+}
+
 export function adjustPlayerScoreManual(
   eventId: string,
   playerId: string,
@@ -1620,6 +1630,24 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   const event = getEvents().find((e) => e.id === params.eventId);
   const isPaused = event ? event.isPaused : false;
 
+  if (event && (event.currentPhase === 'ended' || event.status === 'ended' || (event as any).status === 'cancelled')) {
+    return {
+      success: false,
+      submission: {
+        id: `sub-ended-${Date.now()}`,
+        questId: params.questId,
+        playerId: params.playerId,
+        eventId: params.eventId,
+        proofType: params.proofType,
+        status: 'rejected',
+        awardedPoints: 0,
+        submittedAt: new Date().toISOString(),
+      },
+      message: 'Event has concluded. No further quest submissions or score mutations are accepted.',
+      awardedPoints: 0,
+    };
+  }
+
   if (event && event.isPaused) {
     return {
       success: false,
@@ -2115,9 +2143,15 @@ export function getPublicPlayerLabel(playerObj: Player | undefined, playerId: st
   return sanitized;
 }
 
-export function awardDrawingEntries(
-  entryData: Omit<DrawingEntryLedgerEntry, 'id' | 'createdAt'>
-): DrawingEntryLedgerEntry {
+export function awardDrawingEntries(entryData: {
+  eventId: string;
+  playerId: string;
+  entriesCount: number;
+  questId?: string;
+  submissionId?: string;
+  sourceType?: string;
+  reason?: string;
+}): DrawingEntryLedgerEntry {
   initializeGameEngine();
   if (isDrawingLedgerLocked(entryData.eventId)) {
     throw new Error(`Drawing ledger for event ${entryData.eventId} is locked. New drawing entries cannot be awarded.`);
@@ -2140,6 +2174,8 @@ export function awardDrawingEntries(
 
   const newEntry: DrawingEntryLedgerEntry = {
     ...entryData,
+    sourceType: entryData.sourceType || 'quest_completion',
+    reason: entryData.reason || 'Quest completion drawing reward',
     id: `dw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     createdAt: new Date().toISOString(),
   };
@@ -2370,6 +2406,327 @@ export function lockDrawingLedger(
   setStoredItem(STORAGE_KEYS.DRAWING_LOCKS, [...filtered, newLock]);
   return newLock;
 }
+
+export const PERMANENT_CANTON_QUESTS_NUMBER = '311420151417215192019';
+export const PERMANENT_CANTON_QUESTS_BIGINT = 311420151417215192019n;
+
+export function assignTicketsToSnapshot(snapshot: CanonicalSnapshot): {
+  ticketRanges: FinalQuestTicketRange[];
+  totalTickets: number;
+} {
+  let currentTicket = 1;
+  const ticketRanges: FinalQuestTicketRange[] = [];
+
+  for (const player of snapshot.players) {
+    if (player.entries <= 0) continue;
+    const startTicket = currentTicket;
+    const endTicket = currentTicket + player.entries - 1;
+    ticketRanges.push({
+      publicPlayerLabel: player.publicPlayerLabel,
+      publicParticipantId: player.publicParticipantId || '',
+      startTicket,
+      endTicket,
+      ticketCount: player.entries,
+    });
+    currentTicket = endTicket + 1;
+  }
+
+  const totalTickets = currentTicket - 1;
+  return { ticketRanges, totalTickets };
+}
+
+export function getFrozenEventMetrics(eventId: string, snapshot: CanonicalSnapshot): FinalQuestEventMetrics {
+  initializeGameEngine();
+  const submissions = getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
+  const eventSubmissions = submissions.filter((s) => s.eventId === eventId && s.status === 'verified');
+
+  const totalCompletedQuests = eventSubmissions.length;
+  const totalValidEntries = snapshot.players.reduce((sum, p) => sum + p.entries, 0);
+  const totalPlayers = snapshot.players.length;
+
+  const playerCompletionMap = new Map<string, number>();
+  eventSubmissions.forEach((s) => {
+    playerCompletionMap.set(s.playerId, (playerCompletionMap.get(s.playerId) || 0) + 1);
+  });
+  const totalFinishers = Array.from(playerCompletionMap.values()).filter((cnt) => cnt >= 3).length;
+
+  return {
+    totalPlayers,
+    totalValidEntries,
+    totalCompletedQuests,
+    totalFinishers,
+  };
+}
+
+export function computeFinalQuestNumber(metrics: FinalQuestEventMetrics): {
+  finalQuestNumber: string;
+  productFormula: string;
+  rawProduct: bigint;
+} {
+  const mPlayers = BigInt(Math.max(1, metrics.totalPlayers));
+  const mEntries = BigInt(Math.max(1, metrics.totalValidEntries));
+  const mCompleted = BigInt(Math.max(1, metrics.totalCompletedQuests));
+  const mFinishers = BigInt(Math.max(1, metrics.totalFinishers));
+
+  const rawProduct = mPlayers * mEntries * mCompleted * mFinishers;
+  const finalBigInt = rawProduct * PERMANENT_CANTON_QUESTS_BIGINT;
+  const finalQuestNumber = finalBigInt.toString();
+  const productFormula = `${mPlayers} × ${mEntries} × ${mCompleted} × ${mFinishers} × ${PERMANENT_CANTON_QUESTS_NUMBER} = ${finalQuestNumber}`;
+
+  return { finalQuestNumber, productFormula, rawProduct };
+}
+
+export function followTheTrail(
+  finalQuestNumberStr: string,
+  totalTickets: number,
+  ticketRanges: FinalQuestTicketRange[],
+  excludedPlayerIds?: string[],
+  playerMap?: Record<string, { label: string; isMinor?: boolean }>,
+  eventId?: string
+): {
+  winningTicket: number;
+  winningRange: FinalQuestTicketRange;
+  trailSteps: FinalQuestTrailStep[];
+  resolutionMethod: 'forward_trail' | 'reverse_trail' | 'deterministic_modulo_fallback';
+} {
+  if (totalTickets <= 0 || ticketRanges.length === 0) {
+    throw new Error('Cannot follow the trail with 0 tickets or empty ticket ranges.');
+  }
+
+  const width = String(totalTickets).length;
+  const allTrailSteps: FinalQuestTrailStep[] = [];
+
+  function isPlayerExcluded(range: FinalQuestTicketRange): boolean {
+    if (!excludedPlayerIds || excludedPlayerIds.length === 0) return false;
+    if (!playerMap) return false;
+    const internalId = Object.entries(playerMap).find(([id, pInfo]) => {
+      const participantId = eventId ? getPublicParticipantId(id, eventId) : '';
+      if (range.publicParticipantId && participantId === range.publicParticipantId) return true;
+      return pInfo.label === range.publicPlayerLabel;
+    })?.[0];
+    return !!(internalId && excludedPlayerIds.includes(internalId));
+  }
+
+  function scanDigits(digits: string, phasePrefix: string): {
+    found: boolean;
+    winningTicket?: number;
+    winningRange?: FinalQuestTicketRange;
+  } {
+    for (let i = 0; i <= digits.length - width; i++) {
+      const windowString = digits.slice(i, i + width);
+      const parsed = parseInt(windowString, 10);
+      const stepIndex = allTrailSteps.length + 1;
+
+      if (parsed === 0) {
+        allTrailSteps.push({
+          stepIndex,
+          windowString,
+          parsedTicketNumber: parsed,
+          isValid: false,
+          reason: `${phasePrefix} Window "${windowString}" is zero (invalid ticket)`,
+        });
+        continue;
+      }
+
+      if (parsed > totalTickets) {
+        allTrailSteps.push({
+          stepIndex,
+          windowString,
+          parsedTicketNumber: parsed,
+          isValid: false,
+          reason: `${phasePrefix} Window "${windowString}" (#${parsed}) exceeds total valid tickets (${totalTickets})`,
+        });
+        continue;
+      }
+
+      const matchingRange = ticketRanges.find(
+        (r) => parsed >= r.startTicket && parsed <= r.endTicket
+      );
+
+      if (!matchingRange) {
+        allTrailSteps.push({
+          stepIndex,
+          windowString,
+          parsedTicketNumber: parsed,
+          isValid: false,
+          reason: `${phasePrefix} Ticket #${parsed} does not match any assigned ticket range`,
+        });
+        continue;
+      }
+
+      if (isPlayerExcluded(matchingRange)) {
+        allTrailSteps.push({
+          stepIndex,
+          windowString,
+          parsedTicketNumber: parsed,
+          isValid: false,
+          reason: `${phasePrefix} Ticket #${parsed} belongs to ${matchingRange.publicPlayerLabel}, who already won a primary prize`,
+        });
+        continue;
+      }
+
+      allTrailSteps.push({
+        stepIndex,
+        windowString,
+        parsedTicketNumber: parsed,
+        isValid: true,
+        reason: `${phasePrefix} WINNER FOUND! Ticket #${parsed} held by ${matchingRange.publicPlayerLabel} (Range #${matchingRange.startTicket}–#${matchingRange.endTicket})`,
+      });
+
+      return {
+        found: true,
+        winningTicket: parsed,
+        winningRange: matchingRange,
+      };
+    }
+
+    return { found: false };
+  }
+
+  // 1. Forward scan
+  const forwardResult = scanDigits(finalQuestNumberStr, '[Forward]');
+  if (forwardResult.found && forwardResult.winningTicket && forwardResult.winningRange) {
+    return {
+      winningTicket: forwardResult.winningTicket,
+      winningRange: forwardResult.winningRange,
+      trailSteps: allTrailSteps,
+      resolutionMethod: 'forward_trail',
+    };
+  }
+
+  // 2. Reverse fallback scan
+  const reversedStr = finalQuestNumberStr.split('').reverse().join('');
+  const reverseResult = scanDigits(reversedStr, '[Reverse Fallback]');
+  if (reverseResult.found && reverseResult.winningTicket && reverseResult.winningRange) {
+    return {
+      winningTicket: reverseResult.winningTicket,
+      winningRange: reverseResult.winningRange,
+      trailSteps: allTrailSteps,
+      resolutionMethod: 'reverse_trail',
+    };
+  }
+
+  // 3. Deterministic Modulo Fallback
+  let fallbackTicket = Number(BigInt(finalQuestNumberStr) % BigInt(totalTickets)) + 1;
+  let matchingRange = ticketRanges.find(
+    (r) => fallbackTicket >= r.startTicket && fallbackTicket <= r.endTicket
+  );
+
+  // If excluded, step through modulo space to find eligible ticket
+  if (matchingRange && isPlayerExcluded(matchingRange)) {
+    for (let offset = 1; offset < totalTickets; offset++) {
+      const candidateTicket = ((fallbackTicket - 1 + offset) % totalTickets) + 1;
+      const candidateRange = ticketRanges.find(
+        (r) => candidateTicket >= r.startTicket && candidateTicket <= r.endTicket
+      );
+      if (candidateRange && !isPlayerExcluded(candidateRange)) {
+        fallbackTicket = candidateTicket;
+        matchingRange = candidateRange;
+        break;
+      }
+    }
+  }
+
+  if (!matchingRange) {
+    matchingRange = ticketRanges[0];
+    fallbackTicket = matchingRange.startTicket;
+  }
+
+  allTrailSteps.push({
+    stepIndex: allTrailSteps.length + 1,
+    windowString: 'MODULO',
+    parsedTicketNumber: fallbackTicket,
+    isValid: true,
+    reason: `[Deterministic Modulo Fallback] (FinalQuestNumber % ${totalTickets}) + 1 = Ticket #${fallbackTicket} (${matchingRange.publicPlayerLabel})`,
+  });
+
+  return {
+    winningTicket: fallbackTicket,
+    winningRange: matchingRange,
+    trailSteps: allTrailSteps,
+    resolutionMethod: 'deterministic_modulo_fallback',
+  };
+}
+
+export const FinalQuestDrawProvider: DrawProvider = {
+  id: 'final_quest',
+  name: 'The Final Quest Human-Readable Draw Provider',
+  isIndependent: false,
+  async executeDraw(params) {
+    if (!params.snapshot || !params.snapshot.players || params.snapshot.players.length === 0) {
+      throw new Error('Drawing pool has 0 qualified players.');
+    }
+
+    const { ticketRanges, totalTickets } = assignTicketsToSnapshot(params.snapshot);
+    if (totalTickets <= 0) {
+      throw new Error('Drawing pool has 0 qualified entries.');
+    }
+
+    const metrics: FinalQuestEventMetrics =
+      params.auditMetadata?.eventMetrics || getFrozenEventMetrics(params.eventId, params.snapshot);
+    const { finalQuestNumber, productFormula } = computeFinalQuestNumber(metrics);
+
+    const trailResult = followTheTrail(
+      finalQuestNumber,
+      totalTickets,
+      ticketRanges,
+      params.excludedPlayerIds,
+      params.playerMap,
+      params.eventId
+    );
+
+    const winningRange = trailResult.winningRange;
+    const winningPlayerId =
+      Object.entries(params.playerMap).find(([id, pInfo]: [string, { label: string; isMinor?: boolean }]) => {
+        const participantId = getPublicParticipantId(id, params.eventId);
+        if (winningRange.publicParticipantId && participantId === winningRange.publicParticipantId) return true;
+        return pInfo.label === winningRange.publicPlayerLabel;
+      })?.[0] ||
+      `plr-anon-${winningRange.publicPlayerLabel.replace(/\s+/g, '-').toLowerCase()}`;
+
+    const selectedWeightedEntryIndex = trailResult.winningTicket - 1;
+
+    const receipt: FinalQuestDrawReceipt = {
+      eventId: params.eventId,
+      eventTitle: params.prizeTitle || 'Event Drawing',
+      totalTickets,
+      ticketWidth: String(totalTickets).length,
+      eventMetrics: metrics,
+      permanentNumber: PERMANENT_CANTON_QUESTS_NUMBER,
+      productFormula,
+      finalQuestNumber,
+      trailSteps: trailResult.trailSteps,
+      winningTicket: trailResult.winningTicket,
+      winningPublicPlayerLabel: winningRange.publicPlayerLabel,
+      winningPublicParticipantId: winningRange.publicParticipantId || '',
+      winningPlayerTicketRange: { start: winningRange.startTicket, end: winningRange.endTicket },
+      allTicketRanges: ticketRanges,
+      resolutionMethod: trailResult.resolutionMethod,
+      lockedLedgerHash: params.snapshotHash,
+      drawnAt: new Date().toISOString(),
+    };
+
+    return {
+      winningPlayerId,
+      winningPublicPlayerLabel: winningRange.publicPlayerLabel,
+      selectedWeightedEntryIndex,
+      drawMethod: 'final_quest',
+      providerReference: `FINAL_QUEST_TICKET:#${trailResult.winningTicket}`,
+      auditMetadata: {
+        isIndependent: false,
+        isSystemVerified: true,
+        verificationStatus: 'final_quest_trail',
+        drawMethod: 'final_quest',
+        providerReference: `FINAL_QUEST_TICKET:#${trailResult.winningTicket}`,
+        disclaimer: 'DETERMINISTIC HUMAN-READABLE TRAIL DRAWING (FIXED PUBLIC METHOD)',
+        lockedLedgerHash: params.snapshotHash,
+        winningTicket: trailResult.winningTicket,
+        resolutionMethod: trailResult.resolutionMethod,
+        finalQuestReceipt: receipt,
+      },
+    };
+  },
+};
 
 export const InternalTestDrawProvider: DrawProvider = {
   id: 'internal_test',
@@ -2653,12 +3010,16 @@ export async function executePrizeDraw(params: {
     }
   });
 
-  const drawMethod: DrawMethod = params.drawMethod || 'internal_test';
-  let provider: DrawProvider = InternalTestDrawProvider;
-  if (drawMethod === 'manual_external') {
+  const drawMethod: DrawMethod = params.drawMethod || (params.testSeed ? 'internal_test' : 'final_quest');
+  let provider: DrawProvider = FinalQuestDrawProvider;
+  if (drawMethod === 'internal_test') {
+    provider = InternalTestDrawProvider;
+  } else if (drawMethod === 'manual_external') {
     provider = ManualExternalDrawProvider;
   } else if (drawMethod === 'random_org') {
     provider = RandomOrgFutureDrawProvider;
+  } else {
+    provider = FinalQuestDrawProvider;
   }
 
   const drawResult = await provider.executeDraw({
@@ -2815,13 +3176,23 @@ export function getPublicDrawingPageData(eventId: string): PublicDrawingPageData
     drawMethod: d.drawMethod,
     providerReference: d.providerReference,
     drawnAt: d.drawnAt,
-    verificationStatus: d.auditMetadata?.verificationStatus || (d.drawMethod === 'manual_external' ? 'manual_unverified' : 'internal_seeded'),
-    isSystemVerified: d.auditMetadata?.isSystemVerified ?? false,
+    verificationStatus:
+      d.auditMetadata?.verificationStatus ||
+      (d.drawMethod === 'manual_external'
+        ? 'manual_unverified'
+        : d.drawMethod === 'final_quest'
+        ? 'final_quest_trail'
+        : 'internal_seeded'),
+    isSystemVerified: d.auditMetadata?.isSystemVerified ?? (d.drawMethod === 'final_quest' || d.drawMethod === 'internal_test'),
     isIndependent: d.auditMetadata?.isIndependent ?? false,
+    finalQuestReceipt: d.auditMetadata?.finalQuestReceipt,
   }));
 
   const ledgerLockStatus: DrawingStatus = lock ? lock.status : 'open';
   const firstPublished = publishedDraws[0];
+
+  const ticketRanges =
+    lock && lock.canonicalSnapshot ? assignTicketsToSnapshot(lock.canonicalSnapshot).ticketRanges : undefined;
 
   return {
     eventId: realEventId,
@@ -2838,6 +3209,7 @@ export function getPublicDrawingPageData(eventId: string): PublicDrawingPageData
     verificationInfo: lock && lock.snapshotHash
       ? `This drawing entry pool was finalized and cryptographically hashed (SHA-256: ${lock.snapshotHash}) on ${lock.lockedAt}. The winner selection is tied directly to the frozen canonical snapshot.`
       : undefined,
+    ticketRanges,
   };
 }
 
@@ -3048,6 +3420,14 @@ export {
   getAudienceEventOptions,
   castSpectatorVote,
   resolveAudienceEvent,
+  activateAudienceEvent,
+  closeAudienceVoting,
+  executeAudienceEffect,
+  cancelAudienceEvent,
+  runAudienceVoteSimulation,
+  processAudienceLifecycleCron,
+  logTimelineAction,
+  getLiveEventTimeline,
   mapCoordinatesToDistrict,
   sanitizeActivityItem,
   publishToPublicGameFeed,
@@ -3058,3 +3438,19 @@ export {
   getSpectatorSystemSettings,
   resetSpectatorStores,
 } from './spectator-engine';
+
+// -----------------------------------------------------------------------------
+// Event Readiness & Rehearsal Re-exports (Phase 5.4)
+// -----------------------------------------------------------------------------
+export {
+  auditEventQRQuests,
+  auditEventQuestsAndLocations,
+  evaluateEventLaunchGates,
+  computeEventReadinessReport,
+  getOperatorChecklist,
+  updateOperatorChecklistItem,
+  runWalkUpPlayerRehearsal,
+  runFullEventRehearsal,
+  executeEventClosure,
+  resetRehearsalStore,
+} from './event-readiness';

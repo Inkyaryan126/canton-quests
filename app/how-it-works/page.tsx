@@ -149,6 +149,70 @@ export default function HowItWorksPage() {
             ))}
           </div>
         </section>
+
+        {/* PUBLICLY VERIFIABLE PRIZE DRAWINGS SECTION */}
+        <section id="prize-drawings" className="cq-page-section scroll-mt-24">
+          <div className="cq-section-heading">
+            <div>
+              <span className="cq-kicker">TRANSPARENT WINNER SELECTION</span>
+              <h2>PUBLICLY VERIFIABLE PRIZE DRAWINGS</h2>
+            </div>
+          </div>
+
+          <div className="bg-[#0c0d12] border border-amber-500/30 rounded-2xl p-6 sm:p-8 space-y-6">
+            <div>
+              <p className="text-amber-200 font-display font-bold text-lg sm:text-xl uppercase">
+                Canton Quests does not secretly choose prize winners.
+              </p>
+              <p className="text-gray-300 text-sm mt-2 leading-relaxed">
+                Our drawing process follows a fixed public method that can be followed and verified after the event.
+                Every step is mathematically reproducible from frozen event totals and publicly assigned ticket numbers.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
+              <div className="bg-[#05070a] border border-amber-500/20 p-4 rounded-xl">
+                <span className="text-amber-400 font-bold block mb-1">01 // FROZEN EVENT TOTALS</span>
+                <p className="text-gray-300">
+                  Total participating players, valid entries, completed quests, and finishers freeze when the event closes.
+                </p>
+              </div>
+
+              <div className="bg-[#05070a] border border-amber-500/20 p-4 rounded-xl">
+                <span className="text-amber-400 font-bold block mb-1">02 // PERMANENT CQ NUMBER</span>
+                <p className="text-gray-300">
+                  Fixed letter-to-number constant <strong>311420151417215192019</strong> derived from CANTON QUESTS.
+                </p>
+              </div>
+
+              <div className="bg-[#05070a] border border-amber-500/20 p-4 rounded-xl">
+                <span className="text-amber-400 font-bold block mb-1">03 // FINAL QUEST NUMBER</span>
+                <p className="text-gray-300">
+                  Event totals multiplied by the permanent number create a single deterministic Final Quest Number.
+                </p>
+              </div>
+
+              <div className="bg-[#05070a] border border-amber-500/20 p-4 rounded-xl">
+                <span className="text-amber-400 font-bold block mb-1">04 // FOLLOW THE TRAIL</span>
+                <p className="text-gray-300">
+                  A public sliding-window scan examines digit groups from left to right. The first valid ticket wins.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 text-xs font-mono">
+              <span className="text-gray-400">
+                Fixed beforehand · Automatic · Publicly documented · Reproducible · Zero manual administrator choice
+              </span>
+              <Link
+                href="/events/canton-vol-1/drawing"
+                className="text-amber-400 hover:text-amber-300 underline font-bold inline-flex items-center gap-1"
+              >
+                View Live Event Drawing Ledger →
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
 
       <CinematicFooter />

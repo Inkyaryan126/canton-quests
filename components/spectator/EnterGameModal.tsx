@@ -136,7 +136,7 @@ export default function EnterGameModal({
       syncConvertedPlayer(trimmed, finalPlayerId);
 
       onClose();
-      router.push('/');
+      router.push('/quests');
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to complete conversion. Please try again.');
     } finally {

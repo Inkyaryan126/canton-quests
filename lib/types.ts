@@ -337,6 +337,7 @@ export interface Quest {
   hints?: { id: string; hintText: string; costPoints: number }[];
   riskReward?: { hardModeBonus: number; failurePenalty: number };
   requiredCollectibleId?: string;
+  qrCodeIdentifier?: string;
 }
 
 export interface QuestSubmission {
@@ -430,7 +431,50 @@ export interface PublicDrawingLedgerProjection {
   playerEntries: PublicPlayerDrawingEntry[];
 }
 
-export type DrawMethod = 'internal_test' | 'random_org' | 'manual_external';
+export type DrawMethod = 'final_quest' | 'internal_test' | 'random_org' | 'manual_external';
+
+export interface FinalQuestEventMetrics {
+  totalPlayers: number;
+  totalValidEntries: number;
+  totalCompletedQuests: number;
+  totalFinishers: number;
+}
+
+export interface FinalQuestTrailStep {
+  stepIndex: number;
+  windowString: string;
+  parsedTicketNumber: number;
+  isValid: boolean;
+  reason: string;
+}
+
+export interface FinalQuestTicketRange {
+  publicPlayerLabel: string;
+  publicParticipantId?: string;
+  startTicket: number;
+  endTicket: number;
+  ticketCount: number;
+}
+
+export interface FinalQuestDrawReceipt {
+  eventId: string;
+  eventTitle: string;
+  totalTickets: number;
+  ticketWidth: number;
+  eventMetrics: FinalQuestEventMetrics;
+  permanentNumber: string;
+  productFormula: string;
+  finalQuestNumber: string;
+  trailSteps: FinalQuestTrailStep[];
+  winningTicket: number;
+  winningPublicPlayerLabel: string;
+  winningPublicParticipantId?: string;
+  winningPlayerTicketRange: { start: number; end: number };
+  allTicketRanges: FinalQuestTicketRange[];
+  resolutionMethod: 'forward_trail' | 'reverse_trail' | 'deterministic_modulo_fallback';
+  lockedLedgerHash: string;
+  drawnAt: string;
+}
 
 export interface PrizeDrawRecord {
   id: string;
@@ -465,6 +509,7 @@ export interface PublicPrizeDrawResult {
   verificationStatus?: string;
   isSystemVerified?: boolean;
   isIndependent?: boolean;
+  finalQuestReceipt?: FinalQuestDrawReceipt;
 }
 
 export interface PublicDrawingPageData {
@@ -480,6 +525,7 @@ export interface PublicDrawingPageData {
   publishedPrizes: PublicPrizeDrawResult[];
   publishedAt: string | null;
   verificationInfo?: string;
+  ticketRanges?: FinalQuestTicketRange[];
 }
 
 export interface DrawingLedgerReview {
@@ -883,4 +929,252 @@ export interface SpectatorSystemSettings {
   disabledReason?: string;
   disabledAt?: string;
   updatedAt: string;
+}
+
+export type LiveTimelineActionType =
+  | 'phase_change'
+  | 'audience_vote_opened'
+  | 'audience_vote_closed'
+  | 'audience_resolved'
+  | 'audience_overridden'
+  | 'audience_cancelled'
+  | 'spectator_freeze'
+  | 'spectator_unfreeze'
+  | 'effect_executed'
+  | 'flash_quest_triggered'
+  | 'host_broadcast_published'
+  | 'emergency_pause'
+  | 'emergency_resume'
+  | 'event_ended'
+  | 'rehearsal_executed'
+  | 'launch_gate_evaluated';
+
+export interface LiveEventTimelineEntry {
+  id: string;
+  eventId: string;
+  actionType: LiveTimelineActionType;
+  title: string;
+  details: string;
+  actor: string;
+  metadata?: Record<string, any>;
+  isRehearsal?: boolean;
+  createdAt: string;
+}
+
+export interface AudienceEffectExecutionResult {
+  success: boolean;
+  effectId: string;
+  audienceEventId: string;
+  winningOptionId?: string;
+  actionTaken: string;
+  details: Record<string, any>;
+  executedAt: string;
+  isDuplicatePrevented?: boolean;
+  isRehearsal?: boolean;
+  error?: string;
+}
+
+export interface AudienceVoteSimulationResult {
+  success: boolean;
+  simulatedEvent: AudienceEvent;
+  totalVotesSimulated: number;
+  options: AudienceEventOption[];
+  winningOption: AudienceEventOption;
+  simulatedEffectPreview: Record<string, any>;
+  broadcastPreview: { headline: string; body: string };
+  isRehearsal: true;
+}
+
+// -----------------------------------------------------------------------------
+// Phase 5.4 Real Event Readiness & Launch Rehearsal Types
+// -----------------------------------------------------------------------------
+
+export type ReadinessStatus = 'READY' | 'WARNING' | 'BLOCKED' | 'NOT_CONFIGURED';
+
+export type OverallLaunchAssessment = 'READY_FOR_LIVE_EVENT' | 'READY_WITH_WARNINGS' | 'NOT_READY';
+
+export type ReadinessCategory =
+  | 'event_configuration'
+  | 'quests_and_chains'
+  | 'locations_and_spatial'
+  | 'proof_methods'
+  | 'qr_codes'
+  | 'scoring_and_leaderboard'
+  | 'spectator_and_watch'
+  | 'host_broadcasts'
+  | 'audience_influence'
+  | 'game_master_auth'
+  | 'emergency_controls'
+  | 'prize_and_drawing_isolation';
+
+export interface ReadinessCheckItem {
+  id: string;
+  category: ReadinessCategory;
+  label: string;
+  status: ReadinessStatus;
+  details: string;
+  blockerCount: number;
+  warningCount: number;
+  remediation?: string;
+}
+
+export interface CategoryReadinessSummary {
+  status: ReadinessStatus;
+  score: number; // 0-100%
+  checks: ReadinessCheckItem[];
+}
+
+export interface EventReadinessReport {
+  eventId: string;
+  eventName: string;
+  computedAt: string;
+  overallStatus: OverallLaunchAssessment;
+  categories: Record<ReadinessCategory, CategoryReadinessSummary>;
+  summary: {
+    totalChecks: number;
+    readyCount: number;
+    warningCount: number;
+    blockedCount: number;
+    notConfiguredCount: number;
+  };
+  blockers: string[];
+  warnings: string[];
+  recommendedActions: string[];
+  metrics: {
+    totalQuests: number;
+    activeQuests: number;
+    qrQuests: number;
+    locationQuests: number;
+    brokenQuests: number;
+    registeredPlayers: number;
+    activePhase: EventPhaseType;
+    isPaused: boolean;
+    isSpectatorFrozen: boolean;
+  };
+  lastRehearsalCompletedAt?: string;
+}
+
+export type QRQuestAuditStatus = 'READY' | 'WARNING' | 'BROKEN';
+
+export interface QRQuestAuditItem {
+  questId: string;
+  questTitle: string;
+  qrCodeIdentifier: string;
+  status: QRQuestAuditStatus;
+  verificationPath: string;
+  isDuplicateAssignment: boolean;
+  hasSecretExposed: boolean;
+  isEventAssociated: boolean;
+  isQuestEnabled: boolean;
+  issues: string[];
+}
+
+export interface QRReadinessAuditReport {
+  totalQrQuests: number;
+  readyCount: number;
+  warningCount: number;
+  brokenCount: number;
+  items: QRQuestAuditItem[];
+}
+
+export interface QuestAuditItem {
+  questId: string;
+  title: string;
+  category: QuestCategory;
+  pointValue: number;
+  status: QuestState | EventStatus;
+  proofType: ProofVerificationType;
+  locationId?: string;
+  locationName?: string;
+  isLocationBound: boolean;
+  isRadiusValid: boolean;
+  hasPrerequisite: boolean;
+  prerequisiteQuestId?: string;
+  isPrerequisiteValid: boolean;
+  auditStatus: 'READY' | 'WARNING' | 'BROKEN';
+  issues: string[];
+}
+
+export interface LaunchGateRule {
+  code: string;
+  name: string;
+  isPassed: boolean;
+  severity: 'CRITICAL' | 'WARNING';
+  failureReason?: string;
+}
+
+export interface LaunchGatesEvaluationResult {
+  isLaunchPermitted: boolean;
+  passedCount: number;
+  failedCriticalCount: number;
+  warningCount: number;
+  gates: LaunchGateRule[];
+  blockingReasons: string[];
+}
+
+export interface PreEventChecklistItem {
+  id: string;
+  label: string;
+  description: string;
+  category: 'core' | 'quests' | 'spectator' | 'field_ops' | 'safety';
+  isAutomated: boolean;
+  automatedStatus?: ReadinessStatus;
+  isManuallyChecked: boolean;
+  checkedBy?: string;
+  checkedAt?: string;
+}
+
+export interface PreEventChecklistState {
+  eventId: string;
+  items: PreEventChecklistItem[];
+  lastUpdated: string;
+}
+
+export interface WalkUpRehearsalStep {
+  stepNumber: number;
+  title: string;
+  status: 'PASSED' | 'FAILED' | 'SKIPPED';
+  durationMs: number;
+  details: string;
+  simulatedData?: Record<string, any>;
+}
+
+export interface WalkUpRehearsalResult {
+  id: string;
+  eventId: string;
+  executedAt: string;
+  durationMs: number;
+  isSuccess: boolean;
+  isRehearsal: true;
+  steps: WalkUpRehearsalStep[];
+  simulatedPlayer: {
+    id: string;
+    name: string;
+    earnedXp: number;
+    finalRank: number;
+  };
+  productionDataVerifiedUntouched: boolean;
+}
+
+export interface FullEventRehearsalPhaseResult {
+  phase: EventPhaseType;
+  status: 'PASSED' | 'FAILED';
+  actionsExecuted: string[];
+  details: string;
+}
+
+export interface FullEventRehearsalResult {
+  id: string;
+  eventId: string;
+  executedAt: string;
+  durationMs: number;
+  isSuccess: boolean;
+  isRehearsal: true;
+  phases: FullEventRehearsalPhaseResult[];
+  simulatedPlayerCount: number;
+  simulatedQuestsCompleted: number;
+  simulatedVotesCast: number;
+  simulatedEffectsExecuted: number;
+  productionDataVerifiedUntouched: boolean;
+  summary: string;
 }

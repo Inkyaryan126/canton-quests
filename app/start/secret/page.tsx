@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import AcquisitionLandingPage from '@/components/AcquisitionLandingPage';
+import SecretLanding from '@/components/landing/SecretLanding';
 import { acquisitionLandingPages } from '@/lib/acquisition-landing-content';
 
 const content = acquisitionLandingPages.secret;
@@ -15,5 +15,5 @@ export const metadata: Metadata = {
 };
 
 export default function StartSecretPage() {
-  return <AcquisitionLandingPage content={content} />;
+  return <SecretLanding />;
 }

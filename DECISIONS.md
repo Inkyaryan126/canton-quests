@@ -243,3 +243,127 @@ Each entry follows the standard ADR structure:
   - CLI command `npm run qr:campaign -- flyers --campaign "<name>" --masters "<path>" --output "<path>"` consumes authoritative active QR assignments and outputs finished, print-ready composite PNGs and `manifest.csv`.
 - **Status**: **ACCEPTED**
 
+---
+
+## ADR-019: Official Canonical Brand Identity & Deterministic Asset Standardization
+- **Date**: 2026-08-13
+- **Decision**:
+  1. Establish `public/brand/canton-quests-master-logo.png` as the permanent, immutable canonical brand mark for Canton Quests. Redesigning, generative re-creation, or introducing alternate unapproved marks is permanently prohibited.
+  2. Implement deterministic, non-generative derivative brand assets for small icon/emblem contexts:
+     - `public/brand/canton-quests-mark.png` (920x920 square crop of the central interlocking CQ compass emblem)
+     - `public/brand/canton-quests-mark-512.png` (512x512 PWA web app icon)
+     - `public/brand/canton-quests-mark-192.png` (192x192 PWA web app icon)
+     - `public/brand/canton-quests-apple-touch-icon.png` (180x180 iOS touch icon)
+     - `public/brand/favicon.ico` (multi-resolution 16/32/48 ICO)
+     - `public/brand/canton-quests-og.png` (1200x630 OpenGraph and Twitter card asset)
+  3. Create a standardized, reusable Next.js component `<CantonQuestsLogo />` (`components/CantonQuestsLogo.tsx`) with strict aspect ratio preservation, Next/Image optimization, and support for `full` and `mark` variants.
+  4. Standardize brand presentation across all headers (`CinematicNav`, `Header`), footers (`CinematicFooter`), metadata (`RootLayout`), PWA manifest (`public/manifest.json`), and printable sheets (`app/admin/qr/print/page.tsx`).
+  5. Safely archive legacy low-resolution placeholder logo assets into `public/brand/archive/`.
+- **Reason**:
+  - Brand consistency, mobile recognition, outdoor readability, and professional visual polish require a single, immutable canonical identity asset across all digital and physical touchpoints.
+- **Alternatives Evaluated**:
+  - Allowing ad-hoc emoji placeholders (⚡), low-resolution temporary assets, or generative re-creations across different pages.
+- **Consequences**:
+  - All visual touchpoints across Canton Quests reference the canonical master asset or its deterministic derivatives via `CantonQuestsLogo` or `cqBrand`.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-020: The Final Quest Human-Readable Transparent Prize Drawing System
+- **Date**: 2026-08-14
+- **Decision**:
+  1. Implement a human-readable, transparent winner-selection layer (The Final Quest Draw System) on top of the immutable, SHA-256 frozen drawing entry ledger.
+  2. Establish the fixed, permanent Canton Quests number: `311420151417215192019` (derived from converting CANTON QUESTS with A=1..Z=26: C=3, A=1, N=14, T=20, O=15, N=14, Q=17, U=21, E=5, S=19, T=20, S=19). This number is permanently fixed in code and documentation and is never dynamically recomputed from editable marketing copy.
+  3. Derive the Final Quest Number by multiplying predetermined, objectively frozen event totals (participating qualified players, total valid prize tickets, total verified completed quests, and full-event finishers) by `311420151417215192019`.
+  4. Assign valid prize tickets deterministically from 1 to $N$ across players in canonical snapshot order ($[1..E_0]$, $[E_0+1..E_0+E_1]$, etc.).
+  5. Determine ticket number width $W = \text{length}(N)$.
+  6. Execute a left-to-right sliding window of width $W$ across the Final Quest Number (stepping 1 digit at a time). Leading zeros are valid ($092 = 92$), zero is invalid ($000$), numbers $> N$ are invalid. The first valid ticket encountered wins.
+  7. If the forward scan yields no valid ticket, execute a secondary reverse scan (reversing the Final Quest Number). If the reverse scan also yields no valid ticket, execute a deterministic modulo fallback: $(\text{FinalQuestNumber} \pmod N) + 1$.
+  8. Preserve the underlying SHA-256 cryptographic snapshot verification, ledger locking, single-primary-prize-per-player equity rule, and audit logs.
+  9. Display complete public draw receipts on `/events/[slug]/drawing` enabling normal players to follow every step of winner selection without cryptographic expertise.
+- **Reason**:
+  - Pure cryptographic hashes (e.g. SHA-256 modular arithmetic) provide mathematical integrity but are opaque to non-technical players.
+  - The Final Quest Draw System provides an intuitive, publicly verifiable trail that anyone with a pencil and paper can follow, verify, and trust.
+- **Alternatives Evaluated**:
+  - Live third-party random number generator APIs (introduces external runtime failure points).
+  - Manual physical raffle wheels without deterministic public receipts.
+  - Cryptographic hash modulus only (opaque to general public).
+- **Consequences**:
+  - Public drawing page presents both the human-readable Final Quest Receipt and the cryptographic SHA-256 snapshot for advanced audits.
+  - Winner selection requires 0 human discretion and is 100% deterministic and reproducible.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-021: Live Game Operations & Spectator Influence Integration
+- **Date**: 2026-08-14
+- **Decision**:
+  1. Turn the Phase 5.1 spectator backend and Phase 5.2 public `/watch` interface into a unified operational live-event system where audience decisions safely, deterministically, and idempotently affect the active game world under Game Master control without manual cross-system synchronization.
+  2. Implement a deterministic audience decision lifecycle state machine:
+     - `upcoming` / `scheduled` / `draft` $\rightarrow$ `voting_active` $\rightarrow$ `tallying_closed` $\rightarrow$ `resolved` (terminal), with terminal alternative states `cancelled` and `overridden`.
+     - Invariant: Only 1 active voting event is permitted per event at any given time.
+  3. Implement server-side Exactly-Once effect execution (`executeAudienceEffect`):
+     - Applies verified gameplay consequences (`bonus_window` / `category_multiplier`, `flash_quest`, `secret_code`, `theatrical_broadcast`).
+     - Idempotency guard: If an effect was already executed, repeated calls return `isDuplicatePrevented: true` and execute zero redundant ledger or score mutations.
+  4. Implement Game Master Manual Override and Cancellation controls:
+     - Override resolves the decision to a GM-selected option with audited attribution metadata and public announcement.
+     - Cancellation immediately closes voting with zero gameplay consequences and public broadcast.
+  5. Implement Automated Public Airwaves Broadcasting & In-Game Player Announcements:
+     - Automatically publishes host broadcasts (`"THE AUDIENCE HAS SPOKEN"`, `"GAME MASTER OVERRIDE"`, `"AUDIENCE DECISION CANCELLED"`) upon lifecycle resolution.
+     - Automatically creates in-game player notifications visible in `/quests` and player feeds.
+  6. Implement Immutable Operational Event Timeline & Audit Trail (`LiveEventTimelineEntry`):
+     - Records chronological log of all live events (`phase_change`, `audience_vote_opened`, `audience_vote_closed`, `audience_resolved`, `audience_overridden`, `audience_cancelled`, `spectator_freeze`, `effect_executed`, `flash_quest_triggered`).
+  7. Implement Isolated Safe Rehearsal / Simulation Mode:
+     - Allows Game Masters to simulate complete spectator voting flows, projected winners, and effect previews without mutating real production scoring, player history, prize ledger, or live drawing snapshots.
+  8. Enhance Game Master Live Control Room (`/admin/live`) with a dedicated Audience Control section:
+     - Active Decision monitor with live timer, vote bars, percentage distribution, projected winner, and 1-click action controls (Close Voting, Resolve, GM Override, Cancel, Freeze/Unfreeze).
+     - Upcoming scheduled votes list, resolved decision history, rehearsal simulator controls, and filtered operational timeline.
+     - Mobile-first responsive touch targets ($\ge 44\text{px}$) for 375px, 390px, and 430px smartphone viewports.
+  9. Enforce all 14 spectator security invariants:
+     - Anonymous walk-up spectator participation without authentication barriers.
+     - Spectator sessions cannot submit arbitrary effect payloads or trigger mutations directly.
+     - Zero service-role keys or database credentials exposed.
+- **Reason**:
+  - Bridging spectator voting to real in-game effects without server-side automation creates high cognitive load for field Game Masters and risks duplicate or desynchronized gameplay modifiers.
+  - Strict idempotency and rehearsal isolation guarantee fair, glitch-free live event execution.
+- **Alternatives Evaluated**:
+  - Manual Game Master copy-pasting of spectator poll results into separate bonus window and quest forms (high human error risk).
+  - Direct client-side spectator triggering of gameplay effects (critical security vulnerability).
+- **Consequences**:
+  - Audience votes seamlessly translate into live citywide game modifications under complete Game Master supervision.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-022: Live Event Readiness, Hard Server-Side Launch Gates & Launch Rehearsal Engine
+- **Date**: 2026-08-14
+- **Decision**:
+  1. Turn the Canton Quests platform into an operationally robust, live-event validated system that can safely and reliably run real outdoor Canton events with zero unverified assumptions.
+  2. Implement an Automated Event Readiness Health Report (`computeEventReadinessReport(eventId)`):
+     - Computes real readiness statuses (`READY`, `WARNING`, `BLOCKED`, `NOT_CONFIGURED`) across 12 operational subsystems: Event Config, Quests & Chains, Locations & Bounds, Proofs, QR Codes, Scoring, Leaderboard, Spectator & `/watch`, Host Broadcasts, Audience Influence, GM Auth, and Prize/Drawing Isolation.
+     - Calculates concrete overall launch assessments: `READY_FOR_LIVE_EVENT`, `READY_WITH_WARNINGS`, `NOT_READY`.
+  3. Enforce Hard Server-Side Launch Gates (`evaluateEventLaunchGates(eventId)`):
+     - Blocks event launch if the event is cancelled, missing, has $<3$ playable quests, contains duplicate QR code assignments, exposes target codes in public descriptions, has missing GPS bounds, or has contradictory emergency states.
+  4. Implement Pre-Event Operator Checklist (`getOperatorChecklist`, `updateOperatorChecklistItem`):
+     - Synchronizes automated system health checks with field physical verifications (e.g. signage placement, staff walkies, battery packs).
+     - Enforces invariant: Manual operator checkboxes can never override an actual failing server-side gate.
+  5. Implement QR & Quest Location Readiness Audit (`auditEventQRQuests`, `auditEventQuestsAndLocations`):
+     - Audits active QR identifiers for duplicate collisions, foreign event associations, route availability, and secret exposures.
+     - Validates quest point values, Canton coordinate bounds ($40.75 \le \text{lat} \le 40.85$, $-81.45 \le \text{lon} \le -81.30$), GPS radii ($15\text{m} \le r \le 500\text{m}$), and prerequisite cycle integrity.
+  6. Implement Walk-Up Player Rehearsal Simulator (`runWalkUpPlayerRehearsal`):
+     - Executes a 10-step simulated player lifecycle (arrival, player creation, quest selection, proof submission, XP reward, leaderboard standings, broadcast reception, session recovery) in a sandbox with `isRehearsal: true`, verifying zero mutations to production player records or score ledgers.
+  7. Implement Full Event 8-Phase Progression Rehearsal Simulator (`runFullEventRehearsal`):
+     - Simulates event lifecycle progression across all 8 phases (`pre_game` $\rightarrow$ `opening` $\rightarrow$ `day_1` $\rightarrow$ `night_round` $\rightarrow$ `day_2` $\rightarrow$ `final_hours` $\rightarrow$ `finale` $\rightarrow$ `ended`) with simulated players, quest submissions, spectator votes, GM overrides, emergency pause drills, and drawing snapshot isolation.
+  8. Implement High-Visibility Emergency Operations & Safe Event Closure:
+     - Prominent emergency pause / resume controls, spectator freeze / unfreeze controls, and urgent host broadcast triggers in `/admin/live`.
+     - Graceful Event Closure (`executeEventClosure`): Transitions phase to `ended`, locks subsequent submissions (`EVENT_ENDED`), closes active spectator polls, publishes concluding host broadcast, and permanently preserves score ledgers and drawing snapshots.
+  9. Mobile-first Game Master Control Dashboard:
+     - Organized into high-contrast tabs: Readiness & Launch Gates, Operator Checklist, QR & Quest Audit, Audience Operations, Rehearsal Sandbox, Game Director, and Emergency & Closure with touch targets $\ge 44\text{px}$.
+- **Reason**:
+  - Live outdoor city events require automated launch gates and sandbox rehearsal drills to eliminate operational blindspots, configuration errors, and field panic.
+- **Alternatives Evaluated**:
+  - Relying on manual Game Master memory for pre-event readiness checks (high risk of human oversight).
+  - Testing drills in production databases (risk of corrupting live player leaderboards and prize drawing ledgers).
+- **Consequences**:
+  - Field Game Masters possess complete real-time situational awareness, 1-click drill verification, and deterministic fail-safe emergency controls.
+- **Status**: **ACCEPTED**

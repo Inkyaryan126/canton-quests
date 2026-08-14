@@ -1312,7 +1312,7 @@ export async function executePrizeDrawDB(params: {
     );
   }
 
-  const drawMethod: DrawMethod = params.drawMethod || 'internal_test';
+  const drawMethod: DrawMethod = params.drawMethod || (params.testSeed ? 'internal_test' : 'final_quest');
   if (drawMethod === 'internal_test') {
     if (process.env.NODE_ENV === 'production' && process.env.ALLOW_INTERNAL_TEST_DRAW !== 'true') {
       throw new Error(
@@ -1348,11 +1348,15 @@ export async function executePrizeDrawDB(params: {
     }
   });
 
-  let provider: DrawProvider = localEngine.InternalTestDrawProvider;
-  if (drawMethod === 'manual_external') {
+  let provider: DrawProvider = localEngine.FinalQuestDrawProvider;
+  if (drawMethod === 'internal_test') {
+    provider = localEngine.InternalTestDrawProvider;
+  } else if (drawMethod === 'manual_external') {
     provider = localEngine.ManualExternalDrawProvider;
   } else if (drawMethod === 'random_org') {
     provider = localEngine.RandomOrgFutureDrawProvider;
+  } else {
+    provider = localEngine.FinalQuestDrawProvider;
   }
 
   const drawResult = await provider.executeDraw({
@@ -1610,13 +1614,18 @@ export async function getPublicDrawingPageDataDB(eventId: string): Promise<Publi
     drawMethod: row.draw_method,
     providerReference: row.provider_reference,
     drawnAt: row.drawn_at,
-    verificationStatus: row.verification_status || row.audit_metadata?.verificationStatus || (row.draw_method === 'manual_external' ? 'manual_unverified' : 'internal_seeded'),
-    isSystemVerified: row.is_system_verified ?? row.audit_metadata?.isSystemVerified ?? false,
+    verificationStatus: row.verification_status || row.audit_metadata?.verificationStatus || (row.draw_method === 'manual_external' ? 'manual_unverified' : row.draw_method === 'final_quest' ? 'final_quest_trail' : 'internal_seeded'),
+    isSystemVerified: row.is_system_verified ?? row.audit_metadata?.isSystemVerified ?? (row.draw_method === 'final_quest' || row.draw_method === 'internal_test'),
     isIndependent: row.is_independent ?? row.audit_metadata?.isIndependent ?? false,
+    finalQuestReceipt: row.audit_metadata?.finalQuestReceipt,
   }));
 
   const ledgerLockStatus: DrawingStatus = (lockRow?.status as DrawingStatus) || 'open';
   const firstPublished = publishedRows && publishedRows.length > 0 ? publishedRows[0] : null;
+
+  const ticketRanges = lockRow?.canonical_snapshot
+    ? localEngine.assignTicketsToSnapshot(lockRow.canonical_snapshot).ticketRanges
+    : undefined;
 
   return {
     eventId: realEventId,
@@ -1633,5 +1642,6 @@ export async function getPublicDrawingPageDataDB(eventId: string): Promise<Publi
     verificationInfo: lockRow?.snapshot_hash
       ? `This drawing entry pool was finalized and cryptographically hashed (SHA-256: ${lockRow.snapshot_hash}) on ${lockRow.locked_at}. The winner selection is tied directly to the frozen canonical snapshot.`
       : undefined,
+    ticketRanges,
   };
 }

@@ -70,8 +70,10 @@ export default function AudienceVoteCard({
   }
 
   const totalVotes = options.reduce((sum, opt) => sum + (opt.voteCount || 0), 0);
-  const isVotingActive = event.status === 'voting_active' && !event.isPaused && !isSystemDisabled;
+  const isCancelled = event.status === 'cancelled';
+  const isOverridden = (event as any).isManuallyOverridden || (event as any).status === 'overridden';
   const isResolved = ['resolved', 'effect_applied'].includes(event.status);
+  const isVotingActive = event.status === 'voting_active' && !event.isPaused && !isSystemDisabled && !isCancelled;
 
   const handleVoteClick = async (optionId: string) => {
     if (!isVotingActive || isSubmitting || votedOptionId) return;
@@ -127,6 +129,14 @@ export default function AudienceVoteCard({
           {isSystemDisabled ? (
             <span className="px-3 py-1 bg-red-950/80 border border-red-500/60 text-red-300 text-xs font-mono font-bold rounded-lg animate-pulse">
               ⛔ SYSTEM FROZEN
+            </span>
+          ) : isCancelled ? (
+            <span className="px-3 py-1 bg-red-950/80 border border-red-500/60 text-red-300 text-xs font-mono font-bold rounded-lg">
+              ⛔ DECISION CANCELLED
+            </span>
+          ) : isOverridden ? (
+            <span className="px-3 py-1 bg-purple-950/80 border border-purple-500/60 text-purple-300 text-xs font-mono font-bold rounded-lg">
+              ⚡ GM OVERRIDE
             </span>
           ) : event.isPaused ? (
             <span className="px-3 py-1 bg-amber-950/80 border border-amber-500/60 text-amber-300 text-xs font-mono font-bold rounded-lg animate-pulse">

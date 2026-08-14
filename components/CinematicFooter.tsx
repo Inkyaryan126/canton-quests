@@ -1,14 +1,16 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { Eye, HelpCircle, ListChecks, Trophy } from 'lucide-react';
-import { cqImages } from '@/lib/marketing-assets';
+import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 
 export default function CinematicFooter() {
   return (
     <footer className="cq-footer">
-      <div>
-        <Image src={cqImages.badge} alt="Canton Quests badge" width={72} height={72} />
-        <p>Pick a quest. Explore Canton. Earn XP.</p>
+      <div className="cq-footer-brand">
+        <CantonQuestsLogo variant="mark" size={48} alt="Canton Quests official emblem" className="shrink-0" />
+        <div className="cq-footer-brand-text">
+          <span className="cq-footer-brand-title">CANTON QUESTS</span>
+          <p>Pick a quest. Explore Canton. Earn XP.</p>
+        </div>
       </div>
       <div className="cq-footer-links">
         <Link href="/quests">

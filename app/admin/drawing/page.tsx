@@ -23,7 +23,7 @@ export default function AdminDrawingPage() {
   // Form Controls
   const [lockReason, setLockReason] = useState('Official Event Finale Freeze');
   const [confirmPendingBypass, setConfirmPendingBypass] = useState(false);
-  const [drawMethod, setDrawMethod] = useState<'internal_test' | 'manual_external'>('internal_test');
+  const [drawMethod, setDrawMethod] = useState<'final_quest' | 'internal_test' | 'manual_external'>('final_quest');
   const [prizeTitle, setPrizeTitle] = useState('Grand Prize — Canton Adventure Package');
   const [testSeed, setTestSeed] = useState('TEST-SEED-2026-ALPHA');
   const [providerReference, setProviderReference] = useState('');
@@ -412,6 +412,7 @@ export default function AdminDrawingPage() {
                     onChange={(e) => setDrawMethod(e.target.value as any)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm font-mono text-white"
                   >
+                    <option value="final_quest">THE FINAL QUEST (Human-Readable Fixed Public Trail / Event Default)</option>
                     <option value="internal_test">INTERNAL TEST DRAW (Seeded / Dev & Test Only)</option>
                     <option value="manual_external">RECORD MANUAL EXTERNAL RESULT (Manually Recorded / Unverified)</option>
                   </select>

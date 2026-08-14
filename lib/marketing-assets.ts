@@ -1,10 +1,22 @@
 import { Quest, QuestEvent } from './types';
 
 export const CQ_ASSET_PATH = '/canton-quests';
+export const CQ_BRAND_PATH = '/brand';
+
+export const cqBrand = {
+  masterLogo: `${CQ_BRAND_PATH}/canton-quests-master-logo.png`,
+  faviconMaster: `${CQ_BRAND_PATH}/canton-quests-favicon-master.png`,
+  mark: `${CQ_BRAND_PATH}/canton-quests-mark.png`,
+  mark512: `${CQ_BRAND_PATH}/canton-quests-mark-512.png`,
+  mark192: `${CQ_BRAND_PATH}/canton-quests-mark-192.png`,
+  appleTouchIcon: `${CQ_BRAND_PATH}/canton-quests-apple-touch-icon.png`,
+  favicon: `${CQ_BRAND_PATH}/favicon.ico`,
+  ogImage: `${CQ_BRAND_PATH}/canton-quests-og.png`,
+};
 
 export const cqImages = {
-  logoNav: `${CQ_ASSET_PATH}/03b_navbar_logo_transparent.png`,
-  badge: `${CQ_ASSET_PATH}/02b_round_badge_transparent.png`,
+  logoNav: cqBrand.masterLogo,
+  badge: cqBrand.mark,
   heroCity: `${CQ_ASSET_PATH}/city-players-sunset.jpg`,
   heroCityBeam: `${CQ_ASSET_PATH}/hero-city-beam.jpg`,
   heroCityOriginal: `${CQ_ASSET_PATH}/11_hero_city_sunset.png`,

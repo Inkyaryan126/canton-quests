@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import AcquisitionLandingPage from '@/components/AcquisitionLandingPage';
+import ChallengeLanding from '@/components/landing/ChallengeLanding';
 import { acquisitionLandingPages } from '@/lib/acquisition-landing-content';
 
 const content = acquisitionLandingPages.challenge;
@@ -15,5 +15,5 @@ export const metadata: Metadata = {
 };
 
 export default function StartChallengePage() {
-  return <AcquisitionLandingPage content={content} />;
+  return <ChallengeLanding />;
 }

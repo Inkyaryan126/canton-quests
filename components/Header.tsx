@@ -1,15 +1,17 @@
-'use client';
-
 import Link from 'next/link';
+import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 
 export default function Header() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[#0b0f17]/90 backdrop-blur-md px-4 py-3">
       <div className="max-w-4xl mx-auto flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 group text-decoration-none">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-obsidian font-extrabold text-xl shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform">
-            ⚡
-          </div>
+        <Link href="/" className="flex items-center gap-2.5 group text-decoration-none" aria-label="Canton Quests home">
+          <CantonQuestsLogo
+            variant="mark"
+            size={38}
+            priority
+            className="rounded-lg shadow-md shadow-amber-500/20 group-hover:scale-105 transition-transform shrink-0"
+          />
           <div>
             <span className="font-display font-extrabold text-lg text-white tracking-tight leading-none block">
               CANTON <span className="text-amber-400">QUESTS</span>

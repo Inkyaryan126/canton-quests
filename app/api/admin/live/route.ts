@@ -15,16 +15,40 @@ import {
 } from '@/lib/game-engine';
 import {
   createAudienceEventDB,
+  activateAudienceEventDB,
+  closeAudienceVotingDB,
   resolveAudienceEventDB,
+  cancelAudienceEventDB,
   createHostBroadcastDB,
   toggleSpectatorSystemFreezeDB,
+  getAudienceEventsDB,
+  getAudienceEventOptionsDB,
+  getSpectatorSystemSettingsDB,
+  getLiveEventTimelineDB,
+  runAudienceVoteSimulationDB,
 } from '@/lib/spectator-db';
+import { processAudienceLifecycleCron } from '@/lib/spectator-engine';
+import {
+  computeEventReadinessReport,
+  evaluateEventLaunchGates,
+  auditEventQRQuests,
+  auditEventQuestsAndLocations,
+  getOperatorChecklist,
+  updateOperatorChecklistItem,
+  runWalkUpPlayerRehearsal,
+  runFullEventRehearsal,
+  executeEventClosure,
+} from '@/lib/event-readiness';
 
 function verifyServerAdminAuth(request: Request): boolean {
-  const cookieStore = cookies();
-  const adminCookie = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
-  if (adminCookie && verifyAdminSecret(adminCookie)) {
-    return true;
+  try {
+    const cookieStore = cookies();
+    const adminCookie = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
+    if (adminCookie && verifyAdminSecret(adminCookie)) {
+      return true;
+    }
+  } catch {
+    // Ignore when running outside Next.js request scope
   }
 
   const headersObj: Record<string, string> = {};
@@ -34,6 +58,57 @@ function verifyServerAdminAuth(request: Request): boolean {
 
   const session = authorizeGameMasterRequest(headersObj);
   return session.isAdmin;
+}
+
+export async function GET(request: Request) {
+  try {
+    if (!verifyServerAdminAuth(request)) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Game Master administrative authorization required' },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const eventId = searchParams.get('eventId') || 'default-event';
+
+    const events = await getAudienceEventsDB(eventId, true);
+    const settings = await getSpectatorSystemSettingsDB(eventId);
+    const timeline = await getLiveEventTimelineDB(eventId, 50, true);
+
+    const activeEvent = events.find((e) => e.status === 'voting_active' || e.status === 'tallying_closed') || null;
+    let activeOptions: any[] = [];
+    if (activeEvent) {
+      activeOptions = await getAudienceEventOptionsDB(activeEvent.id, true);
+    }
+
+    const upcomingEvents = events.filter((e) => e.status === 'draft' || e.status === 'scheduled');
+    const resolvedEvents = events.filter((e) => e.status === 'resolved' || e.status === 'cancelled' || e.status === 'effect_applied');
+
+    // Phase 5.4 Readiness and Audit State
+    const readiness = computeEventReadinessReport(eventId);
+    const launchGates = evaluateEventLaunchGates(eventId);
+    const checklist = getOperatorChecklist(eventId);
+    const qrAudit = auditEventQRQuests(eventId);
+    const questAudit = auditEventQuestsAndLocations(eventId);
+
+    return NextResponse.json({
+      success: true,
+      activeEvent,
+      activeOptions,
+      upcomingEvents,
+      resolvedEvents,
+      settings,
+      timeline,
+      readiness,
+      launchGates,
+      checklist,
+      qrAudit,
+      questAudit,
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -143,7 +218,7 @@ export async function POST(request: Request) {
       }
 
       case 'create_audience_event': {
-        const { title, description, eventType, eligibilityMode, maxVotesPerSession, options } = body;
+        const { title, description, eventType, eligibilityMode, maxVotesPerSession, options, startsAt, durationMinutes } = body;
         if (!title || !eventType || !options || options.length === 0) {
           return NextResponse.json({ success: false, error: 'Invalid audience event parameters' }, { status: 400 });
         }
@@ -156,7 +231,30 @@ export async function POST(request: Request) {
           maxVotesPerSession: 1,
           options,
         });
+
+        if (body.launchNow && res.event?.id) {
+          await activateAudienceEventDB(res.event.id, startsAt, durationMinutes || 5, 'Game Director');
+        }
+
         return NextResponse.json({ success: true, ...res });
+      }
+
+      case 'activate_audience_event': {
+        const { audienceEventId, startsAt, durationMinutes } = body;
+        if (!audienceEventId) {
+          return NextResponse.json({ success: false, error: 'Missing audienceEventId' }, { status: 400 });
+        }
+        const res = await activateAudienceEventDB(audienceEventId, startsAt, durationMinutes || 5, 'Game Director');
+        return NextResponse.json(res);
+      }
+
+      case 'close_audience_voting': {
+        const { audienceEventId } = body;
+        if (!audienceEventId) {
+          return NextResponse.json({ success: false, error: 'Missing audienceEventId' }, { status: 400 });
+        }
+        const res = await closeAudienceVotingDB(audienceEventId, 'Game Director');
+        return NextResponse.json(res);
       }
 
       case 'resolve_audience_event': {
@@ -165,6 +263,15 @@ export async function POST(request: Request) {
           return NextResponse.json({ success: false, error: 'Missing audienceEventId' }, { status: 400 });
         }
         const res = await resolveAudienceEventDB(audienceEventId, overrideOptionId, overrideReason, 'Game Director');
+        return NextResponse.json(res);
+      }
+
+      case 'cancel_audience_event': {
+        const { audienceEventId, cancellationReason } = body;
+        if (!audienceEventId) {
+          return NextResponse.json({ success: false, error: 'Missing audienceEventId' }, { status: 400 });
+        }
+        const res = await cancelAudienceEventDB(audienceEventId, cancellationReason || 'Game Director Action', 'Game Director');
         return NextResponse.json(res);
       }
 
@@ -189,6 +296,62 @@ export async function POST(request: Request) {
         const { isDisabled, reason } = body;
         const settings = await toggleSpectatorSystemFreezeDB(eventId, Boolean(isDisabled), reason);
         return NextResponse.json({ success: true, settings });
+      }
+
+      case 'run_rehearsal_simulation': {
+        const simResult = await runAudienceVoteSimulationDB(eventId, body.params);
+        return NextResponse.json({ success: true, simulation: simResult });
+      }
+
+      case 'process_lifecycle_cron': {
+        const cronResult = processAudienceLifecycleCron(eventId);
+        return NextResponse.json({ success: true, ...cronResult });
+      }
+
+      case 'evaluate_launch_gates': {
+        const gatesResult = evaluateEventLaunchGates(eventId);
+        return NextResponse.json({ success: true, ...gatesResult });
+      }
+
+      case 'get_readiness_report': {
+        const report = computeEventReadinessReport(eventId);
+        return NextResponse.json({ success: true, report });
+      }
+
+      case 'audit_qr_quests': {
+        const qrAudit = auditEventQRQuests(eventId);
+        return NextResponse.json({ success: true, ...qrAudit });
+      }
+
+      case 'audit_quests_locations': {
+        const questAudit = auditEventQuestsAndLocations(eventId);
+        return NextResponse.json({ success: true, ...questAudit });
+      }
+
+      case 'update_checklist_item': {
+        const { itemId, isChecked } = body;
+        if (!itemId) {
+          return NextResponse.json({ success: false, error: 'Missing itemId' }, { status: 400 });
+        }
+        const checklist = updateOperatorChecklistItem(eventId, itemId, Boolean(isChecked), 'Game Director');
+        return NextResponse.json({ success: true, checklist });
+      }
+
+      case 'run_walkup_rehearsal': {
+        const walkUpResult = runWalkUpPlayerRehearsal(eventId);
+        return NextResponse.json({ success: true, rehearsal: walkUpResult });
+      }
+
+      case 'run_full_rehearsal': {
+        const fullRehearsalResult = runFullEventRehearsal(eventId);
+        return NextResponse.json({ success: true, rehearsal: fullRehearsalResult });
+      }
+
+      case 'end_event':
+      case 'execute_event_closure': {
+        const { reason } = body;
+        const closureResult = executeEventClosure(eventId, 'Game Director', reason);
+        return NextResponse.json(closureResult);
       }
 
       default:
