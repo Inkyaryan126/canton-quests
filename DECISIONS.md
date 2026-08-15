@@ -494,3 +494,59 @@ Each entry follows the standard ADR structure:
   - Rock-solid, cryptographically verified player identity root with seamless mobile OTP UX, safe legacy player preservation, and complete elimination of callsign impersonation vulnerabilities.
 - **Status**: **ACCEPTED**
 
+---
+
+## ADR-026: Canonical Canton Quests Volume 1 Production Game Data Restoration & Idempotent Seed Migration
+- **Date**: 2026-08-14
+- **Decision**:
+  1. **Canonical Production World Restoration**:
+     - Restored the canonical Volume 1 playable world for Canton, Ohio into Supabase production tables via idempotent migration `supabase/migrations/20260814020000_restore_canton_volume1_production_seed.sql`.
+     - Seeded records:
+       - 1 City: Canton, Ohio (`canton-oh`, `a0000001-0000-4000-8000-000000000001`)
+       - 9 Launch Locations: Centennial Plaza, McKinley National Memorial, 4th St Mural, Aura Craft Coffee, Arcade Vault, Palace Theatre, Hall of Fame City Marker, Onesto Entrance, and Frankenstein Monument.
+       - 1 Event: Canton Quests: Volume 1 - The Founder's Cipher (`canton-weekend-1`, `b0000001-0000-4000-8000-000000000001`, `status = 'active'`, `current_phase = 'day_1'`).
+       - 15 Canonical Quests spanning the Three-Path architecture (`family`, `challenge`, `secret`, `cross_city`).
+       - 3 Multi-Step Quest Steps for `secret-cipher-77` with SHA-256 hashed verification targets.
+       - 5 Collectibles: Founder Token, Cipher Fragments 1-3, Palace Seal.
+       - 2 Secret Codes: Game Master Opening Broadcast Code (`founder-token`), Courier Drop (`palace-seal`).
+       - 1 NPC: The Courier (`4th Street Arts Corridor`).
+       - 2 Business Partners: Aura Craft Coffee, Downtown Canton Arcade Vault.
+       - 2 Event Prizes: Champion Trophy + $100 Local Pass, Year of Aura Coffee VIP Pass.
+       - 1 Drawing Ledger Lock initialized to status `open` (`is_locked = false`).
+  2. **Deterministic UUID Architecture**:
+     - Replaced text-based IDs (`city-canton-oh`, `evt-canton-vol-1`, `qst-centennial-discovery`) with standard deterministic UUIDv4 literals in database tables to guarantee relational foreign key integrity across environments without schema type mismatches.
+     - Updated `lib/quest-proof-secrets.server.json` to map both legacy slugs and deterministic UUIDs to target answer hashes.
+  3. **Zero Demo Player Seeding**:
+     - Completely omitted test/demo players (`ApexHunter_330`, `CantonRover`, `DowntownDecoder`) from production seeding to enforce that all production player accounts originate from the cryptographically verified Supabase Auth identity root (`auth.users`).
+  4. **Frankenstein Monument Safety Integrity**:
+     - Preserved all real-world safety restrictions for the West Lawn Cemetery quest: daylight visiting hours only, respectful cemetery conduct, no touching/disturbing memorials. Coordinates remain `NULL` pending human field verification.
+  5. **Non-Destructive Idempotency**:
+     - Uses `INSERT ... ON CONFLICT (...) DO UPDATE` / `DO NOTHING`. Contains zero `DROP`, `TRUNCATE`, or `DELETE` statements. Safe to run multiple times without corrupting production or future player data.
+- **Reason**:
+  - Production tables were empty (0 rows across all core tables), causing the live route `/events/canton-weekend-1` to display "Quest Not Found". This migration safely establishes the canonical game world with full relational and auth integrity.
+- **Consequences**:
+  - The application routes and game engine seamlessly load Volume 1 world data from Supabase; full end-to-end launch readiness is established.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-027: Production Schema Catch-Up & Canonical Volume 1 Restoration Consolidated Migration
+- **Date**: 2026-08-14
+- **Decision**:
+  1. **Single Production-Safe Catch-Up SQL**:
+     - Authored `supabase/migrations/20260814030000_production_schema_catchup_and_volume1_restore.sql` to reconcile a live Supabase production database sitting at Phase 3 schema with out-of-order execution of `20260814010000_critical_player_auth_remediation.sql`.
+     - Consolidates unapplied DDL from Phase 4 Event Factory, Phase 5.1 Spectator Engine, Core Quest Rewards Backbone, Transparent Prize Drawing System, QR Campaign Attribution, and Three-Path Architecture.
+  2. **Authoritative Security State**:
+     - Guarantees that the hardened RLS policies (`auth.uid() = user_id OR auth.jwt() ->> 'role' = 'service_role'`), `prevent_player_user_id_tampering` triggers, and partial unique index on `players(user_id)` from ADR-025 are established as the final, immutable security state.
+  3. **Canonical Volume 1 Restoration**:
+     - Includes complete, idempotent Volume 1 game world restoration (1 City, 9 Locations, 1 Event, 15 Quests, 3 Steps, 5 Collectibles, 2 Secret Codes, 1 NPC, 2 Partners, 2 Prizes, 1 Drawing Lock).
+     - Enforces zero demo player accounts and daylight-only West Lawn Cemetery safety boundaries.
+- **Reason**:
+  - Direct database queries revealed that live production had Phase 3 columns on `events` and was missing Phase 4 through Three-Path schema additions, while critical auth remediation had been run early. Running historical migrations individually risked RLS policy rollbacks or missing prerequisite columns; this consolidated migration safely bridges the gap in a single run.
+- **Alternatives Evaluated**:
+  - Dumbing down restoration data to match Phase 3 (rejected: would break the active application code that queries modern columns).
+  - Manually executing multiple historical scripts out of order (rejected: high risk of RLS downgrade or constraint collisions).
+- **Consequences**:
+  - The live Supabase database can be brought to full modern operational readiness in a single SQL Editor paste, with zero risk of schema drift or security regressions.
+- **Status**: **ACCEPTED**
+

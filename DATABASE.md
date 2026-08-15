@@ -169,3 +169,25 @@ The Canton Quests data architecture relies on PostgreSQL (hosted via Supabase) w
 ### 4.8 `spectator_system_settings`
 - **Purpose**: Global spectator system state and emergency kill switch flags (`is_spectator_system_disabled`).
 - **Security**: Public read; admin write.
+
+---
+
+## 5. Canonical Volume 1 Production Seed Restoration
+
+- **Migration**: `20260814020000_restore_canton_volume1_production_seed.sql`
+- **Purpose**: Fully restore the canonical Canton Quests Volume 1 game world into Supabase production tables.
+- **Invariants**:
+  - Deterministic UUID primary keys across `cities`, `locations`, `events`, `quests`, `quest_steps`, `collectibles`, `secret_codes`, `npc_characters`, `business_partners`, and `event_prizes`.
+  - Non-destructive `INSERT ... ON CONFLICT (...) DO UPDATE / DO NOTHING` clauses.
+  - Zero demo player accounts inserted (all players must onboard through Supabase Auth).
+  - All secret verification targets hashed with SHA-256 (`sha256:...`).
+  - Three-Path architecture districts fully mapped (`family`, `challenge`, `secret`, `cross_city`).
+  - Frankenstein Monument cemetery access and safety rules enforced with coordinates `NULL` until physical field verification.
+
+---
+
+## 6. Single-Script Production Schema Catch-Up & Volume 1 Restore
+
+- **Migration**: `20260814030000_production_schema_catchup_and_volume1_restore.sql`
+- **Purpose**: Single idempotent, non-destructive catch-up migration enabling immediate single-paste execution in the Supabase SQL Editor. Safely brings a live database with Phase 3 schema (and early-executed critical player auth remediation `20260814010000`) up to the full modern schema requirements (Phase 4 Event Factory, Phase 5.1 Spectator Engine, Core Quest Rewards Backbone, Transparent Prize Drawing System, QR Campaign Attribution, Three-Path Architecture) and restores canonical Canton Quests Volume 1 game data in a single run.
+- **Security Guarantee**: Hardened player authentication RLS policies, ownership triggers, and anti-tampering rules are guaranteed as the final authoritative security state.
