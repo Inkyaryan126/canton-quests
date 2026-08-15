@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { PublicDrawingPageData } from '@/lib/types';
+import { showGameMoment } from '@/lib/game-effects';
 
 export default function PublicDrawingPage({ params }: { params: { slug: string } }) {
   const [data, setData] = useState<PublicDrawingPageData | null>(null);
@@ -119,12 +120,31 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
                   <span className="block text-xs font-mono text-slate-400 uppercase">Total Valid Tickets</span>
                   <span className="text-xl sm:text-2xl font-black text-amber-300 font-mono">{data.totalQualifiedEntries} tickets</span>
                 </div>
-                <div className="col-span-2 sm:col-span-1 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/60">
+                <div className="col-span-2 sm:col-span-1 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/60 flex flex-col justify-between">
                   <span className="block text-xs font-mono text-slate-400 uppercase">Ledger State</span>
                   <span className="text-sm font-bold font-mono text-slate-200 capitalize mt-1 block">
                     {data.ledgerLockStatus}
                   </span>
                 </div>
+              </div>
+
+              {/* Finale Qualification Ceremony Button */}
+              <div className="pt-4 mt-4 border-t border-slate-800/80 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    showGameMoment({
+                      type: 'finale-qualified',
+                      qualifiedEntries: data.totalQualifiedEntries,
+                      snapshotHash: data.snapshotHash || undefined,
+                      eventTitle: data.eventTitle,
+                      isLocked: data.ledgerLockStatus === 'drawn' || data.ledgerLockStatus === 'published',
+                    });
+                  }}
+                  className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/60 text-amber-300 hover:bg-amber-500/30 text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <span>✨ Inspect Official Qualification Ceremony</span>
+                </button>
               </div>
             </div>
 

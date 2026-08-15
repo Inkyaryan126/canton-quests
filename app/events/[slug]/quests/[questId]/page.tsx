@@ -9,6 +9,7 @@ import GameFeedbackModal from '@/components/GameFeedbackModal';
 import MobileStartBar from '@/components/MobileStartBar';
 import { QuestEvent, Player, QuestSubmission, SubmitProofResult, PublicQuestView, PlayerEventProgress } from '@/lib/types';
 import { cleanQuestTitle, getQuestImage, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
+import { triggerQuestRewardSequence, showGameMoment } from '@/lib/game-effects';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -198,6 +199,18 @@ export default function QuestDetailPage({
         const nextInChain = allEventQuests.find((q) => q.prerequisiteQuestId === quest.id);
 
         if (result.isQuestFullyCompleted) {
+          triggerQuestRewardSequence({
+            questId: quest.id,
+            questTitle: quest.title,
+            xpAwarded: result.awardedPoints,
+            verificationType: quest.verificationType,
+            unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,
+            unlockedQuestUrl: nextInChain ? `/events/${eventSlug}/quests/${nextInChain.id}` : undefined,
+            drawingEntriesAwarded: quest.drawingEntryReward || 1,
+            isChainComplete: Boolean(nextInChain),
+            chainTitle: quest.title,
+          });
+
           setFeedback({
             type: 'quest_completed',
             title: `QUEST SOLVED!`,

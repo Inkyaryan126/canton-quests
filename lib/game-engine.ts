@@ -3473,7 +3473,9 @@ export function reviewSubmission(
       reason: `Media submission approved for ${quest ? quest.title : 'Quest'}`,
     });
 
+    setStoredItem(STORAGE_KEYS.SUBMISSIONS, submissions);
     evaluatePlayerAchievements(sub.playerId, sub.eventId);
+    return sub;
   }
 
   setStoredItem(STORAGE_KEYS.SUBMISSIONS, submissions);

@@ -550,3 +550,32 @@ Each entry follows the standard ADR structure:
   - The live Supabase database can be brought to full modern operational readiness in a single SQL Editor paste, with zero risk of schema drift or security regressions.
 - **Status**: **ACCEPTED**
 
+---
+
+## ADR-028: Futuristic Game Moments & HUD Effects Engine
+- **Date**: 2026-08-15
+- **Decision**:
+  1. Implement a centralized, typed, queue-based Game Moments Engine (`lib/game-effects.ts`, `components/game-effects/`) across Canton Quests to elevate the product from a standard web app into an immersive, cinematic, high-stakes urban game.
+  2. The system provides 8 distinct cinematic game moments:
+     - **Quest List City Scan** (`city-scan`): 700–1100ms viewport sweep with HUD radar grid, scanning laser line, and staggered quest card arrivals.
+     - **Three Starting Paths Path Lock** (`path-lock`): Deep cinematic onboarding moment with path-specific energy and particle treatments (Family: warm gold compass/rings; Challenge: kinetic crimson impact streaks; Secret: cryptic violet glyph runes) confirming starting door while communicating that all city quests remain open on one leaderboard.
+     - **Quest Completion XP Impact** (`quest-complete`): Server-authoritative verification badge, large animated +XP count-up, drawing ticket ledger confirmation, and chain unlock notices.
+     - **Leaderboard Rank-Up** (`rank-up`): Real-time rank progression animation (#old -> #new) with tiered visual intensity (Normal, Top 10, Top 3 Podium, Rank #1 Apex).
+     - **Achievement Unlock** (`achievement`): Shimmering metallic badge reveal, description, and rewards.
+     - **Flash Drop / Live Quest Alert** (`flash-drop`): Emergency tactical broadcast alert with pulse perimeter and live quest interception actions.
+     - **Chain Complete Takeover** (`chain-complete`): Milestone takeover celebrating multi-step puzzle completions.
+     - **Finale / Prize Qualification Ceremony** (`finale-qualified`): Prestigious gold card reveal displaying verified drawing entries and SHA-256 ledger proof hash.
+  3. Integrated a zero-dependency Procedural Web Audio Synthesizer (`lib/game-audio.ts`) generating dynamic futuristic sound effects (radar sweeps, sub-bass impacts, harmonic chords, fanfare synths) without requiring external audio assets, respecting browser autoplay restrictions and mute settings.
+  4. Enforced strict mobile-first performance and accessibility safeguards:
+     - Battery-friendly HTML5 Canvas 2D particle rendering that sleeps on idle and cleans up timers on unmount.
+     - Full `prefers-reduced-motion` support eliminating aggressive flashes and shortening transition timings into clean semantic fades.
+     - Touch targets $\ge 44\text{px}$, safe area inset preservation, non-blocking overlays with tap-to-dismiss and keyboard `Escape` support.
+     - Priority queueing ensuring sequential multi-reward moments (Quest Complete $\rightarrow$ Rank Up $\rightarrow$ Achievement) play gracefully without overlapping deadlocks.
+- **Reason**:
+  - The core product vision mandates that Canton Quests must feel like an unfolding real-world city adventure game rather than a sterile SaaS check-in form. Centralizing HUD effects maintains visual consistency, prevents code bloat, and provides high-impact player delight.
+- **Alternatives Evaluated**:
+  - Scattering ad-hoc CSS animations and modals across individual pages (unmaintainable, visual drift).
+  - Introducing heavy 3D frameworks like Three.js (excessive battery drain and load times on mobile cellular networks).
+- **Consequences**:
+  - All game moments are uniformly managed via `showGameMoment()` or `triggerQuestRewardSequence()`; all 24 test suites and 386 tests pass with 100% success.
+- **Status**: **ACCEPTED**

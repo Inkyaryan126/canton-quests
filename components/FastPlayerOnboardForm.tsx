@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, CheckCircle2, KeyRound, Mail, RefreshCw, ShieldCheck, Sparkles, UserCheck, Zap } from 'lucide-react';
 import { StartingPath } from '@/lib/types';
+import { showGameMoment } from '@/lib/game-effects';
 import { ACQUISITION_ENTRY_HREF } from '@/lib/acquisition-landing-content';
 
 interface FastPlayerOnboardFormProps {
@@ -128,6 +129,12 @@ export default function FastPlayerOnboardForm({
           window.localStorage.setItem('canton_auth_token', data.session.access_token);
         }
       }
+
+      // Trigger Path Lock Game Moment
+      showGameMoment({
+        type: 'path-lock',
+        path: startingPath,
+      });
 
       if (router && router.push) {
         router.push(redirectTo);

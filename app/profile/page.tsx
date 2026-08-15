@@ -25,6 +25,7 @@ import CinematicNav from '@/components/CinematicNav';
 import CinematicFooter from '@/components/CinematicFooter';
 import { Player, PlayerAchievement, Achievement, StartingPath } from '@/lib/types';
 import { SEED_ACHIEVEMENTS } from '@/lib/seed-data';
+import { showGameMoment } from '@/lib/game-effects';
 
 const AVATAR_OPTIONS = ['⚡', '🧭', '🔍', '🏆', '🎯', '🦅', '👾', '🔥', '⚔️', '🦁', '🌟', '🚀'];
 const FLAIR_OPTIONS = [
@@ -576,7 +577,31 @@ export default function ProfilePage() {
               return (
                 <div
                   key={ach.id}
-                  className={`p-4 rounded-2xl border transition-all ${
+                  onClick={() => {
+                    showGameMoment({
+                      type: 'achievement',
+                      achievementId: ach.id,
+                      title: ach.name,
+                      description: ach.description,
+                      icon: ach.badgeSymbol,
+                      category: ach.category,
+                    });
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      showGameMoment({
+                        type: 'achievement',
+                        achievementId: ach.id,
+                        title: ach.name,
+                        description: ach.description,
+                        icon: ach.badgeSymbol,
+                        category: ach.category,
+                      });
+                    }
+                  }}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.02] ${
                     isEarned
                       ? `${rarityColors[ach.rarity] || 'border-amber-500/40 bg-stone-900/90'} shadow-lg`
                       : 'border-stone-800/80 bg-stone-950/50 opacity-60'

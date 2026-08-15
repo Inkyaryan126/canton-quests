@@ -15,6 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import { StartingPath } from '@/lib/types';
+import { showGameMoment } from '@/lib/game-effects';
 import FastPlayerOnboardForm from './FastPlayerOnboardForm';
 
 interface ThreePathSelectorProps {
@@ -95,6 +96,14 @@ export default function ThreePathSelector({
 
   const handleSelect = (path: StartingPath) => {
     setSelectedPath(path);
+    const opt = PATH_OPTIONS.find((p) => p.id === path);
+    showGameMoment({
+      type: 'path-lock',
+      path,
+      title: opt?.title,
+      district: opt?.district,
+      badge: opt?.badge,
+    });
     if (onSelectPath) onSelectPath(path);
   };
 

@@ -19,6 +19,8 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import PlayerIdentityBar from '@/components/PlayerIdentityBar';
+import QuestListScanEffect from '@/components/game-effects/QuestListScanEffect';
+import { showGameMoment } from '@/lib/game-effects';
 import { Player, PublicQuestView, QuestCategory, QuestEvent, StartingPath } from '@/lib/types';
 import {
   cleanQuestTitle,
@@ -219,6 +221,22 @@ export default function QuestsPage() {
             </div>
           </div>
 
+          {/* City Scan Status and Control Bar */}
+          <div className="mb-6">
+            <QuestListScanEffect
+              questCount={filteredQuests.length}
+              districtName={
+                activePathFilter === 'family'
+                  ? 'DOWNTOWN ARTS & CENTRAL DISTRICT'
+                  : activePathFilter === 'challenge'
+                  ? 'KINETIC & SKILL CHALLENGE DISTRICT'
+                  : activePathFilter === 'secret'
+                  ? 'MYSTERY & MONUMENT SECRET DISTRICT'
+                  : 'ALL CANTON DISTRICTS'
+              }
+            />
+          </div>
+
           {/* Mission Type Category Filters */}
           <div className="cq-section-heading">
             <div>
@@ -250,7 +268,12 @@ export default function QuestsPage() {
               const isRecommended = quest.startingPath && quest.startingPath === currentPlayer?.selectedStartingPath;
 
               return (
-                <Link href={`${eventHref}/quests/${quest.id}`} className="cq-quest-card" key={quest.id}>
+                <Link
+                  href={`${eventHref}/quests/${quest.id}`}
+                  className="cq-quest-card cq-card-stagger"
+                  style={{ animationDelay: `${Math.min(index * 60, 600)}ms` }}
+                  key={quest.id}
+                >
                   <div className="cq-quest-image cq-quest-image-tall">
                     <Image
                       src={getQuestImage(quest, index)}

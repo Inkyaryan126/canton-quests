@@ -55,6 +55,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { GameEffectsProvider } from '@/components/game-effects/GameEffectsProvider';
+
 export default function RootLayout({
   children,
 }: {
@@ -62,7 +64,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <GameEffectsProvider>{children}</GameEffectsProvider>
+      </body>
     </html>
   );
 }
