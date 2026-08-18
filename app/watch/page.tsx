@@ -388,17 +388,28 @@ export default function WatchPage() {
               sizes="(max-width: 1024px) 100vw, 900px"
               className="object-cover opacity-20 pointer-events-none"
             />
-            <div className="relative z-10 space-y-2">
+            <div className="relative z-10 space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="badge badge-medium bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold uppercase">
-                  🗓️ UPCOMING EVENT • {activeEventTitle}
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-mono font-bold uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  LIVE SIGNAL OFFLINE • BROADCAST BEGINS SEPTEMBER 11
                 </span>
                 <span className="text-xs text-stone-400 font-mono">Kickoff: September 11, 2026</span>
               </div>
-              <h2 className="text-xl font-bold text-white font-display">Canton Quests Airwaves Standing By</h2>
-              <p className="text-xs text-stone-300 leading-relaxed font-body">
-                The live citywide game show opens on September 11th. Audience voting options, live broadcasts, and real-time field tickers will stream live right here during event hours.
+              <h2 className="text-xl sm:text-2xl font-black text-white font-display uppercase tracking-tight">
+                Canton Quests Airwaves Standing By
+              </h2>
+              <p className="text-xs sm:text-sm text-stone-300 leading-relaxed font-body max-w-2xl">
+                The live citywide spectator broadcast and Game Master airwaves activate on September 11, 2026. Live field tickers, flash drop transmissions, and audience voting will stream in real time during event hours.
               </p>
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <Link href="/" className="cq-gold-button text-xs py-2.5 px-4 font-mono font-bold">
+                  RETURN TO CITY HUB →
+                </Link>
+                <Link href="/how-it-works" className="cq-dark-button text-xs py-2.5 px-4 font-mono">
+                  📖 HOW IT WORKS
+                </Link>
+              </div>
             </div>
           </div>
         )}

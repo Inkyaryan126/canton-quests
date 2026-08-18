@@ -10,6 +10,7 @@ import Leaderboard from '@/components/Leaderboard';
 import CantonMapWrapper from '@/components/CantonMapWrapper';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
 import MobileStartBar from '@/components/MobileStartBar';
+import CinematicFooter from '@/components/CinematicFooter';
 import {
   QuestEvent,
   PublicQuestView,
@@ -21,6 +22,7 @@ import {
 } from '@/lib/types';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
 import { cleanQuestTitle, cqImages, formatEventWindow } from '@/lib/marketing-assets';
+import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -85,6 +87,8 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   const eventSlug = params.slug;
 
   const [event, setEvent] = useState<QuestEvent | null>(null);
+  const [isPreLaunch, setIsPreLaunch] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [quests, setQuests] = useState<PublicQuestView[]>([]);
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -115,20 +119,41 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
     setCurrentPlayerState(player);
 
     fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok && res.status === 404) {
+          if (isKnownCantonLaunchSlug(eventSlug)) {
+            setIsPreLaunch(true);
+          }
+          return null;
+        }
+        return res.json();
+      })
       .then((data: {
         event?: QuestEvent;
         quests?: PublicQuestView[];
         leaderboard?: LeaderboardEntry[];
         progress?: PlayerEventProgress;
-      }) => {
-        if (!data.event) return;
-        setEvent(data.event);
-        setQuests(data.quests || []);
-        setLeaderboard(data.leaderboard || []);
-        setProgress(data.progress || null);
-        setCollectibles([]);
-        setNpcs([]);
+        isPreLaunch?: boolean;
+      } | null) => {
+        setIsLoading(false);
+        if (!data) return;
+        if (data.isPreLaunch || isKnownCantonLaunchSlug(eventSlug)) {
+          setIsPreLaunch(true);
+        }
+        if (data.event) {
+          setEvent(data.event);
+          setQuests(data.quests || []);
+          setLeaderboard(data.leaderboard || []);
+          setProgress(data.progress || null);
+          setCollectibles([]);
+          setNpcs([]);
+        }
+      })
+      .catch(() => {
+        setIsLoading(false);
+        if (isKnownCantonLaunchSlug(eventSlug)) {
+          setIsPreLaunch(true);
+        }
       });
   }, [eventSlug]);
 
@@ -190,14 +215,92 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
     refreshData();
   };
 
-  if (!event) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-obsidian)] text-white flex flex-col justify-center items-center p-4">
-        <h1 className="text-2xl font-bold mb-2">Quest Not Found</h1>
-        <p className="text-gray-400 text-sm mb-4">No active Canton Quest matching &quot;{eventSlug}&quot;.</p>
-        <Link href="/" className="btn btn-primary text-sm">
-          Return to City Hub
-        </Link>
+      <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent mb-4" />
+        <p className="text-xs text-amber-300 tracking-wider uppercase">Loading Mission Grid...</p>
+      </div>
+    );
+  }
+
+  if (!event || isPreLaunch || isPreLaunchEvent(event, eventSlug)) {
+    if (isKnownCantonLaunchSlug(eventSlug) || isPreLaunchEvent(event, eventSlug)) {
+      return (
+        <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
+          <Header />
+          <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8 sm:py-16 flex flex-col justify-center">
+            <div className="relative overflow-hidden rounded-3xl border border-amber-500/40 bg-stone-900/90 shadow-2xl p-6 sm:p-12 text-center">
+              <Image
+                src={cqImages.questBoardBg}
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 900px"
+                className="object-cover opacity-20 pointer-events-none"
+              />
+              <div className="relative z-10 space-y-4 max-w-xl mx-auto">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-mono font-bold uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span>MISSION GRID OFFLINE</span>
+                </div>
+
+                <h1 className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight">
+                  CANTON QUESTS ACTIVATES SEPTEMBER 11, 2026
+                </h1>
+
+                <p className="text-sm sm:text-base text-stone-300 leading-relaxed font-body">
+                  The citywide quest system will come online at launch. Until then, explore the site, choose your path, and get ready for the competition.
+                </p>
+
+                <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Link
+                    href="/"
+                    className="cq-gold-button w-full sm:w-auto text-xs py-3 px-6 font-mono font-bold inline-flex items-center justify-center gap-2"
+                  >
+                    RETURN TO CITY HUB →
+                  </Link>
+                  <Link
+                    href="/how-it-works"
+                    className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+                  >
+                    📖 HOW IT WORKS
+                  </Link>
+                  <Link
+                    href="/leaderboard"
+                    className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+                  >
+                    🏆 PRE-SEASON LEADERBOARD
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </main>
+          <CinematicFooter />
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
+        <Header />
+        <main className="flex-1 max-w-lg mx-auto w-full px-4 py-16 flex flex-col justify-center items-center text-center">
+          <div className="p-8 rounded-3xl border border-stone-800 bg-stone-900/80 shadow-2xl w-full space-y-4">
+            <div className="text-4xl">🔍</div>
+            <h1 className="font-display font-black text-xl sm:text-2xl text-white uppercase tracking-tight">
+              EVENT NOT FOUND
+            </h1>
+            <p className="text-xs sm:text-sm text-stone-400 leading-relaxed">
+              The requested event could not be found. Check the URL or return to the city hub to discover active Canton missions.
+            </p>
+            <div className="pt-2">
+              <Link href="/" className="cq-gold-button w-full text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2">
+                RETURN TO CITY HUB →
+              </Link>
+            </div>
+          </div>
+        </main>
+        <CinematicFooter />
       </div>
     );
   }

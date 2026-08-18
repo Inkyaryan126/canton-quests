@@ -72,39 +72,13 @@ import {
 const DRAWABLE_LEDGER_STATUSES: DrawingStatus[] = ['locked', 'drawn'];
 const PUBLISHABLE_LEDGER_STATUSES: DrawingStatus[] = ['drawn'];
 
-function proofDigest(value: string): string | undefined {
-  if (typeof window !== 'undefined') return undefined;
-  const nodeRequire = eval('require') as (id: string) => any;
-  return nodeRequire('crypto').createHash('sha256').update(value.trim().toUpperCase()).digest('hex');
-}
+import {
+  getServerQuestTargetCode,
+  getServerQuestStepTargetCode,
+  proofDigest,
+  proofMatches,
+} from './quest-proof-secrets';
 
-function proofMatches(inputValue: string | undefined, targetValue: string | undefined): boolean {
-  const input = (inputValue || '').trim().toUpperCase();
-  const target = (targetValue || '').trim();
-  if (!input || !target) return false;
-  if (target.toLowerCase().startsWith('sha256:')) {
-    return proofDigest(input) === target.slice('sha256:'.length).toLowerCase();
-  }
-  return input === target.toUpperCase();
-}
-
-function getServerQuestTargetCode(questId: string): string | undefined {
-  if (typeof window !== 'undefined') return undefined;
-  const nodeRequire = eval('require') as (id: string) => any;
-  const maps = nodeRequire(`${process.cwd()}/lib/quest-proof-secrets.server.json`) as {
-    QUEST_TARGET_CODE_HASHES: Record<string, string>;
-  };
-  return maps.QUEST_TARGET_CODE_HASHES[questId];
-}
-
-function getServerQuestStepTargetCode(stepId: string): string | undefined {
-  if (typeof window !== 'undefined') return undefined;
-  const nodeRequire = eval('require') as (id: string) => any;
-  const maps = nodeRequire(`${process.cwd()}/lib/quest-proof-secrets.server.json`) as {
-    STEP_TARGET_CODE_HASHES?: Record<string, string>;
-  };
-  return maps.STEP_TARGET_CODE_HASHES?.[stepId];
-}
 
 function mapLocationFromDB(row: any): LocationInfo | undefined {
   if (!row) return undefined;

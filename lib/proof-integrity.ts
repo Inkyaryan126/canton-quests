@@ -2,22 +2,7 @@
 
 import { Quest, QuestSubmission, ProofReviewFlag, SubmitProofParams } from './types';
 import { checkProximity } from './geo';
-
-function proofDigest(value: string): string | undefined {
-  if (typeof window !== 'undefined') return undefined;
-  const nodeRequire = eval('require') as (id: string) => any;
-  return nodeRequire('crypto').createHash('sha256').update(value.trim().toUpperCase()).digest('hex');
-}
-
-function proofMatches(inputValue: string | undefined, targetValue: string | undefined): boolean {
-  const input = (inputValue || '').trim().toUpperCase();
-  const target = (targetValue || '').trim();
-  if (!input || !target) return false;
-  if (target.toLowerCase().startsWith('sha256:')) {
-    return proofDigest(input) === target.slice('sha256:'.length).toLowerCase();
-  }
-  return input === target.toUpperCase();
-}
+import { proofDigest, proofMatches } from './quest-proof-secrets';
 
 /**
  * Analyzes a proposed submission for suspicious patterns and returns automated review flags.

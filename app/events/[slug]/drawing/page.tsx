@@ -4,14 +4,17 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
+import CinematicFooter from '@/components/CinematicFooter';
 import { PublicDrawingPageData } from '@/lib/types';
 import { cqImages } from '@/lib/marketing-assets';
 import { showGameMoment } from '@/lib/game-effects';
+import { isKnownCantonLaunchSlug, isBeforeLaunchDate } from '@/lib/launch-status';
 
 export default function PublicDrawingPage({ params }: { params: { slug: string } }) {
   const [data, setData] = useState<PublicDrawingPageData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isPreLaunch, setIsPreLaunch] = useState(false);
+  const [isSystemUnavailable, setIsSystemUnavailable] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedNumber, setCopiedNumber] = useState(false);
 
@@ -19,15 +22,36 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
     async function fetchDrawingData() {
       try {
         setLoading(true);
+        setIsSystemUnavailable(false);
+
+        if (isKnownCantonLaunchSlug(params.slug) && isBeforeLaunchDate()) {
+          setIsPreLaunch(true);
+        }
+
         const res = await fetch(`/api/game/events/${params.slug}/drawing`);
         if (!res.ok) {
-          const errJson = await res.json().catch(() => ({}));
-          throw new Error(errJson.error || 'Failed to load drawing page data');
+          if (res.status === 404 && isKnownCantonLaunchSlug(params.slug)) {
+            setIsPreLaunch(true);
+            return;
+          }
+          if (isKnownCantonLaunchSlug(params.slug)) {
+            setIsPreLaunch(true);
+            return;
+          }
+          setIsSystemUnavailable(true);
+          return;
         }
         const json = await res.json();
+        if (json.isPreLaunch || (isKnownCantonLaunchSlug(params.slug) && (!json.publishedPrizes || json.publishedPrizes.length === 0) && isBeforeLaunchDate())) {
+          setIsPreLaunch(true);
+        }
         setData(json);
-      } catch (err: any) {
-        setError(err.message || 'Error loading drawing data');
+      } catch {
+        if (isKnownCantonLaunchSlug(params.slug)) {
+          setIsPreLaunch(true);
+        } else {
+          setIsSystemUnavailable(true);
+        }
       } finally {
         setLoading(false);
       }
@@ -48,6 +72,167 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
     setTimeout(() => setCopiedNumber(false), 2000);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-body selection:bg-amber-500 selection:text-stone-950">
+        <Header />
+        <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-16 text-center">
+          <div className="bg-stone-900/60 border border-stone-800 rounded-2xl p-12 text-center my-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent mb-4"></div>
+            <p className="font-mono text-stone-400 text-xs uppercase tracking-wider">Loading authoritative drawing ledger projection...</p>
+          </div>
+        </main>
+        <CinematicFooter />
+      </div>
+    );
+  }
+
+  if (isPreLaunch || (!data && isKnownCantonLaunchSlug(params.slug))) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-body selection:bg-amber-500 selection:text-stone-950">
+        <Header />
+
+        <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8 sm:py-12">
+          <div className="mb-6 flex items-center justify-between">
+            <Link
+              href={`/events/${params.slug}`}
+              className="inline-flex items-center text-sm font-mono text-amber-400 hover:text-amber-300 transition-colors"
+            >
+              ← Back to Quest Details
+            </Link>
+            <span className="text-xs font-mono text-stone-400 bg-stone-900 border border-stone-800 px-3 py-1 rounded-full">
+              AUDITABLE PRIZE DRAWING SYSTEM
+            </span>
+          </div>
+
+          <div className="relative overflow-hidden bg-stone-900/90 border border-amber-500/40 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6">
+            <Image
+              src={cqImages.prizeVault}
+              alt=""
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 900px"
+              className="object-cover opacity-20 pointer-events-none"
+            />
+
+            <div className="relative z-10 space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-mono font-bold uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span>PRIZE DRAWING SYSTEM STANDBY</span>
+                </div>
+                <span className="text-xs font-mono text-amber-400/90 bg-amber-950/60 border border-amber-800/60 px-3 py-1 rounded-full">
+                  ACTIVATES SEPTEMBER 11, 2026
+                </span>
+              </div>
+
+              <div>
+                <h1 className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight">
+                  PRIZE DRAWING SYSTEM STANDBY
+                </h1>
+                <p className="text-sm sm:text-base text-amber-300 font-mono mt-1">
+                  The official Canton Quests prize drawing opens with the September 11 event.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div className="p-4 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-2">
+                  <span className="text-xs font-mono text-amber-400 font-bold uppercase tracking-wider block">
+                    🎟️ TRANSPARENT DRAWING RULES
+                  </span>
+                  <p className="text-xs sm:text-sm text-stone-300 leading-relaxed font-body">
+                    Every completed quest during the live event earns <strong>one drawing entry</strong>. Players do not have to participate all three days.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-2">
+                  <span className="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider block">
+                    📊 1 QUEST = 1 DRAWING ENTRY
+                  </span>
+                  <p className="text-xs sm:text-sm text-stone-300 leading-relaxed font-body">
+                    A player can attend once, complete one quest, leave, and still have one chance to win. Complete 5 quests for 5 entries, or 10 quests for 10 entries.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-2">
+                  <span className="text-xs font-mono text-purple-400 font-bold uppercase tracking-wider block">
+                    🏆 SUNDAY EVENING DRAWING
+                  </span>
+                  <p className="text-xs sm:text-sm text-stone-300 leading-relaxed font-body">
+                    Winners will be drawn Sunday evening at the conclusion of the event window.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-2">
+                  <span className="text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider block">
+                    🛡️ VERIFIABLE DRAWING ALGORITHM
+                  </span>
+                  <p className="text-xs sm:text-sm text-stone-300 leading-relaxed font-body">
+                    Winner selection follows the fixed, transparent Canton Quests drawing algorithm published on the website.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-stone-800/80 flex flex-col sm:flex-row items-center gap-3">
+                <Link
+                  href="/how-it-works"
+                  className="cq-gold-button w-full sm:w-auto text-xs py-3.5 px-6 font-mono font-bold inline-flex items-center justify-center gap-2"
+                >
+                  VIEW HOW THE DRAWING WORKS →
+                </Link>
+                <Link
+                  href="/"
+                  className="cq-dark-button w-full sm:w-auto text-xs py-3.5 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+                >
+                  RETURN TO CITY HUB
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <CinematicFooter />
+      </div>
+    );
+  }
+
+  if (isSystemUnavailable || !data) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-body selection:bg-amber-500 selection:text-stone-950">
+        <Header />
+
+        <main className="flex-1 max-w-lg mx-auto w-full px-4 py-16 flex flex-col justify-center items-center text-center">
+          <div className="p-8 sm:p-10 rounded-3xl border border-stone-800 bg-stone-900/90 shadow-2xl w-full space-y-4">
+            <div className="text-4xl">🛡️</div>
+            <h1 className="font-display font-black text-xl sm:text-2xl text-white uppercase tracking-tight">
+              SYSTEM TEMPORARILY UNAVAILABLE
+            </h1>
+            <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
+              This part of Canton Quests could not be loaded right now. Your player data and completed quests are not changed by this screen. Please try again shortly.
+            </p>
+            <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="cq-gold-button w-full text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+              >
+                TRY AGAIN
+              </button>
+              <Link
+                href="/"
+                className="cq-dark-button w-full text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+              >
+                RETURN TO CITY HUB
+              </Link>
+            </div>
+          </div>
+        </main>
+
+        <CinematicFooter />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
       <Header />
@@ -65,24 +250,9 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
           </span>
         </div>
 
-        {loading && (
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-12 text-center my-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent mb-4"></div>
-            <p className="font-mono text-slate-400">Loading authoritative drawing ledger projection...</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-red-950/50 border border-red-800/80 rounded-2xl p-6 text-center my-8">
-            <h2 className="text-lg font-bold text-red-300 mb-2">Unable to Load Drawing Page</h2>
-            <p className="text-sm text-red-200">{error}</p>
-          </div>
-        )}
-
-        {data && !loading && (
-          <div className="space-y-6">
-            {/* Event Header Banner */}
-            <div className="relative overflow-hidden bg-slate-950 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl">
+        <div className="space-y-6">
+          {/* Event Header Banner */}
+          <div className="relative overflow-hidden bg-slate-950 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl">
               <Image
                 src={cqImages.prizeVault}
                 alt=""
@@ -531,10 +701,12 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
               <p>
                 4. <strong>Privacy Shield</strong>: Public results display only privacy-safe public labels (`Agent #XXXX` or sanitized display names). Private user IDs, emails, phone numbers, and coordinates are never exposed publicly.
               </p>
-            </div>
           </div>
-        )}
+        </div>
       </main>
+
+      <CinematicFooter />
     </div>
   );
 }
+

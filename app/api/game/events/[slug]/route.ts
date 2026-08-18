@@ -6,6 +6,7 @@ import {
   getPlayerProgressDB,
 } from '@/lib/supabase-db';
 import { getPublicQuestView } from '@/lib/game-engine';
+import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
 
 export async function GET(
   request: Request,
@@ -17,7 +18,15 @@ export async function GET(
     const playerId = searchParams.get('playerId');
 
     const event = await getEventBySlugDB(slug);
+
     if (!event) {
+      if (isKnownCantonLaunchSlug(slug)) {
+        return NextResponse.json({
+          isPreLaunch: true,
+          eventSlug: slug,
+          message: 'Canton Quests activates September 11, 2026.',
+        });
+      }
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
@@ -31,8 +40,14 @@ export async function GET(
       quests: safeQuests,
       leaderboard,
       progress,
+      isPreLaunch: isPreLaunchEvent(event, slug),
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to fetch event data' }, { status: 500 });
+    // Log server error securely without leaking stack or paths
+    console.error('[API /events/[slug]] Server error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch event data' },
+      { status: 500 }
+    );
   }
 }

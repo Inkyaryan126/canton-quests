@@ -648,3 +648,23 @@ Each entry follows the standard ADR structure:
   - Establishes a cohesive AAA game atmosphere, eliminates video streaming stutter on mobile networks, and enforces clear, transparent player expectations for launch on September 11, 2026.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-032] 2026-08-18: Pre-Launch State Architecture, Static Hash Module & Production Error Sanitization
+- **Decision**:
+  1. **Intentional Pre-Launch State System**:
+     - Introduced centralized pre-launch detection utility (`lib/launch-status.ts`) recognizing all canonical launch slugs (`canton-weekend-1`, `canton-launch-2026`, `canton-vol-1`, `canton-volume-1`, `canton-quests-vol-1`, `canton-founder-cipher`, `the-founders-cipher`, etc.) against the canonical public launch timestamp: **September 11, 2026 at 18:00 UTC**.
+     - Replaced misleading "Quest Not Found" / 404 errors on pre-launch routes with high-contrast, tactical `MISSION GRID OFFLINE` HUD states featuring `cqImages.questBoardBg` artwork, clear activation messaging, and CTAs to explore the city hub, rules, and pre-season leaderboard.
+     - Preserved true 404 behavior for arbitrary non-launch slugs (e.g. `invalid-random-1234`).
+  2. **Static Server Target Hashes Module (`lib/quest-proof-secrets.ts`)**:
+     - Eliminated dynamic `eval('require')(`${process.cwd()}/lib/quest-proof-secrets.server.json`)` calls that caused runtime module resolution failures (`Cannot find module '/var/task/lib/...'`) inside Vercel serverless function bundles.
+     - Replaced dynamic filesystem reads with a pure TypeScript statically bundled module (`lib/quest-proof-secrets.ts`) with optional `process.env.QUEST_PROOF_SECRETS_OVERRIDE_JSON` support, guaranteeing 100% server reliability without file I/O.
+  3. **Strict Error Boundary & Production Sanitization**:
+     - Updated drawing API (`app/api/game/events/[slug]/drawing/route.ts`) and drawing frontend (`app/events/[slug]/drawing/page.tsx`) with strict safe boundaries.
+     - Before launch date: renders `PRIZE DRAWING SYSTEM STANDBY` detailing the 1 quest = 1 entry math, Sunday evening drawing, and deterministic algorithm.
+     - On unexpected server failure: renders safe generic `SYSTEM TEMPORARILY UNAVAILABLE` with retry action, completely eliminating exposure of stack traces, `/var/task` paths, require chains, or internal secrets filenames.
+- **Reason**:
+  - Eliminates jarring pre-launch errors, secures internal server diagnostics, and prevents missing-module runtime crashes in production serverless environments.
+- **Status**: **ACCEPTED**
+
+

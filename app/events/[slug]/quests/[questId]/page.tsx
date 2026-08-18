@@ -7,9 +7,11 @@ import Header from '@/components/Header';
 import LocationVerifier from '@/components/LocationVerifier';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
 import MobileStartBar from '@/components/MobileStartBar';
+import CinematicFooter from '@/components/CinematicFooter';
 import { QuestEvent, Player, QuestSubmission, SubmitProofResult, PublicQuestView, PlayerEventProgress } from '@/lib/types';
-import { cleanQuestTitle, getQuestImage, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
+import { cleanQuestTitle, cqImages, getQuestImage, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
 import { triggerQuestRewardSequence, showGameMoment } from '@/lib/game-effects';
+import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -124,13 +126,78 @@ export default function QuestDetailPage({
   }, [eventSlug, questId]);
 
   if (!quest || !event || !player) {
+    if (isKnownCantonLaunchSlug(eventSlug) || isPreLaunchEvent(event, eventSlug)) {
+      return (
+        <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
+          <Header />
+          <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-12 flex flex-col justify-center text-center">
+            <div className="relative overflow-hidden p-8 sm:p-12 rounded-3xl border border-amber-500/40 bg-stone-900/90 shadow-2xl space-y-4">
+              <Image
+                src={cqImages.questBoardBg}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 100vw, 700px"
+                className="object-cover opacity-20 pointer-events-none"
+              />
+              <div className="relative z-10 space-y-4 max-w-lg mx-auto">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-mono font-bold uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span>MISSION GRID OFFLINE</span>
+                </div>
+
+                <h1 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                  CANTON QUESTS ACTIVATES SEPTEMBER 11, 2026
+                </h1>
+
+                <p className="text-xs sm:text-sm text-stone-300 leading-relaxed font-body">
+                  Field quest submissions and location verification unlock on September 11, 2026. Until then, explore the site and choose your starting path.
+                </p>
+
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Link
+                    href="/"
+                    className="cq-gold-button w-full sm:w-auto text-xs py-3 px-6 font-mono font-bold inline-flex items-center justify-center gap-2"
+                  >
+                    RETURN TO CITY HUB →
+                  </Link>
+                  <Link
+                    href="/quests"
+                    className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+                  >
+                    🗺️ VIEW QUEST BOARD
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </main>
+          <CinematicFooter />
+        </div>
+      );
+    }
+
     return (
-      <div className="min-h-screen bg-[var(--bg-obsidian)] text-white flex flex-col justify-center items-center p-4">
-        <h1 className="text-2xl font-bold mb-2">Quest Not Found</h1>
-        <p className="text-gray-400 text-sm mb-4">Unable to locate quest details.</p>
-        <Link href={`/events/${eventSlug}`} className="btn btn-primary text-sm">
-          Return to Quest Hub
-        </Link>
+      <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
+        <Header />
+        <main className="flex-1 max-w-lg mx-auto w-full px-4 py-16 flex flex-col justify-center items-center text-center">
+          <div className="p-8 rounded-3xl border border-stone-800 bg-stone-900/80 shadow-2xl w-full space-y-4">
+            <div className="text-4xl">🔍</div>
+            <h1 className="font-display font-black text-xl sm:text-2xl text-white uppercase tracking-tight">
+              QUEST NOT FOUND
+            </h1>
+            <p className="text-xs sm:text-sm text-stone-400 leading-relaxed">
+              Unable to locate quest details for this mission. Please return to the quest hub to find available targets.
+            </p>
+            <div className="pt-2">
+              <Link
+                href={`/events/${eventSlug}`}
+                className="cq-gold-button w-full text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+              >
+                RETURN TO QUEST HUB →
+              </Link>
+            </div>
+          </div>
+        </main>
+        <CinematicFooter />
       </div>
     );
   }

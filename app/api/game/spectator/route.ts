@@ -111,7 +111,8 @@ export async function GET(request: Request) {
     const feed = await getPublicGameFeedDB(eventId, limit);
     return NextResponse.json({ success: true, feed });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[API /spectator] GET error:', error);
+    return NextResponse.json({ success: false, error: 'Spectator data unavailable' }, { status: 500 });
   }
 }
 
@@ -326,6 +327,7 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[API /spectator] POST error:', error);
+    return NextResponse.json({ success: false, error: 'Spectator action failed' }, { status: 500 });
   }
 }
