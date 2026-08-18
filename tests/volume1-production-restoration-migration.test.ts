@@ -68,8 +68,8 @@ describe('Canton Quests — Canonical Production Game Data Restoration Migration
     expect(sql).toContain("'canton-weekend-1'");
     expect(sql).toContain("'active'");
     expect(sql).toContain("'day_1'");
-    expect(sql).toContain("'2026-09-04T18:00:00Z'");
-    expect(sql).toContain("'2026-09-07T22:00:00Z'");
+    expect(sql).toContain("'2026-09-11T18:00:00Z'");
+    expect(sql).toContain("'2026-09-14T22:00:00Z'");
   });
 
   it('8. Restores all 15 canonical Volume 1 quests with complete Three-Path district assignments', () => {

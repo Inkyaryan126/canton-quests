@@ -10,6 +10,7 @@ import {
   KeyRound,
   MapPin,
   Radar,
+  Radio,
   Search,
   Sparkles,
   Trophy,
@@ -48,9 +49,9 @@ const categoryFilters: { label: string; value: QuestFilter }[] = [
 
 const pathFilters: { label: string; value: PathFilter; icon: any; color: string; desc: string }[] = [
   { label: 'All City Quests', value: 'all', icon: Sparkles, color: '#f59e0b', desc: 'Complete citywide mission grid' },
-  { label: 'Family District', value: 'family', icon: Compass, color: '#f59e0b', desc: 'Downtown Arts & Centennial Plaza' },
-  { label: 'Challenge District', value: 'challenge', icon: Zap, color: '#ef4444', desc: '9th St Skate Park & Athletic Corridor' },
-  { label: 'Secret District', value: 'secret', icon: KeyRound, color: '#a855f7', desc: 'West Lawn & Memorial Cipher Corridor' },
+  { label: 'Arts District', value: 'family', icon: Compass, color: '#f59e0b', desc: 'Downtown Arts & Centennial Plaza' },
+  { label: 'Mother Goose Land', value: 'challenge', icon: Zap, color: '#ef4444', desc: 'Mother Goose Land & Skate Corridor' },
+  { label: 'Monument Park', value: 'secret', icon: KeyRound, color: '#a855f7', desc: 'Monument Park & Historic Ciphers' },
 ];
 
 export default function QuestsPage() {
@@ -227,11 +228,11 @@ export default function QuestsPage() {
               questCount={filteredQuests.length}
               districtName={
                 activePathFilter === 'family'
-                  ? 'DOWNTOWN ARTS & CENTRAL DISTRICT'
+                  ? 'ARTS DISTRICT'
                   : activePathFilter === 'challenge'
-                  ? 'KINETIC & SKILL CHALLENGE DISTRICT'
+                  ? 'MOTHER GOOSE LAND'
                   : activePathFilter === 'secret'
-                  ? 'MYSTERY & MONUMENT SECRET DISTRICT'
+                  ? 'MONUMENT PARK'
                   : 'ALL CANTON DISTRICTS'
               }
             />
@@ -262,57 +263,78 @@ export default function QuestsPage() {
             ))}
           </div>
 
-          <div className="cq-quest-grid cq-quest-grid-large">
-            {filteredQuests.map((quest, index) => {
-              const rarity = getQuestRarity(quest);
-              const isRecommended = quest.startingPath && quest.startingPath === currentPlayer?.selectedStartingPath;
-
-              return (
-                <Link
-                  href={`${eventHref}/quests/${quest.id}`}
-                  className="cq-quest-card cq-card-stagger"
-                  style={{ animationDelay: `${Math.min(index * 60, 600)}ms` }}
-                  key={quest.id}
-                >
-                  <div className="cq-quest-image cq-quest-image-tall">
-                    <Image
-                      src={getQuestImage(quest, index)}
-                      alt={`${cleanQuestTitle(quest.title)} quest location`}
-                      fill
-                      sizes="(max-width: 760px) 100vw, 33vw"
-                    />
-                    <span className={`cq-rarity ${rarityClassName[rarity] || ''}`}>{rarity}</span>
-                    {isRecommended && (
-                      <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-amber-500 text-black font-mono font-extrabold text-[10px] uppercase tracking-wider shadow-lg">
-                        ★ Recommended For You
-                      </span>
-                    )}
-                  </div>
-                  <div className="cq-quest-body">
-                    <div className="cq-quest-meta">
-                      <span>
-                        <MapPin size={13} aria-hidden="true" />
-                        {quest.location?.name || 'Canton, OH'}
-                      </span>
-                      <span>
-                        <Zap size={13} aria-hidden="true" />
-                        +{quest.pointValue} XP
-                      </span>
-                    </div>
-                    <h3>{cleanQuestTitle(quest.title)}</h3>
-                    <p>{quest.description}</p>
-                    <div className="cq-quest-footer">
-                      <span>{questCategoryLabels[quest.category]}</span>
-                      <span>{proofTypeLabels[quest.verificationType]}</span>
-                      <span className="cq-card-action">View Quest</span>
-                    </div>
-                  </div>
+          {quests.length === 0 ? (
+            <div className="p-10 rounded-2xl bg-stone-950/80 border border-stone-800 text-center space-y-3 max-w-2xl mx-auto my-8">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-widest">
+                <Radio size={14} className="text-amber-400 animate-pulse" />
+                <span>GRID LOCKED • MISSIONS ACTIVATE SEPTEMBER 11</span>
+              </div>
+              <h2 className="text-2xl font-black font-display text-white uppercase tracking-tight">
+                Field Missions Standing By
+              </h2>
+              <p className="text-sm text-stone-300 font-body max-w-md mx-auto leading-relaxed">
+                Canton Quests targets unlock on September 11, 2026. Choose your starting path now to prepare your callsign for kickoff.
+              </p>
+              <div className="pt-3">
+                <Link href="/#choose-path" className="cq-gold-button inline-flex">
+                  CHOOSE STARTING PATH
+                  <ArrowRight size={16} />
                 </Link>
-              );
-            })}
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div className="cq-quest-grid cq-quest-grid-large">
+              {filteredQuests.map((quest, index) => {
+                const rarity = getQuestRarity(quest);
+                const isRecommended = quest.startingPath && quest.startingPath === currentPlayer?.selectedStartingPath;
 
-          {filteredQuests.length === 0 && (
+                return (
+                  <Link
+                    href={`${eventHref}/quests/${quest.id}`}
+                    className="cq-quest-card cq-card-stagger"
+                    style={{ animationDelay: `${Math.min(index * 60, 600)}ms` }}
+                    key={quest.id}
+                  >
+                    <div className="cq-quest-image cq-quest-image-tall">
+                      <Image
+                        src={getQuestImage(quest, index)}
+                        alt={`${cleanQuestTitle(quest.title)} quest location`}
+                        fill
+                        sizes="(max-width: 760px) 100vw, 33vw"
+                      />
+                      <span className={`cq-rarity ${rarityClassName[rarity] || ''}`}>{rarity}</span>
+                      {isRecommended && (
+                        <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-amber-500 text-black font-mono font-extrabold text-[10px] uppercase tracking-wider shadow-lg">
+                          ★ Recommended For You
+                        </span>
+                      )}
+                    </div>
+                    <div className="cq-quest-body">
+                      <div className="cq-quest-meta">
+                        <span>
+                          <MapPin size={13} aria-hidden="true" />
+                          {quest.location?.name || 'Canton, OH'}
+                        </span>
+                        <span>
+                          <Zap size={13} aria-hidden="true" />
+                          +{quest.pointValue} XP
+                        </span>
+                      </div>
+                      <h3>{cleanQuestTitle(quest.title)}</h3>
+                      <p>{quest.description}</p>
+                      <div className="cq-quest-footer">
+                        <span>{questCategoryLabels[quest.category]}</span>
+                        <span>{proofTypeLabels[quest.verificationType]}</span>
+                        <span className="cq-card-action">View Quest</span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          {quests.length > 0 && filteredQuests.length === 0 && (
             <div className="cq-empty-state">
               <Search size={24} aria-hidden="true" />
               <h3>No missions matching this district & type filter.</h3>

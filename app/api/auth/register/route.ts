@@ -32,9 +32,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const path: StartingPath = ['family', 'challenge', 'secret'].includes(selectedStartingPath)
+    const path: StartingPath | undefined = ['family', 'challenge', 'secret'].includes(selectedStartingPath)
       ? selectedStartingPath
-      : 'family';
+      : undefined;
 
     const source = acquisitionSource || 'main_site';
 

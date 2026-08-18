@@ -190,9 +190,9 @@ export default function ProfilePage() {
   const earnedAchievementSlugs = new Set(achievements.map((a) => a.achievementSlug || a.achievement?.slug));
 
   const pathBadgeConfig: Record<StartingPath, { label: string; icon: any; color: string; area: string }> = {
-    family: { label: 'Family Adventure', icon: Compass, color: '#f59e0b', area: 'Downtown Arts & Centennial Plaza' },
-    challenge: { label: 'Kinetic Challenge', icon: Zap, color: '#ef4444', area: '9th Street Skate Park & Athletic' },
-    secret: { label: 'Secret Mystery', icon: KeyRound, color: '#a855f7', area: 'West Lawn & Monument Corridor' },
+    family: { label: 'Family (Arts District)', icon: Compass, color: '#f59e0b', area: 'Arts District' },
+    challenge: { label: 'Challenge (Mother Goose Land)', icon: Zap, color: '#ef4444', area: 'Mother Goose Land' },
+    secret: { label: 'Secret (Monument Park)', icon: KeyRound, color: '#a855f7', area: 'Monument Park' },
   };
 
   const currentPathMeta = pathBadgeConfig[selectedStartingPath] || pathBadgeConfig.family;
@@ -200,7 +200,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-body antialiased">
-      <CinematicNav eventHref="/events/canton-launch-2026" />
+      <CinematicNav eventHref="/events/canton-weekend-1" />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">
         {/* Back Link & Header */}
@@ -389,9 +389,9 @@ export default function ProfilePage() {
                   onChange={(e) => setSelectedStartingPath(e.target.value as StartingPath)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white font-mono text-sm focus:outline-none focus:border-amber-400"
                 >
-                  <option value="family">Family Adventure (Downtown Arts)</option>
-                  <option value="challenge">Kinetic Challenge (Athletic & Skill)</option>
-                  <option value="secret">Secret Mystery (West Lawn & Ciphers)</option>
+                  <option value="family">Family (Arts District)</option>
+                  <option value="challenge">Challenge (Mother Goose Land)</option>
+                  <option value="secret">Secret (Monument Park)</option>
                 </select>
                 <p className="text-[10px] text-stone-400 mt-1">
                   Paths determine starting recommendations, never restrict which quests you can solve.
@@ -649,7 +649,7 @@ export default function ProfilePage() {
               <span>Transparent Prize Drawing Entries</span>
             </h2>
             <Link
-              href="/events/canton-launch-2026/drawing"
+              href="/events/canton-weekend-1/drawing"
               className="text-xs font-mono text-amber-400 hover:text-amber-300 underline underline-offset-2"
             >
               Public Drawing Ledger →

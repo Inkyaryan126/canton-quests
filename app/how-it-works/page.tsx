@@ -205,7 +205,7 @@ export default function HowItWorksPage() {
                 Fixed beforehand · Automatic · Publicly documented · Reproducible · Zero manual administrator choice
               </span>
               <Link
-                href="/events/canton-vol-1/drawing"
+                href={activeEvent ? `/events/${activeEvent.slug}/drawing` : '/events/canton-weekend-1/drawing'}
                 className="text-amber-400 hover:text-amber-300 underline font-bold inline-flex items-center gap-1"
               >
                 View Live Event Drawing Ledger →

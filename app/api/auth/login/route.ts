@@ -33,9 +33,9 @@ export async function POST(request: Request) {
         );
       }
 
-      const cleanPath: StartingPath = ['family', 'challenge', 'secret'].includes(selectedStartingPath)
+      const cleanPath: StartingPath | undefined = ['family', 'challenge', 'secret'].includes(selectedStartingPath)
         ? selectedStartingPath
-        : 'family';
+        : undefined;
 
       const result = await sendEmailOtp(email.trim(), {
         startingPath: cleanPath,
@@ -70,9 +70,9 @@ export async function POST(request: Request) {
         );
       }
 
-      const cleanPath: StartingPath = ['family', 'challenge', 'secret'].includes(selectedStartingPath)
+      const cleanPath: StartingPath | undefined = ['family', 'challenge', 'secret'].includes(selectedStartingPath)
         ? selectedStartingPath
-        : 'family';
+        : undefined;
 
       const player = await resolveOrCreatePlayerForAuthUser(verifyRes.user, {
         displayName: displayName ? String(displayName).trim() : undefined,

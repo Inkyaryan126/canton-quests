@@ -51,7 +51,7 @@ export async function sendEmailOtp(
           shouldCreateUser: true,
           emailRedirectTo: options?.redirectTo,
           data: {
-            selected_starting_path: options?.startingPath || 'family',
+            selected_starting_path: options?.startingPath || undefined,
             acquisition_source: options?.acquisitionSource || 'main_site',
           },
         },
@@ -145,7 +145,7 @@ export async function verifyEmailOtp(
       id: testUserId,
       email: cleanEmail,
       user_metadata: {
-        selected_starting_path: stored.path || 'family',
+        selected_starting_path: stored.path || undefined,
         acquisition_source: stored.source || 'main_site',
       },
     };
@@ -268,7 +268,7 @@ export async function resolveAuthenticatedPlayer(
         role: playerByUserId.role || 'player',
         totalXp: playerByUserId.total_xp || 0,
         level: playerByUserId.level || 1,
-        selectedStartingPath: (playerByUserId.selected_starting_path as StartingPath) || 'family',
+        selectedStartingPath: (playerByUserId.selected_starting_path as StartingPath) || undefined,
         acquisitionSource: playerByUserId.acquisition_source || 'main_site',
         bio: playerByUserId.bio,
         tagline: playerByUserId.tagline,
@@ -313,7 +313,7 @@ export async function resolveAuthenticatedPlayer(
             role: claimedPlayer.role || 'player',
             totalXp: claimedPlayer.total_xp || 0,
             level: claimedPlayer.level || 1,
-            selectedStartingPath: (claimedPlayer.selected_starting_path as StartingPath) || 'family',
+            selectedStartingPath: (claimedPlayer.selected_starting_path as StartingPath) || undefined,
             acquisitionSource: claimedPlayer.acquisition_source || 'main_site',
             bio: claimedPlayer.bio,
             tagline: claimedPlayer.tagline,
@@ -394,9 +394,9 @@ export async function resolveOrCreatePlayerForAuthUser(
     return existing;
   }
 
-  const path: StartingPath = ['family', 'challenge', 'secret'].includes(params?.selectedStartingPath as any)
+  const path: StartingPath | undefined = ['family', 'challenge', 'secret'].includes(params?.selectedStartingPath as any)
     ? (params!.selectedStartingPath as StartingPath)
-    : (authUser.user_metadata?.selected_starting_path as StartingPath) || 'family';
+    : (authUser.user_metadata?.selected_starting_path as StartingPath) || undefined;
 
   const source = params?.acquisitionSource || authUser.user_metadata?.acquisition_source || 'main_site';
   const cleanName = (params?.displayName || authUser.email?.split('@')[0] || 'Canton Explorer').trim();

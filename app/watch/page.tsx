@@ -374,11 +374,11 @@ export default function WatchPage() {
               <span className="badge badge-medium bg-cyan-500/20 text-cyan-300 font-mono font-bold uppercase">
                 🗓️ UPCOMING EVENT • {activeEventTitle}
               </span>
-              <span className="text-xs text-gray-400 font-mono">Kickoff: September 4, 2026</span>
+              <span className="text-xs text-gray-400 font-mono">Kickoff: September 11, 2026</span>
             </div>
             <h2 className="text-lg font-bold text-white">Canton Quests Airwaves Standing By</h2>
             <p className="text-xs text-gray-300 leading-relaxed">
-              The live citywide game show opens on September 4th. Audience voting options, live broadcasts, and real-time field tickers will stream live right here during event hours.
+              The live citywide game show opens on September 11th. Audience voting options, live broadcasts, and real-time field tickers will stream live right here during event hours.
             </p>
           </div>
         )}

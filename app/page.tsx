@@ -19,7 +19,6 @@ import {
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
-import PlayerIdentityBar from '@/components/PlayerIdentityBar';
 import ThreePathSelector from '@/components/ThreePathSelector';
 import { Player, PublicQuestView, QuestEvent } from '@/lib/types';
 import {
@@ -34,20 +33,17 @@ import {
   rarityClassName,
 } from '@/lib/marketing-assets';
 
-function getClientPlayer(): Player {
+function getStoredPlayer(): Player | null {
+  if (typeof window === 'undefined') return null;
   const stored = window.localStorage.getItem('canton_quests_current_player');
-  if (stored) return JSON.parse(stored) as Player;
-  const player: Player = {
-    id: `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    displayName: 'Canton Explorer',
-    avatarUrl: '⚡',
-    role: 'player',
-    totalXp: 0,
-    level: 1,
-    createdAt: new Date().toISOString(),
-  };
-  window.localStorage.setItem('canton_quests_current_player', JSON.stringify(player));
-  return player;
+  if (stored) {
+    try {
+      return JSON.parse(stored) as Player;
+    } catch {
+      // ignore
+    }
+  }
+  return null;
 }
 
 const featureBlocks = [
@@ -79,7 +75,25 @@ export default function HomePage() {
   const [quests, setQuests] = useState<PublicQuestView[]>([]);
 
   useEffect(() => {
-    setCurrentPlayerState(getClientPlayer());
+    // 1. Check client local storage
+    const stored = getStoredPlayer();
+    if (stored) setCurrentPlayerState(stored);
+
+    // 2. Check auth API session
+    const headers: Record<string, string> = {};
+    const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+    fetch('/api/auth/me', { headers })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isAuthenticated && data.player) {
+          setCurrentPlayerState(data.player);
+        }
+      })
+      .catch(() => {});
+
+    // 3. Load active event & quests
     fetch('/api/game/events')
       .then((res) => res.json())
       .then((data: { events?: QuestEvent[] }) => {
@@ -92,25 +106,19 @@ export default function HomePage() {
       .then((res) => res?.json())
       .then((data: { quests?: PublicQuestView[] } | undefined) => {
         setQuests(data?.quests || []);
-      });
+      })
+      .catch(() => {});
   }, []);
 
   const activeEvent = getActiveEvent(events);
-  const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/';
-  const featuredQuests = useMemo(
-    () =>
-      quests
-        .filter((quest) => quest.status === 'active' && !quest.isFinaleQuest)
-        .sort((a, b) => b.pointValue - a.pointValue)
-        .slice(0, 4),
-    [quests]
-  );
+  const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events/canton-weekend-1';
 
   return (
     <div className="cq-home-shell">
       <CinematicNav eventHref={eventHref} />
 
       <main>
+        {/* HERO SECTION */}
         <section className="cq-hero" aria-labelledby="cq-hero-title">
           <Image
             src={cqImages.heroCity}
@@ -125,7 +133,7 @@ export default function HomePage() {
 
           <div className="cq-hero-hud cq-hero-hud-top" aria-hidden="true">
             <Radio size={15} />
-            <span>SIGNAL ACTIVE</span>
+            <span>SIGNAL ACTIVE • KICKOFF SEPTEMBER 11, 2026</span>
           </div>
           <div className="cq-hero-hud cq-hero-hud-bottom" aria-hidden="true">
             <span>40.7998° N</span>
@@ -136,7 +144,7 @@ export default function HomePage() {
           <div className="cq-hero-content">
             <div className="cq-eyebrow">
               <Sparkles size={16} aria-hidden="true" />
-              EXPLORE. DISCOVER. CONQUER.
+              REAL-WORLD CITY GAME
             </div>
 
             <h1 id="cq-hero-title">
@@ -145,31 +153,29 @@ export default function HomePage() {
             </h1>
 
             <p>
-              Pick a quest. Go to the location. Complete the mission.
-              <br />
-              Earn XP across real Canton landmarks.
+              Canton is the game board. Pick real quests, explore physical landmarks, crack ciphers, and climb one citywide leaderboard. Free to enter.
             </p>
 
             <div className="cq-hero-buttons">
-              <Link href={eventHref} className="cq-gold-button cq-primary-cta">
-                START QUEST
+              <a href="#choose-path" className="cq-gold-button cq-primary-cta">
+                CHOOSE YOUR PATH
                 <ArrowRight size={17} aria-hidden="true" />
-              </Link>
-              <Link href="/quests" className="cq-dark-button">
-                BROWSE QUESTS
-              </Link>
+              </a>
               <Link href="/how-it-works" className="cq-dark-button">
                 HOW IT WORKS
               </Link>
+              <Link href="/quests" className="cq-dark-button">
+                EXPLORE MISSIONS
+              </Link>
             </div>
 
-            {currentPlayer && activeEvent && (
+            {currentPlayer && (
               <div className="cq-returning-player" aria-label="Returning player quick continue">
                 <div>
                   <span>WELCOME BACK AGENT</span>
                   <strong>{currentPlayer.displayName}</strong>
                 </div>
-                <b>{currentPlayer.totalXp} XP</b>
+                <b>{currentPlayer.totalXp || 0} XP</b>
                 <Link href={eventHref}>CONTINUE QUEST</Link>
               </div>
             )}
@@ -182,8 +188,16 @@ export default function HomePage() {
 
         <div className="cq-torn-transition" aria-hidden="true" />
 
-        <section className="cq-section cq-pillars-section">
-          <div className="cq-section-shell">
+        {/* SHORT HOW IT WORKS (PICK, GO, PROVE, SCORE) */}
+        <section className="cq-section cq-pillars-section" aria-labelledby="how-it-works-pillars-heading">
+          <div className="cq-section-shell space-y-12">
+            <div className="text-center max-w-2xl mx-auto mb-4">
+              <span className="cq-kicker">GAMEPLAY LOOP</span>
+              <h2 id="how-it-works-pillars-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                Four Steps to Conquer Canton
+              </h2>
+            </div>
+
             <div className="cq-pillars">
               {featureBlocks.map(({ title, text, Icon }) => (
                 <article className="cq-pillar-card" key={title}>
@@ -196,37 +210,35 @@ export default function HomePage() {
               ))}
             </div>
 
-            <div className="cq-player-panel" aria-label="Player identity setup">
-              <div className="cq-panel-header">
-                <span>STEP 1</span>
-                <strong>Create your callsign, then choose your starting path.</strong>
-              </div>
-              <PlayerIdentityBar onPlayerChanged={setCurrentPlayerState} />
-            </div>
-
+            {/* CHOOSE YOUR STARTING PATH */}
             <ThreePathSelector
-              currentPath={currentPlayer?.selectedStartingPath || 'family'}
+              currentPath={currentPlayer?.selectedStartingPath || null}
               onSelectPath={(path) => {
                 if (currentPlayer) {
-                  setCurrentPlayerState({ ...currentPlayer, selectedStartingPath: path });
+                  const updated = { ...currentPlayer, selectedStartingPath: path };
+                  setCurrentPlayerState(updated);
+                  if (typeof window !== 'undefined') {
+                    window.localStorage.setItem('canton_quests_current_player', JSON.stringify(updated));
+                  }
                 }
               }}
-              eventSlug={activeEvent?.slug || 'canton-launch-2026'}
+              eventSlug={activeEvent?.slug || 'canton-weekend-1'}
             />
           </div>
         </section>
 
-        <section className="cq-section cq-destinations-section">
+        {/* SELECTED REAL CANTON LOCATIONS / GAME WORLD */}
+        <section className="cq-section cq-destinations-section" aria-labelledby="destinations-heading">
           <div className="cq-section-shell">
             <div className="cq-section-heading">
               <div>
                 <span className="cq-kicker">THE CITY IS THE GAME BOARD</span>
-                <h2>REAL PLACES. REAL MISSIONS.</h2>
+                <h2 id="destinations-heading">REAL PLACES. REAL MISSIONS.</h2>
               </div>
-              <Link href={eventHref} className="cq-view-all-button">
-                START QUEST
+              <a href="#choose-path" className="cq-view-all-button">
+                CHOOSE PATH
                 <ArrowRight size={16} aria-hidden="true" />
-              </Link>
+              </a>
             </div>
 
             <div className="cq-destination-grid">
@@ -244,95 +256,28 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="cq-divider" aria-label="Canton Quests tagline">
-          <span />
-          <div>
-            <p>CANTON IS YOUR PLAYGROUND.</p>
-            <h2>START WITH ONE QUEST.</h2>
-          </div>
-          <span />
-        </section>
-
-        <section id="featured-quests" className="cq-section cq-featured-section">
-          <div className="cq-section-shell">
-            <div className="cq-section-heading">
-              <div>
-                <span className="cq-kicker">LIVE QUEST BOARD</span>
-                <h2>FEATURED QUESTS</h2>
-              </div>
-              <Link href="/quests" className="cq-view-all-button">
-                VIEW ALL
-                <ArrowRight size={16} aria-hidden="true" />
-              </Link>
-            </div>
-
-            <div className="cq-quest-grid">
-              {featuredQuests.map((quest, index) => {
-                const rarity = getQuestRarity(quest);
-                return (
-                  <Link
-                    href={`${eventHref}/quests/${quest.id}`}
-                    className="cq-quest-card"
-                    key={quest.id}
-                  >
-                    <div className="cq-quest-image">
-                      <Image
-                        src={getQuestImage(quest, index)}
-                        alt={`${cleanQuestTitle(quest.title)} quest location`}
-                        fill
-                        sizes="(max-width: 760px) 100vw, 25vw"
-                      />
-                      <span className={`cq-rarity ${rarityClassName[rarity] || ''}`}>
-                        {rarity}
-                      </span>
-                    </div>
-                    <div className="cq-quest-body">
-                      <div className="cq-quest-meta">
-                        <span>
-                          <MapPin size={13} aria-hidden="true" />
-                          {quest.location?.name || 'Canton, OH'}
-                        </span>
-                        <span>
-                          <Zap size={13} aria-hidden="true" />
-                          +{quest.pointValue} XP
-                        </span>
-                      </div>
-                      <h3>{cleanQuestTitle(quest.title)}</h3>
-                      <p>{quest.description}</p>
-                      <div className="cq-quest-footer">
-                        <span>{getQuestDuration(quest)}</span>
-                        <span>{questCategoryLabels[quest.category]}</span>
-                        <span className="cq-card-action">View Quest</span>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <section className="cq-live-cta">
+        {/* ONE STRONG FINAL CTA */}
+        <section className="cq-live-cta" aria-labelledby="final-cta-heading">
           <div className="cq-live-cta-art" aria-hidden="true">
             <Image
               src={cqImages.mapHud}
-              alt=""
+              alt="Tactical Canton map HUD"
               fill
               sizes="(max-width: 820px) 100vw, 40vw"
             />
           </div>
           <div className="cq-live-cta-copy">
-            <span className="cq-kicker">CURRENT QUEST</span>
-            <h2>THE CITY IS ALREADY IN PLAY.</h2>
+            <span className="cq-kicker">CANTON QUESTS VOLUME 1</span>
+            <h2 id="final-cta-heading">THE CITY IS WAITING.</h2>
             <p>
-              Start the current Canton Quest, complete live missions, earn XP,
-              and climb the leaderboard.
+              Kickoff begins September 11, 2026. Choose your starting path, set your callsign,
+              and get ready to explore downtown Canton on one citywide leaderboard.
             </p>
             <div className="cq-live-buttons">
-              <Link href={eventHref} className="cq-gold-button">
-                START QUEST
-                <Flag size={17} aria-hidden="true" />
-              </Link>
+              <a href="#choose-path" className="cq-gold-button">
+                CHOOSE YOUR PATH
+                <ArrowRight size={17} aria-hidden="true" />
+              </a>
               <Link href="/leaderboard" className="cq-dark-button">
                 VIEW LEADERBOARD
                 <Crown size={17} aria-hidden="true" />
@@ -343,7 +288,7 @@ export default function HomePage() {
       </main>
 
       <CinematicFooter />
-      <MobileStartBar href={eventHref} />
+      <MobileStartBar href="#choose-path" />
     </div>
   );
 }

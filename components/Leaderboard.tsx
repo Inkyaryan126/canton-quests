@@ -23,8 +23,14 @@ export default function Leaderboard({ entries, currentPlayerId }: LeaderboardPro
       {/* INDIVIDUAL LEADERBOARD VIEW */}
       <div className="divide-y divide-[var(--border-subtle)]">
         {entries.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 font-mono text-sm">
-            No individual scores recorded yet in this event.
+          <div className="p-8 text-center space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
+              PRE-SEASON • OPENS SEPTEMBER 11
+            </div>
+            <h3 className="text-base font-bold text-white font-display uppercase tracking-wide">Leaderboard Activates at Kickoff</h3>
+            <p className="text-xs text-stone-400 font-mono max-w-sm mx-auto">
+              Live verified scores and rankings will stream here in real time as agents complete field missions across Canton.
+            </p>
           </div>
         ) : (
           entries.map((entry) => {

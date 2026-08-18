@@ -71,8 +71,8 @@ export default function AdminPage() {
   const [evSlug, setEvSlug] = useState('');
   const [evDesc, setEvDesc] = useState('');
   const [evStatus, setEvStatus] = useState<QuestEvent['status']>('draft');
-  const [evStart, setEvStart] = useState('2026-09-04T18:00');
-  const [evEnd, setEvEnd] = useState('2026-09-07T22:00');
+  const [evStart, setEvStart] = useState('2026-09-11T18:00');
+  const [evEnd, setEvEnd] = useState('2026-09-14T22:00');
 
   // Event Duplication State
   const [dupTitle, setDupTitle] = useState('Canton Quest Weekend #2');

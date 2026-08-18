@@ -15,8 +15,8 @@ interface PathLockEffectProps {
 
 const PATH_THEMES = {
   family: {
-    title: 'FAMILY ADVENTURE',
-    subtitle: 'Downtown Arts & Centennial Plaza Corridor',
+    title: 'FAMILY',
+    subtitle: 'Arts District Corridor',
     color: '#f59e0b',
     colorDark: '#78350f',
     icon: Compass,
@@ -26,8 +26,8 @@ const PATH_THEMES = {
     description: 'Walkable downtown quests, public arts, family-friendly landmarks, and partner cafes.',
   },
   challenge: {
-    title: 'KINETIC CHALLENGE',
-    subtitle: 'Athletic, Skate & Speed Corridor',
+    title: 'CHALLENGE',
+    subtitle: 'Mother Goose Land Corridor',
     color: '#ef4444',
     colorDark: '#7f1d1d',
     icon: Zap,
@@ -37,8 +37,8 @@ const PATH_THEMES = {
     description: 'High-energy physical challenges, video proof loops, timed sprints, and athletic heritage.',
   },
   secret: {
-    title: 'SECRET MYSTERY',
-    subtitle: 'West Lawn & Historic Monument Corridor',
+    title: 'SECRET',
+    subtitle: 'Monument Park Corridor',
     color: '#a855f7',
     colorDark: '#581c87',
     icon: KeyRound,

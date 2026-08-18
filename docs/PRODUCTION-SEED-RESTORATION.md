@@ -53,8 +53,8 @@ This migration restores the canonical Canton Quests Volume 1 game world into Sup
 | `slug` | `canton-weekend-1` |
 | `status` | `active` |
 | `current_phase` | `day_1` |
-| `start_time` | `2026-09-04T18:00:00Z` |
-| `end_time` | `2026-09-07T22:00:00Z` |
+| `start_time` | `2026-09-11T18:00:00Z` |
+| `end_time` | `2026-09-14T22:00:00Z` |
 | `theme_color` | `#f5b942` |
 | `readiness_status` | `ready` |
 

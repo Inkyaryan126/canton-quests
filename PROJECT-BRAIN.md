@@ -93,6 +93,7 @@ While **Canton, Ohio** is our initial launch pad and testing ground, the underly
 ## 7. Known Decisions vs. Open Questions
 
 ### Confirmed Decisions
+- **Official Public Launch Date**: September 11, 2026 (Launch Weekend: September 11–14, 2026).
 - **Launch Location**: Canton, Ohio.
 - **Game Identity**: City-scale game, not a generic SaaS tool.
 - **Player Model**: Pure individual player competition without squad / team membership mechanics.

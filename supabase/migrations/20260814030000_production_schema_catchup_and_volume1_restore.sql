@@ -1783,8 +1783,8 @@ BEGIN
     'active',
     'day_1',
     false,
-    '2026-09-04T18:00:00Z',
-    '2026-09-07T22:00:00Z',
+    '2026-09-11T18:00:00Z',
+    '2026-09-14T22:00:00Z',
     '2026-08-15T00:00:00Z',
     '1. Choose a mission from the board.' || E'\n' ||
     '2. Travel only to public or partner-approved places during posted hours.' || E'\n' ||
@@ -1994,7 +1994,7 @@ BEGIN
       'A live signal can be activated by the Game Master during the event window.',
       'When the Game Master broadcasts this drop, go to Centennial Plaza and verify your public-plaza location before the timer expires.',
       225, 225, 2, 'medium', 'flash',
-      'checkin', NULL, 'Timed GPS check-in during an active Game Master flash window.', true, '2026-09-05T19:00:00Z', '2026-09-05T19:45:00Z',
+      'checkin', NULL, 'Timed GPS check-in during an active Game Master flash window.', true, '2026-09-12T19:00:00Z', '2026-09-12T19:45:00Z',
       'active', 7, 60, NULL, 'none',
       true, false, NULL, 0,
       false, false,
@@ -2096,7 +2096,7 @@ BEGIN
       'A timed theatre-front cipher for the Game Master to activate during safe evening visibility.',
       'When activated, inspect the approved public-facing Palace clue and enter the flash passcode before the timer expires.',
       275, 275, 2, 'hard', 'flash',
-      'passphrase', 'sha256:e49c9702b08e49280244ca823d1a747df7a3386f0cc67a990a6e5fd9094c6a70', 'Enter flash passcode before expiry.', true, '2026-09-05T23:00:00Z', '2026-09-05T23:30:00Z',
+      'passphrase', 'sha256:e49c9702b08e49280244ca823d1a747df7a3386f0cc67a990a6e5fd9094c6a70', 'Enter flash passcode before expiry.', true, '2026-09-12T23:00:00Z', '2026-09-12T23:30:00Z',
       'active', 13, 50, NULL, 'none',
       false, false, NULL, 0,
       false, false,

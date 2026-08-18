@@ -16,15 +16,11 @@ Development of Canton Quests follows a strictly gated, 8-phase execution methodo
 
 ---
 
-## 🚩 Phase 0 — Foundation (CURRENT PHASE)
-- **Primary Focus**: Architectural specification, documentation brain, game philosophy, AI agent guidelines, and repository shell setup.
-- **Key Outcomes**:
-  - ✅ Repository initialized with complete documentation matrix.
-  - ✅ Core game engine philosophy & non-punitive scoring model defined.
-  - ✅ Safety protocols and trespassing guidelines established.
-  - ✅ Database entity schema specified for Supabase/PostgreSQL.
-  - ✅ AI Agent instructions configured in `AGENTS.md` and `skills/`.
-  - ✅ Starter Next.js/TypeScript app shell established.
+## 🚩 Phase 4 — First Public Canton Quest Weekend: Volume 1 (CURRENT FOCUS: FIELD PREP & LAUNCH)
+- **Target Launch**: **September 11, 2026** (Weekend: September 11–14, 2026)
+- **Current Status**:
+  - ✅ **Software / Engineering Core (Phases 0–5.6)**: 100% Implemented & Verified (Next.js PWA, Supabase Auth, Individual Leaderboard, 3-Path Exploration, Proof Verification, Spectator `/watch`, Game Director `/admin/live`, Final Quest Prize Drawing, HUD Game Moments, QR Campaign CLI).
+  - 🟡 **Field Operations & Physical Verification**: In progress (Physical QR placement, partner briefings, cemetery checks, on-site rehearsals).
 
 ---
 

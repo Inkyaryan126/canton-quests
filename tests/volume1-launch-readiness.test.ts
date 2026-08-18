@@ -9,7 +9,7 @@ const repoFile = (path: string) => readFileSync(new URL(`../${path}`, import.met
 describe('Volume 1 launch readiness seed data', () => {
   it('contains a real Volume 1 Canton event with a balanced launch quest set', () => {
     expect(SEED_EVENT.title).toBe("Canton Quests: Volume 1 - The Founder's Cipher");
-    expect(SEED_EVENT.startTime).toBe('2026-09-04T18:00:00Z');
+    expect(SEED_EVENT.startTime).toBe('2026-09-11T18:00:00Z');
     expect(SEED_QUESTS.length).toBeGreaterThanOrEqual(14);
 
     const categories = new Set(SEED_QUESTS.map((quest) => quest.category));

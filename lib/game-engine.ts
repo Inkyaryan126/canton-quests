@@ -941,12 +941,14 @@ export function evaluatePlayerAchievements(playerId: string, eventId: string): P
   const newlyAwarded: PlayerAchievement[] = [];
 
   // 1. Pathfinder for chosen starting path
-  const chosenPath = player.selectedStartingPath || 'family';
-  const hasCompletedChosenPath = completedQuests.some((q) => q.startingPath === chosenPath);
-  if (hasCompletedChosenPath) {
-    const slug = `pathfinder-${chosenPath}`;
-    const res = awardAchievement(playerId, slug, eventId, `Completed first ${chosenPath} mission`);
-    if (res) newlyAwarded.push(res);
+  const chosenPath = player.selectedStartingPath;
+  if (chosenPath) {
+    const hasCompletedChosenPath = completedQuests.some((q) => q.startingPath === chosenPath);
+    if (hasCompletedChosenPath) {
+      const slug = `pathfinder-${chosenPath}`;
+      const res = awardAchievement(playerId, slug, eventId, `Completed first ${chosenPath} mission`);
+      if (res) newlyAwarded.push(res);
+    }
   }
 
   // 2. Triple Threat (Family, Challenge, Secret)
@@ -1382,7 +1384,7 @@ export function registerPlayer(params: {
         ...existingByUser,
         displayName: cleanName,
         email: params.email ? params.email.trim().toLowerCase() : existingByUser.email,
-        selectedStartingPath: params.selectedStartingPath || existingByUser.selectedStartingPath || 'family',
+        selectedStartingPath: params.selectedStartingPath !== undefined ? params.selectedStartingPath : existingByUser.selectedStartingPath,
         acquisitionSource: existingByUser.acquisitionSource || params.acquisitionSource || 'main_site',
         avatarUrl: params.avatarUrl || existingByUser.avatarUrl || '⚡',
         bio: params.bio !== undefined ? sanitizeTextContent(params.bio) : existingByUser.bio,
@@ -1426,7 +1428,7 @@ export function registerPlayer(params: {
     role: 'player',
     totalXp: 0,
     level: 1,
-    selectedStartingPath: params.selectedStartingPath || 'family',
+    selectedStartingPath: params.selectedStartingPath,
     acquisitionSource: params.acquisitionSource || 'main_site',
     bio: params.bio ? sanitizeTextContent(params.bio) : undefined,
     tagline: params.tagline ? sanitizeTextContent(params.tagline) : undefined,
@@ -3675,18 +3677,18 @@ export function getDistrictContentSummary(eventId: string, district: StartingPat
 
   const metaMap: Record<StartingPath, { name: string; approximateArea: string; flavor: string }> = {
     family: {
-      name: 'Downtown Arts & Central District',
+      name: 'Arts District',
       approximateArea: 'Downtown Arts District & Centennial Plaza',
       flavor: 'Explore. Create. Discover. All-ages, murals, local coffee, landmarks.',
     },
     challenge: {
-      name: 'Kinetic & Skill Challenge District',
-      approximateArea: '9th Street Skate Park & Athletic Corridor',
+      name: 'Mother Goose Land',
+      approximateArea: 'Mother Goose Land, 9th St Skate Park & Athletic Corridors',
       flavor: 'Move. Compete. Prove Yourself. Physical speed, skill, high XP.',
     },
     secret: {
-      name: 'Mystery & Monument Secret District',
-      approximateArea: 'McKinley Monument & West Lawn Corridor',
+      name: 'Monument Park',
+      approximateArea: 'Monument Park, McKinley Monument & West Lawn Corridor',
       flavor: 'Decode. Investigate. Uncover Canton. Cryptic ciphers, historical mysteries.',
     },
   };

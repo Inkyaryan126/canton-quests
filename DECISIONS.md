@@ -94,13 +94,13 @@ Each entry follows the standard ADR structure:
 
 ---
 
-## ADR-009: Launch Event Schedule — September 4th, 2026
+## ADR-009: Launch Event Schedule — September 4th, 2026 (Preliminary / Historical)
 - **Date**: 2026-08-09
-- **Decision**: Confirm September 4th, 2026 as the official launch date for *Canton Quests: Volume 1 — The Founder's Cipher*.
-- **Reason**: Provides a 3-week operational runway to secure community donations, business partner sponsorships, and local prizes. Furthermore, aligns with the Stark County Fair (starting Sept 1st), enabling high-density physical flyer distribution and player acquisition leading directly into launch weekend (Sept 4–7).
+- **Decision**: Confirm September 4th, 2026 as the preliminary launch date for *Canton Quests: Volume 1 — The Founder's Cipher*.
+- **Reason**: Provided an initial target window aligned with the Stark County Fair (starting Sept 1st), enabling high-density physical flyer distribution and player acquisition leading directly into launch weekend (Sept 4–7).
 - **Alternatives Evaluated**: Immediate August release without sponsor prep; late autumn release after outdoor weather window closes.
-- **Consequences**: Production seed events, countdown timers, marketing copy, and launch runbooks will default to the September 4, 2026 start time.
-- **Status**: **ACCEPTED**
+- **Consequences**: Production seed events, countdown timers, marketing copy, and launch runbooks initially defaulted to the September 4, 2026 start time.
+- **Status**: **SUPERSEDED** (Superseded by ADR-029 establishing the official public launch date: September 11, 2026).
 
 ---
 
@@ -578,4 +578,44 @@ Each entry follows the standard ADR structure:
   - Introducing heavy 3D frameworks like Three.js (excessive battery drain and load times on mobile cellular networks).
 - **Consequences**:
   - All game moments are uniformly managed via `showGameMoment()` or `triggerQuestRewardSequence()`; all 24 test suites and 386 tests pass with 100% success.
+- **Status**: **ACCEPTED**
+
+---
+
+## ADR-029: Official Public Launch Date Confirmation — September 11, 2026
+- **Date**: 2026-08-16
+- **Decision**:
+  1. Confirm **Friday, September 11, 2026** as the official, canonical public launch kickoff date for *Canton Quests: Volume 1 — The Founder's Cipher* (Event Weekend: September 11–14, 2026; Start: `2026-09-11T18:00:00Z`, End: `2026-09-14T22:00:00Z`).
+  2. The preliminary September 4–7 schedule is permanently superseded across all active documentation, database seed migrations, API routes, and client copy.
+  3. Reconcile project readiness status: software/engineering code is complete and passing all automated test suites; physical field verification (QR signage placement, partner permissions, cemetery rules, and on-site staff drills) remains in progress and pending human confirmation prior to launch.
+- **Reason**:
+  - Provides necessary operational runway for physical field preparation, merchant partner coordination, physical prize acquisition, street team distribution, and on-site rehearsal while eliminating conflicting dates across documentation and code.
+- **Alternatives Evaluated**:
+  - Retaining September 4 launch without adequate field prep runway (rejected: high risk of physical on-site logistical failure).
+- **Consequences**:
+  - All active codebase references, UI copy, seeds, migrations, and launch countdowns adhere strictly to the canonical September 11, 2026 date.
+- **Status**: **ACCEPTED**
+
+---
+
+### [ADR-030] 2026-08-18: Final Homepage Flow, Explicit Path Choice, and Standardized Section Presentation
+- **Decision**:
+  1. Standardize public starting path pairings:
+     - **Family**: Arts District (yellow/gold `#f59e0b`, Downtown Arts & Centennial Plaza)
+     - **Challenge**: Mother Goose Land (red `#ef4444`, Mother Goose Land & Skate Corridor)
+     - **Secret**: Monument Park (purple `#a855f7`, Monument Park & Historic Ciphers)
+     Preserve all authentic Canton geography, landmarks, and quest locations without inventing fictitious layout.
+  2. Require explicit path selection for normal homepage visitors:
+     - Normal visitors arrive with `selectedStartingPath: null` and are not silently defaulted to Family.
+     - Signup/onboarding form remains hidden until a path card is explicitly clicked.
+     - Path Lock cinematic effect triggers on selection and confirms: "Starting Path Confirmed • All Canton Quests Remain Open on One Leaderboard."
+  3. Pre-resolved path attribution for QR visitors:
+     - Visitors arriving via campaign QR codes or path URLs (`/start/[path]`, `/go/[slug]`) bypass redundant path choice and enter onboarding directly for their attributed path.
+  4. Intentional pre-launch UI states:
+     - Zero active quests renders "GRID LOCKED • MISSIONS ACTIVATE SEPTEMBER 11, 2026".
+     - Zero leaderboard scores renders "PRE-SEASON • LEADERBOARD ACTIVATES SEPTEMBER 11, 2026".
+  5. Streamline homepage information hierarchy:
+     - HERO → SHORT HOW IT WORKS (PICK, GO, PROVE, SCORE) → CHOOSE YOUR STARTING PATH → PATH-SPECIFIC ONBOARDING → REAL CANTON LOCATIONS → ONE STRONG FINAL CTA.
+- **Reason**:
+  - Eliminates silent defaulting to Family path, establishes clear visual hierarchy, reduces CTA clutter, and ensures seamless launch transition on September 11, 2026.
 - **Status**: **ACCEPTED**
