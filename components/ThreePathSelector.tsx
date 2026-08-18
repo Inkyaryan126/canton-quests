@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   Compass,
@@ -15,6 +16,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { StartingPath } from '@/lib/types';
+import { cqImages } from '@/lib/marketing-assets';
 import { showGameMoment } from '@/lib/game-effects';
 import FastPlayerOnboardForm from './FastPlayerOnboardForm';
 
@@ -34,6 +36,7 @@ interface PathOption {
   icon: any;
   color: string;
   badge: string;
+  doorImage: string;
   flyerRoute: string;
   recommendedFor: string;
   sampleMissions: string[];
@@ -50,6 +53,7 @@ export const PATH_OPTIONS: PathOption[] = [
     icon: Compass,
     color: '#f59e0b', // Amber / Gold
     badge: 'Arts District · Walkable',
+    doorImage: cqImages.familyDoor,
     flyerRoute: '/start/family',
     recommendedFor: 'Families, friend groups, casual explorers, art lovers',
     sampleMissions: ['Open the Founder Signal', 'The Painted Witness', 'The Counter-Sign at Aura', 'Civic Seal Snapshot'],
@@ -64,6 +68,7 @@ export const PATH_OPTIONS: PathOption[] = [
     icon: Zap,
     color: '#ef4444', // Crimson / Red
     badge: 'Mother Goose Land · High XP',
+    doorImage: cqImages.challengeDoor,
     flyerRoute: '/start/challenge',
     recommendedFor: 'Competitive players, athletes, gamers, leaderboard chasers',
     sampleMissions: ['The Neon Victory Loop', 'The Helmet Trail Emblem', 'Flash Sprints'],
@@ -78,6 +83,7 @@ export const PATH_OPTIONS: PathOption[] = [
     icon: KeyRound,
     color: '#a855f7', // Purple / Violet
     badge: 'Monument Park · Ciphers',
+    doorImage: cqImages.secretDoor,
     flyerRoute: '/start/secret',
     recommendedFor: 'Puzzle solvers, history sleuths, cipher decoders, mystery seekers',
     sampleMissions: ['The Stone Stair Cipher', "Frankenstein's Quiet Signal", "The Founder's Three Locks Chain"],
@@ -144,7 +150,7 @@ export default function ThreePathSelector({
               role="button"
               tabIndex={0}
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelect(path.id)}
-              className={`relative rounded-2xl p-5 text-left cursor-pointer transition-all duration-300 flex flex-col justify-between border ${
+              className={`relative group rounded-2xl p-5 text-left cursor-pointer transition-all duration-300 flex flex-col justify-between border ${
                 isSelected
                   ? 'bg-stone-900/95 border-2 shadow-2xl scale-[1.02] opacity-100'
                   : isDimmed
@@ -179,6 +185,23 @@ export default function ThreePathSelector({
                   >
                     <Icon size={19} />
                   </div>
+                </div>
+
+                {/* Portal Doorway Art */}
+                <div className="relative w-full h-44 rounded-xl overflow-hidden mb-3.5 bg-black/60 border border-stone-800/80 flex items-center justify-center transition-all group-hover:border-stone-700">
+                  <Image
+                    src={path.doorImage}
+                    alt={`${path.title} starting portal door`}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    className="object-contain p-2.5 transition-transform duration-300 group-hover:scale-105"
+                  />
+                  <div
+                    className="absolute inset-0 pointer-events-none opacity-25 group-hover:opacity-40 transition-opacity"
+                    style={{
+                      background: `radial-gradient(circle at center, ${path.color}45 0%, transparent 70%)`,
+                    }}
+                  />
                 </div>
 
                 <h3 className="font-display font-black text-xl text-white mb-1 tracking-tight">

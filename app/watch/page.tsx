@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import AudienceVoteCard from '@/components/spectator/AudienceVoteCard';
@@ -16,6 +17,7 @@ import {
   PublicGameFeedItem,
   SpectatorSystemSettings,
 } from '@/lib/types';
+import { cqImages } from '@/lib/marketing-assets';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 const VOTES_LOCAL_STORAGE_KEY = 'canton_spectator_voted_options';
@@ -343,43 +345,61 @@ export default function WatchPage() {
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 space-y-6">
         {/* Parent Event Status Banner Frame */}
         {parentEventStatus === 'inactive' && (
-          <div className="p-6 md:p-8 bg-[#0e131f]/90 border border-gray-800 rounded-2xl space-y-4 text-center">
-            <div className="text-4xl">🌙</div>
-            <span className="inline-block px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-xs font-mono text-cyan-300 font-bold uppercase tracking-wider">
-              AIRWAVES STANDING BY
-            </span>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-              THE CITY IS QUIET — FOR NOW.
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-300 max-w-lg mx-auto leading-relaxed">
-              Canton Quests airwaves activate during live weekend events and pop-up flash missions. Browse available missions, check the leaderboards, or review the rulebook to prepare for the next drop.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <Link href="/quests" className="btn btn-primary text-xs py-2.5 px-4 font-mono font-bold">
-                🗺️ EXPLORE MISSIONS →
-              </Link>
-              <Link href="/how-it-works" className="btn btn-secondary text-xs py-2.5 px-4 font-mono">
-                📖 HOW IT WORKS
-              </Link>
-              <Link href="/leaderboard" className="btn btn-secondary text-xs py-2.5 px-4 font-mono">
-                🏆 LEADERBOARD
-              </Link>
+          <div className="relative overflow-hidden p-6 md:p-10 bg-stone-950 border border-amber-500/30 rounded-3xl space-y-4 text-center shadow-2xl">
+            <Image
+              src={cqImages.gmTransmissionBg}
+              alt=""
+              fill
+              sizes="(max-width: 1024px) 100vw, 900px"
+              className="object-cover opacity-20 pointer-events-none"
+            />
+            <div className="relative z-10 space-y-4">
+              <div className="text-4xl">🌙</div>
+              <span className="inline-block px-3 py-1 bg-amber-500/15 border border-amber-500/30 rounded-full text-xs font-mono text-amber-300 font-bold uppercase tracking-wider">
+                AIRWAVES STANDING BY
+              </span>
+              <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight font-display">
+                THE CITY IS QUIET — FOR NOW.
+              </h2>
+              <p className="text-xs sm:text-sm text-stone-300 max-w-lg mx-auto leading-relaxed font-body">
+                Canton Quests airwaves activate during live weekend events and pop-up flash missions. Browse available missions, check the leaderboards, or review the rulebook to prepare for the next drop.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <Link href="/quests" className="cq-gold-button text-xs py-2.5 px-4 font-mono font-bold inline-flex items-center gap-1.5">
+                  🗺️ EXPLORE MISSIONS →
+                </Link>
+                <Link href="/how-it-works" className="cq-dark-button text-xs py-2.5 px-4 font-mono">
+                  📖 HOW IT WORKS
+                </Link>
+                <Link href="/leaderboard" className="cq-dark-button text-xs py-2.5 px-4 font-mono">
+                  🏆 LEADERBOARD
+                </Link>
+              </div>
             </div>
           </div>
         )}
 
         {parentEventStatus === 'upcoming' && (
-          <div className="p-5 bg-cyan-950/40 border-2 border-cyan-500/50 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="badge badge-medium bg-cyan-500/20 text-cyan-300 font-mono font-bold uppercase">
-                🗓️ UPCOMING EVENT • {activeEventTitle}
-              </span>
-              <span className="text-xs text-gray-400 font-mono">Kickoff: September 11, 2026</span>
+          <div className="relative overflow-hidden p-6 sm:p-8 bg-stone-950 border-2 border-amber-500/40 rounded-3xl space-y-3 shadow-2xl">
+            <Image
+              src={cqImages.gmTransmissionBg}
+              alt=""
+              fill
+              sizes="(max-width: 1024px) 100vw, 900px"
+              className="object-cover opacity-20 pointer-events-none"
+            />
+            <div className="relative z-10 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="badge badge-medium bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold uppercase">
+                  🗓️ UPCOMING EVENT • {activeEventTitle}
+                </span>
+                <span className="text-xs text-stone-400 font-mono">Kickoff: September 11, 2026</span>
+              </div>
+              <h2 className="text-xl font-bold text-white font-display">Canton Quests Airwaves Standing By</h2>
+              <p className="text-xs text-stone-300 leading-relaxed font-body">
+                The live citywide game show opens on September 11th. Audience voting options, live broadcasts, and real-time field tickers will stream live right here during event hours.
+              </p>
             </div>
-            <h2 className="text-lg font-bold text-white">Canton Quests Airwaves Standing By</h2>
-            <p className="text-xs text-gray-300 leading-relaxed">
-              The live citywide game show opens on September 11th. Audience voting options, live broadcasts, and real-time field tickers will stream live right here during event hours.
-            </p>
           </div>
         )}
 

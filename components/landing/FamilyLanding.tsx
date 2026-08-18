@@ -70,15 +70,16 @@ export default function FamilyLanding() {
 
           <div className="cq-fair-visual" aria-hidden="true">
             <Image
-              src={cqImages.heroCity}
-              alt="Family exploring downtown Canton at sunset"
+              src={cqImages.familyDoor}
+              alt="Family starting portal doorway in Arts District"
               fill
               priority
               sizes="(max-width: 900px) 100vw, 48vw"
+              className="object-contain p-4 bg-stone-950/80"
             />
             <div className="cq-fair-visual-badge">
               <Users size={16} />
-              <span>FAMILY ADVENTURE ACTIVE</span>
+              <span>ARTS DISTRICT • FAMILY PORTAL</span>
             </div>
           </div>
         </section>

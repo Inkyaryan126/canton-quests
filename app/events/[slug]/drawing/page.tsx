@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { PublicDrawingPageData } from '@/lib/types';
+import { cqImages } from '@/lib/marketing-assets';
 import { showGameMoment } from '@/lib/game-effects';
 
 export default function PublicDrawingPage({ params }: { params: { slug: string } }) {
@@ -80,13 +82,20 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
         {data && !loading && (
           <div className="space-y-6">
             {/* Event Header Banner */}
-            <div className="bg-gradient-to-br from-slate-900 via-slate-900/90 to-purple-950/40 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl">
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+            <div className="relative overflow-hidden bg-slate-950 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl">
+              <Image
+                src={cqImages.prizeVault}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 100vw, 900px"
+                className="object-cover opacity-15 pointer-events-none"
+              />
+              <div className="relative z-10 flex flex-wrap items-center justify-between gap-4 mb-4">
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-display">
                     {data.eventTitle}
                   </h1>
-                  <p className="text-sm font-mono text-slate-400 mt-1">Official Quest Prize Drawing</p>
+                  <p className="text-sm font-mono text-amber-300/80 mt-1">Official Quest Prize Drawing • 1 Quest = 1 Entry</p>
                 </div>
 
                 {/* Status Badge */}

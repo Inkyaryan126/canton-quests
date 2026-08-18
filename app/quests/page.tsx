@@ -264,22 +264,31 @@ export default function QuestsPage() {
           </div>
 
           {quests.length === 0 ? (
-            <div className="p-10 rounded-2xl bg-stone-950/80 border border-stone-800 text-center space-y-3 max-w-2xl mx-auto my-8">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-widest">
-                <Radio size={14} className="text-amber-400 animate-pulse" />
-                <span>GRID LOCKED • MISSIONS ACTIVATE SEPTEMBER 11</span>
-              </div>
-              <h2 className="text-2xl font-black font-display text-white uppercase tracking-tight">
-                Field Missions Standing By
-              </h2>
-              <p className="text-sm text-stone-300 font-body max-w-md mx-auto leading-relaxed">
-                Canton Quests targets unlock on September 11, 2026. Choose your starting path now to prepare your callsign for kickoff.
-              </p>
-              <div className="pt-3">
-                <Link href="/#choose-path" className="cq-gold-button inline-flex">
-                  CHOOSE STARTING PATH
-                  <ArrowRight size={16} />
-                </Link>
+            <div className="relative overflow-hidden p-10 sm:p-14 rounded-3xl bg-stone-950 border border-stone-800 text-center space-y-4 max-w-3xl mx-auto my-8 shadow-2xl">
+              <Image
+                src={cqImages.questBoardBg}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 100vw, 800px"
+                className="object-cover opacity-20 pointer-events-none"
+              />
+              <div className="relative z-10 space-y-3">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-widest">
+                  <Radio size={14} className="text-amber-400 animate-pulse" />
+                  <span>GRID LOCKED • MISSIONS ACTIVATE SEPTEMBER 11</span>
+                </div>
+                <h2 className="text-3xl font-black font-display text-white uppercase tracking-tight">
+                  Field Missions Standing By
+                </h2>
+                <p className="text-sm text-stone-300 font-body max-w-lg mx-auto leading-relaxed">
+                  Canton Quests targets unlock on September 11, 2026. Choose your starting path now to prepare your callsign for kickoff.
+                </p>
+                <div className="pt-3">
+                  <Link href="/#choose-path" className="cq-gold-button inline-flex">
+                    CHOOSE STARTING PATH
+                    <ArrowRight size={16} />
+                  </Link>
+                </div>
               </div>
             </div>
           ) : (

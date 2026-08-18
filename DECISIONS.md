@@ -619,3 +619,32 @@ Each entry follows the standard ADR structure:
 - **Reason**:
   - Eliminates silent defaulting to Family path, establishes clear visual hierarchy, reduces CTA clutter, and ensures seamless launch transition on September 11, 2026.
 - **Status**: **ACCEPTED**
+
+---
+
+### [ADR-031] 2026-08-18: Master Visual Asset Package Integration & High-Performance Media Pipeline
+- **Decision**:
+  1. **Canonical Asset Matrix & Central Registry**:
+     - Integrated all 22 cinematic asset package files into `public/canton-quests/` and strongly typed in `lib/marketing-assets.ts` under `cqImages`.
+     - Created master manifest `docs/visual-assets-manifest.md` documenting every asset's source, role, component, and responsive dimensions.
+  2. **Core Architectural Preservations**:
+     - Preserved single citywide competition, 1 individual leaderboard, 3 starting paths (`Family`, `Challenge`, `Secret`), and 100% open quest access across Canton.
+     - Preserved authentic real-world geography (Palace Theatre, Mother Goose Land / Willie, Football Heritage, McKinley Monument, West Lawn Frankenstein monument).
+     - Rendered all scores, titles, XP, timers, and badges cleanly as accessible HTML layered over art (zero baked-in fake text/numbers).
+  3. **High-Performance Video Pipeline**:
+     - Extracted high-resolution poster frame `public/canton-quests/cq-briefing-poster.jpg` (1080p).
+     - Transcoded raw 332MB promotional briefing video to web-streamable faststart MP4 `public/canton-quests/cq-briefing-transmission.mp4` (44.4MB, H.264/AAC, 1080p).
+     - Integrated responsive `BriefingVideoModal` component with interactive hero triggers, accessible keyboard controls, and user audio toggle.
+  4. **Thematic Surface & Card Skinning**:
+     - `ThreePathSelector.tsx`: Integrated `familydoor.png`, `challengedoor.png`, `secretdoor.png` portals into path selection cards with dynamic glow accents.
+     - `QuestCard.tsx`: Integrated upper photo window with real landmark art (`getQuestImage`), rarity tags (`COMMON`, `RARE`, `EPIC`, `LEGENDARY`), flash drop badges, and distinct frame treatments (`card_available.png`, `card_locked.png`, `card_complete.png`, `card_poster.png`).
+     - Pre-launch & Standby Surfaces: Wired `Quest_board.png`, `leaderboard.png`, and `game_master_transmission.png` into pre-launch HUD banners with accessible HTML status copy.
+     - Player Profile & Drawing Ledger: Wired `player_profile.png`, `quest_achievement_badges.png`, and `prize_vault.png` into profile HUD cards and transparent drawing ledger pages.
+     - Cinematic Footer: Wired `footer_endoftrans.png` ambient gold backdrop and brand emblem lockup.
+  5. **Transparent Prize Math & Non-Gamer XP Copy**:
+     - Standardized prize drawing copy: "EVERY COMPLETED QUEST = ONE DRAWING ENTRY" (1 quest = 1 entry, 5 quests = 5 entries, 10 quests = 10 entries).
+     - Standardized XP copy: "XP means Experience Points. You earn XP when verified quests are completed. XP is your score in Canton Quests. The more XP you earn, the higher you climb on the citywide leaderboard."
+- **Reason**:
+  - Establishes a cohesive AAA game atmosphere, eliminates video streaming stutter on mobile networks, and enforces clear, transparent player expectations for launch on September 11, 2026.
+- **Status**: **ACCEPTED**
+

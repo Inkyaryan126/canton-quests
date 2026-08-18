@@ -76,17 +76,18 @@ export default function ChallengeLanding() {
             </div>
           </div>
 
-          <div className="cq-fair-visual" aria-hidden="true">
+          <div className="cq-fair-visual !border-red-500/40" aria-hidden="true">
             <Image
-              src={cqImages.mapHud}
-              alt="Canton Quests tactical map HUD interface"
+              src={cqImages.challengeDoor}
+              alt="Challenge starting portal doorway in Mother Goose Land"
               fill
               priority
               sizes="(max-width: 900px) 100vw, 48vw"
+              className="object-contain p-4 bg-stone-950/80"
             />
-            <div className="cq-fair-visual-badge !border-cyan-400/50 !text-cyan-300 !bg-[#050b10]/90">
-              <Radar size={16} className="text-cyan-400 animate-spin" />
-              <span>FIELD ENGINE ONLINE // REAL-TIME</span>
+            <div className="cq-fair-visual-badge !border-red-400/50 !text-red-300 !bg-[#050b10]/90">
+              <Radar size={16} className="text-red-400 animate-spin" />
+              <span>MOTHER GOOSE LAND • CHALLENGE PORTAL</span>
             </div>
           </div>
         </section>

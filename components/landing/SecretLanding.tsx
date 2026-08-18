@@ -72,15 +72,16 @@ export default function SecretLanding() {
 
           <div className="cq-fair-visual !border-purple-500/40" aria-hidden="true">
             <Image
-              src={cqImages.mckinleySunset}
-              alt="Dark historic Canton monument at sunset"
+              src={cqImages.secretDoor}
+              alt="Secret starting portal doorway in Monument Park"
               fill
               priority
               sizes="(max-width: 900px) 100vw, 48vw"
+              className="object-contain p-4 bg-stone-950/80"
             />
             <div className="cq-fair-visual-badge !border-purple-400/50 !text-purple-300 !bg-[#09070e]/90">
               <Radio size={16} className="text-purple-400 animate-pulse" />
-              <span>UNLISTED FREQUENCY ACTIVE</span>
+              <span>MONUMENT PARK • SECRET PORTAL</span>
             </div>
           </div>
         </section>

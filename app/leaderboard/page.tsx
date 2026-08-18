@@ -97,22 +97,31 @@ export default function LeaderboardPage() {
 
         {entries.length === 0 ? (
           <section className="cq-page-section cq-board-section">
-            <div className="p-10 rounded-2xl bg-stone-950/80 border border-stone-800 text-center space-y-3 max-w-2xl mx-auto my-8">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-widest">
-                <Trophy size={14} className="text-amber-400" />
-                <span>PRE-SEASON ACTIVE • KICKOFF SEPTEMBER 11</span>
-              </div>
-              <h2 className="text-2xl font-black font-display text-white uppercase tracking-tight">
-                Leaderboard Activates September 11
-              </h2>
-              <p className="text-sm text-stone-300 font-body max-w-md mx-auto leading-relaxed">
-                Live individual agent rankings and XP scoring will stream here in real time as players verify field missions across Canton.
-              </p>
-              <div className="pt-3">
-                <Link href="/#choose-path" className="cq-gold-button inline-flex">
-                  CHOOSE STARTING PATH
-                  <Zap size={16} />
-                </Link>
+            <div className="relative overflow-hidden p-10 sm:p-14 rounded-3xl bg-stone-950 border border-stone-800 text-center space-y-4 max-w-3xl mx-auto my-8 shadow-2xl">
+              <Image
+                src={cqImages.leaderboardBg}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 100vw, 800px"
+                className="object-cover opacity-20 pointer-events-none"
+              />
+              <div className="relative z-10 space-y-3">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-widest">
+                  <Trophy size={14} className="text-amber-400" />
+                  <span>PRE-SEASON ACTIVE • KICKOFF SEPTEMBER 11</span>
+                </div>
+                <h2 className="text-3xl font-black font-display text-white uppercase tracking-tight">
+                  Leaderboard Activates September 11
+                </h2>
+                <p className="text-sm text-stone-300 font-body max-w-lg mx-auto leading-relaxed">
+                  Live individual agent rankings and XP scoring will stream here in real time as players verify field missions across Canton.
+                </p>
+                <div className="pt-3">
+                  <Link href="/#choose-path" className="cq-gold-button inline-flex">
+                    CHOOSE STARTING PATH
+                    <Zap size={16} />
+                  </Link>
+                </div>
               </div>
             </div>
           </section>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -25,6 +26,7 @@ import CinematicNav from '@/components/CinematicNav';
 import CinematicFooter from '@/components/CinematicFooter';
 import { Player, PlayerAchievement, Achievement, StartingPath } from '@/lib/types';
 import { SEED_ACHIEVEMENTS } from '@/lib/seed-data';
+import { cqImages } from '@/lib/marketing-assets';
 import { showGameMoment } from '@/lib/game-effects';
 
 const AVATAR_OPTIONS = ['⚡', '🧭', '🔍', '🏆', '🎯', '🦅', '👾', '🔥', '⚔️', '🦁', '🌟', '🚀'];
@@ -234,12 +236,19 @@ export default function ProfilePage() {
 
         {/* AGENT IDENTITY CARD */}
         <div className="glass-panel p-6 rounded-3xl border border-stone-800 bg-stone-900/90 shadow-2xl mb-8 relative overflow-hidden">
+          <Image
+            src={cqImages.playerProfileBg}
+            alt=""
+            fill
+            sizes="(max-width: 1024px) 100vw, 1000px"
+            className="object-cover opacity-15 pointer-events-none"
+          />
           <div
-            className="absolute top-0 left-0 right-0 h-1.5"
+            className="absolute top-0 left-0 right-0 h-1.5 z-10"
             style={{ backgroundColor: player?.themeColor || themeColor }}
           />
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
             {/* Avatar & Core Bio */}
             <div className="flex items-center gap-4">
               <div
@@ -546,51 +555,46 @@ export default function ProfilePage() {
         )}
 
         {/* ACHIEVEMENTS SHELF */}
-        <section className="mb-8" aria-labelledby="achievements-heading">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div>
-              <h2 id="achievements-heading" className="font-display font-black text-xl text-white uppercase tracking-tight flex items-center gap-2">
-                <Award size={20} className="text-amber-400" />
-                <span>Achievements Shelf</span>
-              </h2>
-              <p className="text-xs text-stone-400 font-mono mt-0.5">
-                Unlocked badges for district sweeps, starting path mastery, and speed milestones.
-              </p>
+        <section className="relative overflow-hidden p-6 rounded-3xl border border-stone-800 bg-stone-950 mb-8 shadow-2xl" aria-labelledby="achievements-heading">
+          <Image
+            src={cqImages.achievementBadges}
+            alt=""
+            fill
+            sizes="(max-width: 1024px) 100vw, 1000px"
+            className="object-cover opacity-10 pointer-events-none"
+          />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div>
+                <h2 id="achievements-heading" className="font-display font-black text-xl text-white uppercase tracking-tight flex items-center gap-2">
+                  <Award size={20} className="text-amber-400" />
+                  <span>Achievements Shelf</span>
+                </h2>
+                <p className="text-xs text-stone-400 font-mono mt-0.5">
+                  Unlocked badges for district sweeps, starting path mastery, and speed milestones.
+                </p>
+              </div>
+              <span className="text-xs font-mono px-3 py-1 rounded-full bg-stone-900 border border-stone-700 text-amber-300 font-bold">
+                {achievements.length} / {allCatalogAchievements.length} Unlocked
+              </span>
             </div>
-            <span className="text-xs font-mono px-3 py-1 rounded-full bg-stone-900 border border-stone-700 text-amber-300 font-bold">
-              {achievements.length} / {allCatalogAchievements.length} Unlocked
-            </span>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {allCatalogAchievements.map((ach) => {
-              const isEarned = earnedAchievementSlugs.has(ach.slug);
-              const playerRecord = achievements.find((a) => a.achievementSlug === ach.slug || a.achievement?.slug === ach.slug);
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {allCatalogAchievements.map((ach) => {
+                const isEarned = earnedAchievementSlugs.has(ach.slug);
+                const playerRecord = achievements.find((a) => a.achievementSlug === ach.slug || a.achievement?.slug === ach.slug);
 
-              const rarityColors: Record<string, string> = {
-                common: 'border-stone-700 text-stone-300',
-                rare: 'border-cyan-500/50 text-cyan-300 bg-cyan-950/20',
-                epic: 'border-purple-500/50 text-purple-300 bg-purple-950/20',
-                legendary: 'border-amber-500/60 text-amber-300 bg-amber-950/30',
-              };
+                const rarityColors: Record<string, string> = {
+                  common: 'border-stone-700 text-stone-300',
+                  rare: 'border-cyan-500/50 text-cyan-300 bg-cyan-950/20',
+                  epic: 'border-purple-500/50 text-purple-300 bg-purple-950/20',
+                  legendary: 'border-amber-500/60 text-amber-300 bg-amber-950/30',
+                };
 
-              return (
-                <div
-                  key={ach.id}
-                  onClick={() => {
-                    showGameMoment({
-                      type: 'achievement',
-                      achievementId: ach.id,
-                      title: ach.name,
-                      description: ach.description,
-                      icon: ach.badgeSymbol,
-                      category: ach.category,
-                    });
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                return (
+                  <div
+                    key={ach.id}
+                    onClick={() => {
                       showGameMoment({
                         type: 'achievement',
                         achievementId: ach.id,
@@ -599,66 +603,88 @@ export default function ProfilePage() {
                         icon: ach.badgeSymbol,
                         category: ach.category,
                       });
-                    }
-                  }}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.02] ${
-                    isEarned
-                      ? `${rarityColors[ach.rarity] || 'border-amber-500/40 bg-stone-900/90'} shadow-lg`
-                      : 'border-stone-800/80 bg-stone-950/50 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="w-10 h-10 rounded-xl bg-stone-900/90 border border-stone-700 flex items-center justify-center text-xl shrink-0 shadow-inner">
-                      {ach.badgeSymbol}
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        showGameMoment({
+                          type: 'achievement',
+                          achievementId: ach.id,
+                          title: ach.name,
+                          description: ach.description,
+                          icon: ach.badgeSymbol,
+                          category: ach.category,
+                        });
+                      }
+                    }}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.02] ${
+                      isEarned
+                        ? `${rarityColors[ach.rarity] || 'border-amber-500/40 bg-stone-900/90'} shadow-lg`
+                        : 'border-stone-800/80 bg-stone-950/50 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="w-10 h-10 rounded-xl bg-stone-900/90 border border-stone-700 flex items-center justify-center text-xl shrink-0 shadow-inner">
+                        {ach.badgeSymbol}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-stone-700 bg-stone-900 text-stone-300">
+                          {ach.rarity}
+                        </span>
+                        {isEarned ? (
+                          <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+                        ) : (
+                          <Lock size={13} className="text-stone-500 shrink-0" />
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-stone-700 bg-stone-900 text-stone-300">
-                        {ach.rarity}
-                      </span>
-                      {isEarned ? (
-                        <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
-                      ) : (
-                        <Lock size={13} className="text-stone-500 shrink-0" />
-                      )}
-                    </div>
+
+                    <h3 className="font-display font-bold text-sm text-white mb-1">
+                      {ach.name}
+                    </h3>
+                    <p className="text-xs text-stone-300 font-body leading-snug">
+                      {ach.description}
+                    </p>
+
+                    {isEarned && playerRecord?.earnedAt && (
+                      <div className="mt-3 pt-2 border-t border-stone-800/80 text-[10px] font-mono text-emerald-400">
+                        ✓ Earned: {new Date(playerRecord.earnedAt).toLocaleDateString()}
+                      </div>
+                    )}
                   </div>
-
-                  <h3 className="font-display font-bold text-sm text-white mb-1">
-                    {ach.name}
-                  </h3>
-                  <p className="text-xs text-stone-300 font-body leading-snug">
-                    {ach.description}
-                  </p>
-
-                  {isEarned && playerRecord?.earnedAt && (
-                    <div className="mt-3 pt-2 border-t border-stone-800/80 text-[10px] font-mono text-emerald-400">
-                      ✓ Earned: {new Date(playerRecord.earnedAt).toLocaleDateString()}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </section>
 
         {/* PRIZE DRAWING REWARDS TRANSPARENCY CARD */}
-        <section className="glass-panel p-6 rounded-3xl border border-stone-800 bg-stone-900/80 shadow-xl" aria-labelledby="prize-info-heading">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <h2 id="prize-info-heading" className="font-display font-black text-lg text-white uppercase tracking-tight flex items-center gap-2">
-              <Trophy size={18} className="text-amber-400" />
-              <span>Transparent Prize Drawing Entries</span>
-            </h2>
-            <Link
-              href="/events/canton-weekend-1/drawing"
-              className="text-xs font-mono text-amber-400 hover:text-amber-300 underline underline-offset-2"
-            >
-              Public Drawing Ledger →
-            </Link>
+        <section className="relative overflow-hidden p-6 sm:p-8 rounded-3xl border border-amber-500/30 bg-stone-950 shadow-2xl" aria-labelledby="prize-info-heading">
+          <Image
+            src={cqImages.prizeVault}
+            alt=""
+            fill
+            sizes="(max-width: 1024px) 100vw, 1000px"
+            className="object-cover opacity-15 pointer-events-none"
+          />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h2 id="prize-info-heading" className="font-display font-black text-lg text-white uppercase tracking-tight flex items-center gap-2">
+                <Trophy size={18} className="text-amber-400" />
+                <span>Transparent Prize Drawing Entries</span>
+              </h2>
+              <Link
+                href="/events/canton-weekend-1/drawing"
+                className="text-xs font-mono text-amber-400 hover:text-amber-300 underline underline-offset-2 font-bold"
+              >
+                Public Drawing Ledger →
+              </Link>
+            </div>
+            <p className="text-xs text-stone-300 leading-relaxed font-body">
+              Every completed quest gives you <strong>1 entry ticket</strong> into the Sunday night automated drawing. Complete 1 quest = 1 entry. Complete 5 quests = 5 entries. Complete 10 quests = 10 entries. Winners are selected through a deterministic, publicly verifiable algorithm.
+            </p>
           </div>
-          <p className="text-xs text-stone-300 leading-relaxed font-body">
-            Every completed quest, verified cipher fragment, and Day 1 leader award adds transparent entries into the
-            public prize drawing ledger. Winning prizes requires active participation across Canton!
-          </p>
         </section>
       </main>
 

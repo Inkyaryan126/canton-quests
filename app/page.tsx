@@ -20,6 +20,7 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import ThreePathSelector from '@/components/ThreePathSelector';
+import BriefingVideoModal from '@/components/BriefingVideoModal';
 import { Player, PublicQuestView, QuestEvent } from '@/lib/types';
 import {
   cleanQuestTitle,
@@ -32,6 +33,7 @@ import {
   questCategoryLabels,
   rarityClassName,
 } from '@/lib/marketing-assets';
+import { Play, Gift, HelpCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 
 function getStoredPlayer(): Player | null {
   if (typeof window === 'undefined') return null;
@@ -73,6 +75,7 @@ export default function HomePage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
   const [quests, setQuests] = useState<PublicQuestView[]>([]);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   useEffect(() => {
     // 1. Check client local storage
@@ -161,11 +164,16 @@ export default function HomePage() {
                 CHOOSE YOUR PATH
                 <ArrowRight size={17} aria-hidden="true" />
               </a>
+              <button
+                type="button"
+                onClick={() => setIsVideoModalOpen(true)}
+                className="cq-dark-button flex items-center gap-2 cursor-pointer hover:border-amber-400/60"
+              >
+                <Play size={15} className="text-amber-400 fill-amber-400" />
+                <span>WATCH BRIEFING</span>
+              </button>
               <Link href="/how-it-works" className="cq-dark-button">
                 HOW IT WORKS
-              </Link>
-              <Link href="/quests" className="cq-dark-button">
-                EXPLORE MISSIONS
               </Link>
             </div>
 
@@ -227,6 +235,72 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* PROMOTIONAL BRIEFING TRANSMISSION & VIDEO PLAYER */}
+        <section className="cq-section bg-stone-950/70 border-y border-stone-800/80 py-16" aria-labelledby="briefing-section-heading">
+          <div className="cq-section-shell">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-5 space-y-4 text-left">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
+                  <Radio size={14} className="text-amber-400 animate-pulse" />
+                  <span>GAME MASTER TRANSMISSION</span>
+                </div>
+                <h2 id="briefing-section-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                  Official Mission Briefing
+                </h2>
+                <p className="text-sm text-stone-300 font-body leading-relaxed">
+                  Watch the official Game Commander transmission for Canton Quests Volume 1. Learn how real-world landmarks,
+                  street ciphers, and QR nodes connect across downtown Canton.
+                </p>
+                <div className="pt-2 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsVideoModalOpen(true)}
+                    className="cq-gold-button inline-flex items-center gap-2 cursor-pointer"
+                  >
+                    <Play size={16} className="fill-black" />
+                    <span>PLAY FULL BRIEFING</span>
+                  </button>
+                  <Link href="/how-it-works" className="cq-dark-button text-xs font-mono">
+                    READ FIELD RULES
+                  </Link>
+                </div>
+              </div>
+
+              <div className="lg:col-span-7">
+                <div
+                  onClick={() => setIsVideoModalOpen(true)}
+                  className="relative aspect-video rounded-2xl overflow-hidden border border-amber-500/30 shadow-2xl cursor-pointer group bg-black"
+                >
+                  <Image
+                    src={cqImages.promoVideoPoster}
+                    alt="Game Commander Mission Briefing"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 60vw"
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                  
+                  {/* Play Button Reticle */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-amber-400 transition-all">
+                      <Play size={26} className="fill-black ml-1" />
+                    </div>
+                  </div>
+
+                  {/* Video HUD Overlay */}
+                  <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[11px] font-mono text-stone-300 pointer-events-none">
+                    <span className="flex items-center gap-1.5 text-amber-300 font-bold">
+                      <Radio size={12} className="text-red-500 animate-pulse" />
+                      TRANSMISSION LOADED
+                    </span>
+                    <span>2:17 • 1080P HD</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* SELECTED REAL CANTON LOCATIONS / GAME WORLD */}
         <section className="cq-section cq-destinations-section" aria-labelledby="destinations-heading">
           <div className="cq-section-shell">
@@ -252,6 +326,73 @@ export default function HomePage() {
                   </div>
                 </article>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* PRIZE VAULT & TRANSPARENT DRAWING SECTION */}
+        <section className="cq-section py-16" aria-labelledby="prize-vault-heading">
+          <div className="cq-section-shell">
+            <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-stone-950 p-8 sm:p-12 shadow-2xl">
+              <Image
+                src={cqImages.prizeVault}
+                alt=""
+                fill
+                sizes="(max-width: 1024px) 100vw, 1200px"
+                className="object-cover opacity-20 pointer-events-none"
+              />
+              <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                <div className="lg:col-span-7 space-y-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
+                    <Gift size={14} className="text-amber-400" />
+                    <span>EVERY QUEST = ONE DRAWING ENTRY</span>
+                  </div>
+                  <h2 id="prize-vault-heading" className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight">
+                    Transparent Prize Vault
+                  </h2>
+                  <p className="text-sm text-stone-300 font-body leading-relaxed">
+                    You do <strong>not</strong> need to play all three days to win prizes. Every verified completed mission earns <strong>1 entry ticket</strong> into the Sunday night automated drawing. Complete 1 quest = 1 entry. Complete 10 quests = 10 entries!
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs font-mono">
+                    <div className="p-3 rounded-xl bg-stone-900/80 border border-stone-800">
+                      <span className="text-amber-400 font-bold block text-sm mb-0.5">1 QUEST</span>
+                      <span className="text-stone-400">1 Drawing Entry</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-stone-900/80 border border-stone-800">
+                      <span className="text-amber-400 font-bold block text-sm mb-0.5">5 QUESTS</span>
+                      <span className="text-stone-400">5 Drawing Entries</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-stone-900/80 border border-stone-800">
+                      <span className="text-amber-400 font-bold block text-sm mb-0.5">PUBLIC RNG</span>
+                      <span className="text-stone-400">Verifiable Winners</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <Link
+                      href="/events/canton-weekend-1/drawing"
+                      className="cq-gold-button inline-flex items-center gap-2 text-xs font-mono"
+                    >
+                      <span>VIEW LIVE PRIZE LEDGER</span>
+                      <ArrowRight size={14} />
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-5 p-6 rounded-2xl bg-stone-900/90 border border-stone-800 text-xs font-mono space-y-3">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold uppercase text-[11px]">
+                    <HelpCircle size={15} />
+                    <span>WHAT IS XP? (FOR NEW PLAYERS)</span>
+                  </div>
+                  <p className="text-stone-300 leading-relaxed">
+                    <strong>XP means Experience Points.</strong> You earn XP when verified quests are completed. XP is your score in Canton Quests. The more XP you earn, the higher you climb on the citywide leaderboard.
+                  </p>
+                  <div className="pt-2 border-t border-stone-800 text-[11px] text-stone-400">
+                    Leaderboard rankings determine final podium trophies; drawing tickets determine gift cards, partner prizes, and gear.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -287,6 +428,10 @@ export default function HomePage() {
         </section>
       </main>
 
+      <BriefingVideoModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+      />
       <CinematicFooter />
       <MobileStartBar href="#choose-path" />
     </div>

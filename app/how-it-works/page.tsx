@@ -14,10 +14,15 @@ import {
   QrCode,
   Trophy,
   Zap,
+  Play,
+  Gift,
+  HelpCircle,
+  Radio,
 } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
+import BriefingVideoModal from '@/components/BriefingVideoModal';
 import { QuestEvent } from '@/lib/types';
 import { cqImages, getActiveEvent } from '@/lib/marketing-assets';
 
@@ -39,12 +44,12 @@ const steps = [
   },
   {
     title: 'Earn XP',
-    text: 'Verified missions add points to your profile.',
+    text: 'Verified missions add XP score to your profile.',
     Icon: Zap,
   },
   {
     title: 'Climb the board',
-    text: 'Keep playing to move up the leaderboard.',
+    text: 'Keep playing to rise on the citywide leaderboard.',
     Icon: Trophy,
   },
 ];
@@ -59,6 +64,7 @@ const proofTypes = [
 
 export default function HowItWorksPage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/game/events')
@@ -79,16 +85,21 @@ export default function HowItWorksPage() {
             <span className="cq-kicker">FIELD GUIDE</span>
             <h1>HOW TO PLAY.</h1>
             <p>
-              Start with one quest. The app tells you what to do, where to go, and how to prove it.
+              Start with one quest. The app tells you what to do, where to go, and how to prove it. Free to enter for all ages.
             </p>
             <div className="cq-page-actions">
               <Link href={eventHref} className="cq-gold-button">
                 START PLAYING
                 <ArrowRight size={17} aria-hidden="true" />
               </Link>
-              <Link href="/quests" className="cq-dark-button">
-                BROWSE QUESTS
-              </Link>
+              <button
+                type="button"
+                onClick={() => setIsVideoModalOpen(true)}
+                className="cq-dark-button inline-flex items-center gap-2 cursor-pointer hover:border-amber-400/60"
+              >
+                <Play size={15} className="text-amber-400 fill-amber-400" />
+                <span>WATCH BRIEFING</span>
+              </button>
             </div>
           </div>
           <div className="cq-page-hero-art">
@@ -96,6 +107,59 @@ export default function HowItWorksPage() {
           </div>
         </section>
 
+        {/* MISSION BRIEFING TRANSMISSION SECTION */}
+        <section className="cq-page-section" aria-labelledby="briefing-transmission-heading">
+          <div className="relative rounded-3xl overflow-hidden border border-amber-500/30 bg-stone-950 p-6 sm:p-10 shadow-2xl">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-6 space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
+                  <Radio size={14} className="text-amber-400 animate-pulse" />
+                  <span>OFFICIAL VIDEO TRANSMISSION</span>
+                </div>
+                <h2 id="briefing-transmission-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                  Game Commander Briefing
+                </h2>
+                <p className="text-sm text-stone-300 font-body leading-relaxed">
+                  Watch the full field briefing video before heading out. Understand how real-world landmarks,
+                  time-sensitive flash signals, and cryptographic proof work during the event window.
+                </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsVideoModalOpen(true)}
+                    className="cq-gold-button inline-flex items-center gap-2 cursor-pointer"
+                  >
+                    <Play size={16} className="fill-black" />
+                    <span>WATCH FULL BRIEFING (2:17)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="lg:col-span-6">
+                <div
+                  onClick={() => setIsVideoModalOpen(true)}
+                  className="relative aspect-video rounded-2xl overflow-hidden border border-stone-800 shadow-2xl cursor-pointer group bg-black"
+                >
+                  <Image
+                    src={cqImages.promoVideoPoster}
+                    alt="Game Commander Mission Briefing"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-amber-400 transition-all">
+                      <Play size={22} className="fill-black ml-1" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 5 GAMEPLAY STEPS */}
         <section className="cq-page-section">
           <div className="cq-section-heading">
             <div>
@@ -116,13 +180,14 @@ export default function HowItWorksPage() {
           </div>
         </section>
 
+        {/* XP EXPLAINER FEATURE PANEL */}
         <section className="cq-feature-panel cq-feature-panel-reverse">
           <Image src={cqImages.mapHud} alt="Canton route planning HUD" fill sizes="100vw" />
           <div>
-            <span className="cq-kicker">PROGRESSION</span>
-            <h2>PLAY MORE. SCORE MORE.</h2>
+            <span className="cq-kicker">SCORE & PROGRESSION</span>
+            <h2>WHAT IS XP?</h2>
             <p>
-              Every completed quest earns XP. Higher-value missions and live drops help you rise faster.
+              <strong>XP means Experience Points.</strong> You earn XP when verified quests are completed. XP is your score in Canton Quests. The more XP you earn, the higher you climb on the citywide leaderboard.
             </p>
             <Link href="/leaderboard" className="cq-gold-button">
               VIEW LEADERBOARD
@@ -131,6 +196,7 @@ export default function HowItWorksPage() {
           </div>
         </section>
 
+        {/* SUPPORTED PROOF TYPES */}
         <section className="cq-page-section">
           <div className="cq-section-heading">
             <div>
@@ -159,62 +225,78 @@ export default function HowItWorksPage() {
             </div>
           </div>
 
-          <div className="bg-[#0c0d12] border border-amber-500/30 rounded-2xl p-6 sm:p-8 space-y-6">
-            <div>
-              <p className="text-amber-200 font-display font-bold text-lg sm:text-xl uppercase">
-                Canton Quests does not secretly choose prize winners.
-              </p>
-              <p className="text-gray-300 text-sm mt-2 leading-relaxed">
-                Our drawing process follows a fixed public method that can be followed and verified after the event.
-                Every step is mathematically reproducible from frozen event totals and publicly assigned ticket numbers.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
-              <div className="bg-[#05070a] border border-amber-500/20 p-4 rounded-xl">
-                <span className="text-amber-400 font-bold block mb-1">01 // FROZEN EVENT TOTALS</span>
-                <p className="text-gray-300">
-                  Total participating players, valid entries, completed quests, and finishers freeze when the event closes.
+          <div className="relative overflow-hidden bg-stone-950 border border-amber-500/30 rounded-3xl p-6 sm:p-10 space-y-6 shadow-2xl">
+            <Image
+              src={cqImages.prizeVault}
+              alt=""
+              fill
+              sizes="(max-width: 1024px) 100vw, 1200px"
+              className="object-cover opacity-15 pointer-events-none"
+            />
+            <div className="relative z-10 space-y-6">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
+                  <Gift size={14} className="text-amber-400" />
+                  <span>EVERY COMPLETED QUEST = ONE DRAWING ENTRY</span>
+                </div>
+                <p className="text-amber-200 font-display font-bold text-lg sm:text-2xl uppercase">
+                  Canton Quests does not secretly choose prize winners.
+                </p>
+                <p className="text-stone-300 text-sm leading-relaxed max-w-3xl">
+                  You do <strong>not</strong> need to play all three days to win prizes. Every completed quest gives you <strong>one drawing entry ticket</strong>. Complete 1 quest = 1 entry. Complete 5 quests = 5 entries. Complete 10 quests = 10 entries! Winners are drawn Sunday evening using a fixed public RNG algorithm.
                 </p>
               </div>
 
-              <div className="bg-[#05070a] border border-amber-500/20 p-4 rounded-xl">
-                <span className="text-amber-400 font-bold block mb-1">02 // PERMANENT CQ NUMBER</span>
-                <p className="text-gray-300">
-                  Fixed letter-to-number constant <strong>311420151417215192019</strong> derived from CANTON QUESTS.
-                </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
+                <div className="bg-stone-900/90 border border-amber-500/20 p-4 rounded-xl">
+                  <span className="text-amber-400 font-bold block mb-1">01 // FROZEN EVENT TOTALS</span>
+                  <p className="text-stone-300">
+                    Total participating players, valid entries, completed quests, and finishers freeze when the event closes.
+                  </p>
+                </div>
+
+                <div className="bg-stone-900/90 border border-amber-500/20 p-4 rounded-xl">
+                  <span className="text-amber-400 font-bold block mb-1">02 // PERMANENT CQ NUMBER</span>
+                  <p className="text-stone-300">
+                    Fixed letter-to-number constant <strong>311420151417215192019</strong> derived from CANTON QUESTS.
+                  </p>
+                </div>
+
+                <div className="bg-stone-900/90 border border-amber-500/20 p-4 rounded-xl">
+                  <span className="text-amber-400 font-bold block mb-1">03 // FINAL QUEST NUMBER</span>
+                  <p className="text-stone-300">
+                    Event totals multiplied by the permanent number create a single deterministic Final Quest Number.
+                  </p>
+                </div>
+
+                <div className="bg-stone-900/90 border border-amber-500/20 p-4 rounded-xl">
+                  <span className="text-amber-400 font-bold block mb-1">04 // FOLLOW THE TRAIL</span>
+                  <p className="text-stone-300">
+                    A public sliding-window scan examines digit groups from left to right. The first valid ticket wins.
+                  </p>
+                </div>
               </div>
 
-              <div className="bg-[#05070a] border border-amber-500/20 p-4 rounded-xl">
-                <span className="text-amber-400 font-bold block mb-1">03 // FINAL QUEST NUMBER</span>
-                <p className="text-gray-300">
-                  Event totals multiplied by the permanent number create a single deterministic Final Quest Number.
-                </p>
+              <div className="pt-4 flex flex-wrap items-center justify-between gap-4 border-t border-stone-800 text-xs font-mono">
+                <span className="text-stone-400">
+                  Fixed beforehand · Automatic · Publicly documented · Reproducible · Zero administrator bias
+                </span>
+                <Link
+                  href={activeEvent ? `/events/${activeEvent.slug}/drawing` : '/events/canton-weekend-1/drawing'}
+                  className="text-amber-400 hover:text-amber-300 underline font-bold inline-flex items-center gap-1"
+                >
+                  View Live Event Drawing Ledger →
+                </Link>
               </div>
-
-              <div className="bg-[#05070a] border border-amber-500/20 p-4 rounded-xl">
-                <span className="text-amber-400 font-bold block mb-1">04 // FOLLOW THE TRAIL</span>
-                <p className="text-gray-300">
-                  A public sliding-window scan examines digit groups from left to right. The first valid ticket wins.
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-2 flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 text-xs font-mono">
-              <span className="text-gray-400">
-                Fixed beforehand · Automatic · Publicly documented · Reproducible · Zero manual administrator choice
-              </span>
-              <Link
-                href={activeEvent ? `/events/${activeEvent.slug}/drawing` : '/events/canton-weekend-1/drawing'}
-                className="text-amber-400 hover:text-amber-300 underline font-bold inline-flex items-center gap-1"
-              >
-                View Live Event Drawing Ledger →
-              </Link>
             </div>
           </div>
         </section>
       </main>
 
+      <BriefingVideoModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+      />
       <CinematicFooter />
       <MobileStartBar href={eventHref} />
     </div>
