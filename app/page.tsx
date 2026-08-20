@@ -119,29 +119,10 @@ export default function HomePage() {
     <div className="cq-home-shell">
       <CinematicNav eventHref={eventHref} />
 
-      <main className="cq-page-main pt-2">
-        {/* CHOOSE YOUR STARTING PATH (HERO PORTAL) */}
-        <section className="cq-section pt-2 pb-6" aria-labelledby="three-paths-heading">
-          <div className="cq-section-shell">
-            <ThreePathSelector
-              currentPath={currentPlayer?.selectedStartingPath || null}
-              onSelectPath={(path) => {
-                if (currentPlayer) {
-                  const updated = { ...currentPlayer, selectedStartingPath: path };
-                  setCurrentPlayerState(updated);
-                  if (typeof window !== 'undefined') {
-                    window.localStorage.setItem('canton_quests_current_player', JSON.stringify(updated));
-                  }
-                }
-              }}
-              eventSlug={activeEvent?.slug || 'canton-weekend-1'}
-            />
-          </div>
-        </section>
-
-        {/* SHORT HOW IT WORKS (PICK, GO, PROVE, SCORE) */}
-        <section className="cq-section cq-pillars-section py-10" aria-labelledby="how-it-works-pillars-heading">
-          <div className="cq-section-shell space-y-6">
+      <main className="cq-page-main pt-4">
+        {/* SHORT HOW IT WORKS (PICK, GO, PROVE, SCORE) & THREE DOORS PATH SELECTOR */}
+        <section className="cq-section cq-pillars-section" aria-labelledby="how-it-works-pillars-heading">
+          <div className="cq-section-shell space-y-12">
             <div className="text-center max-w-2xl mx-auto mb-4">
               <span className="cq-kicker">GAMEPLAY LOOP</span>
               <h2 id="how-it-works-pillars-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
@@ -160,6 +141,21 @@ export default function HomePage() {
                 </article>
               ))}
             </div>
+
+            {/* CHOOSE YOUR STARTING PATH */}
+            <ThreePathSelector
+              currentPath={currentPlayer?.selectedStartingPath || null}
+              onSelectPath={(path) => {
+                if (currentPlayer) {
+                  const updated = { ...currentPlayer, selectedStartingPath: path };
+                  setCurrentPlayerState(updated);
+                  if (typeof window !== 'undefined') {
+                    window.localStorage.setItem('canton_quests_current_player', JSON.stringify(updated));
+                  }
+                }
+              }}
+              eventSlug={activeEvent?.slug || 'canton-weekend-1'}
+            />
           </div>
         </section>
 
