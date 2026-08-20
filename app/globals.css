@@ -2881,3 +2881,281 @@ code, pre, .font-mono {
   color: #9ca3af;
 }
 
+/* ==========================================================================
+   EMAIL CONFIRMATION SCREEN (.cq-confirm-*)
+   ========================================================================== */
+.cq-confirm-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background-color: #050607;
+  position: relative;
+  overflow: hidden;
+}
+
+.cq-confirm-bg-glow {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(217, 164, 76, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cq-confirm-brand {
+  position: relative;
+  z-index: 2;
+  margin-bottom: 2rem;
+}
+
+.cq-confirm-logo-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+}
+
+.cq-confirm-logo-img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.cq-confirm-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.cq-confirm-brand-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  color: #f0c978;
+}
+
+.cq-confirm-brand-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: #9ca3af;
+}
+
+.cq-confirm-card {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 500px;
+  background: rgba(13, 16, 23, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(217, 164, 76, 0.35);
+  border-radius: 1.25rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(217, 164, 76, 0.15);
+  text-align: left;
+}
+
+.cq-confirm-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.cq-confirm-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background-color: #10b981;
+  box-shadow: 0 0 10px #10b981;
+}
+
+.cq-confirm-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #f0c978;
+  text-transform: uppercase;
+}
+
+.cq-confirm-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 3vw, 1.85rem);
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  margin: 0 0 0.5rem 0;
+}
+
+.cq-confirm-desc {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: #d1d5db;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.cq-confirm-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(127, 29, 29, 0.4);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  font-size: 0.8rem;
+  margin-bottom: 1.25rem;
+}
+
+.cq-confirm-error strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.2rem;
+}
+
+.cq-confirm-error p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.cq-confirm-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  background: rgba(6, 78, 59, 0.3);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  text-align: center;
+}
+
+.cq-confirm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cq-confirm-callsign-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cq-confirm-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #d1d5db;
+  letter-spacing: 0.05em;
+}
+
+.cq-confirm-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: #050607;
+  border: 1px solid rgba(217, 164, 76, 0.3);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 180ms ease;
+  box-sizing: border-box;
+}
+
+.cq-confirm-input:focus {
+  border-color: #f0c978;
+}
+
+.cq-confirm-security-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cq-confirm-submit-btn {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #000000;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.35);
+  transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease;
+}
+
+.cq-confirm-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+  box-shadow: 0 6px 25px rgba(245, 158, 11, 0.5);
+}
+
+.cq-confirm-submit-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.cq-confirm-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cq-confirm-missing-box {
+  text-align: center;
+  padding: 1.5rem 1rem;
+}
+
+.cq-confirm-home-btn {
+  display: inline-block;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  background: rgba(217, 164, 76, 0.15);
+  border: 1px solid rgba(217, 164, 76, 0.4);
+  color: #f0c978;
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background-color 180ms ease;
+}
+
+.cq-confirm-home-btn:hover {
+  background: rgba(217, 164, 76, 0.25);
+}
+
+.cq-confirm-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+

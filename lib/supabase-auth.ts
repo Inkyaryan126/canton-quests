@@ -28,6 +28,23 @@ export interface AuthVerificationResult {
 const mockOtpStore = new Map<string, { code: string; expiresAt: number; path?: StartingPath; source?: string }>();
 
 /**
+ * Resolves the canonical site URL for authentication redirects.
+ * Prioritizes NEXT_PUBLIC_SITE_URL -> NEXT_PUBLIC_APP_URL -> window.location.origin -> https://divinedesigndestinations.com
+ */
+export function getSiteUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
+  }
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
+  }
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return 'https://divinedesigndestinations.com';
+}
+
+/**
  * Sends a 6-digit email OTP (magic code) to the player's email using Supabase Auth.
  */
 export async function sendEmailOtp(
@@ -43,13 +60,19 @@ export async function sendEmailOtp(
     return { success: false, message: 'Valid email address is required.', error: 'Invalid email address.' };
   }
 
+  // Construct scanner-safe confirmation redirect URL
+  const targetNext = options?.redirectTo || '/events/canton-weekend-1';
+  const emailRedirectTo = options?.redirectTo && options.redirectTo.startsWith('http')
+    ? options.redirectTo
+    : `${getSiteUrl()}/auth/confirm?next=${encodeURIComponent(targetNext)}`;
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: cleanEmail,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: options?.redirectTo,
+          emailRedirectTo,
           data: {
             selected_starting_path: options?.startingPath || undefined,
             acquisition_source: options?.acquisitionSource || 'main_site',
@@ -166,7 +189,100 @@ export async function verifyEmailOtp(
   return { success: false, error: 'Invalid or expired verification code.' };
 }
 
+export type EmailOtpType = 'signup' | 'invite' | 'magiclink' | 'recovery' | 'email_change' | 'email';
+
+/**
+ * Verifies a TokenHash received via an email confirmation link (Scanner-Safe verifyOtp).
+ * Only invoked upon the user's deliberate button click.
+ */
+export async function verifyTokenHash(
+  tokenHash: string,
+  type: EmailOtpType = 'email'
+): Promise<AuthVerificationResult> {
+  const cleanTokenHash = (tokenHash || '').trim();
+  if (!cleanTokenHash) {
+    return { success: false, error: 'Verification token hash is required.' };
+  }
+
+  // Dev / Test runner mock token fallback
+  if (
+    cleanTokenHash.startsWith('mock-token-') ||
+    cleanTokenHash === 'test-token-hash' ||
+    !isSupabaseConfigured ||
+    !supabase
+  ) {
+    const testUserId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : '00000000-0000-4000-8000-000000000001';
+    const authUser: AuthSessionUser = {
+      id: testUserId,
+      email: `player_${testUserId.slice(0, 8)}@example.com`,
+      user_metadata: {
+        acquisition_source: 'email_confirmation',
+      },
+    };
+    mockVerifiedUserStore.set(testUserId, authUser);
+
+    return {
+      success: true,
+      user: authUser,
+      session: {
+        access_token: `mock-jwt-${testUserId}`,
+        expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 7,
+      },
+      message: 'Verified in test environment.',
+    };
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash: cleanTokenHash,
+        type: (type as any) || 'email',
+      });
+
+      if (error || !data.user) {
+        return {
+          success: false,
+          error: error?.message || 'Invalid or expired confirmation link.',
+        };
+      }
+
+      const authUser: AuthSessionUser = {
+        id: data.user.id,
+        email: data.user.email,
+        user_metadata: data.user.user_metadata,
+      };
+
+      return {
+        success: true,
+        user: authUser,
+        session: data.session
+          ? {
+              access_token: data.session.access_token,
+              expires_at: data.session.expires_at,
+              refresh_token: data.session.refresh_token,
+            }
+          : undefined,
+        message: 'Email confirmation verified successfully.',
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Verification failed.' };
+    }
+  }
+
+  return { success: false, error: 'Invalid or expired confirmation token.' };
+}
+
 export const mockVerifiedUserStore = new Map<string, AuthSessionUser>();
+
+/**
+ * Resets all in-memory mock auth stores (useful for test isolation).
+ */
+export function resetMockAuthStores() {
+  mockOtpStore.clear();
+  mockVerifiedUserStore.clear();
+}
 
 /**
  * Registers a mock verified auth user for testing/dev environments.

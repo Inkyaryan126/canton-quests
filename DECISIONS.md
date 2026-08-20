@@ -667,4 +667,24 @@ Each entry follows the standard ADR structure:
   - Eliminates jarring pre-launch errors, secures internal server diagnostics, and prevents missing-module runtime crashes in production serverless environments.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-033] 2026-08-20: Scanner-Safe Email Confirmation Architecture & TokenHash Flow
+- **Decision**:
+  1. **Prefetch & Scanner Resistance via Deliberate Action**:
+     - Standardized on the Supabase `TokenHash` + `verifyOtp` confirmation pattern.
+     - Email verification links point to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next={{ .RedirectTo }}` rather than direct GET redemption endpoints (`/auth/v1/verify`), preventing email security scanners (e.g. Microsoft Defender, Google Workspace prefetcher, antivirus scanners) from consuming one-time OTP links on initial GET requests.
+     - `GET /auth/confirm` and `GET /api/auth/confirm` ONLY render the user interface and forward parameters; they **never** call `verifyOtp` or consume the token.
+     - Verification is strictly executed only when the human player deliberately clicks the `CONFIRM & ENTER CANTON QUESTS` action button via `POST /api/auth/confirm`.
+  2. **Canonical Production URLs & Allowed Redirect Domains**:
+     - Configured canonical production origin to `https://divinedesigndestinations.com`.
+     - Implemented strict open redirect validation (`sanitizeNextPath`) to reject arbitrary external schemes (`http://`, `https://`, `//`, `javascript:`) and restrict post-verification routing to valid internal application routes.
+  3. **Player Identity & PostgreSQL UUID Compatibility**:
+     - Upon successful deliberate token verification, `resolveOrCreatePlayerForAuthUser` claims or creates the player's account and provisions the player profile using valid UUIDs.
+     - Stored session tokens in secure client storage (`canton_quests_current_player`, `canton_auth_token`), executed transition game moments, and routed players directly to their chosen starting questline.
+- **Reason**:
+  - Resolves email scanner link expiration bugs, eliminates production auth redirect drops, protects against open redirect vulnerabilities, and guarantees seamless onboarding for outdoor mobile players in Canton.
+- **Status**: **ACCEPTED**
+
+
 
