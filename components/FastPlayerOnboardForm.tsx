@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, CheckCircle2, KeyRound, Mail, RefreshCw, ShieldCheck, Sparkles, UserCheck, Zap } from 'lucide-react';
 import { StartingPath } from '@/lib/types';
 import { showGameMoment } from '@/lib/game-effects';
-import { ACQUISITION_ENTRY_HREF } from '@/lib/acquisition-landing-content';
 
 interface FastPlayerOnboardFormProps {
   startingPath: StartingPath;
@@ -21,7 +20,7 @@ export default function FastPlayerOnboardForm({
   startingPath,
   acquisitionSource,
   buttonLabel,
-  redirectTo = ACQUISITION_ENTRY_HREF,
+  redirectTo = '/profile',
   themeAccent = '#f59e0b',
 }: FastPlayerOnboardFormProps) {
   const router = useRouter();

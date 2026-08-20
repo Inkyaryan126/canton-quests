@@ -168,7 +168,7 @@ export default function EnterGameModal({
       }
 
       onClose();
-      router.push('/quests');
+      router.push('/profile');
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to complete conversion. Please try again.');
     } finally {

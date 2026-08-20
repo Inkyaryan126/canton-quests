@@ -8,6 +8,7 @@ import {
   Quest,
   Player,
   QuestSubmission,
+  DrawingEntryLedgerEntry,
   ScoreLedgerEntry,
   LeaderboardEntry,
   PlayerEventProgress,
@@ -188,6 +189,13 @@ export function mapPlayerFromDB(row: any): Player {
     userId: row.user_id,
     displayName: row.display_name,
     avatarUrl: row.avatar_url || '⚡',
+    avatarPresetKey: row.avatar_preset_key,
+    profileImagePath: row.profile_image_path,
+    profileImageCropZoom: row.profile_image_crop_zoom,
+    profileImageCropX: row.profile_image_crop_x,
+    profileImageCropY: row.profile_image_crop_y,
+    profileVisibility: row.profile_visibility || 'public',
+    playerImageVisibility: row.player_image_visibility || 'private',
     role: row.role || 'player',
     totalXp: row.total_xp || 0,
     level: row.level || 1,
@@ -200,6 +208,7 @@ export function mapPlayerFromDB(row: any): Player {
     favoriteStyle: row.favorite_style,
     selectedFlair: row.selected_flair,
     showcaseBadges: row.showcase_badges,
+    featuredBadgeSlugs: row.featured_badge_slugs,
     isMinor: row.is_minor,
     email: row.email,
     createdAt: row.created_at,
@@ -955,6 +964,13 @@ export async function upsertPlayerDB(
         userId?: string;
         displayName: string;
         avatarUrl?: string;
+        avatarPresetKey?: string;
+        profileImagePath?: string;
+        profileImageCropZoom?: number;
+        profileImageCropX?: number;
+        profileImageCropY?: number;
+        profileVisibility?: 'public' | 'private';
+        playerImageVisibility?: 'public' | 'private';
         selectedStartingPath?: StartingPath;
         acquisitionSource?: string;
         bio?: string;
@@ -964,6 +980,7 @@ export async function upsertPlayerDB(
         favoriteStyle?: string;
         selectedFlair?: string;
         showcaseBadges?: string[];
+        featuredBadgeSlugs?: string[];
         isMinor?: boolean;
         email?: string;
       }
@@ -987,6 +1004,13 @@ export async function upsertPlayerDB(
     const updatePayload: any = {
       display_name: cleanName,
       avatar_url: p.avatarUrl || '⚡',
+      avatar_preset_key: p.avatarPresetKey,
+      profile_image_path: p.profileImagePath,
+      profile_image_crop_zoom: p.profileImageCropZoom,
+      profile_image_crop_x: p.profileImageCropX,
+      profile_image_crop_y: p.profileImageCropY,
+      profile_visibility: p.profileVisibility || 'public',
+      player_image_visibility: p.playerImageVisibility || 'private',
       selected_starting_path: p.selectedStartingPath || null,
       bio: p.bio,
       tagline: p.tagline,
@@ -995,6 +1019,7 @@ export async function upsertPlayerDB(
       favorite_style: p.favoriteStyle,
       selected_flair: p.selectedFlair,
       showcase_badges: p.showcaseBadges,
+      featured_badge_slugs: p.featuredBadgeSlugs,
       updated_at: new Date().toISOString(),
     };
     if (p.userId) updatePayload.user_id = p.userId;
@@ -1018,6 +1043,13 @@ export async function upsertPlayerDB(
       email: p.email,
       display_name: cleanName,
       avatar_url: p.avatarUrl || '⚡',
+      avatar_preset_key: p.avatarPresetKey,
+      profile_image_path: p.profileImagePath,
+      profile_image_crop_zoom: p.profileImageCropZoom,
+      profile_image_crop_x: p.profileImageCropX,
+      profile_image_crop_y: p.profileImageCropY,
+      profile_visibility: p.profileVisibility || 'public',
+      player_image_visibility: p.playerImageVisibility || 'private',
       selected_starting_path: p.selectedStartingPath || null,
       acquisition_source: p.acquisitionSource || 'main_site',
       bio: p.bio,
@@ -1027,6 +1059,7 @@ export async function upsertPlayerDB(
       favorite_style: p.favoriteStyle,
       selected_flair: p.selectedFlair,
       showcase_badges: p.showcaseBadges,
+      featured_badge_slugs: p.featuredBadgeSlugs,
       is_minor: p.isMinor || false,
     })
     .select()
@@ -1472,6 +1505,29 @@ export async function getPlayerProgressDB(playerId: string, eventId: string): Pr
   } catch {
     return localEngine.getPlayerProgress(playerId, eventId);
   }
+}
+
+export async function getDrawingEntriesForPlayerDB(
+  playerId: string,
+  eventId?: string
+): Promise<DrawingEntryLedgerEntry[]> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getDrawingEntriesForPlayer(playerId, eventId);
+  const db = supabaseAdmin || supabase;
+  let query = db.from('drawing_entry_ledger').select('*').eq('player_id', playerId);
+  if (eventId) query = query.eq('event_id', eventId);
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error || !data) return [];
+  return data.map((row) => ({
+    id: row.id,
+    eventId: row.event_id,
+    playerId: row.player_id,
+    questId: row.quest_id,
+    submissionId: row.submission_id,
+    entriesCount: row.entries_count || 0,
+    sourceType: row.source_type,
+    reason: row.reason,
+    createdAt: row.created_at,
+  }));
 }
 
 // 9. GAME MASTER CONTROLS DB

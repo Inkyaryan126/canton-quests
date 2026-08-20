@@ -1103,14 +1103,14 @@ describe('Phase 5.2 Public Watch Spectator Experience Test Suite', () => {
       }
     });
 
-    it('7. Real spectator conversion flow points to live quest board (/quests)', async () => {
+    it('7. Real spectator conversion flow points to authenticated Player Command Center (/profile)', async () => {
       const fs = await import('fs');
       const path = await import('path');
 
       const modalPath = path.resolve(process.cwd(), 'components/spectator/EnterGameModal.tsx');
       const content = fs.readFileSync(modalPath, 'utf8');
 
-      expect(content).toContain("router.push('/quests')");
+      expect(content).toContain("router.push('/profile')");
     });
   });
 });

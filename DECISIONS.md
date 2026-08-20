@@ -618,6 +618,27 @@ Each entry follows the standard ADR structure:
      - HERO → SHORT HOW IT WORKS (PICK, GO, PROVE, SCORE) → CHOOSE YOUR STARTING PATH → PATH-SPECIFIC ONBOARDING → REAL CANTON LOCATIONS → ONE STRONG FINAL CTA.
 - **Reason**:
   - Eliminates silent defaulting to Family path, establishes clear visual hierarchy, reduces CTA clutter, and ensures seamless launch transition on September 11, 2026.
+
+---
+
+### [ADR-031] 2026-08-20: Authenticated Player Command Center and Player ID Card Persistence
+- **Decision**:
+  1. Preserve `/profile` as the canonical authenticated Player Command Center route after email confirmation, OTP login, and onboarding.
+  2. Store Player ID Card personalization on `public.players`: avatar preset key, custom profile image storage path, crop zoom/x/y, profile visibility, player image visibility, and ordered featured BADGE slugs.
+  3. Store custom player photos in a private Supabase Storage bucket named `player-profile-images`, scoped by authenticated player ownership, with server-mediated upload and image-only validation.
+  4. Keep internal achievement table names for migration safety, while all player-facing profile UI labels the system as `BADGES`.
+  5. Compute XP, city rank, completed quests, and prize entries from the existing authoritative score, leaderboard, submission, and drawing-entry systems instead of creating new counters.
+- **Reason**:
+  - Authenticated players need to land in a personalized Canton Quests command terminal after verification, with durable player card settings and strict image privacy.
+- **Alternatives Evaluated**:
+  - Creating a duplicate `/dashboard` route (rejected: `/profile` already exists as the player identity surface).
+  - Baking player data into generated card images (rejected: less accessible, harder to update, and worse for privacy controls).
+  - Public profile-image storage by default (rejected: private image visibility must be enforceable).
+- **Consequences**:
+  - `/profile` becomes the primary authenticated destination. Public homepage and QR walk-up discovery remain unchanged.
+  - Featured BADGES are capped to the visible card slots and must be earned before selection.
+  - Profile-image access requires owner authorization unless a future public profile surface explicitly applies the stored public visibility flags.
+- **Status**: **ACCEPTED**
 - **Status**: **ACCEPTED**
 
 ---

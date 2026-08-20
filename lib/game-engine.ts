@@ -1332,6 +1332,13 @@ export function registerPlayer(params: {
   email?: string;
   password?: string;
   avatarUrl?: string;
+  avatarPresetKey?: string;
+  profileImagePath?: string;
+  profileImageCropZoom?: number;
+  profileImageCropX?: number;
+  profileImageCropY?: number;
+  profileVisibility?: 'public' | 'private';
+  playerImageVisibility?: 'public' | 'private';
   selectedStartingPath?: StartingPath;
   acquisitionSource?: string;
   isMinor?: boolean;
@@ -1361,6 +1368,13 @@ export function registerPlayer(params: {
         selectedStartingPath: params.selectedStartingPath !== undefined ? params.selectedStartingPath : existingByUser.selectedStartingPath,
         acquisitionSource: existingByUser.acquisitionSource || params.acquisitionSource || 'main_site',
         avatarUrl: params.avatarUrl || existingByUser.avatarUrl || '⚡',
+        avatarPresetKey: params.avatarPresetKey || existingByUser.avatarPresetKey,
+        profileImagePath: params.profileImagePath || existingByUser.profileImagePath,
+        profileImageCropZoom: params.profileImageCropZoom ?? existingByUser.profileImageCropZoom,
+        profileImageCropX: params.profileImageCropX ?? existingByUser.profileImageCropX,
+        profileImageCropY: params.profileImageCropY ?? existingByUser.profileImageCropY,
+        profileVisibility: params.profileVisibility || existingByUser.profileVisibility || 'public',
+        playerImageVisibility: params.playerImageVisibility || existingByUser.playerImageVisibility || 'private',
         bio: params.bio !== undefined ? sanitizeTextContent(params.bio) : existingByUser.bio,
         tagline: params.tagline !== undefined ? sanitizeTextContent(params.tagline) : existingByUser.tagline,
         hometown: params.hometown !== undefined ? sanitizeTextContent(params.hometown) : existingByUser.hometown,
@@ -1399,6 +1413,13 @@ export function registerPlayer(params: {
     displayName: cleanName,
     email: params.email?.trim().toLowerCase(),
     avatarUrl: params.avatarUrl || '⚡',
+    avatarPresetKey: params.avatarPresetKey,
+    profileImagePath: params.profileImagePath,
+    profileImageCropZoom: params.profileImageCropZoom,
+    profileImageCropX: params.profileImageCropX,
+    profileImageCropY: params.profileImageCropY,
+    profileVisibility: params.profileVisibility || 'public',
+    playerImageVisibility: params.playerImageVisibility || 'private',
     role: 'player',
     totalXp: 0,
     level: 1,
@@ -1441,6 +1462,13 @@ export function updatePlayerProfile(playerId: string, updates: Partial<Player>):
     ...player,
     displayName: updates.displayName ? sanitizeTextContent(updates.displayName).trim() : player.displayName,
     avatarUrl: updates.avatarUrl || player.avatarUrl,
+    avatarPresetKey: updates.avatarPresetKey !== undefined ? updates.avatarPresetKey : player.avatarPresetKey,
+    profileImagePath: updates.profileImagePath !== undefined ? updates.profileImagePath : player.profileImagePath,
+    profileImageCropZoom: updates.profileImageCropZoom !== undefined ? updates.profileImageCropZoom : player.profileImageCropZoom,
+    profileImageCropX: updates.profileImageCropX !== undefined ? updates.profileImageCropX : player.profileImageCropX,
+    profileImageCropY: updates.profileImageCropY !== undefined ? updates.profileImageCropY : player.profileImageCropY,
+    profileVisibility: updates.profileVisibility || player.profileVisibility || 'public',
+    playerImageVisibility: updates.playerImageVisibility || player.playerImageVisibility || 'private',
     selectedStartingPath: updates.selectedStartingPath || player.selectedStartingPath,
     bio: updates.bio !== undefined ? sanitizeTextContent(updates.bio) : player.bio,
     tagline: updates.tagline !== undefined ? sanitizeTextContent(updates.tagline) : player.tagline,
@@ -1449,6 +1477,7 @@ export function updatePlayerProfile(playerId: string, updates: Partial<Player>):
     favoriteStyle: updates.favoriteStyle || player.favoriteStyle,
     selectedFlair: updates.selectedFlair || player.selectedFlair,
     showcaseBadges: updates.showcaseBadges || player.showcaseBadges,
+    featuredBadgeSlugs: updates.featuredBadgeSlugs || player.featuredBadgeSlugs,
     isMinor: updates.isMinor !== undefined ? updates.isMinor : player.isMinor,
     updatedAt: new Date().toISOString(),
   };

@@ -60,7 +60,7 @@ export default function SecretLanding() {
                 acquisitionSource="secret_flyer"
                 buttonLabel="INITIALIZE CIPHER AGENT"
                 themeAccent="#a855f7"
-                redirectTo={ACQUISITION_ENTRY_HREF}
+                redirectTo="/profile"
               />
             </div>
 

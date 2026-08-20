@@ -62,7 +62,7 @@ export default function ChallengeLanding() {
                 acquisitionSource="challenge_flyer"
                 buttonLabel="ACCEPT THE CHALLENGE"
                 themeAccent="#ef4444"
-                redirectTo={ACQUISITION_ENTRY_HREF}
+                redirectTo="/profile"
               />
             </div>
 

@@ -58,7 +58,7 @@ export default function FamilyLanding() {
                 acquisitionSource="family_flyer"
                 buttonLabel="START FAMILY QUEST"
                 themeAccent="#f59e0b"
-                redirectTo={ACQUISITION_ENTRY_HREF}
+                redirectTo="/profile"
               />
             </div>
 

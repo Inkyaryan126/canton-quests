@@ -175,7 +175,7 @@ describe('Canton Quests — Email Verification Flow & Scanner Safety Suite', () 
       });
       const res1 = await confirmPostRoute(attackReq1);
       const data1 = await res1.json();
-      expect(data1.redirectTo).toBe('/events/canton-weekend-1');
+      expect(data1.redirectTo).toBe('/profile');
 
       // Test protocol-relative URL
       const attackReq2 = new Request('http://localhost:3000/api/auth/confirm', {
@@ -189,7 +189,7 @@ describe('Canton Quests — Email Verification Flow & Scanner Safety Suite', () 
       });
       const res2 = await confirmPostRoute(attackReq2);
       const data2 = await res2.json();
-      expect(data2.redirectTo).toBe('/events/canton-weekend-1');
+      expect(data2.redirectTo).toBe('/profile');
 
       // Test valid local relative path
       const validReq = new Request('http://localhost:3000/api/auth/confirm', {

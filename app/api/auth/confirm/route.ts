@@ -11,12 +11,12 @@ import { StartingPath } from '@/lib/types';
  * Validates and sanitizes the next redirect destination to prevent open redirect vulnerabilities.
  */
 function sanitizeNextPath(rawNext?: string | null): string {
-  if (!rawNext || typeof rawNext !== 'string') return '/events/canton-weekend-1';
+  if (!rawNext || typeof rawNext !== 'string') return '/profile';
   const trimmed = rawNext.trim();
   if (trimmed.startsWith('/') && !trimmed.startsWith('//') && !trimmed.includes('\\') && !trimmed.includes('\0')) {
     return trimmed;
   }
-  return '/events/canton-weekend-1';
+  return '/profile';
 }
 
 /**
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const {
       token_hash,
       type = 'email',
-      next = '/events/canton-weekend-1',
+      next = '/profile',
       displayName,
       selectedStartingPath,
       acquisitionSource,

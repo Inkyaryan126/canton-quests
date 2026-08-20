@@ -61,7 +61,7 @@ export async function sendEmailOtp(
   }
 
   // Construct scanner-safe confirmation redirect URL
-  const targetNext = options?.redirectTo || '/events/canton-weekend-1';
+  const targetNext = options?.redirectTo || '/profile';
   const emailRedirectTo = options?.redirectTo && options.redirectTo.startsWith('http')
     ? options.redirectTo
     : `${getSiteUrl()}/auth/confirm?next=${encodeURIComponent(targetNext)}`;
@@ -381,6 +381,13 @@ export async function resolveAuthenticatedPlayer(
         userId: playerByUserId.user_id,
         displayName: playerByUserId.display_name,
         avatarUrl: playerByUserId.avatar_url || '⚡',
+        avatarPresetKey: playerByUserId.avatar_preset_key,
+        profileImagePath: playerByUserId.profile_image_path,
+        profileImageCropZoom: playerByUserId.profile_image_crop_zoom,
+        profileImageCropX: playerByUserId.profile_image_crop_x,
+        profileImageCropY: playerByUserId.profile_image_crop_y,
+        profileVisibility: playerByUserId.profile_visibility || 'public',
+        playerImageVisibility: playerByUserId.player_image_visibility || 'private',
         role: playerByUserId.role || 'player',
         totalXp: playerByUserId.total_xp || 0,
         level: playerByUserId.level || 1,
@@ -393,6 +400,7 @@ export async function resolveAuthenticatedPlayer(
         favoriteStyle: playerByUserId.favorite_style,
         selectedFlair: playerByUserId.selected_flair,
         showcaseBadges: playerByUserId.showcase_badges,
+        featuredBadgeSlugs: playerByUserId.featured_badge_slugs,
         isMinor: playerByUserId.is_minor,
         email: playerByUserId.email,
         createdAt: playerByUserId.created_at,
@@ -426,6 +434,13 @@ export async function resolveAuthenticatedPlayer(
             userId: claimedPlayer.user_id,
             displayName: claimedPlayer.display_name,
             avatarUrl: claimedPlayer.avatar_url || '⚡',
+            avatarPresetKey: claimedPlayer.avatar_preset_key,
+            profileImagePath: claimedPlayer.profile_image_path,
+            profileImageCropZoom: claimedPlayer.profile_image_crop_zoom,
+            profileImageCropX: claimedPlayer.profile_image_crop_x,
+            profileImageCropY: claimedPlayer.profile_image_crop_y,
+            profileVisibility: claimedPlayer.profile_visibility || 'public',
+            playerImageVisibility: claimedPlayer.player_image_visibility || 'private',
             role: claimedPlayer.role || 'player',
             totalXp: claimedPlayer.total_xp || 0,
             level: claimedPlayer.level || 1,
@@ -438,6 +453,7 @@ export async function resolveAuthenticatedPlayer(
             favoriteStyle: claimedPlayer.favorite_style,
             selectedFlair: claimedPlayer.selected_flair,
             showcaseBadges: claimedPlayer.showcase_badges,
+            featuredBadgeSlugs: claimedPlayer.featured_badge_slugs,
             isMinor: claimedPlayer.is_minor,
             email: claimedPlayer.email,
             createdAt: claimedPlayer.created_at,
@@ -499,6 +515,13 @@ export async function resolveOrCreatePlayerForAuthUser(
     themeColor?: string;
     favoriteStyle?: string;
     selectedFlair?: string;
+    avatarPresetKey?: string;
+    profileImagePath?: string;
+    profileImageCropZoom?: number;
+    profileImageCropX?: number;
+    profileImageCropY?: number;
+    profileVisibility?: 'public' | 'private';
+    playerImageVisibility?: 'public' | 'private';
   }
 ): Promise<Player> {
   if (!authUser || !authUser.id) {
@@ -526,6 +549,13 @@ export async function resolveOrCreatePlayerForAuthUser(
         email: authUser.email,
         display_name: cleanName,
         avatar_url: params?.avatarUrl || '⚡',
+        avatar_preset_key: params?.avatarPresetKey,
+        profile_image_path: params?.profileImagePath,
+        profile_image_crop_zoom: params?.profileImageCropZoom,
+        profile_image_crop_x: params?.profileImageCropX,
+        profile_image_crop_y: params?.profileImageCropY,
+        profile_visibility: params?.profileVisibility || 'public',
+        player_image_visibility: params?.playerImageVisibility || 'private',
         selected_starting_path: path,
         acquisition_source: source,
         is_minor: Boolean(params?.isMinor),
@@ -548,6 +578,13 @@ export async function resolveOrCreatePlayerForAuthUser(
       userId: inserted.user_id,
       displayName: inserted.display_name,
       avatarUrl: inserted.avatar_url || '⚡',
+      avatarPresetKey: inserted.avatar_preset_key,
+      profileImagePath: inserted.profile_image_path,
+      profileImageCropZoom: inserted.profile_image_crop_zoom,
+      profileImageCropX: inserted.profile_image_crop_x,
+      profileImageCropY: inserted.profile_image_crop_y,
+      profileVisibility: inserted.profile_visibility || 'public',
+      playerImageVisibility: inserted.player_image_visibility || 'private',
       role: inserted.role || 'player',
       totalXp: inserted.total_xp || 0,
       level: inserted.level || 1,

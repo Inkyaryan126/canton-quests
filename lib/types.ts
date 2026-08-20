@@ -78,6 +78,14 @@ export interface Player {
   userId?: string;
   displayName: string;
   avatarUrl?: string;
+  avatarPresetKey?: string;
+  profileImagePath?: string;
+  profileImageUrl?: string;
+  profileImageCropZoom?: number;
+  profileImageCropX?: number;
+  profileImageCropY?: number;
+  profileVisibility?: 'public' | 'private';
+  playerImageVisibility?: 'public' | 'private';
   role: UserRole;
   totalXp: number;
   level: number;
@@ -91,6 +99,7 @@ export interface Player {
   favoriteStyle?: string;
   selectedFlair?: string;
   showcaseBadges?: string[];
+  featuredBadgeSlugs?: string[];
   isMinor?: boolean;
   email?: string;
   updatedAt?: string;

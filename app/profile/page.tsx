@@ -1,695 +1,524 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
-  ArrowLeft,
-  Award,
+  BadgeCheck,
+  Camera,
   CheckCircle2,
   Compass,
-  Crown,
-  Edit3,
-  HelpCircle,
-  KeyRound,
+  Eye,
+  EyeOff,
+  ImagePlus,
   Lock,
-  Palette,
+  Map,
+  RotateCcw,
   Save,
-  Shield,
   ShieldCheck,
   Sparkles,
   Trophy,
+  Upload,
   User,
   Zap,
 } from 'lucide-react';
 import CinematicNav from '@/components/CinematicNav';
 import CinematicFooter from '@/components/CinematicFooter';
-import { Player, PlayerAchievement, Achievement, StartingPath } from '@/lib/types';
-import { SEED_ACHIEVEMENTS } from '@/lib/seed-data';
-import { cqImages } from '@/lib/marketing-assets';
-import { showGameMoment } from '@/lib/game-effects';
+import { Achievement, Player, PlayerAchievement, Quest, StartingPath } from '@/lib/types';
+import {
+  PLAYER_AVATAR_PRESETS,
+  PLAYER_CARD_BADGE_SLOT_COUNT,
+  getAvatarPresetPath,
+} from '@/lib/player-command-center';
 
-const AVATAR_OPTIONS = ['⚡', '🧭', '🔍', '🏆', '🎯', '🦅', '👾', '🔥', '⚔️', '🦁', '🌟', '🚀'];
-const FLAIR_OPTIONS = [
-  'Canton Pioneer',
-  'Cipher Hound',
-  'Speed Runner',
-  'Arts Detective',
-  'Street Legend',
-  'Night Stalker',
-  'Master Explorer',
-  'Day 1 Veteran',
+type BadgeCatalogItem = Achievement & {
+  iconPath: string;
+  earned: boolean;
+  earnedAt?: string;
+};
+
+type CommandCenterData = {
+  eventId: string;
+  player: Player & { avatarPresetPath?: string };
+  startingDistrict: { label: string; district: string; color: string };
+  stats: {
+    totalXp: number;
+    cityRank: number | null;
+    completedQuests: number;
+    prizeEntries: number;
+    badgesEarned: number;
+  };
+  quests: {
+    recommended: Quest[];
+    startingDistrict: Quest[];
+    citywide: Quest[];
+    allAvailable: Quest[];
+  };
+  districtProgress: Array<{ path: string; label: string; completed: number; total: number }>;
+  badges: {
+    earned: PlayerAchievement[];
+    catalog: BadgeCatalogItem[];
+    featuredSlugs: string[];
+    maxFeatured: number;
+  };
+  recentActivity: Array<{ id: string; label: string; detail: string; occurredAt: string }>;
+};
+
+const pathOptions: Array<{ value: StartingPath; label: string; district: string }> = [
+  { value: 'family', label: 'FAMILY', district: 'Arts District' },
+  { value: 'challenge', label: 'CHALLENGE', district: '9th St Skate Park area' },
+  { value: 'secret', label: 'SECRET', district: 'West Lawn Cemetery / McKinley area' },
 ];
-const PLAY_STYLES = [
-  'Casual Landmark Walking',
-  'Speed & Kinetic Challenge',
-  'Cryptic Mystery & Ciphers',
-  'Arts & Cultural Exploration',
-  'Leaderboard Domination',
-];
-const THEME_COLORS = [
-  { name: 'Amber Gold', hex: '#f59e0b' },
-  { name: 'Challenge Red', hex: '#ef4444' },
-  { name: 'Mystery Violet', hex: '#a855f7' },
-  { name: 'Cyber Cyan', hex: '#06b6d4' },
-  { name: 'Emerald Forest', hex: '#10b981' },
-];
+
+function authHeaders(): Record<string, string> {
+  const token = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
+
+function formatDate(value?: string) {
+  if (!value) return 'Unavailable';
+  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function QuestList({ title, quests }: { title: string; quests: Quest[] }) {
+  return (
+    <section className="cq-command-section" aria-labelledby={`${title.replace(/\s+/g, '-').toLowerCase()}-heading`}>
+      <div className="cq-command-section-head">
+        <h2 id={`${title.replace(/\s+/g, '-').toLowerCase()}-heading`}>{title}</h2>
+      </div>
+      {quests.length === 0 ? (
+        <p className="cq-empty-state">No active signals in this group yet.</p>
+      ) : (
+        <div className="cq-command-quest-grid">
+          {quests.map((quest) => (
+            <Link key={quest.id} href={`/events/canton-weekend-1/quests/${quest.id}`} className="cq-command-quest-card">
+              <span className="cq-command-quest-meta">{quest.location?.name || quest.startingPath || 'Canton'} • {quest.difficulty}</span>
+              <strong>{quest.title}</strong>
+              <span>{quest.xpReward || quest.pointValue} XP</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function ProfilePage() {
-  const [player, setPlayer] = useState<Player | null>(null);
-  const [achievements, setAchievements] = useState<PlayerAchievement[]>([]);
-  const [allCatalogAchievements, setAllCatalogAchievements] = useState<Achievement[]>(SEED_ACHIEVEMENTS);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // Form fields
+  const [data, setData] = useState<CommandCenterData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [displayName, setDisplayName] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('⚡');
+  const [avatarPresetKey, setAvatarPresetKey] = useState('1');
   const [selectedStartingPath, setSelectedStartingPath] = useState<StartingPath>('family');
-  const [tagline, setTagline] = useState('');
-  const [bio, setBio] = useState('');
-  const [hometown, setHometown] = useState('');
-  const [themeColor, setThemeColor] = useState('#f59e0b');
-  const [favoriteStyle, setFavoriteStyle] = useState('');
-  const [selectedFlair, setSelectedFlair] = useState('');
-  const [isMinor, setIsMinor] = useState(false);
+  const [profileVisibility, setProfileVisibility] = useState<'public' | 'private'>('public');
+  const [playerImageVisibility, setPlayerImageVisibility] = useState<'public' | 'private'>('private');
+  const [cropZoom, setCropZoom] = useState(1);
+  const [cropX, setCropX] = useState(50);
+  const [cropY, setCropY] = useState(50);
+  const [featuredBadgeSlugs, setFeaturedBadgeSlugs] = useState<string[]>([]);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+
+  const loadCommandCenter = async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const response = await fetch('/api/player/command-center', { headers: authHeaders() });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Command Center unavailable.');
+      const nextData = payload as CommandCenterData & { success: true };
+      setData(nextData);
+      setDisplayName(nextData.player.displayName || '');
+      setAvatarPresetKey(nextData.player.avatarPresetKey || '1');
+      setSelectedStartingPath(nextData.player.selectedStartingPath || 'family');
+      setProfileVisibility(nextData.player.profileVisibility || 'public');
+      setPlayerImageVisibility(nextData.player.playerImageVisibility || 'private');
+      setCropZoom(nextData.player.profileImageCropZoom || 1);
+      setCropX(nextData.player.profileImageCropX ?? 50);
+      setCropY(nextData.player.profileImageCropY ?? 50);
+      setFeaturedBadgeSlugs(nextData.badges.featuredSlugs || []);
+    } catch (error) {
+      setMessage({ type: 'error', text: getErrorMessage(error, 'Unable to load player profile.') });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const headers: Record<string, string> = {};
-    const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
-    if (authToken) {
-      headers['authorization'] = `Bearer ${authToken}`;
-    }
-
-    fetch('/api/auth/me', { headers })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.isAuthenticated && data.player) {
-          initPlayerData(data.player);
-        } else {
-          // Fallback to local player
-          const stored = window.localStorage.getItem('canton_quests_current_player');
-          if (stored) {
-            initPlayerData(JSON.parse(stored));
-          }
-        }
-        if (data.achievements) {
-          setAchievements(data.achievements);
-        }
-      })
-      .catch(() => {
-        const stored = window.localStorage.getItem('canton_quests_current_player');
-        if (stored) {
-          initPlayerData(JSON.parse(stored));
-        }
-      });
+    loadCommandCenter();
   }, []);
 
-  const initPlayerData = (p: Player) => {
-    setPlayer(p);
-    setDisplayName(p.displayName || '');
-    setAvatarUrl(p.avatarUrl || '⚡');
-    setSelectedStartingPath(p.selectedStartingPath || 'family');
-    setTagline(p.tagline || '');
-    setBio(p.bio || '');
-    setHometown(p.hometown || '');
-    setThemeColor(p.themeColor || '#f59e0b');
-    setFavoriteStyle(p.favoriteStyle || PLAY_STYLES[0]);
-    setSelectedFlair(p.selectedFlair || FLAIR_OPTIONS[0]);
-    setIsMinor(Boolean(p.isMinor));
-  };
+  useEffect(() => {
+    return () => {
+      if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+    };
+  }, [pendingPreviewUrl]);
 
-  const handleSignOut = async () => {
+  const avatarImage = pendingPreviewUrl || data?.player.profileImageUrl || getAvatarPresetPath(avatarPresetKey);
+  const featuredBadges = useMemo(
+    () => featuredBadgeSlugs
+      .map((slug) => data?.badges.catalog.find((badge) => badge.slug === slug && badge.earned))
+      .filter((badge): badge is BadgeCatalogItem => Boolean(badge)),
+    [data, featuredBadgeSlugs]
+  );
+  const nextMove = data?.quests.recommended[0];
+
+  const saveProfile = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setMessage(null);
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem('canton_auth_token');
-        window.localStorage.removeItem('canton_quests_current_player');
-        window.localStorage.removeItem('canton_player_profile');
-      }
-      window.location.href = '/';
-    } catch {
-      window.location.href = '/';
-    }
-  };
-
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!displayName.trim() || displayName.trim().length < 2) {
-      setStatusMessage({ type: 'error', text: 'Callsign must be at least 2 characters.' });
-      return;
-    }
-
-    setIsSaving(true);
-    setStatusMessage(null);
-
-    try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
-      if (authToken) {
-        headers['authorization'] = `Bearer ${authToken}`;
-      }
-
-      const res = await fetch('/api/player/profile', {
+      const response = await fetch('/api/player/profile', {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
-          playerId: player?.id,
-          displayName: displayName.trim(),
-          avatarUrl,
+          playerId: data?.player.id,
+          displayName,
+          avatarPresetKey,
+          avatarUrl: getAvatarPresetPath(avatarPresetKey),
           selectedStartingPath,
-          tagline: tagline.trim() || undefined,
-          bio: bio.trim() || undefined,
-          hometown: hometown.trim() || undefined,
-          themeColor,
-          favoriteStyle,
-          selectedFlair,
-          isMinor,
+          profileVisibility,
+          playerImageVisibility,
+          profileImageCropZoom: cropZoom,
+          profileImageCropX: cropX,
+          profileImageCropY: cropY,
+          featuredBadgeSlugs,
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Failed to update profile.');
-      }
-
-      setPlayer(data.player);
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
-        window.localStorage.setItem('canton_player_profile', JSON.stringify(data.player));
-      }
-
-      setIsEditing(false);
-      setStatusMessage({ type: 'success', text: 'Agent Profile updated successfully!' });
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err.message || 'Error updating profile.' });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Profile save failed.');
+      setMessage({ type: 'success', text: 'Command Center profile saved.' });
+      await loadCommandCenter();
+    } catch (error) {
+      setMessage({ type: 'error', text: getErrorMessage(error, 'Profile save failed.') });
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
-  const earnedAchievementSlugs = new Set(achievements.map((a) => a.achievementSlug || a.achievement?.slug));
-
-  const pathBadgeConfig: Record<StartingPath, { label: string; icon: any; color: string; area: string }> = {
-    family: { label: 'Family (Arts District)', icon: Compass, color: '#f59e0b', area: 'Arts District' },
-    challenge: { label: 'Challenge (Mother Goose Land)', icon: Zap, color: '#ef4444', area: 'Mother Goose Land' },
-    secret: { label: 'Secret (Monument Park)', icon: KeyRound, color: '#a855f7', area: 'Monument Park' },
+  const chooseFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+    setPendingFile(file);
+    setPendingPreviewUrl(file ? URL.createObjectURL(file) : null);
   };
 
-  const currentPathMeta = pathBadgeConfig[selectedStartingPath] || pathBadgeConfig.family;
-  const CurrentPathIcon = currentPathMeta.icon;
+  const uploadPhoto = async () => {
+    if (!pendingFile) return;
+    setUploading(true);
+    setMessage(null);
+    try {
+      const form = new FormData();
+      form.set('file', pendingFile);
+      form.set('cropZoom', String(cropZoom));
+      form.set('cropX', String(cropX));
+      form.set('cropY', String(cropY));
+      const response = await fetch('/api/player/profile-image', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: form,
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Upload failed.');
+      setPendingFile(null);
+      if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+      setPendingPreviewUrl(null);
+      setMessage({ type: 'success', text: 'Player image uploaded.' });
+      await loadCommandCenter();
+    } catch (error) {
+      setMessage({ type: 'error', text: getErrorMessage(error, 'Upload failed.') });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = async () => {
+    setUploading(true);
+    setMessage(null);
+    try {
+      const response = await fetch('/api/player/profile-image', { method: 'DELETE', headers: authHeaders() });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Remove failed.');
+      setMessage({ type: 'success', text: 'Custom player image removed.' });
+      await loadCommandCenter();
+    } catch (error) {
+      setMessage({ type: 'error', text: getErrorMessage(error, 'Remove failed.') });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const toggleFeaturedBadge = (slug: string) => {
+    setFeaturedBadgeSlugs((current) => {
+      if (current.includes(slug)) return current.filter((item) => item !== slug);
+      if (current.length >= PLAYER_CARD_BADGE_SLOT_COUNT) return current;
+      return [...current, slug];
+    });
+  };
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-body antialiased">
+    <div className="min-h-screen bg-[#080b10] text-stone-100 flex flex-col font-body antialiased">
       <CinematicNav eventHref="/events/canton-weekend-1" />
-
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">
-        {/* Back Link & Header */}
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <Link
-            href="/quests"
-            className="inline-flex items-center gap-1.5 text-xs font-mono text-stone-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft size={14} />
-            <span>Back to Live Quests</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-mono text-emerald-400">Agent Network Connected</span>
+      <main className="cq-command-shell">
+        <div className="cq-command-hero">
+          <div>
+            <p className="cq-command-eyebrow">Authenticated Player Command Center</p>
+            <h1>{data?.player.displayName || 'Canton Agent'}</h1>
           </div>
+          <Link href="/quests" className="cq-command-primary-link">
+            <Compass size={18} />
+            <span>All Quests</span>
+          </Link>
         </div>
 
-        {/* Status Toast */}
-        {statusMessage && (
-          <div
-            className={`p-3.5 mb-6 rounded-xl border text-xs font-mono flex items-center gap-2 ${
-              statusMessage.type === 'success'
-                ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
-                : 'bg-red-950/80 border-red-500/50 text-red-300'
-            }`}
-          >
-            {statusMessage.type === 'success' ? <CheckCircle2 size={16} /> : <span>⚠️</span>}
-            <span>{statusMessage.text}</span>
+        {message && (
+          <div className={`cq-command-alert ${message.type === 'success' ? 'is-success' : 'is-error'}`} role="status">
+            {message.type === 'success' ? <CheckCircle2 size={18} /> : <ShieldCheck size={18} />}
+            <span>{message.text}</span>
           </div>
         )}
 
-        {/* AGENT IDENTITY CARD */}
-        <div className="glass-panel p-6 rounded-3xl border border-stone-800 bg-stone-900/90 shadow-2xl mb-8 relative overflow-hidden">
-          <Image
-            src={cqImages.playerProfileBg}
-            alt=""
-            fill
-            sizes="(max-width: 1024px) 100vw, 1000px"
-            className="object-cover opacity-15 pointer-events-none"
-          />
-          <div
-            className="absolute top-0 left-0 right-0 h-1.5 z-10"
-            style={{ backgroundColor: player?.themeColor || themeColor }}
-          />
-
-          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
-            {/* Avatar & Core Bio */}
-            <div className="flex items-center gap-4">
-              <div
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-stone-950 border-2 flex items-center justify-center text-3xl sm:text-4xl shrink-0 shadow-inner"
-                style={{ borderColor: player?.themeColor || themeColor }}
-              >
-                {avatarUrl}
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h1 className="font-display font-black text-2xl sm:text-3xl text-white tracking-tight">
-                    {player?.displayName || 'Canton Agent'}
-                  </h1>
-                  {player?.selectedFlair && (
-                    <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                      ★ {player.selectedFlair}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs font-mono">
-                  <span className="px-2 py-0.5 rounded bg-stone-800 text-stone-300 border border-stone-700">
-                    Level {player?.level || 1}
-                  </span>
-                  <span className="text-amber-400 font-bold">
-                    {player?.totalXp || 0} Total XP
-                  </span>
-                  <span className="text-stone-400">
-                    {achievements.length} Achievements
-                  </span>
-                </div>
-
-                {player?.tagline && (
-                  <p className="text-xs text-stone-300 italic mt-2 font-body">
-                    &quot;{player.tagline}&quot;
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Edit Profile & Sign Out Buttons */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsEditing(!isEditing)}
-                className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-600 text-white text-xs font-mono font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer"
-              >
-                <Edit3 size={14} className="text-amber-400" />
-                <span>{isEditing ? 'Cancel Edit' : 'Edit Profile'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="px-3.5 py-2 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 text-red-300 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                title="Sign out of Canton Quests"
-              >
-                <span>Sign Out</span>
-              </button>
-            </div>
+        {loading ? (
+          <div className="cq-command-loading">Opening encrypted field terminal...</div>
+        ) : !data ? (
+          <div className="cq-command-loading">
+            <p>Authentication required.</p>
+            <Link href="/" className="cq-command-primary-link">Return to Start</Link>
           </div>
-
-          {/* Starting Path & District Summary Pill */}
-          <div className="mt-5 pt-4 border-t border-stone-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span
-                className="p-1.5 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: `${currentPathMeta.color}20`, color: currentPathMeta.color }}
-              >
-                <CurrentPathIcon size={16} />
-              </span>
-              <div>
-                <div className="font-mono font-bold text-white flex items-center gap-1.5">
-                  <span>Starting Path: {currentPathMeta.label}</span>
+        ) : (
+          <form onSubmit={saveProfile} className="cq-command-grid">
+            <section className="cq-player-card-panel" aria-label="Player ID Card preview">
+              <div className="cq-player-card-wrap">
+                <Image
+                  src="/canton-quests/player_card.png"
+                  alt=""
+                  fill
+                  priority
+                  sizes="(max-width: 640px) 96vw, 420px"
+                  className="cq-player-card-art"
+                />
+                <div
+                  className="cq-card-photo"
+                  style={{
+                    backgroundImage: `url(${avatarImage})`,
+                    backgroundSize: `${cropZoom * 100}%`,
+                    backgroundPosition: `${cropX}% ${cropY}%`,
+                  }}
+                  role="img"
+                  aria-label={`${displayName || 'Player'} avatar preview`}
+                />
+                <div className="cq-card-callsign">{displayName || 'Canton Agent'}</div>
+                <div className="cq-card-path">{data.startingDistrict.label}</div>
+                <div className="cq-card-district">{data.startingDistrict.district}</div>
+                <div className="cq-card-stat cq-card-xp">{data.stats.totalXp}</div>
+                <div className="cq-card-stat cq-card-rank">{data.stats.cityRank ? `#${data.stats.cityRank}` : 'Unranked'}</div>
+                <div className="cq-card-stat cq-card-completed">{data.stats.completedQuests}</div>
+                <div className="cq-card-stat cq-card-entries">{data.stats.prizeEntries}</div>
+                <div className="cq-card-member">Since {formatDate(data.player.createdAt)}</div>
+                <div className="cq-card-badges">
+                  {Array.from({ length: data.badges.maxFeatured }).map((_, index) => {
+                    const badge = featuredBadges[index];
+                    return (
+                      <div key={index} className="cq-card-badge-slot">
+                        {badge && <Image src={badge.iconPath} alt={badge.name} width={42} height={42} />}
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="text-stone-400 text-[11px] font-mono">
-                  {currentPathMeta.area}
+              </div>
+            </section>
+
+            <section className="cq-command-section cq-next-move" aria-labelledby="next-move-heading">
+              <div className="cq-command-section-head">
+                <h2 id="next-move-heading">Commander&apos;s Next Move</h2>
+                <Zap size={18} />
+              </div>
+              {nextMove ? (
+                <Link href={`/events/canton-weekend-1/quests/${nextMove.id}`} className="cq-next-move-card">
+                  <span>{nextMove.location?.name || data.startingDistrict.district}</span>
+                  <strong>{nextMove.title}</strong>
+                  <em>{nextMove.xpReward || nextMove.pointValue} XP // {nextMove.verificationType}</em>
+                </Link>
+              ) : (
+                <p className="cq-empty-state">No open recommendation. The full city board remains available.</p>
+              )}
+              <div className="cq-starting-district" style={{ borderColor: data.startingDistrict.color }}>
+                <Map size={18} />
+                <div>
+                  <span>Starting District</span>
+                  <strong>{data.startingDistrict.district}</strong>
                 </div>
               </div>
-            </div>
+              <p className="cq-open-city-copy">Your path recommends where to begin. The entire city remains open.</p>
+            </section>
 
-            <div className="flex items-center gap-2 font-mono text-[11px] text-stone-400">
-              <span className="px-2 py-1 rounded bg-stone-950 border border-stone-800">
-                Acquisition: {player?.acquisitionSource || 'main_site'}
-              </span>
-              <span className="px-2 py-1 rounded bg-stone-950 border border-stone-800">
-                Leaderboard: Individual City Grid
-              </span>
-            </div>
-          </div>
-        </div>
+            <section className="cq-command-stats" aria-label="Player stats">
+              {[
+                ['XP', data.stats.totalXp],
+                ['City Rank', data.stats.cityRank ? `#${data.stats.cityRank}` : 'Unranked'],
+                ['Completed', data.stats.completedQuests],
+                ['Prize Entries', data.stats.prizeEntries],
+                ['BADGES', data.stats.badgesEarned],
+              ].map(([label, value]) => (
+                <div key={label} className="cq-command-stat">
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </section>
 
-        {/* PROFILE EDIT FORM (OPTIONAL PERSONALIZATION) */}
-        {isEditing && (
-          <form
-            onSubmit={handleSaveProfile}
-            className="glass-panel p-6 rounded-3xl border border-amber-500/40 bg-stone-900/95 shadow-2xl mb-8 space-y-5 animate-fadeIn"
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-stone-800">
-              <h2 className="font-display font-black text-lg text-white uppercase tracking-tight flex items-center gap-2">
-                <Palette size={18} className="text-amber-400" />
-                <span>Customize Agent Profile (Optional)</span>
-              </h2>
-              <span className="text-xs font-mono text-stone-400">
-                Personalization is 100% optional
-              </span>
-            </div>
+            <QuestList title="Recommended Quests" quests={data.quests.startingDistrict} />
+            <QuestList title="Other Districts / Citywide Access" quests={data.quests.citywide} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Callsign */}
-              <div>
-                <label className="block text-xs font-mono font-bold text-stone-300 mb-1">
-                  Callsign / Display Name *
-                </label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  maxLength={30}
-                  required
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white font-mono text-sm focus:outline-none focus:border-amber-400"
-                />
+            <section className="cq-command-section" aria-labelledby="district-progress-heading">
+              <div className="cq-command-section-head">
+                <h2 id="district-progress-heading">District Progress</h2>
               </div>
-
-              {/* Tagline */}
-              <div>
-                <label className="block text-xs font-mono font-bold text-stone-300 mb-1">
-                  Player Motto / Tagline
-                </label>
-                <input
-                  type="text"
-                  value={tagline}
-                  onChange={(e) => setTagline(e.target.value)}
-                  placeholder="e.g. Always looking up. Solver of ciphers."
-                  maxLength={60}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white font-mono text-sm focus:outline-none focus:border-amber-400"
-                />
+              <div className="cq-progress-stack">
+                {data.districtProgress.map((district) => {
+                  const pct = district.total ? Math.round((district.completed / district.total) * 100) : 0;
+                  return (
+                    <div key={district.path} className="cq-progress-row">
+                      <span>{district.label}</span>
+                      <strong>{district.completed} / {district.total}</strong>
+                      <div><i style={{ width: `${pct}%` }} /></div>
+                    </div>
+                  );
+                })}
               </div>
+            </section>
 
-              {/* Starting Path Choice */}
-              <div>
-                <label className="block text-xs font-mono font-bold text-stone-300 mb-1">
-                  Starting Path District
-                </label>
-                <select
-                  value={selectedStartingPath}
-                  onChange={(e) => setSelectedStartingPath(e.target.value as StartingPath)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white font-mono text-sm focus:outline-none focus:border-amber-400"
-                >
-                  <option value="family">Family (Arts District)</option>
-                  <option value="challenge">Challenge (Mother Goose Land)</option>
-                  <option value="secret">Secret (Monument Park)</option>
-                </select>
-                <p className="text-[10px] text-stone-400 mt-1">
-                  Paths determine starting recommendations, never restrict which quests you can solve.
-                </p>
+            <section className="cq-command-section" aria-labelledby="badges-heading">
+              <div className="cq-command-section-head">
+                <h2 id="badges-heading">BADGES</h2>
+                <BadgeCheck size={18} />
               </div>
-
-              {/* Title Flair */}
-              <div>
-                <label className="block text-xs font-mono font-bold text-stone-300 mb-1">
-                  Title Flair
-                </label>
-                <select
-                  value={selectedFlair}
-                  onChange={(e) => setSelectedFlair(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white font-mono text-sm focus:outline-none focus:border-amber-400"
-                >
-                  {FLAIR_OPTIONS.map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Hometown */}
-              <div>
-                <label className="block text-xs font-mono font-bold text-stone-300 mb-1">
-                  Hometown / Area
-                </label>
-                <input
-                  type="text"
-                  value={hometown}
-                  onChange={(e) => setHometown(e.target.value)}
-                  placeholder="e.g. Downtown Canton, North Canton, Massillon"
-                  maxLength={40}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white font-mono text-sm focus:outline-none focus:border-amber-400"
-                />
-              </div>
-
-              {/* Favorite Play Style */}
-              <div>
-                <label className="block text-xs font-mono font-bold text-stone-300 mb-1">
-                  Preferred Play Style
-                </label>
-                <select
-                  value={favoriteStyle}
-                  onChange={(e) => setFavoriteStyle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white font-mono text-sm focus:outline-none focus:border-amber-400"
-                >
-                  {PLAY_STYLES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Avatar Selection */}
-            <div>
-              <label className="block text-xs font-mono font-bold text-stone-300 mb-1.5">
-                Choose Avatar Symbol
-              </label>
-              <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                {AVATAR_OPTIONS.map((emoji) => (
+              <p className="cq-section-note">Select up to {data.badges.maxFeatured} earned BADGES for the round ID Card slots.</p>
+              <div className="cq-badge-grid">
+                {data.badges.catalog.map((badge) => (
                   <button
-                    key={emoji}
                     type="button"
-                    onClick={() => setAvatarUrl(emoji)}
-                    className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center border transition-all shrink-0 ${
-                      avatarUrl === emoji
-                        ? 'border-amber-400 bg-amber-500/20 scale-110 shadow-md'
-                        : 'border-stone-800 bg-stone-950 hover:bg-stone-800'
-                    }`}
+                    key={badge.slug}
+                    disabled={!badge.earned}
+                    onClick={() => toggleFeaturedBadge(badge.slug)}
+                    className={`cq-badge-button ${badge.earned ? 'is-earned' : 'is-locked'} ${featuredBadgeSlugs.includes(badge.slug) ? 'is-featured' : ''}`}
                   >
-                    {emoji}
+                    <Image src={badge.iconPath} alt="" width={44} height={44} />
+                    <span>{badge.name}</span>
+                    <em>{badge.earned ? `${badge.rarity}${badge.earnedAt ? ` // ${formatDate(badge.earnedAt)}` : ''}` : 'Locked'}</em>
                   </button>
                 ))}
               </div>
-            </div>
+            </section>
 
-            {/* Theme Color Selection */}
-            <div>
-              <label className="block text-xs font-mono font-bold text-stone-300 mb-1.5">
-                Theme Color Accent
-              </label>
-              <div className="flex items-center gap-3">
-                {THEME_COLORS.map((c) => (
-                  <button
-                    key={c.hex}
-                    type="button"
-                    onClick={() => setThemeColor(c.hex)}
-                    className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center ${
-                      themeColor === c.hex ? 'scale-125 border-white shadow-lg' : 'border-transparent opacity-70 hover:opacity-100'
-                    }`}
-                    style={{ backgroundColor: c.hex }}
-                    aria-label={`Select ${c.name}`}
-                  />
-                ))}
+            <section className="cq-command-section" aria-labelledby="activity-heading">
+              <div className="cq-command-section-head">
+                <h2 id="activity-heading">Recent Field Activity</h2>
               </div>
-            </div>
+              {data.recentActivity.length === 0 ? (
+                <p className="cq-empty-state">No verified activity yet. Start with the recommended district signal.</p>
+              ) : (
+                <div className="cq-activity-list">
+                  {data.recentActivity.map((item) => (
+                    <div key={item.id}>
+                      <span>{item.label}</span>
+                      <strong>{item.detail}</strong>
+                      <em>{formatDate(item.occurredAt)}</em>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
-            {/* Bio */}
-            <div>
-              <label className="block text-xs font-mono font-bold text-stone-300 mb-1">
-                Bio / Field Notes
-              </label>
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Tell fellow Canton explorers about yourself..."
-                rows={2}
-                maxLength={200}
-                className="w-full px-3.5 py-2 rounded-xl bg-stone-950 border border-stone-700 text-white font-mono text-xs focus:outline-none focus:border-amber-400"
-              />
-            </div>
+            <section className="cq-command-section" aria-labelledby="settings-heading">
+              <div className="cq-command-section-head">
+                <h2 id="settings-heading">Profile / Privacy Settings</h2>
+                <Lock size={18} />
+              </div>
+              <div className="cq-settings-grid">
+                <label>
+                  <span>Callsign</span>
+                  <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={30} required />
+                </label>
+                <label>
+                  <span>Starting Path</span>
+                  <select value={selectedStartingPath} onChange={(event) => setSelectedStartingPath(event.target.value as StartingPath)}>
+                    {pathOptions.map((path) => (
+                      <option key={path.value} value={path.value}>{path.label} • {path.district}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Profile Visibility</span>
+                  <select value={profileVisibility} onChange={(event) => setProfileVisibility(event.target.value as 'public' | 'private')}>
+                    <option value="public">Public</option>
+                    <option value="private">Private</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Player Image Visibility</span>
+                  <select value={playerImageVisibility} onChange={(event) => setPlayerImageVisibility(event.target.value as 'public' | 'private')}>
+                    <option value="private">Hide my player image publicly</option>
+                    <option value="public">Show my player image publicly</option>
+                  </select>
+                </label>
+              </div>
 
-            {/* Minor Toggle */}
-            <div className="pt-2 border-t border-stone-800">
-              <label className="flex items-center gap-3 cursor-pointer text-xs font-mono text-cyan-300">
-                <input
-                  type="checkbox"
-                  checked={isMinor}
-                  onChange={(e) => setIsMinor(e.target.checked)}
-                  className="w-4 h-4 rounded border-stone-700 bg-stone-950 text-cyan-400"
-                />
-                <span>
-                  Minor participant designation (under 18) — Applies strict privacy protection on public recap boards.
-                </span>
-              </label>
-            </div>
+              <div className="cq-avatar-controls">
+                <div>
+                  <h3><User size={16} /> CQ Avatar Presets</h3>
+                  <div className="cq-avatar-grid">
+                    {PLAYER_AVATAR_PRESETS.map((key) => (
+                      <button
+                        type="button"
+                        key={key}
+                        onClick={() => setAvatarPresetKey(key)}
+                        className={avatarPresetKey === key ? 'is-selected' : ''}
+                        aria-label={`Select CQ avatar ${key}`}
+                      >
+                        <Image src={`/canton-quests/${key}.png`} alt="" width={58} height={58} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Save Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-stone-800">
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-mono font-bold"
-              >
-                Cancel
+                <div>
+                  <h3><Camera size={16} /> Custom Player Image</h3>
+                  <label className="cq-file-picker">
+                    <ImagePlus size={18} />
+                    <span>{pendingFile ? pendingFile.name : 'Choose image'}</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseFile} />
+                  </label>
+                  <div className="cq-range-grid">
+                    <label><span>Zoom</span><input type="range" min="1" max="3" step="0.05" value={cropZoom} onChange={(event) => setCropZoom(Number(event.target.value))} /></label>
+                    <label><span>Horizontal</span><input type="range" min="0" max="100" value={cropX} onChange={(event) => setCropX(Number(event.target.value))} /></label>
+                    <label><span>Vertical</span><input type="range" min="0" max="100" value={cropY} onChange={(event) => setCropY(Number(event.target.value))} /></label>
+                  </div>
+                  <div className="cq-button-row">
+                    <button type="button" onClick={uploadPhoto} disabled={!pendingFile || uploading}><Upload size={16} />Upload</button>
+                    <button type="button" onClick={removePhoto} disabled={uploading || !data.player.profileImagePath}><RotateCcw size={16} />Remove</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="cq-privacy-note">
+                {profileVisibility === 'private' || playerImageVisibility === 'private' ? <EyeOff size={16} /> : <Eye size={16} />}
+                <span>The authenticated owner can always see this card. Public image exposure follows these privacy controls.</span>
+              </div>
+              <button type="submit" disabled={saving} className="cq-save-command">
+                <Save size={18} />
+                <span>{saving ? 'Saving...' : 'Save Command Center'}</span>
               </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-mono font-black uppercase tracking-wider flex items-center gap-2 shadow-lg disabled:opacity-50"
-              >
-                <Save size={14} />
-                <span>{isSaving ? 'Saving...' : 'Save Profile Changes'}</span>
-              </button>
-            </div>
+            </section>
           </form>
         )}
-
-        {/* ACHIEVEMENTS SHELF */}
-        <section className="relative overflow-hidden p-6 rounded-3xl border border-stone-800 bg-stone-950 mb-8 shadow-2xl" aria-labelledby="achievements-heading">
-          <Image
-            src={cqImages.achievementBadges}
-            alt=""
-            fill
-            sizes="(max-width: 1024px) 100vw, 1000px"
-            className="object-cover opacity-10 pointer-events-none"
-          />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <div>
-                <h2 id="achievements-heading" className="font-display font-black text-xl text-white uppercase tracking-tight flex items-center gap-2">
-                  <Award size={20} className="text-amber-400" />
-                  <span>Achievements Shelf</span>
-                </h2>
-                <p className="text-xs text-stone-400 font-mono mt-0.5">
-                  Unlocked badges for district sweeps, starting path mastery, and speed milestones.
-                </p>
-              </div>
-              <span className="text-xs font-mono px-3 py-1 rounded-full bg-stone-900 border border-stone-700 text-amber-300 font-bold">
-                {achievements.length} / {allCatalogAchievements.length} Unlocked
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {allCatalogAchievements.map((ach) => {
-                const isEarned = earnedAchievementSlugs.has(ach.slug);
-                const playerRecord = achievements.find((a) => a.achievementSlug === ach.slug || a.achievement?.slug === ach.slug);
-
-                const rarityColors: Record<string, string> = {
-                  common: 'border-stone-700 text-stone-300',
-                  rare: 'border-cyan-500/50 text-cyan-300 bg-cyan-950/20',
-                  epic: 'border-purple-500/50 text-purple-300 bg-purple-950/20',
-                  legendary: 'border-amber-500/60 text-amber-300 bg-amber-950/30',
-                };
-
-                return (
-                  <div
-                    key={ach.id}
-                    onClick={() => {
-                      if (isEarned) {
-                        showGameMoment({
-                          type: 'achievement',
-                          achievementId: ach.id,
-                          title: ach.name,
-                          description: ach.description,
-                          icon: ach.badgeSymbol,
-                          category: ach.category,
-                        });
-                      }
-                    }}
-                    role={isEarned ? 'button' : undefined}
-                    tabIndex={isEarned ? 0 : undefined}
-                    onKeyDown={(e) => {
-                      if (isEarned && (e.key === 'Enter' || e.key === ' ')) {
-                        showGameMoment({
-                          type: 'achievement',
-                          achievementId: ach.id,
-                          title: ach.name,
-                          description: ach.description,
-                          icon: ach.badgeSymbol,
-                          category: ach.category,
-                        });
-                      }
-                    }}
-                    className={`p-4 rounded-2xl border transition-all ${
-                      isEarned
-                        ? `${rarityColors[ach.rarity] || 'border-amber-500/40 bg-stone-900/90'} shadow-lg cursor-pointer hover:scale-[1.02]`
-                        : 'border-stone-800/80 bg-stone-950/50 opacity-60 cursor-default'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="w-10 h-10 rounded-xl bg-stone-900/90 border border-stone-700 flex items-center justify-center text-xl shrink-0 shadow-inner">
-                        {ach.badgeSymbol}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-stone-700 bg-stone-900 text-stone-300">
-                          {ach.rarity}
-                        </span>
-                        {isEarned ? (
-                          <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
-                        ) : (
-                          <Lock size={13} className="text-stone-500 shrink-0" />
-                        )}
-                      </div>
-                    </div>
-
-                    <h3 className="font-display font-bold text-sm text-white mb-1">
-                      {ach.name}
-                    </h3>
-                    <p className="text-xs text-stone-300 font-body leading-snug">
-                      {ach.description}
-                    </p>
-
-                    {isEarned && playerRecord?.earnedAt && (
-                      <div className="mt-3 pt-2 border-t border-stone-800/80 text-[10px] font-mono text-emerald-400">
-                        ✓ Earned: {new Date(playerRecord.earnedAt).toLocaleDateString()}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* PRIZE DRAWING REWARDS TRANSPARENCY CARD */}
-        <section className="relative overflow-hidden p-6 sm:p-8 rounded-3xl border border-amber-500/30 bg-stone-950 shadow-2xl" aria-labelledby="prize-info-heading">
-          <Image
-            src={cqImages.prizeVault}
-            alt=""
-            fill
-            sizes="(max-width: 1024px) 100vw, 1000px"
-            className="object-cover opacity-15 pointer-events-none"
-          />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <h2 id="prize-info-heading" className="font-display font-black text-lg text-white uppercase tracking-tight flex items-center gap-2">
-                <Trophy size={18} className="text-amber-400" />
-                <span>Transparent Prize Drawing Entries</span>
-              </h2>
-              <Link
-                href="/events/canton-weekend-1/drawing"
-                className="text-xs font-mono text-amber-400 hover:text-amber-300 underline underline-offset-2 font-bold"
-              >
-                Public Drawing Ledger →
-              </Link>
-            </div>
-            <p className="text-xs text-stone-300 leading-relaxed font-body">
-              Every completed quest gives you <strong>1 entry ticket</strong> into the Sunday night automated drawing. Complete 1 quest = 1 entry. Complete 5 quests = 5 entries. Complete 10 quests = 10 entries. Winners are selected through a deterministic, publicly verifiable algorithm.
-            </p>
-          </div>
-        </section>
       </main>
-
       <CinematicFooter />
     </div>
   );

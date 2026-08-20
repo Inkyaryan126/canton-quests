@@ -9,12 +9,12 @@ import { showGameMoment } from '@/lib/game-effects';
 import { cqImages } from '@/lib/marketing-assets';
 
 function sanitizeNextPath(rawNext?: string | null): string {
-  if (!rawNext || typeof rawNext !== 'string') return '/events/canton-weekend-1';
+  if (!rawNext || typeof rawNext !== 'string') return '/profile';
   const trimmed = rawNext.trim();
   if (trimmed.startsWith('/') && !trimmed.startsWith('//') && !trimmed.includes('\\') && !trimmed.includes('\0')) {
     return trimmed;
   }
-  return '/events/canton-weekend-1';
+  return '/profile';
 }
 
 function ConfirmEmailContent() {
@@ -76,7 +76,7 @@ function ConfirmEmailContent() {
         }
       }
 
-      const targetDestination = data.redirectTo || next || '/events/canton-weekend-1';
+      const targetDestination = data.redirectTo || next || '/profile';
       const navigateNext = () => {
         if (router && router.push) {
           router.push(targetDestination);
