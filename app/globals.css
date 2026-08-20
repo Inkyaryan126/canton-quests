@@ -789,9 +789,7 @@ code, pre, .font-mono {
   position: relative;
   height: clamp(76px, 11vw, 138px);
   margin-top: -1px;
-  background:
-    linear-gradient(180deg, transparent 0%, #050607 80%),
-    url('/canton-quests/torn-paper-wide.jpg') center / cover no-repeat;
+  background: linear-gradient(180deg, transparent 0%, #050607 80%);
   filter: contrast(1.12);
 }
 
@@ -890,9 +888,7 @@ code, pre, .font-mono {
   gap: clamp(1rem, 4vw, 3rem);
   padding: clamp(3.5rem, 8vw, 7rem) clamp(1rem, 4vw, 3rem);
   text-align: center;
-  background:
-    linear-gradient(90deg, #050607 0%, rgba(9, 11, 12, 0.84) 50%, #050607 100%),
-    url('/canton-quests/12_city_banner_sunset.png') center / cover no-repeat;
+  background: linear-gradient(90deg, #050607 0%, rgba(9, 11, 12, 0.84) 50%, #050607 100%);
 }
 
 .cq-divider > span {
