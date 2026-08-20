@@ -3346,12 +3346,12 @@ code, pre, .font-mono {
 .cq-card-entries { left: 38%; top: 57.2%; }
 
 .cq-card-badges {
-  left: 14%;
-  right: 14%;
-  bottom: 11.8%;
+  left: 4.6%;
+  right: 4.6%;
+  top: 61.6%;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 9%;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 2.9%;
 }
 
 .cq-card-badge-slot {
@@ -3362,6 +3362,12 @@ code, pre, .font-mono {
   display: grid;
   place-items: center;
   overflow: hidden;
+}
+
+.cq-card-badge-slot img {
+  width: 76%;
+  height: 76%;
+  object-fit: contain;
 }
 
 .cq-command-section {
@@ -3705,4 +3711,3 @@ code, pre, .font-mono {
     min-height: 92px;
   }
 }
-

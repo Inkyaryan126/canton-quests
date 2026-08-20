@@ -11,7 +11,19 @@ import {
 } from './types';
 
 export const PLAYER_AVATAR_PRESETS = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
-export const PLAYER_CARD_BADGE_SLOT_COUNT = 3;
+export const PLAYER_CARD_BADGE_SLOT_COUNT = 6;
+export const CANONICAL_BADGE_ICON_PATHS: Record<string, string> = {
+  'pathfinder-family': '/canton-quests/badges/family.png',
+  'pathfinder-challenge': '/canton-quests/badges/challenge.png',
+  'pathfinder-secret': '/canton-quests/badges/initiated.png',
+  'district-sweep-family': '/canton-quests/badges/day1.png',
+  'district-sweep-challenge': '/canton-quests/badges/oneanddone.png',
+  'district-sweep-secret': '/canton-quests/badges/day2.png',
+  'triple-threat': '/canton-quests/badges/3daysavior.png',
+  nomad: '/canton-quests/badges/finisher.png',
+  'day-one-king': '/canton-quests/badges/first_step.png',
+};
+export const DEFAULT_BADGE_ICON_PATH = '/canton-quests/badges/first_step.png';
 
 export const STARTING_DISTRICTS: Record<
   StartingPath,
@@ -100,19 +112,8 @@ export function validateFeaturedBadges(
   return { ok: true, slugs: normalized };
 }
 
-export function getBadgeIconPath(achievement: Achievement, index = 0) {
-  const seeded: Record<string, string> = {
-    'pathfinder-family': '/canton-quests/badges/family.png',
-    'pathfinder-challenge': '/canton-quests/badges/challenge.png',
-    'pathfinder-secret': '/canton-quests/badges/initiated.png',
-    'district-sweep-family': '/canton-quests/badges/day1.png',
-    'district-sweep-challenge': '/canton-quests/badges/oneanddone.png',
-    'district-sweep-secret': '/canton-quests/badges/day2.png',
-    'triple-threat': '/canton-quests/badges/3daysavior.png',
-    nomad: '/canton-quests/badges/finisher.png',
-    'day-one-king': '/canton-quests/badges/cq_badge_001.png',
-  };
-  return seeded[achievement.slug] || `/canton-quests/badges/cq_badge_${String((index % 120) + 1).padStart(3, '0')}.png`;
+export function getBadgeIconPath(achievement: Achievement) {
+  return CANONICAL_BADGE_ICON_PATHS[achievement.slug] || DEFAULT_BADGE_ICON_PATH;
 }
 
 export function computeDistrictProgress(quests: Quest[], completedQuestIds: string[]): DistrictProgress[] {

@@ -60,9 +60,9 @@ export async function GET(request: Request) {
     const completedQuests = quests.filter((quest) => completedSet.has(quest.id));
     const recommendedQuests = recommendQuests(quests, player, progress);
     const featuredSlugs = sanitizeFeaturedBadges(player.featuredBadgeSlugs || player.showcaseBadges || [], achievements);
-    const badgeCatalog = catalog.map((achievement, index) => ({
+    const badgeCatalog = catalog.map((achievement) => ({
       ...achievement,
-      iconPath: getBadgeIconPath(achievement, index),
+      iconPath: getBadgeIconPath(achievement),
       earned: achievements.some((item) => item.achievementSlug === achievement.slug || item.achievement?.slug === achievement.slug),
       earnedAt: achievements.find((item) => item.achievementSlug === achievement.slug || item.achievement?.slug === achievement.slug)?.earnedAt,
     }));

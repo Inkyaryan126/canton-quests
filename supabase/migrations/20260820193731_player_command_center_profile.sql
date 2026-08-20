@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Canton Quests Migration: Player Command Center Profile Fields
--- Version: 20260820000000
+-- Version: 20260820193731
 -- Description: Adds player card avatar/photo/privacy/featured BADGE metadata
 --              and a private Supabase Storage bucket for authenticated player
 --              profile images.

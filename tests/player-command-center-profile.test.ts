@@ -7,8 +7,10 @@ import {
   countPrizeEntries,
   getPlayerCityRank,
   getStartingDistrict,
+  getBadgeIconPath,
   PLAYER_AVATAR_PRESETS,
   PLAYER_CARD_BADGE_SLOT_COUNT,
+  CANONICAL_BADGE_ICON_PATHS,
   recommendQuests,
   sanitizeFeaturedBadges,
   shouldExposePlayerImage,
@@ -168,8 +170,40 @@ describe('Player Command Center profile rules', () => {
   });
 
   it('caps featured BADGES to the visible round card slots', () => {
-    expect(PLAYER_CARD_BADGE_SLOT_COUNT).toBe(3);
-    expect(validateFeaturedBadges(['a', 'b', 'c', 'd'], [])).toMatchObject({ ok: false });
+    const sixEarned = Array.from({ length: 6 }, (_, index) => ({
+      ...earned[0],
+      id: `pa-${index}`,
+      achievementSlug: `badge-${index}`,
+      achievement: { ...achievement, id: `ach-${index}`, slug: `badge-${index}` },
+    }));
+
+    expect(PLAYER_CARD_BADGE_SLOT_COUNT).toBe(6);
+    expect(validateFeaturedBadges(sixEarned.map((item) => item.achievementSlug), sixEarned)).toMatchObject({ ok: true });
+    expect(validateFeaturedBadges([...sixEarned.map((item) => item.achievementSlug), 'badge-6'], [
+      ...sixEarned,
+      {
+        ...earned[0],
+        id: 'pa-6',
+        achievementSlug: 'badge-6',
+        achievement: { ...achievement, id: 'ach-6', slug: 'badge-6' },
+      },
+    ])).toMatchObject({ ok: false });
+  });
+
+  it('uses an explicit canonical badge asset map instead of index-derived numbered fallbacks', () => {
+    expect(Object.keys(CANONICAL_BADGE_ICON_PATHS).sort()).toEqual([
+      'day-one-king',
+      'district-sweep-challenge',
+      'district-sweep-family',
+      'district-sweep-secret',
+      'nomad',
+      'pathfinder-challenge',
+      'pathfinder-family',
+      'pathfinder-secret',
+      'triple-threat',
+    ]);
+    expect(getBadgeIconPath(achievement)).toBe('/canton-quests/badges/challenge.png');
+    expect(getBadgeIconPath({ ...achievement, slug: 'future-badge' })).toBe('/canton-quests/badges/first_step.png');
   });
 
   it('respects player image privacy for public exposure while allowing the owner to see their image', () => {
@@ -212,6 +246,7 @@ describe('Player Command Center profile rules', () => {
     expect(profileSource).toContain('cq-card-callsign');
     expect(profileSource).toContain('cq-card-badge-slot');
     expect(cssSource).toContain('aspect-ratio: 2 / 3');
+    expect(cssSource).toContain('grid-template-columns: repeat(6, minmax(0, 1fr))');
     expect(cssSource).toContain('@media (max-width: 520px)');
     expect(cssSource).toContain('overflow-wrap: anywhere');
   });
