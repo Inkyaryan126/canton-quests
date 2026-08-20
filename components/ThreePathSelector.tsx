@@ -159,18 +159,16 @@ export default function ThreePathSelector({
   };
 
   return (
-    <section id="choose-path" className="w-full my-8 scroll-mt-20" aria-labelledby="three-paths-heading">
-      <div className="text-center max-w-2xl mx-auto mb-8 px-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold tracking-wider uppercase mb-3">
-          <Sparkles size={14} className="text-amber-400" />
-          <span>THREE DOORS • ONE CITY GRID</span>
-        </div>
-        <h2 id="three-paths-heading" className="font-display font-extrabold text-2xl sm:text-3xl text-white uppercase tracking-tight">
+    <section id="choose-path" className="w-full mt-2 mb-8 scroll-mt-20" aria-labelledby="three-paths-heading">
+      <div className="text-center max-w-xl mx-auto mb-5 px-4">
+        <span className="inline-block text-[11px] font-mono font-bold tracking-widest text-amber-400 uppercase mb-1.5">
+          THREE DOORS. ONE CITY.
+        </span>
+        <h2 id="three-paths-heading" className="font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tight">
           Choose Your Starting Path
         </h2>
-        <p className="text-sm text-stone-300 mt-2 font-body leading-relaxed">
-          Click the <strong>Red</strong> (Challenge), <strong>Gold</strong> (Family), or <strong>Purple</strong> (Secret) door below.
-          Your starting choice shapes your first missions, but <strong>all quests remain open</strong> to every player on one unified leaderboard!
+        <p className="text-sm text-stone-300 mt-1.5 font-body leading-snug">
+          Pick the door that fits your style. Your starting path gives you your first mission and identity — but every quest in Canton stays open to you.
         </p>
       </div>
 
