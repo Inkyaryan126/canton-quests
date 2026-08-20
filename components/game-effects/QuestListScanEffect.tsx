@@ -18,6 +18,16 @@ export default function QuestListScanEffect({
   className = '',
 }: QuestListScanEffectProps) {
   const [isScanning, setIsScanning] = useState(false);
+  const scanTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (scanTimerRef.current) {
+        clearTimeout(scanTimerRef.current);
+        scanTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const triggerScan = React.useCallback((manual = true) => {
     setIsScanning(true);
@@ -28,8 +38,12 @@ export default function QuestListScanEffect({
       manualTrigger: manual,
     });
 
-    setTimeout(() => {
+    if (scanTimerRef.current) {
+      clearTimeout(scanTimerRef.current);
+    }
+    scanTimerRef.current = setTimeout(() => {
       setIsScanning(false);
+      scanTimerRef.current = null;
     }, 1100);
   }, [districtName, questCount]);
 

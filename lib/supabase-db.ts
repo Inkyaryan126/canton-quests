@@ -1216,27 +1216,6 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
         throw new Error(scoreInsert.error.message);
       }
 
-      if (!isDuplicateScore) {
-        awardedPoints = verification.awardedPoints;
-        const { data: player } = await supabaseAdmin
-          .from('players')
-          .select('total_xp')
-          .eq('id', trustedPlayerId)
-          .single();
-        const nextTotalXp = Math.max(0, (player?.total_xp || 0) + awardedPoints);
-        await supabaseAdmin
-          .from('players')
-          .update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 })
-          .eq('id', trustedPlayerId);
-      }
-
-      try {
-        const newLeaderboard = await getLeaderboardDB(trustedParams.eventId);
-        newRank = newLeaderboard.find((e) => e.playerId === trustedPlayerId)?.rank;
-      } catch {
-        // Fallback
-      }
-
       const drawingUpsert = await supabaseAdmin.from('drawing_entry_ledger').upsert(
         {
           event_id: trustedParams.eventId,
@@ -1251,11 +1230,48 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
       );
       if (drawingUpsert.error) {
         // Transactional rollback on failed drawing ledger upsert (e.g. database lock trigger)
+        // Player total_xp has not been mutated yet, ensuring total_xp never diverges
         await supabaseAdmin.from('score_ledger').delete().eq('submission_id', dbSub.id);
         await supabaseAdmin.from('quest_submissions').delete().eq('id', dbSub.id);
         throw new Error(`Drawing entry rejected: ${drawingUpsert.error.message}`);
       }
-      drawingEntriesAwarded = awardedPoints > 0 ? verification.drawingEntriesAwarded : 0;
+      drawingEntriesAwarded = verification.drawingEntriesAwarded;
+
+      if (!isDuplicateScore) {
+        awardedPoints = verification.awardedPoints;
+        const { data: player, error: playerFetchError } = await supabaseAdmin
+          .from('players')
+          .select('total_xp')
+          .eq('id', trustedPlayerId)
+          .single();
+
+        if (playerFetchError) {
+          await supabaseAdmin.from('drawing_entry_ledger').delete().eq('submission_id', dbSub.id);
+          await supabaseAdmin.from('score_ledger').delete().eq('submission_id', dbSub.id);
+          await supabaseAdmin.from('quest_submissions').delete().eq('id', dbSub.id);
+          throw new Error(`Failed to read player profile: ${playerFetchError.message}`);
+        }
+
+        const nextTotalXp = Math.max(0, (player?.total_xp || 0) + awardedPoints);
+        const { error: playerUpdateError } = await supabaseAdmin
+          .from('players')
+          .update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 })
+          .eq('id', trustedPlayerId);
+
+        if (playerUpdateError) {
+          await supabaseAdmin.from('drawing_entry_ledger').delete().eq('submission_id', dbSub.id);
+          await supabaseAdmin.from('score_ledger').delete().eq('submission_id', dbSub.id);
+          await supabaseAdmin.from('quest_submissions').delete().eq('id', dbSub.id);
+          throw new Error(`Failed to update player XP: ${playerUpdateError.message}`);
+        }
+      }
+
+      try {
+        const newLeaderboard = await getLeaderboardDB(trustedParams.eventId);
+        newRank = newLeaderboard.find((e) => e.playerId === trustedPlayerId)?.rank;
+      } catch {
+        // Fallback
+      }
 
       // Evaluate achievements
       try {

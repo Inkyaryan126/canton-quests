@@ -469,8 +469,8 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
     });
   });
 
-  describe('9. Server-Authoritative Database Integration & Verification', () => {
-    it('getLeaderboardDB returns valid leaderboard entries with ranks', async () => {
+  describe('9. Unified Database / Server Layer Integration & Authoritative Reward Deltas', () => {
+    it('getLeaderboardDB returns valid leaderboard entries with ranks via unified DB layer', async () => {
       const leaderboard = await getLeaderboardDB('canton-weekend-1');
       expect(Array.isArray(leaderboard)).toBe(true);
       if (leaderboard.length > 0) {
@@ -480,7 +480,7 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       }
     });
 
-    it('getPlayerProgressDB derives player progress and finale qualification correctly', async () => {
+    it('getPlayerProgressDB derives player progress and finale qualification correctly via unified DB layer', async () => {
       const player = registerPlayer({
         displayName: `DB_Progress_Agent_${Date.now()}`,
         selectedStartingPath: 'secret',
@@ -493,7 +493,7 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(typeof progress.rank).toBe('number');
     });
 
-    it('evaluatePlayerAchievementsDB evaluates achievements without throwing', async () => {
+    it('evaluatePlayerAchievementsDB evaluates achievements without throwing via unified DB layer', async () => {
       const player = registerPlayer({
         displayName: `DB_Achievement_Agent_${Date.now()}`,
         selectedStartingPath: 'family',
@@ -503,7 +503,7 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(Array.isArray(awarded)).toBe(true);
     });
 
-    it('submitQuestProofDB returns server-authoritative reward deltas and verified completion', async () => {
+    it('submitQuestProofDB returns server-authoritative reward deltas and verified completion via unified DB layer', async () => {
       const player = registerPlayer({
         displayName: `DB_Submit_Agent_${Date.now()}`,
         selectedStartingPath: 'challenge',
@@ -523,6 +523,27 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(res.awardedPoints).toBeGreaterThan(0);
       expect(res.isQuestFullyCompleted).toBe(true);
       expect(res.submission).toBeDefined();
+    });
+  });
+
+  describe('10. Lifecycle Cleanup & Rapid Route Transition Robustness', () => {
+    it('handles rapid sequential triggers and dismissals without leaving stale queue items or timer leaks', () => {
+      for (let i = 0; i < 10; i++) {
+        showGameMoment({
+          type: 'city-scan',
+          targetCount: i + 1,
+        });
+      }
+
+      const state = gameMomentManager.getState();
+      expect(state.currentMoment).not.toBeNull();
+      expect(state.queue.length).toBe(9);
+
+      // Fast-forward / skipAll cleans up timers and empty queue
+      gameMomentManager.skipAll();
+      const clearedState = gameMomentManager.getState();
+      expect(clearedState.currentMoment).toBeNull();
+      expect(clearedState.queue).toHaveLength(0);
     });
   });
 });
