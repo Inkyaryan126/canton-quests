@@ -1,0 +1,1088 @@
+{
+  "total_badges": 120,
+  "set_1_count": 60,
+  "set_2_count": 60,
+  "second_source": "BADGES_60_MASTER_2.png",
+  "badges": [
+    {
+      "index": 1,
+      "filename": "cq_badge_001.png",
+      "set": 1
+    },
+    {
+      "index": 2,
+      "filename": "cq_badge_002.png",
+      "set": 1
+    },
+    {
+      "index": 3,
+      "filename": "cq_badge_003.png",
+      "set": 1
+    },
+    {
+      "index": 4,
+      "filename": "cq_badge_004.png",
+      "set": 1
+    },
+    {
+      "index": 5,
+      "filename": "cq_badge_005.png",
+      "set": 1
+    },
+    {
+      "index": 6,
+      "filename": "cq_badge_006.png",
+      "set": 1
+    },
+    {
+      "index": 7,
+      "filename": "cq_badge_007.png",
+      "set": 1
+    },
+    {
+      "index": 8,
+      "filename": "cq_badge_008.png",
+      "set": 1
+    },
+    {
+      "index": 9,
+      "filename": "cq_badge_009.png",
+      "set": 1
+    },
+    {
+      "index": 10,
+      "filename": "cq_badge_010.png",
+      "set": 1
+    },
+    {
+      "index": 11,
+      "filename": "cq_badge_011.png",
+      "set": 1
+    },
+    {
+      "index": 12,
+      "filename": "cq_badge_012.png",
+      "set": 1
+    },
+    {
+      "index": 13,
+      "filename": "cq_badge_013.png",
+      "set": 1
+    },
+    {
+      "index": 14,
+      "filename": "cq_badge_014.png",
+      "set": 1
+    },
+    {
+      "index": 15,
+      "filename": "cq_badge_015.png",
+      "set": 1
+    },
+    {
+      "index": 16,
+      "filename": "cq_badge_016.png",
+      "set": 1
+    },
+    {
+      "index": 17,
+      "filename": "cq_badge_017.png",
+      "set": 1
+    },
+    {
+      "index": 18,
+      "filename": "cq_badge_018.png",
+      "set": 1
+    },
+    {
+      "index": 19,
+      "filename": "cq_badge_019.png",
+      "set": 1
+    },
+    {
+      "index": 20,
+      "filename": "cq_badge_020.png",
+      "set": 1
+    },
+    {
+      "index": 21,
+      "filename": "cq_badge_021.png",
+      "set": 1
+    },
+    {
+      "index": 22,
+      "filename": "cq_badge_022.png",
+      "set": 1
+    },
+    {
+      "index": 23,
+      "filename": "cq_badge_023.png",
+      "set": 1
+    },
+    {
+      "index": 24,
+      "filename": "cq_badge_024.png",
+      "set": 1
+    },
+    {
+      "index": 25,
+      "filename": "cq_badge_025.png",
+      "set": 1
+    },
+    {
+      "index": 26,
+      "filename": "cq_badge_026.png",
+      "set": 1
+    },
+    {
+      "index": 27,
+      "filename": "cq_badge_027.png",
+      "set": 1
+    },
+    {
+      "index": 28,
+      "filename": "cq_badge_028.png",
+      "set": 1
+    },
+    {
+      "index": 29,
+      "filename": "cq_badge_029.png",
+      "set": 1
+    },
+    {
+      "index": 30,
+      "filename": "cq_badge_030.png",
+      "set": 1
+    },
+    {
+      "index": 31,
+      "filename": "cq_badge_031.png",
+      "set": 1
+    },
+    {
+      "index": 32,
+      "filename": "cq_badge_032.png",
+      "set": 1
+    },
+    {
+      "index": 33,
+      "filename": "cq_badge_033.png",
+      "set": 1
+    },
+    {
+      "index": 34,
+      "filename": "cq_badge_034.png",
+      "set": 1
+    },
+    {
+      "index": 35,
+      "filename": "cq_badge_035.png",
+      "set": 1
+    },
+    {
+      "index": 36,
+      "filename": "cq_badge_036.png",
+      "set": 1
+    },
+    {
+      "index": 37,
+      "filename": "cq_badge_037.png",
+      "set": 1
+    },
+    {
+      "index": 38,
+      "filename": "cq_badge_038.png",
+      "set": 1
+    },
+    {
+      "index": 39,
+      "filename": "cq_badge_039.png",
+      "set": 1
+    },
+    {
+      "index": 40,
+      "filename": "cq_badge_040.png",
+      "set": 1
+    },
+    {
+      "index": 41,
+      "filename": "cq_badge_041.png",
+      "set": 1
+    },
+    {
+      "index": 42,
+      "filename": "cq_badge_042.png",
+      "set": 1
+    },
+    {
+      "index": 43,
+      "filename": "cq_badge_043.png",
+      "set": 1
+    },
+    {
+      "index": 44,
+      "filename": "cq_badge_044.png",
+      "set": 1
+    },
+    {
+      "index": 45,
+      "filename": "cq_badge_045.png",
+      "set": 1
+    },
+    {
+      "index": 46,
+      "filename": "cq_badge_046.png",
+      "set": 1
+    },
+    {
+      "index": 47,
+      "filename": "cq_badge_047.png",
+      "set": 1
+    },
+    {
+      "index": 48,
+      "filename": "cq_badge_048.png",
+      "set": 1
+    },
+    {
+      "index": 49,
+      "filename": "cq_badge_049.png",
+      "set": 1
+    },
+    {
+      "index": 50,
+      "filename": "cq_badge_050.png",
+      "set": 1
+    },
+    {
+      "index": 51,
+      "filename": "cq_badge_051.png",
+      "set": 1
+    },
+    {
+      "index": 52,
+      "filename": "cq_badge_052.png",
+      "set": 1
+    },
+    {
+      "index": 53,
+      "filename": "cq_badge_053.png",
+      "set": 1
+    },
+    {
+      "index": 54,
+      "filename": "cq_badge_054.png",
+      "set": 1
+    },
+    {
+      "index": 55,
+      "filename": "cq_badge_055.png",
+      "set": 1
+    },
+    {
+      "index": 56,
+      "filename": "cq_badge_056.png",
+      "set": 1
+    },
+    {
+      "index": 57,
+      "filename": "cq_badge_057.png",
+      "set": 1
+    },
+    {
+      "index": 58,
+      "filename": "cq_badge_058.png",
+      "set": 1
+    },
+    {
+      "index": 59,
+      "filename": "cq_badge_059.png",
+      "set": 1
+    },
+    {
+      "index": 60,
+      "filename": "cq_badge_060.png",
+      "set": 1
+    },
+    {
+      "index": 61,
+      "filename": "cq_badge_061.png",
+      "set": 2,
+      "row": 1,
+      "column": 1,
+      "source_box": [
+        0,
+        0,
+        162,
+        162
+      ]
+    },
+    {
+      "index": 62,
+      "filename": "cq_badge_062.png",
+      "set": 2,
+      "row": 1,
+      "column": 2,
+      "source_box": [
+        162,
+        0,
+        324,
+        162
+      ]
+    },
+    {
+      "index": 63,
+      "filename": "cq_badge_063.png",
+      "set": 2,
+      "row": 1,
+      "column": 3,
+      "source_box": [
+        324,
+        0,
+        486,
+        162
+      ]
+    },
+    {
+      "index": 64,
+      "filename": "cq_badge_064.png",
+      "set": 2,
+      "row": 1,
+      "column": 4,
+      "source_box": [
+        486,
+        0,
+        648,
+        162
+      ]
+    },
+    {
+      "index": 65,
+      "filename": "cq_badge_065.png",
+      "set": 2,
+      "row": 1,
+      "column": 5,
+      "source_box": [
+        648,
+        0,
+        810,
+        162
+      ]
+    },
+    {
+      "index": 66,
+      "filename": "cq_badge_066.png",
+      "set": 2,
+      "row": 1,
+      "column": 6,
+      "source_box": [
+        810,
+        0,
+        971,
+        162
+      ]
+    },
+    {
+      "index": 67,
+      "filename": "cq_badge_067.png",
+      "set": 2,
+      "row": 1,
+      "column": 7,
+      "source_box": [
+        971,
+        0,
+        1133,
+        162
+      ]
+    },
+    {
+      "index": 68,
+      "filename": "cq_badge_068.png",
+      "set": 2,
+      "row": 1,
+      "column": 8,
+      "source_box": [
+        1133,
+        0,
+        1295,
+        162
+      ]
+    },
+    {
+      "index": 69,
+      "filename": "cq_badge_069.png",
+      "set": 2,
+      "row": 1,
+      "column": 9,
+      "source_box": [
+        1295,
+        0,
+        1457,
+        162
+      ]
+    },
+    {
+      "index": 70,
+      "filename": "cq_badge_070.png",
+      "set": 2,
+      "row": 1,
+      "column": 10,
+      "source_box": [
+        1457,
+        0,
+        1619,
+        162
+      ]
+    },
+    {
+      "index": 71,
+      "filename": "cq_badge_071.png",
+      "set": 2,
+      "row": 2,
+      "column": 1,
+      "source_box": [
+        0,
+        162,
+        162,
+        324
+      ]
+    },
+    {
+      "index": 72,
+      "filename": "cq_badge_072.png",
+      "set": 2,
+      "row": 2,
+      "column": 2,
+      "source_box": [
+        162,
+        162,
+        324,
+        324
+      ]
+    },
+    {
+      "index": 73,
+      "filename": "cq_badge_073.png",
+      "set": 2,
+      "row": 2,
+      "column": 3,
+      "source_box": [
+        324,
+        162,
+        486,
+        324
+      ]
+    },
+    {
+      "index": 74,
+      "filename": "cq_badge_074.png",
+      "set": 2,
+      "row": 2,
+      "column": 4,
+      "source_box": [
+        486,
+        162,
+        648,
+        324
+      ]
+    },
+    {
+      "index": 75,
+      "filename": "cq_badge_075.png",
+      "set": 2,
+      "row": 2,
+      "column": 5,
+      "source_box": [
+        648,
+        162,
+        810,
+        324
+      ]
+    },
+    {
+      "index": 76,
+      "filename": "cq_badge_076.png",
+      "set": 2,
+      "row": 2,
+      "column": 6,
+      "source_box": [
+        810,
+        162,
+        971,
+        324
+      ]
+    },
+    {
+      "index": 77,
+      "filename": "cq_badge_077.png",
+      "set": 2,
+      "row": 2,
+      "column": 7,
+      "source_box": [
+        971,
+        162,
+        1133,
+        324
+      ]
+    },
+    {
+      "index": 78,
+      "filename": "cq_badge_078.png",
+      "set": 2,
+      "row": 2,
+      "column": 8,
+      "source_box": [
+        1133,
+        162,
+        1295,
+        324
+      ]
+    },
+    {
+      "index": 79,
+      "filename": "cq_badge_079.png",
+      "set": 2,
+      "row": 2,
+      "column": 9,
+      "source_box": [
+        1295,
+        162,
+        1457,
+        324
+      ]
+    },
+    {
+      "index": 80,
+      "filename": "cq_badge_080.png",
+      "set": 2,
+      "row": 2,
+      "column": 10,
+      "source_box": [
+        1457,
+        162,
+        1619,
+        324
+      ]
+    },
+    {
+      "index": 81,
+      "filename": "cq_badge_081.png",
+      "set": 2,
+      "row": 3,
+      "column": 1,
+      "source_box": [
+        0,
+        324,
+        162,
+        486
+      ]
+    },
+    {
+      "index": 82,
+      "filename": "cq_badge_082.png",
+      "set": 2,
+      "row": 3,
+      "column": 2,
+      "source_box": [
+        162,
+        324,
+        324,
+        486
+      ]
+    },
+    {
+      "index": 83,
+      "filename": "cq_badge_083.png",
+      "set": 2,
+      "row": 3,
+      "column": 3,
+      "source_box": [
+        324,
+        324,
+        486,
+        486
+      ]
+    },
+    {
+      "index": 84,
+      "filename": "cq_badge_084.png",
+      "set": 2,
+      "row": 3,
+      "column": 4,
+      "source_box": [
+        486,
+        324,
+        648,
+        486
+      ]
+    },
+    {
+      "index": 85,
+      "filename": "cq_badge_085.png",
+      "set": 2,
+      "row": 3,
+      "column": 5,
+      "source_box": [
+        648,
+        324,
+        810,
+        486
+      ]
+    },
+    {
+      "index": 86,
+      "filename": "cq_badge_086.png",
+      "set": 2,
+      "row": 3,
+      "column": 6,
+      "source_box": [
+        810,
+        324,
+        971,
+        486
+      ]
+    },
+    {
+      "index": 87,
+      "filename": "cq_badge_087.png",
+      "set": 2,
+      "row": 3,
+      "column": 7,
+      "source_box": [
+        971,
+        324,
+        1133,
+        486
+      ]
+    },
+    {
+      "index": 88,
+      "filename": "cq_badge_088.png",
+      "set": 2,
+      "row": 3,
+      "column": 8,
+      "source_box": [
+        1133,
+        324,
+        1295,
+        486
+      ]
+    },
+    {
+      "index": 89,
+      "filename": "cq_badge_089.png",
+      "set": 2,
+      "row": 3,
+      "column": 9,
+      "source_box": [
+        1295,
+        324,
+        1457,
+        486
+      ]
+    },
+    {
+      "index": 90,
+      "filename": "cq_badge_090.png",
+      "set": 2,
+      "row": 3,
+      "column": 10,
+      "source_box": [
+        1457,
+        324,
+        1619,
+        486
+      ]
+    },
+    {
+      "index": 91,
+      "filename": "cq_badge_091.png",
+      "set": 2,
+      "row": 4,
+      "column": 1,
+      "source_box": [
+        0,
+        486,
+        162,
+        647
+      ]
+    },
+    {
+      "index": 92,
+      "filename": "cq_badge_092.png",
+      "set": 2,
+      "row": 4,
+      "column": 2,
+      "source_box": [
+        162,
+        486,
+        324,
+        647
+      ]
+    },
+    {
+      "index": 93,
+      "filename": "cq_badge_093.png",
+      "set": 2,
+      "row": 4,
+      "column": 3,
+      "source_box": [
+        324,
+        486,
+        486,
+        647
+      ]
+    },
+    {
+      "index": 94,
+      "filename": "cq_badge_094.png",
+      "set": 2,
+      "row": 4,
+      "column": 4,
+      "source_box": [
+        486,
+        486,
+        648,
+        647
+      ]
+    },
+    {
+      "index": 95,
+      "filename": "cq_badge_095.png",
+      "set": 2,
+      "row": 4,
+      "column": 5,
+      "source_box": [
+        648,
+        486,
+        810,
+        647
+      ]
+    },
+    {
+      "index": 96,
+      "filename": "cq_badge_096.png",
+      "set": 2,
+      "row": 4,
+      "column": 6,
+      "source_box": [
+        810,
+        486,
+        971,
+        647
+      ]
+    },
+    {
+      "index": 97,
+      "filename": "cq_badge_097.png",
+      "set": 2,
+      "row": 4,
+      "column": 7,
+      "source_box": [
+        971,
+        486,
+        1133,
+        647
+      ]
+    },
+    {
+      "index": 98,
+      "filename": "cq_badge_098.png",
+      "set": 2,
+      "row": 4,
+      "column": 8,
+      "source_box": [
+        1133,
+        486,
+        1295,
+        647
+      ]
+    },
+    {
+      "index": 99,
+      "filename": "cq_badge_099.png",
+      "set": 2,
+      "row": 4,
+      "column": 9,
+      "source_box": [
+        1295,
+        486,
+        1457,
+        647
+      ]
+    },
+    {
+      "index": 100,
+      "filename": "cq_badge_100.png",
+      "set": 2,
+      "row": 4,
+      "column": 10,
+      "source_box": [
+        1457,
+        486,
+        1619,
+        647
+      ]
+    },
+    {
+      "index": 101,
+      "filename": "cq_badge_101.png",
+      "set": 2,
+      "row": 5,
+      "column": 1,
+      "source_box": [
+        0,
+        647,
+        162,
+        809
+      ]
+    },
+    {
+      "index": 102,
+      "filename": "cq_badge_102.png",
+      "set": 2,
+      "row": 5,
+      "column": 2,
+      "source_box": [
+        162,
+        647,
+        324,
+        809
+      ]
+    },
+    {
+      "index": 103,
+      "filename": "cq_badge_103.png",
+      "set": 2,
+      "row": 5,
+      "column": 3,
+      "source_box": [
+        324,
+        647,
+        486,
+        809
+      ]
+    },
+    {
+      "index": 104,
+      "filename": "cq_badge_104.png",
+      "set": 2,
+      "row": 5,
+      "column": 4,
+      "source_box": [
+        486,
+        647,
+        648,
+        809
+      ]
+    },
+    {
+      "index": 105,
+      "filename": "cq_badge_105.png",
+      "set": 2,
+      "row": 5,
+      "column": 5,
+      "source_box": [
+        648,
+        647,
+        810,
+        809
+      ]
+    },
+    {
+      "index": 106,
+      "filename": "cq_badge_106.png",
+      "set": 2,
+      "row": 5,
+      "column": 6,
+      "source_box": [
+        810,
+        647,
+        971,
+        809
+      ]
+    },
+    {
+      "index": 107,
+      "filename": "cq_badge_107.png",
+      "set": 2,
+      "row": 5,
+      "column": 7,
+      "source_box": [
+        971,
+        647,
+        1133,
+        809
+      ]
+    },
+    {
+      "index": 108,
+      "filename": "cq_badge_108.png",
+      "set": 2,
+      "row": 5,
+      "column": 8,
+      "source_box": [
+        1133,
+        647,
+        1295,
+        809
+      ]
+    },
+    {
+      "index": 109,
+      "filename": "cq_badge_109.png",
+      "set": 2,
+      "row": 5,
+      "column": 9,
+      "source_box": [
+        1295,
+        647,
+        1457,
+        809
+      ]
+    },
+    {
+      "index": 110,
+      "filename": "cq_badge_110.png",
+      "set": 2,
+      "row": 5,
+      "column": 10,
+      "source_box": [
+        1457,
+        647,
+        1619,
+        809
+      ]
+    },
+    {
+      "index": 111,
+      "filename": "cq_badge_111.png",
+      "set": 2,
+      "row": 6,
+      "column": 1,
+      "source_box": [
+        0,
+        809,
+        162,
+        971
+      ]
+    },
+    {
+      "index": 112,
+      "filename": "cq_badge_112.png",
+      "set": 2,
+      "row": 6,
+      "column": 2,
+      "source_box": [
+        162,
+        809,
+        324,
+        971
+      ]
+    },
+    {
+      "index": 113,
+      "filename": "cq_badge_113.png",
+      "set": 2,
+      "row": 6,
+      "column": 3,
+      "source_box": [
+        324,
+        809,
+        486,
+        971
+      ]
+    },
+    {
+      "index": 114,
+      "filename": "cq_badge_114.png",
+      "set": 2,
+      "row": 6,
+      "column": 4,
+      "source_box": [
+        486,
+        809,
+        648,
+        971
+      ]
+    },
+    {
+      "index": 115,
+      "filename": "cq_badge_115.png",
+      "set": 2,
+      "row": 6,
+      "column": 5,
+      "source_box": [
+        648,
+        809,
+        810,
+        971
+      ]
+    },
+    {
+      "index": 116,
+      "filename": "cq_badge_116.png",
+      "set": 2,
+      "row": 6,
+      "column": 6,
+      "source_box": [
+        810,
+        809,
+        971,
+        971
+      ]
+    },
+    {
+      "index": 117,
+      "filename": "cq_badge_117.png",
+      "set": 2,
+      "row": 6,
+      "column": 7,
+      "source_box": [
+        971,
+        809,
+        1133,
+        971
+      ]
+    },
+    {
+      "index": 118,
+      "filename": "cq_badge_118.png",
+      "set": 2,
+      "row": 6,
+      "column": 8,
+      "source_box": [
+        1133,
+        809,
+        1295,
+        971
+      ]
+    },
+    {
+      "index": 119,
+      "filename": "cq_badge_119.png",
+      "set": 2,
+      "row": 6,
+      "column": 9,
+      "source_box": [
+        1295,
+        809,
+        1457,
+        971
+      ]
+    },
+    {
+      "index": 120,
+      "filename": "cq_badge_120.png",
+      "set": 2,
+      "row": 6,
+      "column": 10,
+      "source_box": [
+        1457,
+        809,
+        1619,
+        971
+      ]
+    }
+  ]
+}

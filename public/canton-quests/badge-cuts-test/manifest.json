@@ -1,0 +1,974 @@
+{
+  "source": "BADGES_60_MASTER.png",
+  "source_size": [
+    1619,
+    971
+  ],
+  "grid": [
+    10,
+    6
+  ],
+  "badge_count": 60,
+  "badges": [
+    {
+      "index": 1,
+      "filename": "badge_001.png",
+      "row": 1,
+      "column": 1,
+      "source_box": [
+        0,
+        0,
+        162,
+        162
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 2,
+      "filename": "badge_002.png",
+      "row": 1,
+      "column": 2,
+      "source_box": [
+        162,
+        0,
+        324,
+        162
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 3,
+      "filename": "badge_003.png",
+      "row": 1,
+      "column": 3,
+      "source_box": [
+        324,
+        0,
+        486,
+        162
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 4,
+      "filename": "badge_004.png",
+      "row": 1,
+      "column": 4,
+      "source_box": [
+        486,
+        0,
+        648,
+        162
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 5,
+      "filename": "badge_005.png",
+      "row": 1,
+      "column": 5,
+      "source_box": [
+        648,
+        0,
+        810,
+        162
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 6,
+      "filename": "badge_006.png",
+      "row": 1,
+      "column": 6,
+      "source_box": [
+        810,
+        0,
+        971,
+        162
+      ],
+      "size": [
+        161,
+        162
+      ]
+    },
+    {
+      "index": 7,
+      "filename": "badge_007.png",
+      "row": 1,
+      "column": 7,
+      "source_box": [
+        971,
+        0,
+        1133,
+        162
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 8,
+      "filename": "badge_008.png",
+      "row": 1,
+      "column": 8,
+      "source_box": [
+        1133,
+        0,
+        1295,
+        162
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 9,
+      "filename": "badge_009.png",
+      "row": 1,
+      "column": 9,
+      "source_box": [
+        1295,
+        0,
+        1457,
+        162
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 10,
+      "filename": "badge_010.png",
+      "row": 1,
+      "column": 10,
+      "source_box": [
+        1457,
+        0,
+        1619,
+        162
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 11,
+      "filename": "badge_011.png",
+      "row": 2,
+      "column": 1,
+      "source_box": [
+        0,
+        162,
+        162,
+        324
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 12,
+      "filename": "badge_012.png",
+      "row": 2,
+      "column": 2,
+      "source_box": [
+        162,
+        162,
+        324,
+        324
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 13,
+      "filename": "badge_013.png",
+      "row": 2,
+      "column": 3,
+      "source_box": [
+        324,
+        162,
+        486,
+        324
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 14,
+      "filename": "badge_014.png",
+      "row": 2,
+      "column": 4,
+      "source_box": [
+        486,
+        162,
+        648,
+        324
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 15,
+      "filename": "badge_015.png",
+      "row": 2,
+      "column": 5,
+      "source_box": [
+        648,
+        162,
+        810,
+        324
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 16,
+      "filename": "badge_016.png",
+      "row": 2,
+      "column": 6,
+      "source_box": [
+        810,
+        162,
+        971,
+        324
+      ],
+      "size": [
+        161,
+        162
+      ]
+    },
+    {
+      "index": 17,
+      "filename": "badge_017.png",
+      "row": 2,
+      "column": 7,
+      "source_box": [
+        971,
+        162,
+        1133,
+        324
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 18,
+      "filename": "badge_018.png",
+      "row": 2,
+      "column": 8,
+      "source_box": [
+        1133,
+        162,
+        1295,
+        324
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 19,
+      "filename": "badge_019.png",
+      "row": 2,
+      "column": 9,
+      "source_box": [
+        1295,
+        162,
+        1457,
+        324
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 20,
+      "filename": "badge_020.png",
+      "row": 2,
+      "column": 10,
+      "source_box": [
+        1457,
+        162,
+        1619,
+        324
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 21,
+      "filename": "badge_021.png",
+      "row": 3,
+      "column": 1,
+      "source_box": [
+        0,
+        324,
+        162,
+        486
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 22,
+      "filename": "badge_022.png",
+      "row": 3,
+      "column": 2,
+      "source_box": [
+        162,
+        324,
+        324,
+        486
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 23,
+      "filename": "badge_023.png",
+      "row": 3,
+      "column": 3,
+      "source_box": [
+        324,
+        324,
+        486,
+        486
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 24,
+      "filename": "badge_024.png",
+      "row": 3,
+      "column": 4,
+      "source_box": [
+        486,
+        324,
+        648,
+        486
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 25,
+      "filename": "badge_025.png",
+      "row": 3,
+      "column": 5,
+      "source_box": [
+        648,
+        324,
+        810,
+        486
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 26,
+      "filename": "badge_026.png",
+      "row": 3,
+      "column": 6,
+      "source_box": [
+        810,
+        324,
+        971,
+        486
+      ],
+      "size": [
+        161,
+        162
+      ]
+    },
+    {
+      "index": 27,
+      "filename": "badge_027.png",
+      "row": 3,
+      "column": 7,
+      "source_box": [
+        971,
+        324,
+        1133,
+        486
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 28,
+      "filename": "badge_028.png",
+      "row": 3,
+      "column": 8,
+      "source_box": [
+        1133,
+        324,
+        1295,
+        486
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 29,
+      "filename": "badge_029.png",
+      "row": 3,
+      "column": 9,
+      "source_box": [
+        1295,
+        324,
+        1457,
+        486
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 30,
+      "filename": "badge_030.png",
+      "row": 3,
+      "column": 10,
+      "source_box": [
+        1457,
+        324,
+        1619,
+        486
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 31,
+      "filename": "badge_031.png",
+      "row": 4,
+      "column": 1,
+      "source_box": [
+        0,
+        486,
+        162,
+        647
+      ],
+      "size": [
+        162,
+        161
+      ]
+    },
+    {
+      "index": 32,
+      "filename": "badge_032.png",
+      "row": 4,
+      "column": 2,
+      "source_box": [
+        162,
+        486,
+        324,
+        647
+      ],
+      "size": [
+        162,
+        161
+      ]
+    },
+    {
+      "index": 33,
+      "filename": "badge_033.png",
+      "row": 4,
+      "column": 3,
+      "source_box": [
+        324,
+        486,
+        486,
+        647
+      ],
+      "size": [
+        162,
+        161
+      ]
+    },
+    {
+      "index": 34,
+      "filename": "badge_034.png",
+      "row": 4,
+      "column": 4,
+      "source_box": [
+        486,
+        486,
+        648,
+        647
+      ],
+      "size": [
+        162,
+        161
+      ]
+    },
+    {
+      "index": 35,
+      "filename": "badge_035.png",
+      "row": 4,
+      "column": 5,
+      "source_box": [
+        648,
+        486,
+        810,
+        647
+      ],
+      "size": [
+        162,
+        161
+      ]
+    },
+    {
+      "index": 36,
+      "filename": "badge_036.png",
+      "row": 4,
+      "column": 6,
+      "source_box": [
+        810,
+        486,
+        971,
+        647
+      ],
+      "size": [
+        161,
+        161
+      ]
+    },
+    {
+      "index": 37,
+      "filename": "badge_037.png",
+      "row": 4,
+      "column": 7,
+      "source_box": [
+        971,
+        486,
+        1133,
+        647
+      ],
+      "size": [
+        162,
+        161
+      ]
+    },
+    {
+      "index": 38,
+      "filename": "badge_038.png",
+      "row": 4,
+      "column": 8,
+      "source_box": [
+        1133,
+        486,
+        1295,
+        647
+      ],
+      "size": [
+        162,
+        161
+      ]
+    },
+    {
+      "index": 39,
+      "filename": "badge_039.png",
+      "row": 4,
+      "column": 9,
+      "source_box": [
+        1295,
+        486,
+        1457,
+        647
+      ],
+      "size": [
+        162,
+        161
+      ]
+    },
+    {
+      "index": 40,
+      "filename": "badge_040.png",
+      "row": 4,
+      "column": 10,
+      "source_box": [
+        1457,
+        486,
+        1619,
+        647
+      ],
+      "size": [
+        162,
+        161
+      ]
+    },
+    {
+      "index": 41,
+      "filename": "badge_041.png",
+      "row": 5,
+      "column": 1,
+      "source_box": [
+        0,
+        647,
+        162,
+        809
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 42,
+      "filename": "badge_042.png",
+      "row": 5,
+      "column": 2,
+      "source_box": [
+        162,
+        647,
+        324,
+        809
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 43,
+      "filename": "badge_043.png",
+      "row": 5,
+      "column": 3,
+      "source_box": [
+        324,
+        647,
+        486,
+        809
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 44,
+      "filename": "badge_044.png",
+      "row": 5,
+      "column": 4,
+      "source_box": [
+        486,
+        647,
+        648,
+        809
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 45,
+      "filename": "badge_045.png",
+      "row": 5,
+      "column": 5,
+      "source_box": [
+        648,
+        647,
+        810,
+        809
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 46,
+      "filename": "badge_046.png",
+      "row": 5,
+      "column": 6,
+      "source_box": [
+        810,
+        647,
+        971,
+        809
+      ],
+      "size": [
+        161,
+        162
+      ]
+    },
+    {
+      "index": 47,
+      "filename": "badge_047.png",
+      "row": 5,
+      "column": 7,
+      "source_box": [
+        971,
+        647,
+        1133,
+        809
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 48,
+      "filename": "badge_048.png",
+      "row": 5,
+      "column": 8,
+      "source_box": [
+        1133,
+        647,
+        1295,
+        809
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 49,
+      "filename": "badge_049.png",
+      "row": 5,
+      "column": 9,
+      "source_box": [
+        1295,
+        647,
+        1457,
+        809
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 50,
+      "filename": "badge_050.png",
+      "row": 5,
+      "column": 10,
+      "source_box": [
+        1457,
+        647,
+        1619,
+        809
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 51,
+      "filename": "badge_051.png",
+      "row": 6,
+      "column": 1,
+      "source_box": [
+        0,
+        809,
+        162,
+        971
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 52,
+      "filename": "badge_052.png",
+      "row": 6,
+      "column": 2,
+      "source_box": [
+        162,
+        809,
+        324,
+        971
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 53,
+      "filename": "badge_053.png",
+      "row": 6,
+      "column": 3,
+      "source_box": [
+        324,
+        809,
+        486,
+        971
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 54,
+      "filename": "badge_054.png",
+      "row": 6,
+      "column": 4,
+      "source_box": [
+        486,
+        809,
+        648,
+        971
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 55,
+      "filename": "badge_055.png",
+      "row": 6,
+      "column": 5,
+      "source_box": [
+        648,
+        809,
+        810,
+        971
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 56,
+      "filename": "badge_056.png",
+      "row": 6,
+      "column": 6,
+      "source_box": [
+        810,
+        809,
+        971,
+        971
+      ],
+      "size": [
+        161,
+        162
+      ]
+    },
+    {
+      "index": 57,
+      "filename": "badge_057.png",
+      "row": 6,
+      "column": 7,
+      "source_box": [
+        971,
+        809,
+        1133,
+        971
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 58,
+      "filename": "badge_058.png",
+      "row": 6,
+      "column": 8,
+      "source_box": [
+        1133,
+        809,
+        1295,
+        971
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 59,
+      "filename": "badge_059.png",
+      "row": 6,
+      "column": 9,
+      "source_box": [
+        1295,
+        809,
+        1457,
+        971
+      ],
+      "size": [
+        162,
+        162
+      ]
+    },
+    {
+      "index": 60,
+      "filename": "badge_060.png",
+      "row": 6,
+      "column": 10,
+      "source_box": [
+        1457,
+        809,
+        1619,
+        971
+      ],
+      "size": [
+        162,
+        162
+      ]
+    }
+  ]
+}
