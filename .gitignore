@@ -36,3 +36,9 @@ next-env.d.ts
 .vscode/
 .env*
 site-design/
+
+# Generated Canton Quests badge-sheet outputs
+/public/canton-quests/badges/badge_*.png
+/public/canton-quests/badges/_badge_export_preview.png
+/public/canton-quests/badges/badge_manifest.json
+/public/canton-quests/quest_achievement_badges.png
