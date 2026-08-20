@@ -109,7 +109,7 @@ export default function EnterGameModal({
   const handleCompleteConversion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode.trim()) {
-      setErrorMsg('Please enter the 6-digit code sent to your email.');
+      setErrorMsg('Please enter the confirmation code sent to your email.');
       return;
     }
 
@@ -221,14 +221,14 @@ export default function EnterGameModal({
               ? '🛡️ Safety & Age Gate Onboarding'
               : step === 2
               ? '🎮 Choose Callsign & Verify Account'
-              : '✉️ Enter 6-Digit Email Code'}
+              : '✉️ Enter Confirmation Code'}
           </h2>
           <p className="text-xs text-gray-300">
             {step === 1
               ? 'Before entering Canton physical field operations, verify safety compliance.'
               : step === 2
               ? 'Set your player handle and email for passwordless verification.'
-              : `Enter the 6-digit magic code sent to ${email}.`}
+              : `Enter the confirmation code sent to ${email}.`}
           </p>
         </div>
 
@@ -329,7 +329,7 @@ export default function EnterGameModal({
                 className="w-full px-4 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white font-mono text-sm focus:border-amber-500 focus:outline-none"
               />
               <p className="text-[11px] text-gray-400">
-                We will send a 6-digit magic code to verify your account without passwords.
+                We will send a confirmation code to verify your account without passwords.
               </p>
             </div>
 
@@ -370,13 +370,13 @@ export default function EnterGameModal({
           </form>
         )}
 
-        {/* Step 3: Enter 6-digit Code */}
+        {/* Step 3: Enter Confirmation Code */}
         {step === 3 && (
           <form onSubmit={handleCompleteConversion} className="space-y-4 pt-2">
             <div className="space-y-2 bg-obsidian/70 p-4 rounded-xl border border-gray-800">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-mono font-bold text-amber-400 uppercase">
-                  6-Digit Verification Code *
+                  Confirmation Code *
                 </label>
                 <button
                   type="button"
@@ -390,10 +390,10 @@ export default function EnterGameModal({
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                maxLength={8}
+                maxLength={12}
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value)}
-                placeholder="123456"
+                placeholder="Enter confirmation code"
                 autoFocus
                 required
                 className="w-full px-4 py-3 rounded-xl bg-gray-900 border-2 border-amber-500/60 text-white font-mono text-xl tracking-widest text-center focus:border-amber-400 focus:outline-none"

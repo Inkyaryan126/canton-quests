@@ -78,7 +78,7 @@ export default function FastPlayerOnboardForm({
         throw new Error(data.error || 'Failed to send verification code.');
       }
 
-      setInfoMessage(data.message || '6-digit verification code sent to your email.');
+      setInfoMessage(data.message || 'Verification code sent to your email.');
       setStep(2);
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to send code. Please check your email and try again.');
@@ -93,7 +93,7 @@ export default function FastPlayerOnboardForm({
     const cleanToken = otpCode.trim();
 
     if (!cleanToken || cleanToken.length < 4) {
-      setErrorMessage('Please enter the 6-digit verification code from your email.');
+      setErrorMessage('Please enter the verification code from your email.');
       return;
     }
 
@@ -142,7 +142,7 @@ export default function FastPlayerOnboardForm({
         window.location.href = redirectTo;
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Verification failed. Please check the 6-digit code and try again.');
+      setErrorMessage(err.message || 'Verification failed. Please check the confirmation code and try again.');
       setIsLoading(false);
     }
   };
@@ -244,7 +244,7 @@ export default function FastPlayerOnboardForm({
               />
             </div>
             <p className="text-[11px] text-stone-400 mt-1 font-mono">
-              We will send a 6-digit magic code. No passwords to remember.
+              We will send a confirmation code. No passwords to remember.
             </p>
           </div>
 
@@ -295,7 +295,7 @@ export default function FastPlayerOnboardForm({
           <div>
             <div className="flex items-center justify-between mb-1">
               <label htmlFor="fast-otp-input" className="block text-xs font-mono font-bold text-amber-300">
-                Enter 6-Digit Code sent to:
+                Enter Confirmation Code sent to:
               </label>
               <button
                 type="button"
@@ -310,10 +310,10 @@ export default function FastPlayerOnboardForm({
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={8}
+              maxLength={12}
               value={otpCode}
               onChange={(e) => setOtpCode(e.target.value)}
-              placeholder="123456"
+              placeholder="Enter confirmation code"
               autoFocus
               required
               className="w-full px-4 py-3 rounded-xl bg-stone-950 border-2 border-amber-500/60 text-white placeholder-stone-600 focus:outline-none focus:border-amber-400 font-mono text-xl tracking-widest text-center"

@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     if (action === 'verify_otp' || (email && token)) {
       if (!email || !token) {
         return NextResponse.json(
-          { success: false, error: 'Email and 6-digit verification code are required.' },
+          { success: false, error: 'Email and verification code are required.' },
           { status: 400 }
         );
       }

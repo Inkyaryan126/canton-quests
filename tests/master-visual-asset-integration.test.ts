@@ -15,9 +15,7 @@ describe('Canton Quests — Master Visual Asset Package Integration Suite', () =
     'card_complete.png',
     'card_locked.png',
     'card_poster.png',
-    'familydoor.png',
-    'challengedoor.png',
-    'secretdoor.png',
+    'three_doors.png',
     'palace.png',
     'football.png',
     'frank.png',
@@ -35,7 +33,7 @@ describe('Canton Quests — Master Visual Asset Package Integration Suite', () =
     'cq-briefing-poster.jpg',
   ];
 
-  it('1. verifies that all 22 cinematic asset package files exist on disk with valid file size', () => {
+  it('1. verifies that all cinematic asset package files exist on disk with valid file size', () => {
     for (const file of EXPECTED_ASSETS) {
       const filePath = path.join(cqDir, file);
       expect(fs.existsSync(filePath), `Asset ${file} must exist in public/canton-quests`).toBe(true);
@@ -54,9 +52,7 @@ describe('Canton Quests — Master Visual Asset Package Integration Suite', () =
 
   it('3. verifies cqImages exports strongly typed references for all new cinematic visual assets', () => {
     expect(cqImages.brandLogo).toBe('/canton-quests/canton_quests.png');
-    expect(cqImages.familyDoor).toBe('/canton-quests/familydoor.png');
-    expect(cqImages.challengeDoor).toBe('/canton-quests/challengedoor.png');
-    expect(cqImages.secretDoor).toBe('/canton-quests/secretdoor.png');
+    expect(cqImages.threeDoors).toBe('/canton-quests/three_doors.png');
     expect(cqImages.cardAvailable).toBe('/canton-quests/card_available.png');
     expect(cqImages.cardComplete).toBe('/canton-quests/card_complete.png');
     expect(cqImages.cardLocked).toBe('/canton-quests/card_locked.png');
@@ -78,18 +74,13 @@ describe('Canton Quests — Master Visual Asset Package Integration Suite', () =
     expect(cqImages.promoVideoPoster).toBe('/canton-quests/cq-briefing-poster.jpg');
   });
 
-  it('4. verifies PATH_OPTIONS in ThreePathSelector maps each path to its authentic portal doorway', () => {
+  it('4. verifies PATH_OPTIONS in ThreePathSelector maps each path to its authentic district', () => {
     const family = PATH_OPTIONS.find((p) => p.id === 'family');
     const challenge = PATH_OPTIONS.find((p) => p.id === 'challenge');
     const secret = PATH_OPTIONS.find((p) => p.id === 'secret');
 
-    expect(family?.doorImage).toBe('/canton-quests/familydoor.png');
     expect(family?.district).toBe('Arts District');
-
-    expect(challenge?.doorImage).toBe('/canton-quests/challengedoor.png');
     expect(challenge?.district).toBe('Mother Goose Land');
-
-    expect(secret?.doorImage).toBe('/canton-quests/secretdoor.png');
     expect(secret?.district).toBe('Monument Park');
   });
 

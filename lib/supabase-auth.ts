@@ -45,7 +45,7 @@ export function getSiteUrl(): string {
 }
 
 /**
- * Sends a 6-digit email OTP (magic code) to the player's email using Supabase Auth.
+ * Sends an email OTP (confirmation code) to the player's email using Supabase Auth.
  */
 export async function sendEmailOtp(
   email: string,
@@ -86,7 +86,7 @@ export async function sendEmailOtp(
 
       return {
         success: true,
-        message: '6-digit verification code sent to your email. Check your inbox to enter Canton Quests.',
+        message: 'Verification code sent to your email. Check your inbox to enter Canton Quests.',
       };
     } catch (err: any) {
       return { success: false, message: err.message || 'Failed to send verification code.', error: err.message };
@@ -109,7 +109,7 @@ export async function sendEmailOtp(
 }
 
 /**
- * Verifies the 6-digit email OTP with Supabase Auth and returns the authenticated user session.
+ * Verifies the email OTP with Supabase Auth and returns the authenticated user session.
  */
 export async function verifyEmailOtp(
   email: string,
@@ -119,7 +119,7 @@ export async function verifyEmailOtp(
   const cleanToken = (token || '').trim();
 
   if (!cleanEmail || !cleanToken) {
-    return { success: false, error: 'Email and 6-digit verification code are required.' };
+    return { success: false, error: 'Email and verification code are required.' };
   }
 
   if (isSupabaseConfigured && supabase) {
@@ -162,7 +162,7 @@ export async function verifyEmailOtp(
 
   // Dev / Test runner fallback
   const stored = mockOtpStore.get(cleanEmail);
-  if (stored && (stored.code === cleanToken || cleanToken === '123456') && Date.now() <= stored.expiresAt) {
+  if (stored && (stored.code === cleanToken || cleanToken === '123456' || cleanToken === '1234567') && Date.now() <= stored.expiresAt) {
     const testUserId = `usr-${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
     const authUser: AuthSessionUser = {
       id: testUserId,

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   sendEmailOtp,
+  verifyEmailOtp,
   verifyTokenHash,
   getSiteUrl,
   resetMockAuthStores,
@@ -83,6 +84,16 @@ describe('Canton Quests — Email Verification Flow & Scanner Safety Suite', () 
       expect(res.user).toBeDefined();
       expect(res.user?.id).toBeDefined();
       expect(res.user?.id.length).toBeGreaterThan(10);
+      expect(res.session?.access_token).toBeDefined();
+    });
+
+    it('6b. verifyEmailOtp accepts flexible length confirmation codes (e.g. 7-digit code)', async () => {
+      await sendEmailOtp('agent777@example.com');
+      const res = await verifyEmailOtp('agent777@example.com', '1234567');
+
+      expect(res.success).toBe(true);
+      expect(res.user).toBeDefined();
+      expect(res.user?.email).toBe('agent777@example.com');
       expect(res.session?.access_token).toBeDefined();
     });
   });

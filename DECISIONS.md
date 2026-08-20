@@ -463,7 +463,7 @@ Each entry follows the standard ADR structure:
      - Updated `/api/auth/login` to require Supabase Email OTP (`send_otp` / `verify_otp`) or verified JWT sessions. Unverified callsign/email login attempts are strictly rejected with HTTP 401.
   3. **Passwordless Email OTP & Verified Session Flows**:
      - Created `lib/supabase-auth.ts` providing canonical OTP send (`sendEmailOtp`), OTP verification (`verifyEmailOtp`), session resolution (`resolveAuthenticatedSupabaseUser`, `resolveAuthenticatedPlayer`, `resolveAuthenticatedPlayerId`), and safe profile creation (`resolveOrCreatePlayerForAuthUser`).
-     - Upgraded `FastPlayerOnboardForm.tsx` and `EnterGameModal.tsx` to 2-step passwordless verification (Callsign + Email $\rightarrow$ 6-digit Magic Code $\rightarrow$ Enter Canton Quests).
+     - Upgraded `FastPlayerOnboardForm.tsx` and `EnterGameModal.tsx` to 2-step passwordless verification (Callsign + Email $\rightarrow$ Magic Confirmation Code $\rightarrow$ Enter Canton Quests).
   4. **Safe Legacy Player Account Claiming**:
      - Players created prior to Supabase Auth integration are safely claimed when a player verifies ownership of their registered email address via Supabase Auth OTP (`LOWER(players.email) = LOWER(auth.email) AND players.user_id IS NULL`).
      - Preserves 100% of historical XP, quest completions, unlocked achievements, and prize drawing ledger entries.
