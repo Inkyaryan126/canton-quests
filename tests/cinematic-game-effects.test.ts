@@ -17,6 +17,12 @@ import {
   registerPlayer,
   getLeaderboardForEvent,
 } from '../lib/game-engine';
+import {
+  getLeaderboardDB,
+  getPlayerProgressDB,
+  evaluatePlayerAchievementsDB,
+  submitQuestProofDB,
+} from '../lib/supabase-db';
 
 describe('Canton Quests — Futuristic Game Moments Engine', () => {
   beforeEach(() => {
@@ -399,6 +405,26 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
         expect(finaleMoment.snapshotHash).toContain('sha256:');
       }
     });
+
+    it('shows finale-qualified standby moment when player has 0 verified entries', () => {
+      showGameMoment({
+        type: 'finale-qualified',
+        playerLabel: 'UnregisteredGuest',
+        qualifiedEntries: 0,
+        ticketRange: 'No verified quest completions yet',
+        eventTitle: 'Canton Quests: Volume 1 — The Founder’s Cipher',
+        isLocked: false,
+      });
+
+      const current = gameMomentManager.getState().currentMoment;
+      expect(current?.type).toBe('finale-qualified');
+      if (current && current.type === 'finale-qualified') {
+        const finaleMoment: FinaleQualifiedMoment = current;
+        expect(finaleMoment.playerLabel).toBe('UnregisteredGuest');
+        expect(finaleMoment.qualifiedEntries).toBe(0);
+        expect(finaleMoment.ticketRange).toBe('No verified quest completions yet');
+      }
+    });
   });
 
   describe('7. Accessibility & Reduced Motion Mode', () => {
@@ -440,6 +466,63 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
         proceduralSoundEngine.playFlashDrop();
         proceduralSoundEngine.playFinaleQualified();
       }).not.toThrow();
+    });
+  });
+
+  describe('9. Server-Authoritative Database Integration & Verification', () => {
+    it('getLeaderboardDB returns valid leaderboard entries with ranks', async () => {
+      const leaderboard = await getLeaderboardDB('canton-weekend-1');
+      expect(Array.isArray(leaderboard)).toBe(true);
+      if (leaderboard.length > 0) {
+        expect(leaderboard[0].rank).toBe(1);
+        expect(leaderboard[0].playerId).toBeDefined();
+        expect(typeof leaderboard[0].totalPoints).toBe('number');
+      }
+    });
+
+    it('getPlayerProgressDB derives player progress and finale qualification correctly', async () => {
+      const player = registerPlayer({
+        displayName: `DB_Progress_Agent_${Date.now()}`,
+        selectedStartingPath: 'secret',
+        avatarUrl: '⚡',
+      });
+      const progress = await getPlayerProgressDB(player.id, 'canton-weekend-1');
+      expect(progress).toBeDefined();
+      expect(typeof progress.totalPoints).toBe('number');
+      expect(Array.isArray(progress.completedQuestIds)).toBe(true);
+      expect(typeof progress.rank).toBe('number');
+    });
+
+    it('evaluatePlayerAchievementsDB evaluates achievements without throwing', async () => {
+      const player = registerPlayer({
+        displayName: `DB_Achievement_Agent_${Date.now()}`,
+        selectedStartingPath: 'family',
+        avatarUrl: '🏆',
+      });
+      const awarded = await evaluatePlayerAchievementsDB(player.id, 'canton-weekend-1');
+      expect(Array.isArray(awarded)).toBe(true);
+    });
+
+    it('submitQuestProofDB returns server-authoritative reward deltas and verified completion', async () => {
+      const player = registerPlayer({
+        displayName: `DB_Submit_Agent_${Date.now()}`,
+        selectedStartingPath: 'challenge',
+        avatarUrl: '⚔️',
+      });
+      const res = await submitQuestProofDB({
+        playerId: player.id,
+        questId: 'qst-centennial-discovery',
+        eventId: 'canton-weekend-1',
+        proofType: 'checkin',
+        submittedContent: 'GPS Checkin Confirmed',
+        userLat: 40.7989,
+        userLon: -81.3748,
+      });
+
+      expect(res.success).toBe(true);
+      expect(res.awardedPoints).toBeGreaterThan(0);
+      expect(res.isQuestFullyCompleted).toBe(true);
+      expect(res.submission).toBeDefined();
     });
   });
 });

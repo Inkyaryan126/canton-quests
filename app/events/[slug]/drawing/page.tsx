@@ -370,7 +370,7 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
                       <span>
                         {playerQualifiedEntries > 0
                           ? `✨ View Your Qualification Ceremony (${playerQualifiedEntries} Tickets)`
-                          : '✨ Inspect Drawing Qualification Status'}
+                          : '🛡️ Drawing Status: 0 Tickets (Not Yet Qualified)'}
                       </span>
                     </button>
                   );

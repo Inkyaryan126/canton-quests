@@ -738,6 +738,120 @@ export async function awardDay1XpLeaderBonusDB(eventId: string, isRehearsal: boo
   return localEngine.awardDay1XpLeaderBonus(eventId, isRehearsal);
 }
 
+export async function evaluatePlayerAchievementsDB(
+  playerId: string,
+  eventId: string
+): Promise<PlayerAchievement[]> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.evaluatePlayerAchievements(playerId, eventId);
+  }
+
+  try {
+    const db = supabaseAdmin;
+
+    // 1. Fetch player info
+    const { data: player, error: playerErr } = await db
+      .from('players')
+      .select('id, selected_starting_path')
+      .eq('id', playerId)
+      .maybeSingle();
+
+    if (playerErr || !player) {
+      return localEngine.evaluatePlayerAchievements(playerId, eventId);
+    }
+
+    // 2. Fetch all verified submissions for this player and event
+    const { data: submissions, error: subErr } = await db
+      .from('quest_submissions')
+      .select('quest_id, submitted_at, status')
+      .eq('player_id', playerId)
+      .eq('event_id', eventId)
+      .eq('status', 'verified');
+
+    if (subErr || !submissions) {
+      return localEngine.evaluatePlayerAchievements(playerId, eventId);
+    }
+
+    const completedQuestIds = new Set<string>(submissions.map((s) => s.quest_id));
+
+    // 3. Fetch all active quests for this event
+    const { data: quests, error: questErr } = await db
+      .from('quests')
+      .select('id, starting_path, status')
+      .eq('event_id', eventId);
+
+    if (questErr || !quests) {
+      return localEngine.evaluatePlayerAchievements(playerId, eventId);
+    }
+
+    const completedQuests = quests.filter((q) => completedQuestIds.has(q.id));
+    const completedPaths = new Set(completedQuests.map((q) => q.starting_path).filter(Boolean));
+
+    // 4. Fetch existing achievements for this player to know what's already awarded
+    const { data: existingAchievements } = await db
+      .from('player_achievements')
+      .select('achievement_slug')
+      .eq('player_id', playerId);
+
+    const existingSlugs = new Set<string>((existingAchievements || []).map((a) => a.achievement_slug));
+    const newlyAwarded: PlayerAchievement[] = [];
+
+    const checkAndAward = async (slug: string, provenance: string) => {
+      if (!existingSlugs.has(slug)) {
+        const res = await awardAchievementDB(playerId, slug, eventId, provenance);
+        if (res) {
+          existingSlugs.add(slug);
+          newlyAwarded.push(res);
+        }
+      }
+    };
+
+    // 1. Pathfinder for chosen starting path
+    const chosenPath = player.selected_starting_path as StartingPath | undefined;
+    if (chosenPath) {
+      const hasCompletedChosenPath = completedQuests.some((q) => q.starting_path === chosenPath);
+      if (hasCompletedChosenPath) {
+        await checkAndAward(`pathfinder-${chosenPath}`, `Completed first ${chosenPath} mission`);
+      }
+    }
+
+    // 2. Triple Threat (Family, Challenge, Secret)
+    if (completedPaths.has('family') && completedPaths.has('challenge') && completedPaths.has('secret')) {
+      await checkAndAward('triple-threat', 'Completed missions across all 3 starting paths');
+    }
+
+    // 3. District Sweeps
+    for (const path of ['family', 'challenge', 'secret'] as StartingPath[]) {
+      const activeDistrictQuests = quests.filter((q) => q.starting_path === path && q.status === 'active');
+      if (activeDistrictQuests.length > 0 && activeDistrictQuests.every((q) => completedQuestIds.has(q.id))) {
+        await checkAndAward(`district-sweep-${path}`, `Swept all active missions in ${path} district`);
+      }
+    }
+
+    // 4. Nomad: Completed missions across all 3 districts within same day
+    const submissionsByDay = new Map<string, Set<string>>();
+    for (const sub of submissions) {
+      const day = (sub.submitted_at || '').slice(0, 10);
+      const q = quests.find((item) => item.id === sub.quest_id);
+      if (day && q?.starting_path && q.starting_path !== 'cross_city') {
+        if (!submissionsByDay.has(day)) submissionsByDay.set(day, new Set());
+        submissionsByDay.get(day)!.add(q.starting_path);
+      }
+    }
+    for (const [, paths] of submissionsByDay) {
+      if (paths.has('family') && paths.has('challenge') && paths.has('secret')) {
+        await checkAndAward('nomad', 'Completed all 3 districts in a single day');
+        break;
+      }
+    }
+
+    return newlyAwarded;
+  } catch (err) {
+    console.error('evaluatePlayerAchievementsDB error:', err);
+    return localEngine.evaluatePlayerAchievements(playerId, eventId);
+  }
+}
+
 export async function getDistrictContentSummaryDB(
   eventId: string,
   district: StartingPath
@@ -1145,7 +1259,7 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
 
       // Evaluate achievements
       try {
-        const newlyAwarded = localEngine.evaluatePlayerAchievements(trustedPlayerId, trustedParams.eventId);
+        const newlyAwarded = await evaluatePlayerAchievementsDB(trustedPlayerId, trustedParams.eventId);
         if (newlyAwarded && newlyAwarded.length > 0) {
           newAchievements = newlyAwarded.map((ach) => ({
             id: ach.achievementId || ach.id,
@@ -1185,12 +1299,163 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
 
 export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntry[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getLeaderboardForEvent(eventId);
-  return localEngine.getLeaderboardForEvent(eventId);
+  const db = supabaseAdmin || supabase;
+
+  try {
+    const { data: scoreRows, error: scoreErr } = await db
+      .from('score_ledger')
+      .select('player_id, quest_id, points, awarded_at')
+      .eq('event_id', eventId);
+
+    if (scoreErr || !scoreRows) {
+      return localEngine.getLeaderboardForEvent(eventId);
+    }
+
+    // Collect all player IDs
+    const playerIds = Array.from(new Set(scoreRows.map((r: any) => r.player_id).filter(Boolean)));
+    const playersMap: Record<string, { displayName: string; avatarUrl?: string }> = {};
+
+    if (playerIds.length > 0) {
+      const { data: playersData } = await db
+        .from('players')
+        .select('id, display_name, avatar_url')
+        .in('id', playerIds);
+
+      if (playersData) {
+        for (const p of playersData) {
+          playersMap[p.id] = {
+            displayName: p.display_name,
+            avatarUrl: p.avatar_url,
+          };
+        }
+      }
+    }
+
+    // Also include event_players registered for event even if 0 points
+    const { data: eventPlayers } = await db
+      .from('event_players')
+      .select('player_id, players(id, display_name, avatar_url)')
+      .eq('event_id', eventId);
+
+    if (eventPlayers) {
+      for (const ep of eventPlayers) {
+        if (ep.player_id && !playersMap[ep.player_id] && (ep as any).players) {
+          playersMap[ep.player_id] = {
+            displayName: (ep as any).players.display_name || 'Agent',
+            avatarUrl: (ep as any).players.avatar_url || '⚡',
+          };
+        }
+      }
+    }
+
+    const playerStats: Record<
+      string,
+      { totalPoints: number; completedQuestIds: Set<string>; lastScoreTime: string; displayName?: string; avatarUrl?: string }
+    > = {};
+
+    for (const [pId, pInfo] of Object.entries(playersMap)) {
+      playerStats[pId] = {
+        totalPoints: 0,
+        completedQuestIds: new Set<string>(),
+        lastScoreTime: '',
+        displayName: pInfo.displayName,
+        avatarUrl: pInfo.avatarUrl,
+      };
+    }
+
+    for (const row of scoreRows) {
+      if (!playerStats[row.player_id]) {
+        playerStats[row.player_id] = {
+          totalPoints: 0,
+          completedQuestIds: new Set<string>(),
+          lastScoreTime: row.awarded_at || '',
+          displayName: playersMap[row.player_id]?.displayName || 'Anonymous Agent',
+          avatarUrl: playersMap[row.player_id]?.avatarUrl || '⚡',
+        };
+      }
+      playerStats[row.player_id].totalPoints += row.points || 0;
+      if (row.quest_id) {
+        playerStats[row.player_id].completedQuestIds.add(row.quest_id);
+      }
+      const time = row.awarded_at || '';
+      if (
+        time &&
+        (!playerStats[row.player_id].lastScoreTime ||
+          new Date(time) > new Date(playerStats[row.player_id].lastScoreTime))
+      ) {
+        playerStats[row.player_id].lastScoreTime = time;
+      }
+    }
+
+    const leaderboard: LeaderboardEntry[] = Object.entries(playerStats).map(([playerId, stats]) => ({
+      rank: 0,
+      playerId,
+      displayName: stats.displayName || 'Anonymous Agent',
+      avatarUrl: stats.avatarUrl || '⚡',
+      totalPoints: Math.max(0, stats.totalPoints),
+      questsCompletedCount: stats.completedQuestIds.size,
+      lastScoreTime: stats.lastScoreTime,
+    }));
+
+    leaderboard.sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      return new Date(a.lastScoreTime || 0).getTime() - new Date(b.lastScoreTime || 0).getTime();
+    });
+
+    leaderboard.forEach((entry, idx) => {
+      entry.rank = idx + 1;
+    });
+
+    return leaderboard;
+  } catch (err) {
+    console.error('getLeaderboardDB error:', err);
+    return localEngine.getLeaderboardForEvent(eventId);
+  }
 }
 
 export async function getPlayerProgressDB(playerId: string, eventId: string): Promise<PlayerEventProgress> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getPlayerProgress(playerId, eventId);
-  return localEngine.getPlayerProgress(playerId, eventId);
+  const db = supabaseAdmin || supabase;
+
+  try {
+    const leaderboard = await getLeaderboardDB(eventId);
+    const playerEntry = leaderboard.find((e) => e.playerId === playerId);
+    const rank = playerEntry?.rank || leaderboard.length + 1;
+    const totalPoints = playerEntry?.totalPoints || 0;
+
+    const { data: subs } = await db
+      .from('quest_submissions')
+      .select('quest_id, status')
+      .eq('player_id', playerId)
+      .eq('event_id', eventId);
+
+    const completedQuestIds = Array.from(
+      new Set((subs || []).filter((s) => s.status === 'verified').map((s) => s.quest_id))
+    );
+    const pendingSubmissionQuestIds = Array.from(
+      new Set((subs || []).filter((s) => s.status === 'pending').map((s) => s.quest_id))
+    );
+
+    const { data: eventQuests } = await db
+      .from('quests')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('status', 'active');
+
+    const availableCount = eventQuests ? eventQuests.length : 0;
+
+    return {
+      totalPoints,
+      completedQuestIds,
+      pendingSubmissionQuestIds,
+      completedCount: completedQuestIds.length,
+      availableCount,
+      rank,
+      isQualifiedForFinale: completedQuestIds.length > 0,
+    };
+  } catch {
+    return localEngine.getPlayerProgress(playerId, eventId);
+  }
 }
 
 // 9. GAME MASTER CONTROLS DB
