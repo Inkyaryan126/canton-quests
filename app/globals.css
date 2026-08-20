@@ -806,9 +806,7 @@ code, pre, .font-mono {
 }
 
 .cq-pillars-section {
-  background:
-    linear-gradient(180deg, #050607 0%, #090b0c 100%),
-    url('/canton-quests/14_torn_map_texture.png') center / 900px auto repeat;
+  background: linear-gradient(180deg, #050607 0%, #090b0c 100%);
 }
 
 .cq-pillars {
