@@ -75,19 +75,42 @@ export default function QuestsPage() {
       })
       .catch(() => {});
 
-    fetch('/api/game/events')
-      .then((res) => res.json())
-      .then((data: { events?: QuestEvent[] }) => {
-        const loadedEvents = data.events || [];
+    async function loadQuests() {
+      try {
+        const eventsRes = await fetch('/api/game/events');
+        const eventsData: { events?: QuestEvent[] } = await eventsRes.json();
+        const loadedEvents = eventsData.events || [];
         const active = getActiveEvent(loadedEvents);
         setEvents(loadedEvents);
         if (!active) return;
-        return fetch(`/api/game/events/${active.slug}`);
-      })
-      .then((res) => res?.json())
-      .then((data: { quests?: PublicQuestView[] } | undefined) => {
-        setQuests(data?.quests || []);
-      });
+
+        const questsRes = await fetch(`/api/game/events/${active.slug}`);
+        const questsData: { quests?: PublicQuestView[] } = await questsRes.json();
+        const loadedQuests = questsData.quests || [];
+        setQuests(loadedQuests);
+
+        // Check for active live Flash Quest Drop
+        const activeFlash = loadedQuests.find((q) => q.isFlash && q.status === 'active');
+        if (activeFlash && typeof window !== 'undefined') {
+          const sessionKey = `cq_flash_seen_${activeFlash.id}`;
+          if (!sessionStorage.getItem(sessionKey)) {
+            sessionStorage.setItem(sessionKey, 'true');
+            showGameMoment({
+              type: 'flash-drop',
+              questId: activeFlash.id,
+              questTitle: activeFlash.title,
+              pointValue: activeFlash.pointValue,
+              district: activeFlash.location?.name || activeFlash.startingPath,
+              questUrl: `/events/${active.slug}/quests/${activeFlash.id}`,
+            });
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadQuests();
   }, []);
 
   const activeEvent = getActiveEvent(events);

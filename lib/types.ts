@@ -642,6 +642,16 @@ export interface SubmitProofResult {
   claimPlacement?: number;
   collectibleAwarded?: Collectible;
   flags?: ProofReviewFlag[];
+  oldRank?: number;
+  newRank?: number;
+  newAchievements?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    icon?: string;
+    rewardXp?: number;
+    rewardEntries?: number;
+  }>;
 }
 
 export interface LiveAnnouncement {

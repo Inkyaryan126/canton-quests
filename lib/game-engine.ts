@@ -2066,8 +2066,21 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   let awardedPoints = 0;
   let drawingEntriesAwarded = 0;
   let grantedCol: Collectible | undefined = undefined;
+  let oldRank: number | undefined = undefined;
+  let newRank: number | undefined = undefined;
+  let newAchievements: Array<{
+    id: string;
+    title: string;
+    description: string;
+    icon?: string;
+    rewardXp?: number;
+    rewardEntries?: number;
+  }> | undefined = undefined;
 
   if (isAutoVerified) {
+    const oldLeaderboard = getLeaderboardForEvent(params.eventId);
+    oldRank = oldLeaderboard.find((e) => e.playerId === params.playerId)?.rank;
+
     let basePoints = quest.xpReward || quest.pointValue;
 
     const multiplier = getActiveBonusMultiplier(params.eventId, quest.category);
@@ -2100,6 +2113,9 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
       description: `Completed ${quest.title}${multiplier > 1.0 ? ` (${multiplier}x Bonus)` : ''}`,
     });
 
+    const newLeaderboard = getLeaderboardForEvent(params.eventId);
+    newRank = newLeaderboard.find((e) => e.playerId === params.playerId)?.rank;
+
     // 2. Award Event-Scoped Drawing Entries (Only if ledger is open)
     if (isDrawingLedgerLocked(params.eventId)) {
       drawingEntriesAwarded = 0;
@@ -2123,7 +2139,15 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     }
 
     // Evaluate dynamic path and district achievements
-    evaluatePlayerAchievements(params.playerId, params.eventId);
+    const newlyAwarded = evaluatePlayerAchievements(params.playerId, params.eventId);
+    if (newlyAwarded && newlyAwarded.length > 0) {
+      newAchievements = newlyAwarded.map((ach) => ({
+        id: ach.achievementId || ach.id,
+        title: ach.achievement?.name || ach.achievementSlug || 'Achievement Unlocked',
+        description: ach.achievement?.description || '',
+        icon: ach.achievement?.badgeSymbol || '🏆',
+      }));
+    }
 
     const player = getAllPlayers().find((p) => p.id === params.playerId);
     logActivity({
@@ -2146,6 +2170,9 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     claimPlacement,
     collectibleAwarded: grantedCol,
     flags: reviewFlags,
+    oldRank,
+    newRank,
+    newAchievements,
   };
 }
 

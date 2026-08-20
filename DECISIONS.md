@@ -686,5 +686,27 @@ Each entry follows the standard ADR structure:
   - Resolves email scanner link expiration bugs, eliminates production auth redirect drops, protects against open redirect vulnerabilities, and guarantees seamless onboarding for outdoor mobile players in Canton.
 - **Status**: **ACCEPTED**
 
+---
 
-
+### [ADR-034] 2026-08-20: Full Server-Authoritative Integration of Futuristic Game Moments & HUD Effects Engine
+- **Decision**:
+  1. **Server-Authoritative Reward Delta Pipeline**:
+     - Extended `SubmitProofResult` in `lib/types.ts` to return `oldRank`, `newRank`, and `newAchievements` alongside `awardedPoints` and `drawingEntriesAwarded`.
+     - Wired real rank delta computation in both `lib/game-engine.ts` (`submitQuestProof`) and `lib/supabase-db.ts` (`submitQuestProofDB`), measuring leaderboard standings immediately prior to and after ledger insertion.
+     - Wired dynamic achievement unlock evaluation returning newly earned achievements upon verified submission.
+     - Updated `triggerQuestRewardSequence` in `app/events/[slug]/quests/[questId]/page.tsx` to consume authoritative server values, eliminating fallback defaulting to unearned rewards.
+  2. **Active Live Flash Drop Detection**:
+     - Wired `showGameMoment({ type: 'flash-drop', ... })` in `app/quests/page.tsx`, `app/events/[slug]/page.tsx`, and quest details page with session storage deduplication (`cq_flash_seen_${questId}`) and interactive badge inspection.
+  3. **Player-Specific Finale Qualification Integration**:
+     - Updated `app/events/[slug]/drawing/page.tsx` to derive the current player's individual qualified tickets, callsign, and ticket range from authenticated records (`data.publicPlayerEntries`, `data.ticketRanges`) rather than displaying aggregate event-wide pools.
+     - Accurately reflects 0 tickets with mission guidance for unverified or unregistered users without manufacturing fake tickets.
+  4. **Smooth Onboarding & Path Lock Transitions**:
+     - Updated `components/FastPlayerOnboardForm.tsx` and `app/auth/confirm/page.tsx` to trigger navigation via the `onFinished` callback of the `path-lock` moment with fallback timers, ensuring visual energy sequences are never prematurely cut short.
+  5. **Overlay Usability & Tap-Anywhere Dismissal**:
+     - Added backdrop click dismissal on root container `GameMomentOverlay.tsx` while isolating header and interactive controls via `stopPropagation`, aligning visual interaction with footer guidance ("TAP ANYWHERE OR PRESS ESC TO CONTINUE").
+  6. **Strong Type Safety & Strict Test Coverage**:
+     - Refactored `tests/cinematic-game-effects.test.ts` to eliminate `as any` type casting shortcuts, asserting strict typed narrowing (`RankUpMoment`, `QuestCompleteMoment`, `FinaleQualifiedMoment`, `FlashDropMoment`).
+     - Added comprehensive end-to-end integration tests covering server-authoritative submission deltas, failed submissions awarding zero rewards, flash drop deduplication, and player-specific qualification ceremonies.
+- **Reason**:
+  - Elevates Canton Quests into a AAA real-world competitive game, ensuring all visual celebrations reflect real, immutable game state and deliver a fluid, glitch-free mobile experience for players on launch day.
+- **Status**: **ACCEPTED**

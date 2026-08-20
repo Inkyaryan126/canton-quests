@@ -595,19 +595,7 @@ export default function ProfilePage() {
                   <div
                     key={ach.id}
                     onClick={() => {
-                      showGameMoment({
-                        type: 'achievement',
-                        achievementId: ach.id,
-                        title: ach.name,
-                        description: ach.description,
-                        icon: ach.badgeSymbol,
-                        category: ach.category,
-                      });
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
+                      if (isEarned) {
                         showGameMoment({
                           type: 'achievement',
                           achievementId: ach.id,
@@ -618,10 +606,24 @@ export default function ProfilePage() {
                         });
                       }
                     }}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer hover:scale-[1.02] ${
+                    role={isEarned ? 'button' : undefined}
+                    tabIndex={isEarned ? 0 : undefined}
+                    onKeyDown={(e) => {
+                      if (isEarned && (e.key === 'Enter' || e.key === ' ')) {
+                        showGameMoment({
+                          type: 'achievement',
+                          achievementId: ach.id,
+                          title: ach.name,
+                          description: ach.description,
+                          icon: ach.badgeSymbol,
+                          category: ach.category,
+                        });
+                      }
+                    }}
+                    className={`p-4 rounded-2xl border transition-all ${
                       isEarned
-                        ? `${rarityColors[ach.rarity] || 'border-amber-500/40 bg-stone-900/90'} shadow-lg`
-                        : 'border-stone-800/80 bg-stone-950/50 opacity-60'
+                        ? `${rarityColors[ach.rarity] || 'border-amber-500/40 bg-stone-900/90'} shadow-lg cursor-pointer hover:scale-[1.02]`
+                        : 'border-stone-800/80 bg-stone-950/50 opacity-60 cursor-default'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">

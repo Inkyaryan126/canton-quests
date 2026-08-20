@@ -5,18 +5,41 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
-import { PublicDrawingPageData } from '@/lib/types';
+import { PublicDrawingPageData, Player } from '@/lib/types';
 import { cqImages } from '@/lib/marketing-assets';
 import { showGameMoment } from '@/lib/game-effects';
 import { isKnownCantonLaunchSlug, isBeforeLaunchDate } from '@/lib/launch-status';
 
 export default function PublicDrawingPage({ params }: { params: { slug: string } }) {
   const [data, setData] = useState<PublicDrawingPageData | null>(null);
+  const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPreLaunch, setIsPreLaunch] = useState(false);
   const [isSystemUnavailable, setIsSystemUnavailable] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedNumber, setCopiedNumber] = useState(false);
+
+  useEffect(() => {
+    const headers: Record<string, string> = {};
+    const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
+    if (authToken) {
+      headers['authorization'] = `Bearer ${authToken}`;
+    }
+
+    fetch('/api/auth/me', { headers })
+      .then((res) => res.json())
+      .then((meData) => {
+        if (meData.player) setCurrentPlayer(meData.player);
+      })
+      .catch(() => {
+        const stored = typeof window !== 'undefined' ? window.localStorage.getItem('canton_quests_current_player') : null;
+        if (stored) {
+          try {
+            setCurrentPlayer(JSON.parse(stored));
+          } catch {}
+        }
+      });
+  }, []);
 
   useEffect(() => {
     async function fetchDrawingData() {
@@ -309,21 +332,49 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
 
               {/* Finale Qualification Ceremony Button */}
               <div className="pt-4 mt-4 border-t border-slate-800/80 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    showGameMoment({
-                      type: 'finale-qualified',
-                      qualifiedEntries: data.totalQualifiedEntries,
-                      snapshotHash: data.snapshotHash || undefined,
-                      eventTitle: data.eventTitle,
-                      isLocked: data.ledgerLockStatus === 'drawn' || data.ledgerLockStatus === 'published',
-                    });
-                  }}
-                  className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/60 text-amber-300 hover:bg-amber-500/30 text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer"
-                >
-                  <span>✨ Inspect Official Qualification Ceremony</span>
-                </button>
+                {(() => {
+                  const playerEntry = currentPlayer && data.publicPlayerEntries
+                    ? data.publicPlayerEntries.find(
+                        (e) =>
+                          e.playerPublicLabel === currentPlayer.displayName ||
+                          (currentPlayer.id && e.playerPublicLabel.includes(currentPlayer.id.slice(0, 4)))
+                      )
+                    : null;
+
+                  const playerTicketRange = playerEntry && data.ticketRanges
+                    ? data.ticketRanges.find((r) => r.publicPlayerLabel === playerEntry.playerPublicLabel)
+                    : null;
+
+                  const playerQualifiedEntries = playerEntry ? playerEntry.totalQualifiedEntries : 0;
+
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        showGameMoment({
+                          type: 'finale-qualified',
+                          playerLabel: playerEntry?.playerPublicLabel || currentPlayer?.displayName || 'Agent (Unregistered)',
+                          qualifiedEntries: playerQualifiedEntries,
+                          ticketRange: playerTicketRange
+                            ? `Tickets #${playerTicketRange.startTicket} - #${playerTicketRange.endTicket}`
+                            : playerQualifiedEntries > 0
+                            ? `${playerQualifiedEntries} Verified Ticket${playerQualifiedEntries === 1 ? '' : 's'}`
+                            : 'No verified quest completions yet',
+                          snapshotHash: data.snapshotHash || undefined,
+                          eventTitle: data.eventTitle,
+                          isLocked: data.ledgerLockStatus === 'drawn' || data.ledgerLockStatus === 'published' || data.ledgerLockStatus === 'locked',
+                        });
+                      }}
+                      className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/60 text-amber-300 hover:bg-amber-500/30 text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <span>
+                        {playerQualifiedEntries > 0
+                          ? `✨ View Your Qualification Ceremony (${playerQualifiedEntries} Tickets)`
+                          : '✨ Inspect Drawing Qualification Status'}
+                      </span>
+                    </button>
+                  );
+                })()}
               </div>
             </div>
 

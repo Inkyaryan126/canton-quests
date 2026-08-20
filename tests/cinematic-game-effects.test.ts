@@ -3,12 +3,24 @@ import {
   gameMomentManager,
   showGameMoment,
   triggerQuestRewardSequence,
-  GameMoment,
+  RankUpMoment,
+  QuestCompleteMoment,
+  FinaleQualifiedMoment,
+  FlashDropMoment,
+  AchievementMoment,
+  PathLockMoment,
 } from '../lib/game-effects';
 import { proceduralSoundEngine } from '../lib/game-audio';
+import {
+  initializeGameEngine,
+  submitQuestProof,
+  registerPlayer,
+  getLeaderboardForEvent,
+} from '../lib/game-engine';
 
 describe('Canton Quests — Futuristic Game Moments Engine', () => {
   beforeEach(() => {
+    initializeGameEngine();
     gameMomentManager.skipAll();
     gameMomentManager.setReducedMotion(false);
     gameMomentManager.setSoundEnabled(true);
@@ -111,7 +123,7 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
     });
   });
 
-  describe('2. Path Lock Moment', () => {
+  describe('2. Path Lock Moment & Onboarding Integration', () => {
     it('preserves path attribute and metadata for Family, Challenge, and Secret', () => {
       const paths = ['family', 'challenge', 'secret'] as const;
 
@@ -126,14 +138,15 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
 
         const current = gameMomentManager.getState().currentMoment;
         expect(current?.type).toBe('path-lock');
-        if (current?.type === 'path-lock') {
-          expect(current.path).toBe(p);
-          expect(current.title).toContain(p.toUpperCase());
+        if (current && current.type === 'path-lock') {
+          const pathMoment: PathLockMoment = current;
+          expect(pathMoment.path).toBe(p);
+          expect(pathMoment.title).toContain(p.toUpperCase());
         }
       });
     });
 
-    it('executes onFinished callback when dismissed', () => {
+    it('executes onFinished callback when dismissed, protecting onboarding navigation', () => {
       const onFinishedSpy = vi.fn();
       showGameMoment({
         type: 'path-lock',
@@ -146,7 +159,7 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
     });
   });
 
-  describe('3. Quest Reward Sequence & Authoritative Rules', () => {
+  describe('3. Quest Reward Sequence & Server Authoritative Data', () => {
     it('triggers Quest Complete with exact server-authoritative XP and drawing tickets', () => {
       triggerQuestRewardSequence({
         questId: 'q-101',
@@ -158,10 +171,11 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
 
       const current = gameMomentManager.getState().currentMoment;
       expect(current?.type).toBe('quest-complete');
-      if (current?.type === 'quest-complete') {
-        expect(current.xpAwarded).toBe(350);
-        expect(current.drawingEntriesAwarded).toBe(2);
-        expect(current.questTitle).toBe('The Stone Stair Cipher');
+      if (current && current.type === 'quest-complete') {
+        const questMoment: QuestCompleteMoment = current;
+        expect(questMoment.xpAwarded).toBe(350);
+        expect(questMoment.drawingEntriesAwarded).toBe(2);
+        expect(questMoment.questTitle).toBe('The Stone Stair Cipher');
       }
     });
 
@@ -179,9 +193,10 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(stateA.queue).toHaveLength(1);
       expect(stateA.queue[0].type).toBe('rank-up');
       if (stateA.queue[0].type === 'rank-up') {
-        expect(stateA.queue[0].oldRank).toBe(15);
-        expect(stateA.queue[0].newRank).toBe(8);
-        expect(stateA.queue[0].tier).toBe('top10');
+        const rankMoment: RankUpMoment = stateA.queue[0];
+        expect(rankMoment.oldRank).toBe(15);
+        expect(rankMoment.newRank).toBe(8);
+        expect(rankMoment.tier).toBe('top10');
       }
 
       // Scenario B: Rank did NOT improve (same rank or lower)
@@ -198,7 +213,7 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(stateB.queue).toHaveLength(0); // rank-up should NOT be queued
     });
 
-    it('assigns correct tier for Rank Up moments (first, top3, top10, normal)', () => {
+    it('assigns correct typed tier for Rank Up moments without using weak type shortcuts', () => {
       // Rank 1
       triggerQuestRewardSequence({
         questTitle: 'Apex Mission',
@@ -206,9 +221,11 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
         oldRank: 3,
         newRank: 1,
       });
-      expect(gameMomentManager.getState().queue[0].type).toBe('rank-up');
-      if (gameMomentManager.getState().queue[0].type === 'rank-up') {
-        expect((gameMomentManager.getState().queue[0] as any).tier).toBe('first');
+      const firstMoment = gameMomentManager.getState().queue[0];
+      expect(firstMoment?.type).toBe('rank-up');
+      if (firstMoment && firstMoment.type === 'rank-up') {
+        const rankMoment: RankUpMoment = firstMoment;
+        expect(rankMoment.tier).toBe('first');
       }
 
       // Rank 3 (Top 3)
@@ -219,8 +236,10 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
         oldRank: 6,
         newRank: 3,
       });
-      if (gameMomentManager.getState().queue[0].type === 'rank-up') {
-        expect((gameMomentManager.getState().queue[0] as any).tier).toBe('top3');
+      const top3Moment = gameMomentManager.getState().queue[0];
+      if (top3Moment && top3Moment.type === 'rank-up') {
+        const rankMoment: RankUpMoment = top3Moment;
+        expect(rankMoment.tier).toBe('top3');
       }
 
       // Rank 9 (Top 10)
@@ -231,8 +250,10 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
         oldRank: 14,
         newRank: 9,
       });
-      if (gameMomentManager.getState().queue[0].type === 'rank-up') {
-        expect((gameMomentManager.getState().queue[0] as any).tier).toBe('top10');
+      const top10Moment = gameMomentManager.getState().queue[0];
+      if (top10Moment && top10Moment.type === 'rank-up') {
+        const rankMoment: RankUpMoment = top10Moment;
+        expect(rankMoment.tier).toBe('top10');
       }
 
       // Rank 18 (Normal)
@@ -243,12 +264,14 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
         oldRank: 25,
         newRank: 18,
       });
-      if (gameMomentManager.getState().queue[0].type === 'rank-up') {
-        expect((gameMomentManager.getState().queue[0] as any).tier).toBe('normal');
+      const normalMoment = gameMomentManager.getState().queue[0];
+      if (normalMoment && normalMoment.type === 'rank-up') {
+        const rankMoment: RankUpMoment = normalMoment;
+        expect(rankMoment.tier).toBe('normal');
       }
     });
 
-    it('queues unlocked achievements and chain completions in sequence', () => {
+    it('queues newly unlocked achievements and chain completions sequentially', () => {
       triggerQuestRewardSequence({
         questTitle: '4th Street Mural',
         xpAwarded: 250,
@@ -271,13 +294,114 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(state.currentMoment?.type).toBe('quest-complete');
       expect(state.queue).toHaveLength(3); // rank-up, achievement, chain-complete
 
-      // Check sequence order by priority
+      // Check sequence order by priority: rank-up (90) -> achievement (85) -> chain-complete (70)
       const types = state.queue.map((q) => q.type);
       expect(types).toEqual(['rank-up', 'achievement', 'chain-complete']);
+
+      const achMoment = state.queue[1];
+      if (achMoment && achMoment.type === 'achievement') {
+        const moment: AchievementMoment = achMoment;
+        expect(moment.title).toBe('Arts Detective');
+        expect(moment.icon).toBe('🎨');
+      }
     });
   });
 
-  describe('4. Accessibility & Reduced Motion Mode', () => {
+  describe('4. End-to-End Game Engine & Submission Integration', () => {
+    it('submitQuestProof computes authoritative rank deltas and newly earned achievements', () => {
+      const player = registerPlayer({
+        displayName: 'QuestMaster_330',
+        selectedStartingPath: 'family',
+      });
+
+      // Submit first quest: Centennial Discovery
+      const res = submitQuestProof({
+        playerId: player.id,
+        questId: 'qst-centennial-discovery',
+        eventId: 'evt-canton-vol-1',
+        proofType: 'gps',
+        userLat: 40.7989,
+        userLon: -81.3745,
+      });
+
+      expect(res.success).toBe(true);
+      expect(res.awardedPoints).toBeGreaterThan(0);
+      expect(res.drawingEntriesAwarded).toBe(1);
+      expect(res.newRank).toBeDefined();
+      expect(res.newAchievements).toBeDefined();
+      expect(res.newAchievements?.some((a) => a.id.includes('pathfinder-family'))).toBe(true);
+    });
+
+    it('failed submissions award 0 XP and 0 drawing entries with zero reward sequence triggers', () => {
+      const player = registerPlayer({
+        displayName: 'FailedAgent_330',
+      });
+
+      // Submit invalid passphrase
+      const res = submitQuestProof({
+        playerId: player.id,
+        questId: 'qst-mckinley-cipher',
+        eventId: 'evt-canton-vol-1',
+        proofType: 'passphrase',
+        submittedContent: 'WRONG_CODE_123',
+        userLat: 40.8078,
+        userLon: -81.3934,
+      });
+
+      expect(res.success).toBe(false);
+      expect(res.awardedPoints).toBe(0);
+      expect(res.drawingEntriesAwarded).toBe(0);
+      expect(res.newAchievements).toBeUndefined();
+    });
+  });
+
+  describe('5. Flash Drop Live Quest Alert', () => {
+    it('shows flash-drop moment with accurate quest details and district', () => {
+      showGameMoment({
+        type: 'flash-drop',
+        questId: 'qst-flash-01',
+        questTitle: 'Sprint to Palace Theatre',
+        pointValue: 400,
+        district: 'Downtown Arts Corridor',
+        questUrl: '/events/canton-weekend-1/quests/qst-flash-01',
+      });
+
+      const current = gameMomentManager.getState().currentMoment;
+      expect(current?.type).toBe('flash-drop');
+      if (current && current.type === 'flash-drop') {
+        const flashMoment: FlashDropMoment = current;
+        expect(flashMoment.questTitle).toBe('Sprint to Palace Theatre');
+        expect(flashMoment.pointValue).toBe(400);
+        expect(flashMoment.district).toBe('Downtown Arts Corridor');
+      }
+    });
+  });
+
+  describe('6. Finale Qualification Ceremony', () => {
+    it('shows finale-qualified moment with player-specific entries and ticket range', () => {
+      showGameMoment({
+        type: 'finale-qualified',
+        playerLabel: 'ChampionVoyager_330',
+        qualifiedEntries: 7,
+        ticketRange: 'Tickets #42 - #48',
+        snapshotHash: 'sha256:abcd1234ef5678',
+        eventTitle: 'Canton Quests: Volume 1 — The Founder’s Cipher',
+        isLocked: true,
+      });
+
+      const current = gameMomentManager.getState().currentMoment;
+      expect(current?.type).toBe('finale-qualified');
+      if (current && current.type === 'finale-qualified') {
+        const finaleMoment: FinaleQualifiedMoment = current;
+        expect(finaleMoment.playerLabel).toBe('ChampionVoyager_330');
+        expect(finaleMoment.qualifiedEntries).toBe(7);
+        expect(finaleMoment.ticketRange).toBe('Tickets #42 - #48');
+        expect(finaleMoment.snapshotHash).toContain('sha256:');
+      }
+    });
+  });
+
+  describe('7. Accessibility & Reduced Motion Mode', () => {
     it('sets reducedMotion and adapts default moment durations', () => {
       gameMomentManager.setReducedMotion(true);
       expect(gameMomentManager.getState().reducedMotion).toBe(true);
@@ -293,7 +417,7 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
     });
   });
 
-  describe('5. Procedural Sound Engine & Audio Muting', () => {
+  describe('8. Procedural Sound Engine & Audio Muting', () => {
     it('toggles sound preference and preserves state', () => {
       expect(gameMomentManager.getState().soundEnabled).toBe(true);
       const isMutedNow = !gameMomentManager.toggleSound();

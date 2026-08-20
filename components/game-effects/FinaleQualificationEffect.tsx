@@ -84,6 +84,13 @@ export default function FinaleQualificationEffect({
             </div>
           )}
 
+          {moment.ticketRange && (
+            <div className="flex items-center justify-between text-xs font-mono text-amber-300 pt-1 border-t border-stone-800">
+              <span>ASSIGNED TICKETS:</span>
+              <span className="text-[#f0c978] font-bold font-mono">{moment.ticketRange}</span>
+            </div>
+          )}
+
           {moment.snapshotHash && (
             <div className="pt-2 border-t border-stone-800 text-[10px] font-mono text-stone-400 break-all">
               <div className="flex items-center gap-1 text-cyan-300 font-bold mb-0.5">

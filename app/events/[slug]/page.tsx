@@ -23,6 +23,7 @@ import {
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
 import { cleanQuestTitle, cqImages, formatEventWindow } from '@/lib/marketing-assets';
 import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
+import { showGameMoment } from '@/lib/game-effects';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -141,12 +142,30 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
           setIsPreLaunch(true);
         }
         if (data.event) {
+          const loadedQuests = data.quests || [];
           setEvent(data.event);
-          setQuests(data.quests || []);
+          setQuests(loadedQuests);
           setLeaderboard(data.leaderboard || []);
           setProgress(data.progress || null);
           setCollectibles([]);
           setNpcs([]);
+
+          // Check for active live Flash Quest Drop
+          const activeFlash = loadedQuests.find((q) => q.isFlash && q.status === 'active');
+          if (activeFlash && typeof window !== 'undefined') {
+            const sessionKey = `cq_flash_seen_${activeFlash.id}`;
+            if (!sessionStorage.getItem(sessionKey)) {
+              sessionStorage.setItem(sessionKey, 'true');
+              showGameMoment({
+                type: 'flash-drop',
+                questId: activeFlash.id,
+                questTitle: activeFlash.title,
+                pointValue: activeFlash.pointValue,
+                district: activeFlash.location?.name || activeFlash.startingPath,
+                questUrl: `/events/${eventSlug}/quests/${activeFlash.id}`,
+              });
+            }
+          }
         }
       })
       .catch(() => {

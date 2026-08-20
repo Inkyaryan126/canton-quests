@@ -58,9 +58,13 @@ export default function GameMomentOverlay() {
     <div
       className="fixed inset-0 z-[9990] flex flex-col justify-between pointer-events-auto"
       style={{ isolation: 'isolate' }}
+      onClick={handleDismiss}
     >
       {/* Top HUD Utility Bar */}
-      <header className="relative z-[9999] flex items-center justify-between p-4 sm:p-6 pointer-events-auto">
+      <header
+        className="relative z-[9999] flex items-center justify-between p-4 sm:p-6 pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-2">
           <SoundToggleControl soundEnabled={effectsState.soundEnabled} />
           {effectsState.queue.length > 0 && (

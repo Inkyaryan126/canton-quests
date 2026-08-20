@@ -273,7 +273,10 @@ export default function QuestDetailPage({
             verificationType: quest.verificationType,
             unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,
             unlockedQuestUrl: nextInChain ? `/events/${eventSlug}/quests/${nextInChain.id}` : undefined,
-            drawingEntriesAwarded: quest.drawingEntryReward || 1,
+            drawingEntriesAwarded: result.drawingEntriesAwarded !== undefined ? result.drawingEntriesAwarded : (quest.drawingEntryReward || 1),
+            oldRank: result.oldRank,
+            newRank: result.newRank,
+            newAchievements: result.newAchievements,
             isChainComplete: Boolean(nextInChain),
             chainTitle: quest.title,
           });
@@ -309,9 +312,23 @@ export default function QuestDetailPage({
 
         {/* Flash Quest Banner if Active */}
         {quest.isFlash && (
-          <div className="p-3 bg-red-950/40 border border-red-500/60 rounded-xl mb-4 text-xs font-mono text-red-300 font-bold flex items-center justify-between animate-pulse">
-            <span>⚡ POP-UP FLASH QUEST</span>
-            <span>+{quest.pointValue} XP ACTIVE</span>
+          <div
+            onClick={() => {
+              showGameMoment({
+                type: 'flash-drop',
+                questId: quest.id,
+                questTitle: quest.title,
+                pointValue: quest.pointValue,
+                district: quest.location?.name || quest.startingPath,
+                questUrl: `/events/${eventSlug}/quests/${quest.id}`,
+              });
+            }}
+            role="button"
+            tabIndex={0}
+            className="p-3 bg-red-950/40 border border-red-500/60 rounded-xl mb-4 text-xs font-mono text-red-300 font-bold flex items-center justify-between animate-pulse cursor-pointer hover:bg-red-950/60 transition-colors"
+          >
+            <span>⚡ POP-UP FLASH QUEST DETECTED</span>
+            <span>+{quest.pointValue} XP ACTIVE (INSPECT) →</span>
           </div>
         )}
 

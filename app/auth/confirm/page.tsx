@@ -76,22 +76,25 @@ function ConfirmEmailContent() {
         }
       }
 
-      // Trigger Celebration Game Moment
-      showGameMoment({
-        type: 'path-lock',
-        path: data.player?.selectedStartingPath || 'family',
-        title: `${data.player?.displayName || 'Agent'} Activated`,
-      });
-
-      // Redirect after smooth visual confirmation
       const targetDestination = data.redirectTo || next || '/events/canton-weekend-1';
-      setTimeout(() => {
+      const navigateNext = () => {
         if (router && router.push) {
           router.push(targetDestination);
         } else if (typeof window !== 'undefined') {
           window.location.href = targetDestination;
         }
-      }, 1200);
+      };
+
+      // Trigger Celebration Game Moment and navigate upon conclusion
+      showGameMoment({
+        type: 'path-lock',
+        path: data.player?.selectedStartingPath || 'family',
+        title: `${data.player?.displayName || 'Agent'} Activated`,
+        onFinished: navigateNext,
+      });
+
+      // Safe fallback timer in case moment dismissal is delayed
+      setTimeout(navigateNext, 3000);
     } catch (err: any) {
       setErrorMessage(err.message || 'Verification link is invalid or has expired.');
       setIsLoading(false);

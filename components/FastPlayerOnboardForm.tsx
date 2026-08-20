@@ -130,17 +130,23 @@ export default function FastPlayerOnboardForm({
         }
       }
 
-      // Trigger Path Lock Game Moment
+      // Trigger Path Lock Game Moment and navigate smoothly when finished
+      const navigateNext = () => {
+        if (router && router.push) {
+          router.push(redirectTo);
+        } else if (typeof window !== 'undefined') {
+          window.location.href = redirectTo;
+        }
+      };
+
       showGameMoment({
         type: 'path-lock',
         path: startingPath,
+        onFinished: navigateNext,
       });
 
-      if (router && router.push) {
-        router.push(redirectTo);
-      } else if (typeof window !== 'undefined') {
-        window.location.href = redirectTo;
-      }
+      // Safe fallback timer in case moment is interrupted
+      setTimeout(navigateNext, 3000);
     } catch (err: any) {
       setErrorMessage(err.message || 'Verification failed. Please check the confirmation code and try again.');
       setIsLoading(false);

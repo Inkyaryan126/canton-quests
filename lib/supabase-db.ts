@@ -1066,8 +1066,25 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
 
     let awardedPoints = 0;
     let drawingEntriesAwarded = 0;
+    let oldRank: number | undefined = undefined;
+    let newRank: number | undefined = undefined;
+    let newAchievements: Array<{
+      id: string;
+      title: string;
+      description: string;
+      icon?: string;
+      rewardXp?: number;
+      rewardEntries?: number;
+    }> | undefined = undefined;
 
     if (verification.status === 'verified') {
+      try {
+        const oldLeaderboard = await getLeaderboardDB(trustedParams.eventId);
+        oldRank = oldLeaderboard.find((e) => e.playerId === trustedPlayerId)?.rank;
+      } catch {
+        // Fallback
+      }
+
       const scoreInsert = await supabaseAdmin.from('score_ledger').insert({
         event_id: trustedParams.eventId,
         player_id: trustedPlayerId,
@@ -1099,6 +1116,13 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
           .eq('id', trustedPlayerId);
       }
 
+      try {
+        const newLeaderboard = await getLeaderboardDB(trustedParams.eventId);
+        newRank = newLeaderboard.find((e) => e.playerId === trustedPlayerId)?.rank;
+      } catch {
+        // Fallback
+      }
+
       const drawingUpsert = await supabaseAdmin.from('drawing_entry_ledger').upsert(
         {
           event_id: trustedParams.eventId,
@@ -1118,6 +1142,21 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
         throw new Error(`Drawing entry rejected: ${drawingUpsert.error.message}`);
       }
       drawingEntriesAwarded = awardedPoints > 0 ? verification.drawingEntriesAwarded : 0;
+
+      // Evaluate achievements
+      try {
+        const newlyAwarded = localEngine.evaluatePlayerAchievements(trustedPlayerId, trustedParams.eventId);
+        if (newlyAwarded && newlyAwarded.length > 0) {
+          newAchievements = newlyAwarded.map((ach) => ({
+            id: ach.achievementId || ach.id,
+            title: ach.achievement?.name || ach.achievementSlug || 'Achievement Unlocked',
+            description: ach.achievement?.description || '',
+            icon: ach.achievement?.badgeSymbol || '🏆',
+          }));
+        }
+      } catch {
+        // Fallback
+      }
     }
 
     const submission = mapSubmissionFromDB({
@@ -1134,6 +1173,9 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
       drawingEntriesAwarded,
       currentStepCompleted: verification.completedStepOrder,
       isQuestFullyCompleted: verification.isQuestFullyCompleted,
+      oldRank,
+      newRank,
+      newAchievements,
     };
   } catch (err: any) {
     console.error('submitQuestProofDB error:', err);
