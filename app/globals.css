@@ -2611,3 +2611,273 @@ code, pre, .font-mono {
     transition: none !important;
   }
 }
+
+/* ==========================================================================
+   THREE DOORS PATH SELECTOR (MASTER VISUAL & INTERACTIVE HOTSPOTS)
+   ========================================================================== */
+.cq-three-doors-section {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.cq-three-doors-intro {
+  text-align: center;
+  max-width: 580px;
+  margin: 0 auto 1.5rem auto;
+}
+
+.cq-three-doors-eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #f0c978;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.cq-three-doors-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3.5vw, 2.3rem);
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+}
+
+.cq-three-doors-desc {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  color: #d1d5db;
+  line-height: 1.5;
+  margin: 0 auto;
+}
+
+.cq-three-doors-frame {
+  position: relative;
+  width: 100%;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  border: 1px solid rgba(217, 164, 76, 0.35);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(217, 164, 76, 0.15);
+  background: #050607;
+}
+
+.cq-three-doors-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  user-select: none;
+  pointer-events: none;
+}
+
+.cq-three-doors-scrim {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(5, 6, 7, 0.2) 0%, transparent 40%, rgba(5, 6, 7, 0.8) 100%);
+  z-index: 2;
+}
+
+.cq-three-doors-hotspots {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  z-index: 10;
+}
+
+.cq-door-hotspot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 33.3333%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(0.75rem, 2vw, 1.75rem);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 12;
+  transition: background-color 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+  border-radius: 1rem;
+  box-sizing: border-box;
+}
+
+.cq-door-hotspot:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.cq-door-hotspot:focus-visible {
+  outline: 2px solid #f0c978;
+  outline-offset: -2px;
+}
+
+.cq-door-hotspot.cq-door-challenge {
+  left: 0;
+}
+
+.cq-door-hotspot.cq-door-family {
+  left: 33.3333%;
+}
+
+.cq-door-hotspot.cq-door-secret {
+  left: 66.6666%;
+}
+
+.cq-door-hotspot.is-selected {
+  background-color: rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+}
+
+.cq-door-hotspot.cq-door-challenge.is-selected {
+  box-shadow: inset 0 0 50px rgba(239, 68, 68, 0.4), 0 0 25px rgba(239, 68, 68, 0.5);
+  border: 2px solid #ef4444;
+}
+
+.cq-door-hotspot.cq-door-family.is-selected {
+  box-shadow: inset 0 0 50px rgba(245, 158, 11, 0.4), 0 0 25px rgba(245, 158, 11, 0.5);
+  border: 2px solid #f59e0b;
+}
+
+.cq-door-hotspot.cq-door-secret.is-selected {
+  box-shadow: inset 0 0 50px rgba(168, 85, 247, 0.4), 0 0 25px rgba(168, 85, 247, 0.5);
+  border: 2px solid #a855f7;
+}
+
+.cq-door-badge-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.cq-door-tag {
+  font-family: var(--font-mono);
+  font-size: clamp(0.55rem, 1.2vw, 0.75rem);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.cq-door-icon-box {
+  width: clamp(1.75rem, 3vw, 2.25rem);
+  height: clamp(1.75rem, 3vw, 2.25rem);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 180ms ease;
+}
+
+.cq-door-hotspot:hover .cq-door-icon-box {
+  transform: scale(1.1);
+}
+
+.cq-door-pill-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  padding-bottom: 0.35rem;
+}
+
+.cq-door-pill {
+  padding: clamp(0.35rem, 1vw, 0.55rem) clamp(0.65rem, 1.8vw, 1.1rem);
+  border-radius: 9999px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.cq-door-hotspot:hover .cq-door-pill {
+  transform: scale(1.05);
+  filter: brightness(1.2);
+}
+
+.cq-door-pill-title {
+  font-family: var(--font-display);
+  font-size: clamp(0.75rem, 1.4vw, 0.95rem);
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.cq-door-pill-district {
+  font-family: var(--font-mono);
+  font-size: clamp(0.55rem, 1vw, 0.68rem);
+  color: #d1d5db;
+  line-height: 1;
+  margin-top: 0.2rem;
+}
+
+.cq-door-confirmation {
+  max-width: 680px;
+  margin: 2rem auto 0 auto;
+  padding: 1.25rem 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cq-door-prompt {
+  max-width: 680px;
+  margin: 1.5rem auto 0 auto;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: rgba(7, 9, 14, 0.8);
+  border: 1px solid rgba(217, 164, 76, 0.25);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.cq-door-rules-bar {
+  max-width: 680px;
+  margin: 1.25rem auto 0 auto;
+  padding: 0.85rem 1.25rem;
+  border-radius: 0.75rem;
+  background: rgba(7, 9, 14, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
