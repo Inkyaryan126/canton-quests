@@ -20,7 +20,6 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import ThreePathSelector from '@/components/ThreePathSelector';
-import BriefingVideoModal from '@/components/BriefingVideoModal';
 import { Player, PublicQuestView, QuestEvent } from '@/lib/types';
 import {
   cleanQuestTitle,
@@ -75,7 +74,7 @@ export default function HomePage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
   const [quests, setQuests] = useState<PublicQuestView[]>([]);
-  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
   useEffect(() => {
     // 1. Check client local storage
@@ -179,11 +178,11 @@ export default function HomePage() {
                 <div className="pt-2 flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setIsVideoModalOpen(true)}
+                    onClick={() => setIsVideoPlaying(true)}
                     className="cq-gold-button inline-flex items-center gap-2 cursor-pointer"
                   >
                     <Play size={16} className="fill-black" />
-                    <span>PLAY FULL BRIEFING</span>
+                    <span>{isVideoPlaying ? 'PLAYING BRIEFING' : 'PLAY FULL BRIEFING'}</span>
                   </button>
                   <Link href="/how-it-works" className="cq-dark-button text-xs font-mono">
                     READ FIELD RULES
@@ -192,34 +191,52 @@ export default function HomePage() {
               </div>
 
               <div className="lg:col-span-7">
-                <div
-                  onClick={() => setIsVideoModalOpen(true)}
-                  className="relative aspect-video rounded-2xl overflow-hidden border border-amber-500/30 shadow-2xl cursor-pointer group bg-black"
-                >
-                  <Image
-                    src={cqImages.promoVideoPoster}
-                    alt="Game Commander Mission Briefing"
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 60vw"
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                  
-                  {/* Play Button Reticle */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-16 h-16 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-amber-400 transition-all">
-                      <Play size={26} className="fill-black ml-1" />
-                    </div>
-                  </div>
+                <div className="relative aspect-video rounded-2xl overflow-hidden border border-amber-500/30 shadow-2xl bg-black">
+                  {isVideoPlaying ? (
+                    <video
+                      src={cqImages.promoVideo}
+                      poster={cqImages.promoVideoPoster}
+                      controls
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover"
+                    >
+                      Your browser does not support high-definition video playback.
+                    </video>
+                  ) : (
+                    <div
+                      onClick={() => setIsVideoPlaying(true)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setIsVideoPlaying(true)}
+                      className="relative w-full h-full cursor-pointer group"
+                    >
+                      <Image
+                        src={cqImages.promoVideoPoster}
+                        alt="Game Commander Mission Briefing"
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 60vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                      
+                      {/* Play Button Reticle */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-amber-400 transition-all">
+                          <Play size={26} className="fill-black ml-1" />
+                        </div>
+                      </div>
 
-                  {/* Video HUD Overlay */}
-                  <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[11px] font-mono text-stone-300 pointer-events-none">
-                    <span className="flex items-center gap-1.5 text-amber-300 font-bold">
-                      <Radio size={12} className="text-red-500 animate-pulse" />
-                      TRANSMISSION LOADED
-                    </span>
-                    <span>2:17 • 1080P HD</span>
-                  </div>
+                      {/* Video HUD Overlay */}
+                      <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[11px] font-mono text-stone-300 pointer-events-none">
+                        <span className="flex items-center gap-1.5 text-amber-300 font-bold">
+                          <Radio size={12} className="text-red-500 animate-pulse" />
+                          TRANSMISSION LOADED • CLICK TO PLAY
+                        </span>
+                        <span>2:17 • 1080P HD</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -353,10 +370,6 @@ export default function HomePage() {
         </section>
       </main>
 
-      <BriefingVideoModal
-        isOpen={isVideoModalOpen}
-        onClose={() => setIsVideoModalOpen(false)}
-      />
       <CinematicFooter />
       <MobileStartBar href="#choose-path" />
     </div>
