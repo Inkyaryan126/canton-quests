@@ -1875,7 +1875,9 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
       ? `GPS Location verified! Signal confirmed (${distanceFromLoc}m from target).`
       : 'Check-in verified! Field beacon active.';
   } else if (quest.verificationType === 'passphrase') {
-    if (proofMatches(params.submittedContent, quest.targetCode)) {
+    const serverSecrets = getServerProofSecretMaps();
+    const targetCode = quest.targetCode || serverSecrets.QUEST_TARGET_CODE_HASHES[quest.id] || (quest.slug ? serverSecrets.QUEST_TARGET_CODE_HASHES[quest.slug] : undefined);
+    if (proofMatches(params.submittedContent, targetCode)) {
       isAutoVerified = true;
       validationMessage = 'Cipher Cracked! Passphrase verified successfully.';
     } else {
@@ -1903,7 +1905,9 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
       };
     }
   } else if (quest.verificationType === 'qr') {
-    if (proofMatches(params.submittedContent, quest.targetCode)) {
+    const serverSecrets = getServerProofSecretMaps();
+    const targetCode = quest.targetCode || serverSecrets.QUEST_TARGET_CODE_HASHES[quest.id] || (quest.slug ? serverSecrets.QUEST_TARGET_CODE_HASHES[quest.slug] : undefined);
+    if (proofMatches(params.submittedContent, targetCode)) {
       isAutoVerified = true;
       validationMessage = quest.requireQrAndLocation
         ? `QR Emblem & Physical Proximity Verified (${distanceFromLoc !== undefined ? `${distanceFromLoc}m` : 'Location confirmed'})! Quest Completed.`

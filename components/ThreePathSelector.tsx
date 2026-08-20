@@ -187,14 +187,28 @@ export default function ThreePathSelector({
                   </div>
                 </div>
 
-                {/* Cinematic Portal Doorway Art - Constrained & Cropped Cleanly */}
-                <div className="relative w-full h-48 sm:h-52 md:h-48 lg:h-52 rounded-xl overflow-hidden mb-3.5 bg-black/90 border border-stone-800/90 flex items-center justify-center transition-all group-hover:border-stone-700">
+                {/* Cinematic Portal Doorway Art - Constrained & Cropped Cleanly (220-280px tall) */}
+                <div
+                  className="w-full rounded-xl overflow-hidden mb-3.5 bg-black/90 border border-stone-800/90 flex items-center justify-center transition-all group-hover:border-stone-700"
+                  style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '240px',
+                    minHeight: '240px',
+                    maxHeight: '260px',
+                    overflow: 'hidden',
+                  }}
+                >
                   <Image
                     src={path.doorImage}
                     alt={`${path.title} starting portal door`}
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
-                    className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                    style={{
+                      objectFit: 'cover',
+                      objectPosition: 'center',
+                    }}
+                    className="transition-transform duration-500 group-hover:scale-105"
                   />
                   <div
                     className="absolute inset-0 pointer-events-none opacity-20 group-hover:opacity-35 transition-opacity"
