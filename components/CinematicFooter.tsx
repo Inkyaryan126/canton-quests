@@ -1,23 +1,10 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { Eye, HelpCircle, ListChecks, Trophy, Gift } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
-import { cqImages } from '@/lib/marketing-assets';
 
 export default function CinematicFooter() {
   return (
     <footer className="relative overflow-hidden border-t border-amber-500/20 bg-stone-950 text-stone-300 py-10 px-4 sm:px-8">
-      {/* Ambient End of Transmission Background Artwork */}
-      <div className="absolute inset-0 pointer-events-none opacity-20">
-        <Image
-          src={cqImages.footerEndTransmission}
-          alt=""
-          fill
-          sizes="100vw"
-          className="object-cover object-bottom"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/80 to-transparent" />
-      </div>
 
       <div className="relative max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         {/* Brand Lockup */}
