@@ -7,9 +7,6 @@ import {
   Compass,
   Zap,
   KeyRound,
-  ArrowRight,
-  ShieldCheck,
-  MapPin,
   Sparkles,
   Trophy,
   CheckCircle2,
@@ -90,6 +87,49 @@ export const PATH_OPTIONS: PathOption[] = [
   },
 ];
 
+// Ordered left-to-right matching the three_doors.png artwork: Left (Challenge), Center (Family), Right (Secret)
+const DOOR_HOTSPOTS: {
+  id: StartingPath;
+  ariaLabel: string;
+  positionClass: string;
+  icon: any;
+  color: string;
+  district: string;
+  label: string;
+  tag: string;
+}[] = [
+  {
+    id: 'challenge',
+    ariaLabel: 'Choose Challenge path',
+    positionClass: 'left-0 w-1/3',
+    icon: Zap,
+    color: '#ef4444',
+    district: 'Mother Goose Land',
+    label: 'CHALLENGE',
+    tag: 'Red Door',
+  },
+  {
+    id: 'family',
+    ariaLabel: 'Choose Family path',
+    positionClass: 'left-1/3 w-1/3',
+    icon: Compass,
+    color: '#f59e0b',
+    district: 'Arts District',
+    label: 'FAMILY',
+    tag: 'Gold Door',
+  },
+  {
+    id: 'secret',
+    ariaLabel: 'Choose Secret path',
+    positionClass: 'left-2/3 w-1/3',
+    icon: KeyRound,
+    color: '#a855f7',
+    district: 'Monument Park',
+    label: 'SECRET',
+    tag: 'Purple Door',
+  },
+];
+
 export default function ThreePathSelector({
   currentPath = null,
   onSelectPath,
@@ -129,152 +169,118 @@ export default function ThreePathSelector({
           Choose Your Starting Path
         </h2>
         <p className="text-sm text-stone-300 mt-2 font-body leading-relaxed">
-          Canton Quests has <strong>three starting sections</strong> across Canton.
-          Your starting path shapes your starting identity and first missions, but <strong>never locks you out</strong>: all players compete on
-          one individual leaderboard and can solve any quest in Canton!
+          Click the <strong>Red</strong> (Challenge), <strong>Gold</strong> (Family), or <strong>Purple</strong> (Secret) door below.
+          Your starting choice shapes your first missions, but <strong>all quests remain open</strong> to every player on one unified leaderboard!
         </p>
       </div>
 
-      {/* Path Option Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6 max-w-6xl mx-auto px-4 items-stretch">
-        {PATH_OPTIONS.map((path) => {
-          const isSelected = selectedPath === path.id;
-          const hasSelection = selectedPath !== null;
-          const isDimmed = hasSelection && !isSelected;
-          const Icon = path.icon;
+      {/* Single Large Combined 3-Doors Artwork with Interactive Responsive Hotspots */}
+      <div className="max-w-5xl mx-auto px-4">
+        <div className="relative rounded-3xl overflow-hidden border border-amber-500/30 shadow-2xl bg-black aspect-[1672/941]">
+          {/* Base Combined Artwork */}
+          <Image
+            src={cqImages.threeDoors || '/canton-quests/three_doors.png'}
+            alt="Three starting portal doors: Challenge (Red), Family (Gold), Secret (Purple)"
+            fill
+            priority
+            sizes="(max-width: 1024px) 100vw, 1200px"
+            className="object-cover object-center select-none pointer-events-none"
+          />
 
-          return (
-            <div
-              key={path.id}
-              onClick={() => handleSelect(path.id)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSelect(path.id)}
-              className={`relative group rounded-2xl p-4 sm:p-5 text-left cursor-pointer transition-all duration-300 flex flex-col justify-between border ${
-                isSelected
-                  ? 'bg-stone-900/95 border-2 shadow-2xl scale-[1.02] opacity-100'
-                  : isDimmed
-                  ? 'bg-stone-950/60 border-stone-800/80 opacity-75 hover:opacity-100 hover:border-stone-700'
-                  : 'bg-stone-950/85 border-stone-800 hover:border-stone-600 hover:bg-stone-900/60 hover:scale-[1.01]'
-              }`}
-              style={{
-                borderColor: isSelected ? path.color : undefined,
-                boxShadow: isSelected ? `0 8px 30px ${path.color}35` : undefined,
-              }}
-            >
-              {/* Card Header: Badge & District Icon */}
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <span
-                    className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border"
-                    style={{
-                      backgroundColor: `${path.color}18`,
-                      borderColor: `${path.color}40`,
-                      color: path.color,
-                    }}
-                  >
-                    {path.badge}
-                  </span>
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center border transition-colors shrink-0"
-                    style={{
-                      backgroundColor: `${path.color}15`,
-                      borderColor: `${path.color}40`,
-                      color: path.color,
-                    }}
-                  >
-                    <Icon size={17} />
-                  </div>
-                </div>
+          {/* Scrim Overlay */}
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/80 via-transparent to-black/30" />
 
-                {/* Cinematic Portal Doorway Art - Constrained & Cropped Cleanly (220-280px tall) */}
-                <div
-                  className="w-full rounded-xl overflow-hidden mb-3.5 bg-black/90 border border-stone-800/90 flex items-center justify-center transition-all group-hover:border-stone-700"
-                  style={{
-                    position: 'relative',
-                    width: '100%',
-                    height: '240px',
-                    minHeight: '240px',
-                    maxHeight: '260px',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Image
-                    src={path.doorImage}
-                    alt={`${path.title} starting portal door`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                    style={{
-                      objectFit: 'cover',
-                      objectPosition: 'center',
-                    }}
-                    className="transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div
-                    className="absolute inset-0 pointer-events-none opacity-20 group-hover:opacity-35 transition-opacity"
-                    style={{
-                      background: `radial-gradient(circle at center, ${path.color}50 0%, transparent 75%)`,
-                    }}
-                  />
-                  <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-                  
-                  {/* Subtle Doorway Identity Tag in Image */}
-                  <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between pointer-events-none text-[10px] font-mono font-bold">
-                    <span className="text-white/90 drop-shadow-md uppercase tracking-wider">
-                      {path.district}
-                    </span>
-                    <span
-                      className="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest bg-black/70 backdrop-blur-sm border"
-                      style={{ borderColor: `${path.color}60`, color: path.color }}
-                    >
-                      DOORWAY
-                    </span>
-                  </div>
-                </div>
+          {/* Three Responsive Clickable Door Hotspots */}
+          <div className="absolute inset-0 flex" role="group" aria-label="Select starting path door">
+            {DOOR_HOTSPOTS.map((door) => {
+              const isSelected = selectedPath === door.id;
+              const Icon = door.icon;
 
-                <h3 className="font-display font-black text-xl text-white mb-1 tracking-tight flex items-center justify-between">
-                  <span>{path.title}</span>
-                </h3>
-                <p className="text-xs text-stone-300 font-medium mb-3 leading-snug">
-                  {path.subtitle}
-                </p>
-
-                <div className="space-y-1.5 pt-2.5 border-t border-stone-800/90 text-xs">
-                  <div className="flex items-start gap-1.5 text-stone-300">
-                    <MapPin size={13} className="shrink-0 mt-0.5" style={{ color: path.color }} />
-                    <span className="font-mono text-[11px] font-bold" style={{ color: path.color }}>
-                      {path.district}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-stone-400 font-body leading-relaxed">
-                    {path.vibe}
-                  </p>
-                </div>
-              </div>
-
-              {/* Action / Select Button */}
-              <div className="mt-4 pt-3 border-t border-stone-800/80 flex items-center justify-between gap-2">
-                <span className="text-[11px] font-mono text-stone-400 truncate">
-                  {isSelected ? '✓ Path Active' : 'Starting Choice'}
-                </span>
+              return (
                 <button
+                  key={door.id}
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSelect(path.id);
-                  }}
-                  className="px-3.5 py-2 rounded-lg text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 text-black cursor-pointer hover:brightness-110 active:scale-95 shrink-0"
+                  onClick={() => handleSelect(door.id)}
+                  aria-label={door.ariaLabel}
+                  title={`${door.ariaLabel} (${door.district})`}
+                  className={`absolute top-0 bottom-0 ${door.positionClass} group cursor-pointer focus-visible:outline-none transition-all duration-300 flex flex-col justify-between p-3 sm:p-6 rounded-2xl ${
+                    isSelected
+                      ? 'bg-black/30 ring-2 sm:ring-4 shadow-2xl'
+                      : 'hover:bg-white/[0.04] focus-visible:ring-2'
+                  }`}
                   style={{
-                    backgroundColor: path.color,
+                    borderColor: isSelected ? door.color : undefined,
+                    boxShadow: isSelected ? `inset 0 0 40px ${door.color}40, 0 0 30px ${door.color}50` : undefined,
                   }}
                 >
-                  <span>{isSelected ? 'Selected' : `Choose ${path.title}`}</span>
-                  <ArrowRight size={13} />
+                  {/* Top Badge Indicator */}
+                  <div className="w-full flex items-center justify-between pointer-events-none">
+                    <span
+                      className={`text-[9px] sm:text-xs font-mono font-bold uppercase tracking-wider px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full backdrop-blur-md border transition-all ${
+                        isSelected
+                          ? 'opacity-100 scale-105 shadow-md'
+                          : 'opacity-70 group-hover:opacity-100 group-hover:scale-105'
+                      }`}
+                      style={{
+                        backgroundColor: `${door.color}25`,
+                        borderColor: `${door.color}60`,
+                        color: door.color,
+                      }}
+                    >
+                      {door.tag}
+                    </span>
+
+                    {/* Selected Checkmark / District Icon */}
+                    <div
+                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center border transition-all ${
+                        isSelected
+                          ? 'scale-110 shadow-lg'
+                          : 'opacity-80 group-hover:opacity-100 group-hover:scale-110'
+                      }`}
+                      style={{
+                        backgroundColor: `${door.color}25`,
+                        borderColor: `${door.color}60`,
+                        color: door.color,
+                      }}
+                    >
+                      {isSelected ? (
+                        <CheckCircle2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+                      ) : (
+                        <Icon size={14} className="sm:w-[16px] sm:h-[16px]" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom Interactive Identity Pill */}
+                  <div className="w-full flex justify-center pointer-events-none pb-1 sm:pb-2">
+                    <div
+                      className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full backdrop-blur-md border text-center transition-all duration-300 shadow-xl flex items-center gap-1.5 sm:gap-2 ${
+                        isSelected
+                          ? 'scale-105 shadow-2xl ring-1'
+                          : 'group-hover:scale-105 group-hover:brightness-125'
+                      }`}
+                      style={{
+                        backgroundColor: isSelected ? `${door.color}35` : 'rgba(5, 6, 7, 0.85)',
+                        borderColor: isSelected ? door.color : `${door.color}60`,
+                        color: isSelected ? '#ffffff' : door.color,
+                      }}
+                    >
+                      <Icon size={13} className="sm:w-[15px] sm:h-[15px] shrink-0" style={{ color: door.color }} />
+                      <div className="flex flex-col text-left">
+                        <span className="font-display font-black text-[11px] sm:text-sm tracking-tight uppercase leading-none">
+                          {door.label}
+                        </span>
+                        <span className="text-[8px] sm:text-[10px] font-mono text-stone-300 leading-none mt-0.5 hidden xs:inline">
+                          {door.district}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </button>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Path Lock Confirmation & Fast Onboarding Form (Revealed ONLY after explicit path selection) */}
@@ -295,7 +301,7 @@ export default function ThreePathSelector({
                   STARTING PATH CONFIRMED: {activeOption.title} ({activeOption.district})
                 </strong>
                 <span className="text-[11px] text-stone-300 block mt-0.5">
-                  All Canton quests remain 100% open to you on one unified citywide leaderboard.
+                  {activeOption.vibe}
                 </span>
               </div>
             </div>
@@ -305,7 +311,7 @@ export default function ThreePathSelector({
               className="inline-flex items-center gap-1 text-[11px] font-mono text-stone-400 hover:text-white shrink-0 underline underline-offset-2 cursor-pointer"
             >
               <RotateCcw size={12} />
-              <span>Change Path</span>
+              <span>Change Door</span>
             </button>
           </div>
 
@@ -323,7 +329,7 @@ export default function ThreePathSelector({
         <div className="max-w-2xl mx-auto mt-6 px-4 text-center">
           <div className="p-4 rounded-xl bg-stone-950/70 border border-stone-800 text-stone-400 text-xs font-mono flex items-center justify-center gap-2">
             <Sparkles size={14} className="text-amber-400" />
-            <span>Click one of the three paths above to lock in your starting door and unlock fast callsign setup.</span>
+            <span>Click the Red, Gold, or Purple door in the image above to select your starting path.</span>
           </div>
         </div>
       )}

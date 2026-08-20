@@ -44,6 +44,7 @@ export const cqImages = {
   iconUsers: `${CQ_ASSET_PATH}/icon-users-gold.png`,
 
   // New Cinematic Asset Package
+  threeDoors: `${CQ_ASSET_PATH}/three_doors.png`,
   familyDoor: `${CQ_ASSET_PATH}/familydoor.png`,
   challengeDoor: `${CQ_ASSET_PATH}/challengedoor.png`,
   secretDoor: `${CQ_ASSET_PATH}/secretdoor.png`,
