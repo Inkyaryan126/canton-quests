@@ -159,7 +159,7 @@ export default function ThreePathSelector({
   };
 
   return (
-    <div id="choose-path" className="w-full" aria-labelledby="three-paths-heading">
+    <div id="choose-path" className="w-full scroll-mt-28" aria-labelledby="three-paths-heading">
       <div className="text-center max-w-xl mx-auto mb-5 px-4">
         <span className="inline-block text-[11px] font-mono font-bold tracking-widest text-amber-400 uppercase mb-1.5">
           THREE DOORS. ONE CITY.
