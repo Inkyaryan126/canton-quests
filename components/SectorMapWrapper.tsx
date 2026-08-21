@@ -3,6 +3,8 @@
 import dynamic from 'next/dynamic';
 import React from 'react';
 
+import type { SectorMapProps } from './SectorMap';
+
 const SectorMap = dynamic(() => import('./SectorMap'), {
   ssr: false,
   loading: () => (
@@ -15,12 +17,6 @@ const SectorMap = dynamic(() => import('./SectorMap'), {
   ),
 });
 
-interface SectorMapWrapperProps {
-  className?: string;
-  initialPlayers?: number;
-  initialQuests?: number;
-}
-
-export default function SectorMapWrapper(props: SectorMapWrapperProps) {
+export default function SectorMapWrapper(props: SectorMapProps) {
   return <SectorMap {...props} />;
 }

@@ -130,7 +130,16 @@ export default function FastPlayerOnboardForm({
       }
 
       // Trigger Path Lock Game Moment and navigate smoothly when finished
+      let hasNavigated = false;
+      let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
       const navigateNext = () => {
+        if (hasNavigated) return;
+        hasNavigated = true;
+        if (fallbackTimer) {
+          clearTimeout(fallbackTimer);
+          fallbackTimer = null;
+        }
         if (router && router.push) {
           router.push(redirectTo);
         } else if (typeof window !== 'undefined') {
@@ -144,8 +153,8 @@ export default function FastPlayerOnboardForm({
         onFinished: navigateNext,
       });
 
-      // Safe fallback timer in case moment is interrupted
-      setTimeout(navigateNext, 3000);
+      // Safe fallback timer in case moment is interrupted or unmounted
+      fallbackTimer = setTimeout(navigateNext, 3500);
     } catch (err: any) {
       setErrorMessage(err.message || 'Verification failed. Please check the confirmation code and try again.');
       setIsLoading(false);

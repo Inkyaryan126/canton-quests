@@ -77,7 +77,16 @@ function ConfirmEmailContent() {
       }
 
       const targetDestination = data.redirectTo || next || '/profile';
+      let hasNavigated = false;
+      let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
       const navigateNext = () => {
+        if (hasNavigated) return;
+        hasNavigated = true;
+        if (fallbackTimer) {
+          clearTimeout(fallbackTimer);
+          fallbackTimer = null;
+        }
         if (router && router.push) {
           router.push(targetDestination);
         } else if (typeof window !== 'undefined') {
@@ -93,8 +102,8 @@ function ConfirmEmailContent() {
         onFinished: navigateNext,
       });
 
-      // Safe fallback timer in case moment dismissal is delayed
-      setTimeout(navigateNext, 3000);
+      // Safe fallback timer in case moment dismissal is delayed or unmounted
+      fallbackTimer = setTimeout(navigateNext, 3500);
     } catch (err: any) {
       setErrorMessage(err.message || 'Verification link is invalid or has expired.');
       setIsLoading(false);

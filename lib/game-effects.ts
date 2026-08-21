@@ -30,6 +30,7 @@ export interface BaseGameMoment {
   sequenceId?: string; // Group ID for multi-part moments (e.g. quest reward sequence)
   sequenceIndex?: number; // Order within the sequence group (0, 1, 2...)
   sequencePriority?: number; // Priority of the entire sequence group when sorting
+  onFinished?: () => void;
 }
 
 export interface CityScanMoment extends BaseGameMoment {
@@ -406,8 +407,8 @@ class GameMomentManager {
     this.clearTimer();
     const current = this.state.currentMoment;
 
-    // Run custom onFinished callback if present
-    if (current && current.type === 'path-lock' && current.onFinished) {
+    // Run custom onFinished callback if present on current moment
+    if (current && current.onFinished) {
       try {
         current.onFinished();
       } catch (e) {
@@ -433,6 +434,17 @@ class GameMomentManager {
    */
   public skipAll() {
     this.clearTimer();
+    const current = this.state.currentMoment;
+
+    // Run custom onFinished callback if present on active moment
+    if (current && current.onFinished) {
+      try {
+        current.onFinished();
+      } catch (e) {
+        console.error('[GameEffects] onFinished callback error in skipAll:', e);
+      }
+    }
+
     this.state.queue = [];
     this.state.currentMoment = null;
     this.notify();

@@ -486,7 +486,11 @@ export default function WatchPage() {
         />
 
         {/* Canton Citywide Live Sector Map & Telemetry HUD */}
-        <SectorMapWrapper />
+        <SectorMapWrapper
+          feed={feed}
+          activeSpectatorCount={activeSpectatorCount}
+          districts={districts}
+        />
 
         {/* Canton Citywide District Activity View */}
         <DistrictActivityView districts={districts} />

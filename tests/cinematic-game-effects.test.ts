@@ -169,6 +169,33 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       gameMomentManager.dismissCurrent();
       expect(onFinishedSpy).toHaveBeenCalledTimes(1);
     });
+
+    it('executes onFinished callback when skipped via skipAll(), ensuring deterministic lifecycle', () => {
+      const onFinishedSpy = vi.fn();
+      showGameMoment({
+        type: 'path-lock',
+        path: 'challenge',
+        onFinished: onFinishedSpy,
+      });
+
+      expect(gameMomentManager.getState().currentMoment?.type).toBe('path-lock');
+      gameMomentManager.skipAll();
+      expect(onFinishedSpy).toHaveBeenCalledTimes(1);
+      expect(gameMomentManager.getState().currentMoment).toBeNull();
+    });
+
+    it('supports onFinished callback on general BaseGameMoment types', () => {
+      const onFinishedSpy = vi.fn();
+      showGameMoment({
+        type: 'finale-qualified',
+        qualifiedEntries: 3,
+        onFinished: onFinishedSpy,
+      });
+
+      expect(gameMomentManager.getState().currentMoment?.type).toBe('finale-qualified');
+      gameMomentManager.dismissCurrent();
+      expect(onFinishedSpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('3. Quest Reward Sequence & Server Authoritative Data', () => {

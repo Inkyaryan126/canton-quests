@@ -3,11 +3,12 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { PublicGameFeedItem } from '@/lib/types';
+import { DistrictInfo } from '@/components/spectator/DistrictActivityView';
 
 /* =========================================================================
    ZONE CONFIGURATION
    -------------------------------------------------------------------------
-   Edit, add, or adjust sector zones and coordinates here.
    Each zone corresponds to a physical district in Canton, OH with a center
    GPS coordinate (lat/lng), visual accent color, and radius in meters.
    ========================================================================= */
@@ -48,68 +49,65 @@ export const SECTOR_ZONES: SectorZone[] = [
 ];
 
 /* =========================================================================
-   TICKER & MOCK DATA DEFINITIONS
-   -------------------------------------------------------------------------
-   Replace or hook into a live WebSocket / Supabase Realtime channel
-   when transitioning from prototype simulation to live event telemetry.
+   TICKER & TELEMETRY DEFINITIONS
    ========================================================================= */
 export interface TickerEntry {
   id: string;
   glyph: string;
   who: string;
-  xp: number;
   what: string;
   time: string;
   zoneId: string;
+  badgeText: string;
+  urgency?: 'info' | 'warning' | 'flash' | 'urgent';
 }
 
-const MOCK_VERBS = [
-  'completed a quest in',
-  'checked in at',
-  'solved a cipher in',
-  'scanned an emblem in',
-  'submitted photo proof in',
-];
+function formatTimeAgo(dateString?: string): string {
+  if (!dateString) return 'just now';
+  try {
+    const diffSeconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
+    if (diffSeconds < 60) return 'just now';
+    if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+    return `${Math.floor(diffSeconds / 3600)}h ago`;
+  } catch {
+    return 'just now';
+  }
+}
 
-const MOCK_CALLSIGNS = [
-  'Ghost_07',
-  'Recruit_19',
-  'FieldAgent_3',
-  'Operative_X',
-  'Nightowl',
-  'Cipher_Sal',
-  'Agent_Mika',
-  'RouteRunner',
-  'Vantage_22',
-  'Echo_Nine',
-  'Blackbird',
-  'Agent_Dex',
-];
+function resolveZoneId(districtName?: string): string {
+  if (!districtName) return 'downtown';
+  const lower = districtName.toLowerCase();
+  if (lower.includes('mckinley') || lower.includes('monument') || lower.includes('west lawn')) return 'mckinley';
+  if (lower.includes('south') || lower.includes('mother goose') || lower.includes('9th') || lower.includes('skate')) return 'southside';
+  return 'downtown';
+}
 
-const MOCK_GLYPHS = ['»', '◆', '▲', '●', '■'];
-
-interface SectorMapProps {
+export interface SectorMapProps {
   /** Optional custom CSS class name for outer wrapper */
   className?: string;
-  /** Initial count of field agents */
-  initialPlayers?: number;
-  /** Initial count of completed quests */
-  initialQuests?: number;
+  /** Real sanitized public feed items from server */
+  feed?: PublicGameFeedItem[];
+  /** Real active spectator count from server */
+  activeSpectatorCount?: number;
+  /** Real district activity info from server */
+  districts?: DistrictInfo[];
+  /** Explicitly allow simulated demo data (strictly false by default in production) */
+  allowSimulatedDemoData?: boolean;
 }
 
 export default function SectorMap({
   className = '',
-  initialPlayers = 142,
-  initialQuests = 318,
+  feed,
+  activeSpectatorCount = 0,
+  districts,
+  allowSimulatedDemoData = false,
 }: SectorMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const zoneMarkersRef = useRef<Record<string, L.Marker>>({});
 
-  // React State for Activity Ticker, Stats, and Clock
+  // React State for Activity Ticker and Clock
   const [tickerItems, setTickerItems] = useState<TickerEntry[]>([]);
-  const [playerCount, setPlayerCount] = useState<number>(initialPlayers);
-  const [questCount, setQuestCount] = useState<number>(initialQuests);
   const [clockString, setClockString] = useState<string>('--:--:--');
 
   // Trigger pulse animation on a specific zone marker
@@ -133,57 +131,6 @@ export default function SectorMap({
       el.classList.remove('active');
     }, 1300);
   }, []);
-
-  /* =========================================================================
-     ACTIVITY TICKER ENGINE (MOCK TELEMETRY)
-     -------------------------------------------------------------------------
-     HOW TO SWAP IN REAL LIVE API / WEBSOCKET FEED:
-     -------------------------------------------------------------------------
-     1. Remove or disable the `generateMockTickerEntry` interval below.
-     2. Subscribe to Supabase Realtime or custom WebSocket server, e.g.:
-          const channel = supabase
-            .channel('public:game_telemetry')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'quest_submissions' }, (payload) => {
-               const newEntry: TickerEntry = {
-                 id: payload.new.id,
-                 glyph: '◆',
-                 who: payload.new.callsign || 'Agent',
-                 xp: payload.new.xp_awarded || 25,
-                 what: `completed ${payload.new.quest_title}`,
-                 time: 'just now',
-                 zoneId: payload.new.zone_id || 'downtown',
-               };
-               setTickerItems((prev) => [newEntry, ...prev.slice(0, 5)]);
-               triggerZonePulse(newEntry.zoneId);
-               setQuestCount((c) => c + 1);
-            })
-            .subscribe();
-     ========================================================================= */
-  const generateMockTickerEntry = useCallback(() => {
-    const randomZone = SECTOR_ZONES[Math.floor(Math.random() * SECTOR_ZONES.length)];
-    const randomWho = MOCK_CALLSIGNS[Math.floor(Math.random() * MOCK_CALLSIGNS.length)];
-    const randomVerb = MOCK_VERBS[Math.floor(Math.random() * MOCK_VERBS.length)];
-    const randomGlyph = MOCK_GLYPHS[Math.floor(Math.random() * MOCK_GLYPHS.length)];
-    const randomXp = Math.floor(Math.random() * 40) + 10;
-
-    const newEntry: TickerEntry = {
-      id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      glyph: randomGlyph,
-      who: randomWho,
-      xp: randomXp,
-      what: `${randomVerb} ${randomZone.name}`,
-      time: 'just now',
-      zoneId: randomZone.id,
-    };
-
-    setTickerItems((prev) => [newEntry, ...prev.slice(0, 5)]);
-    triggerZonePulse(randomZone.id);
-
-    setQuestCount((prev) => prev + 1);
-    if (Math.random() > 0.6) {
-      setPlayerCount((prev) => prev + 1);
-    }
-  }, [triggerZonePulse]);
 
   // Initialize Map safely on client side
   useEffect(() => {
@@ -275,22 +222,49 @@ export default function SectorMap({
     };
   }, []);
 
-  // Telemetry simulation lifecycle
+  // Map real server feed items to ticker entries without fake data
   useEffect(() => {
-    // Populate initial items staggered
-    const timeouts = [
-      setTimeout(generateMockTickerEntry, 400),
-      setTimeout(generateMockTickerEntry, 620),
-      setTimeout(generateMockTickerEntry, 840),
-    ];
+    if (allowSimulatedDemoData) return;
 
-    const tickerInterval = setInterval(generateMockTickerEntry, 3400);
+    if (feed && feed.length > 0) {
+      const mapped: TickerEntry[] = feed.slice(0, 8).map((item) => {
+        const zoneId = resolveZoneId(item.districtName);
+        const glyph = item.isHost ? '📡' : item.urgency === 'flash' ? '⚡' : item.urgency === 'urgent' ? '🚨' : '◆';
+        const who = item.isHost
+          ? 'GAME MASTER'
+          : item.districtName
+          ? `${item.districtName.toUpperCase()}`
+          : 'CANTON FIELD OP';
+        const badgeText = item.isHost
+          ? 'HOST'
+          : item.urgency === 'flash'
+          ? 'FLASH'
+          : item.urgency === 'urgent'
+          ? 'URGENT'
+          : 'INTEL';
 
-    return () => {
-      timeouts.forEach(clearTimeout);
-      clearInterval(tickerInterval);
-    };
-  }, [generateMockTickerEntry]);
+        return {
+          id: item.id,
+          glyph,
+          who,
+          what: item.headline || item.body || 'Field activity recorded',
+          time: formatTimeAgo(item.publishedAt || item.createdAt),
+          zoneId,
+          badgeText,
+          urgency: item.urgency,
+        };
+      });
+
+      setTickerItems(mapped);
+
+      // Pulse the top item's zone if valid
+      if (mapped.length > 0 && mapped[0].zoneId) {
+        triggerZonePulse(mapped[0].zoneId);
+      }
+    } else {
+      setTickerItems([]);
+    }
+  }, [feed, allowSimulatedDemoData, triggerZonePulse]);
 
   // Live HUD 24-hour clock
   useEffect(() => {
@@ -694,7 +668,7 @@ export default function SectorMap({
         {/* Top Status Indicator */}
         <div className="top-label">
           <span className="dot" />
-          LIVE SECTOR MAP · DOWNTOWN CANTON, OH
+          CANTON TACTICAL SECTOR MAP · DOWNTOWN CANTON, OH
         </div>
 
         {/* Section Heading & Subtitle */}
@@ -702,7 +676,7 @@ export default function SectorMap({
           Real coordinates. <span>Real streets.</span>
         </h1>
         <p className="sub">
-          Every zone and node below sits on its true GPS location in Canton. Watch the grid react as agents move through the actual city.
+          Every zone and node below sits on its true GPS location in Canton. The tactical radar grid reflects real-world sectors across Canton.
         </p>
 
         {/* Tactical 2-Panel Grid */}
@@ -729,41 +703,53 @@ export default function SectorMap({
           {/* Right Panel: Live Activity Feed */}
           <div className="panel">
             <div className="panel-head">
-              <span>ACTIVITY FEED</span>
-              <b>REAL-TIME</b>
+              <span>PUBLIC FIELD INTEL</span>
+              <b>{feed && feed.length > 0 ? `${feed.length} DISPATCHES` : 'STANDBY'}</b>
             </div>
 
-            <ul className="ticker-list">
-              {tickerItems.map((item) => (
-                <li key={item.id} className="ticker-item">
-                  <span className="glyph">{item.glyph}</span>
-                  <div className="body">
-                    <div className="who">
-                      {item.who}
-                      <span className="tag">XP +{item.xp}</span>
+            {tickerItems.length === 0 ? (
+              <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: '28px', marginBottom: '10px' }}>📡</div>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: 'var(--signal)', letterSpacing: '0.08em', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>
+                  STANDBY // AWAITING FIELD DISPATCHES
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-dim)', maxWidth: '280px', margin: '0 auto', lineHeight: 1.4 }}>
+                  All Canton sectors online. Live sanitized dispatches will appear in real time as game events unfold.
+                </div>
+              </div>
+            ) : (
+              <ul className="ticker-list">
+                {tickerItems.map((item) => (
+                  <li key={item.id} className="ticker-item">
+                    <span className="glyph">{item.glyph}</span>
+                    <div className="body">
+                      <div className="who">
+                        {item.who}
+                        <span className="tag">{item.badgeText}</span>
+                      </div>
+                      <div className="what">{item.what}</div>
                     </div>
-                    <div className="what">{item.what}</div>
-                  </div>
-                  <span className="time">{item.time}</span>
-                </li>
-              ))}
-            </ul>
+                    <span className="time">{item.time}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
         {/* Stats Row */}
         <div className="stats-row">
           <div className="stat">
-            <div className="num">{playerCount}</div>
-            <div className="lbl">Agents in field</div>
+            <div className="num">{activeSpectatorCount ?? 0}</div>
+            <div className="lbl">Active Spectators</div>
           </div>
           <div className="stat">
-            <div className="num">{questCount}</div>
-            <div className="lbl">Quests completed</div>
+            <div className="num">{districts?.length || SECTOR_ZONES.length}</div>
+            <div className="lbl">Active Sectors</div>
           </div>
           <div className="stat">
-            <div className="num">{questCount}</div>
-            <div className="lbl">Drawing entries</div>
+            <div className="num">{feed?.length ?? 0}</div>
+            <div className="lbl">Public Dispatches</div>
           </div>
         </div>
 

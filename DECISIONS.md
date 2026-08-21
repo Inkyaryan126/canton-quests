@@ -773,3 +773,22 @@ Each entry follows the standard ADR structure:
 - **Reason**:
   - Provides a high-energy, real-world visual representation of the active Canton game grid on the live spectator watch airwaves with 0 server-side rendering friction.
 - **Status**: **ACCEPTED**
+
+---
+
+### [ADR-037] 2026-08-21: Server-Authoritative Spectator Telemetry & Deterministic Moment Lifecycle
+- **Decision**:
+  1. **Strict Server-Authoritative Spectator Telemetry in SectorMap**:
+     - Refactored `components/SectorMap.tsx` to consume real `feed: PublicGameFeedItem[]`, `activeSpectatorCount`, and `districts` from server-side APIs on the public `/watch` page.
+     - Completely removed hardcoded starting counts (`initialPlayers = 142`, `initialQuests = 318`) and removed interval-based random mock telemetry generators from public production paths.
+     - Formatted real sanitized public dispatches for the activity ticker without synthesizing unverified XP rewards, displaying clean standby states when awaiting live field operations.
+     - Updated 3-stat summary bar to display authoritative metrics: Monitored Sectors, Active Observers, and Verified Public Dispatches.
+  2. **Deterministic Game Moment Lifecycle & `skipAll` Completion Handlers**:
+     - Moved `onFinished?: () => void;` to `BaseGameMoment`, enabling completion callbacks across all moment types.
+     - Updated `GameMomentManager.skipAll()` and `dismissCurrent()` to invoke `onFinished` safely on the active moment prior to queue clearing, ensuring all route transitions execute reliably.
+  3. **Navigation Race Condition & Duplicate Route Push Protection**:
+     - Added `hasNavigated` guards and cancelable fallback timer handles to `components/FastPlayerOnboardForm.tsx` and `app/auth/confirm/page.tsx`.
+     - Guaranteed that normal auto-dismissal, explicit user skips, and safety timeout fallbacks cannot trigger duplicate route pushes or navigation side-effects.
+- **Reason**:
+  - Eliminates false public game state, preserves strict server-authoritative reward integrity, and guarantees glitch-free mobile navigation across all onboarding and game moment flows.
+- **Status**: **ACCEPTED**
