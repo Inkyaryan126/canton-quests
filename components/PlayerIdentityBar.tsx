@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { User, Shield, Compass, Zap, KeyRound, Sparkles, Award } from 'lucide-react';
+import PlayerAvatar from '@/components/PlayerAvatar';
 import { Player, StartingPath } from '@/lib/types';
 
 interface PlayerIdentityBarProps {
@@ -130,12 +131,13 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
     <div className="glass-panel p-3.5 mb-6 rounded-2xl border border-stone-800 bg-stone-950/80 shadow-lg flex flex-wrap items-center justify-between gap-3">
       {/* Player Bio Snippet */}
       <div className="flex items-center gap-3">
-        <div
-          className="w-11 h-11 rounded-2xl bg-stone-900 border flex items-center justify-center text-2xl shrink-0 shadow-inner"
-          style={{ borderColor: player.themeColor || '#f59e0b' }}
-        >
-          {player.avatarUrl || '⚡'}
-        </div>
+        <PlayerAvatar
+          avatarUrl={player.avatarUrl}
+          displayName={player.displayName}
+          size={44}
+          borderColor={player.themeColor || '#f59e0b'}
+          className="rounded-2xl shrink-0"
+        />
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-display font-black text-white text-base tracking-tight">

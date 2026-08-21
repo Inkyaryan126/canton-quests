@@ -3,9 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
+import { LogOut, ArrowRight } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
+import PlayerAvatar from '@/components/PlayerAvatar';
 import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
@@ -93,21 +94,35 @@ export default function Header() {
             📺 WATCH LIVE
           </Link>
           {player ? (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <Link
                 href="/profile"
-                className="btn btn-secondary text-xs px-3 py-1.5 min-h-[36px] font-mono font-bold text-amber-300 hover:text-white border-amber-500/40"
+                className="cq-nav-player-pill group"
+                title={`Player Command Center: ${player.displayName}`}
+                aria-label={`Player Command Center for ${player.displayName}`}
               >
-                {player.avatarUrl || '⚡'} {player.displayName}
+                <PlayerAvatar
+                  avatarUrl={player.avatarUrl}
+                  displayName={player.displayName}
+                  size={30}
+                  className="cq-nav-avatar"
+                  showRing={true}
+                />
+                <div className="cq-nav-player-info">
+                  <span className="cq-nav-player-eyebrow">AGENT</span>
+                  <span className="cq-nav-player-name">{player.displayName}</span>
+                </div>
+                <ArrowRight size={13} className="cq-nav-player-arrow" aria-hidden="true" />
               </Link>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="btn btn-secondary text-xs px-2 py-1.5 min-h-[36px] font-mono text-stone-400 hover:text-red-400 cursor-pointer"
-                title="Log Out"
+                className="cq-nav-logout-btn"
+                title="Explicit Log Out"
                 aria-label="Log Out"
               >
-                <LogOut size={13} />
+                <LogOut size={13} aria-hidden="true" />
+                <span className="hidden sm:inline">LOG OUT</span>
               </button>
             </div>
           ) : (
