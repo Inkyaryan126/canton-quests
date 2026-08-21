@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LocationInfo } from '@/lib/types';
 import { checkProximity, formatDistance } from '@/lib/geo';
+import { cqSoundManager } from '@/lib/audio';
 
 interface LocationVerifierProps {
   location?: LocationInfo;
@@ -40,6 +41,7 @@ export default function LocationVerifier({
         const lon = pos.coords.longitude;
         const accuracy = pos.coords.accuracy;
         setGpsStatus('acquired');
+        cqSoundManager.play('lock_on');
 
         if (targetLat !== undefined && targetLon !== undefined) {
           const prox = checkProximity({ latitude: lat, longitude: lon }, targetLat, targetLon, effectiveRadius);
@@ -53,6 +55,7 @@ export default function LocationVerifier({
       },
       (err) => {
         setGpsStatus('denied');
+        cqSoundManager.play('ui_error');
         setErrorMessage(
           err.code === err.PERMISSION_DENIED
             ? 'Location permission was denied. GPS-required quests need location access before rewards can be issued.'

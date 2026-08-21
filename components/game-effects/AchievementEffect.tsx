@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { Award, Zap, Ticket, ArrowRight, Sparkles } from 'lucide-react';
 import { AchievementMoment } from '@/lib/game-effects';
 import HudParticlesCanvas from './HudParticlesCanvas';
-import { proceduralSoundEngine } from '@/lib/game-audio';
+import { cqSoundManager } from '@/lib/audio';
 
 interface AchievementEffectProps {
   moment: AchievementMoment;
@@ -18,7 +18,7 @@ export default function AchievementEffect({
   reducedMotion = false,
 }: AchievementEffectProps) {
   useEffect(() => {
-    proceduralSoundEngine.playAchievement();
+    cqSoundManager.play('badge_unlock');
   }, []);
 
   return (

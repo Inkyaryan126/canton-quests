@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, Zap, Radio, MapPin, ArrowRight } from 'lucide-react';
 import { FlashDropMoment } from '@/lib/game-effects';
-import { proceduralSoundEngine } from '@/lib/game-audio';
+import { cqSoundManager } from '@/lib/audio';
 
 interface FlashDropEffectProps {
   moment: FlashDropMoment;
@@ -18,7 +18,7 @@ export default function FlashDropEffect({
   reducedMotion = false,
 }: FlashDropEffectProps) {
   useEffect(() => {
-    proceduralSoundEngine.playFlashDrop();
+    cqSoundManager.play('flash_drop');
   }, []);
 
   return (

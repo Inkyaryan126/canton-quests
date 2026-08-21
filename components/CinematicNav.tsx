@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, LogOut, User, Compass, Trophy } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
+import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
 import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
@@ -91,6 +92,7 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
       </div>
 
       <div className="cq-nav-actions">
+        <SoundToggleControl compact showLabel={false} className="hidden sm:flex" />
         <Link href="/watch" className="cq-watch-link">
           <span aria-hidden="true" />
           WATCH LIVE

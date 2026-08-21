@@ -170,9 +170,14 @@ class GameMomentManager {
 
       // Check sound preference in localStorage
       try {
-        const storedMute = window.localStorage.getItem('canton_effects_muted');
-        if (storedMute !== null) {
-          this.state.soundEnabled = storedMute !== 'true';
+        const storedEnabled = window.localStorage.getItem('cq_sound_enabled');
+        if (storedEnabled !== null) {
+          this.state.soundEnabled = storedEnabled === 'true';
+        } else {
+          const storedMute = window.localStorage.getItem('canton_effects_muted');
+          if (storedMute !== null) {
+            this.state.soundEnabled = storedMute !== 'true';
+          }
         }
       } catch {
         // Fallback
@@ -459,6 +464,7 @@ class GameMomentManager {
     this.state.soundEnabled = enabled;
     if (this.isClient) {
       try {
+        window.localStorage.setItem('cq_sound_enabled', enabled.toString());
         window.localStorage.setItem('canton_effects_muted', (!enabled).toString());
       } catch {
         // Fallback

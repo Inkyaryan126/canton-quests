@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { MapPin, Zap, Lock, CheckCircle2, Sparkles } from 'lucide-react';
 import { PublicQuestView, QuestState } from '@/lib/types';
+import { cqSoundManager } from '@/lib/audio';
 import {
   cqImages,
   getQuestImage,
@@ -238,11 +239,26 @@ export default function QuestCard({
   );
 
   if (isLocked) {
-    return <div className="block h-full">{cardContent}</div>;
+    return (
+      <div
+        className="block h-full cursor-not-allowed"
+        onClick={() => {
+          cqSoundManager.play('ui_locked');
+        }}
+      >
+        {cardContent}
+      </div>
+    );
   }
 
   return (
-    <Link href={`/events/${eventSlug}/quests/${quest.id}`} className="block h-full">
+    <Link
+      href={`/events/${eventSlug}/quests/${quest.id}`}
+      className="block h-full cursor-pointer"
+      onClick={() => {
+        cqSoundManager.play('quest_select');
+      }}
+    >
       {cardContent}
     </Link>
   );

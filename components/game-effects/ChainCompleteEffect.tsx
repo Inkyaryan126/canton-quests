@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Layers, ArrowRight, Sparkles, CheckCheck } from 'lucide-react';
 import { ChainCompleteMoment } from '@/lib/game-effects';
 import HudParticlesCanvas from './HudParticlesCanvas';
-import { proceduralSoundEngine } from '@/lib/game-audio';
+import { cqSoundManager } from '@/lib/audio';
 
 interface ChainCompleteEffectProps {
   moment: ChainCompleteMoment;
@@ -19,8 +19,8 @@ export default function ChainCompleteEffect({
   reducedMotion = false,
 }: ChainCompleteEffectProps) {
   useEffect(() => {
-    proceduralSoundEngine.playQuestComplete(moment.bonusXp || 350);
-  }, [moment.bonusXp]);
+    cqSoundManager.play('chain_unlock');
+  }, []);
 
   return (
     <div

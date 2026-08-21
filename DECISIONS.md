@@ -878,4 +878,29 @@ Each entry follows the standard ADR structure:
   - The live player card was using coarse approximate CSS coordinates and multi-line word wrapping that caused callsigns and district names to cover printed card art labels. Guide calibration guarantees pixel-accurate alignment across all mobile and desktop devices.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-042] 2026-08-21: Tactical & Cinematic Event-Driven Sound Architecture
+
+- **Decision**:
+  1. **Centralized CQ Sound Architecture (`lib/audio/`)**:
+     - Created a single reusable sound map (`lib/audio/cq-sound-map.ts`) and sound manager (`lib/audio/cq-sound-manager.ts`) replacing scattered procedural blips with 22 custom, grounded, cinematic, and tactical audio assets in `/public/audio/cq/`.
+     - Defined 22 typed sound events spanning 6 key categories: UI (`ui_click`, `ui_confirm`, `ui_back`, `ui_error`, `ui_locked`), Quest (`quest_select`, `quest_start`, `quest_complete`, `chain_unlock`, `secret_reveal`), Player (`badge_unlock`, `rank_up`, `xp_gain`), Event (`flash_drop`, `transmission`, `finale_qualified`), Path (`path_family`, `path_challenge`, `path_secret`), and Map/HUD (`scan`, `lock_on`, `node_ping`).
+     - Swapping or upgrading sound assets in the future requires editing only `/public/audio/cq/` without altering component logic.
+  2. **Spam Debounce, Concurrency Limiting, & Priority Ducking**:
+     - Configured per-event cooldown timers (e.g. 45ms for UI clicks, 500ms for major rewards) preventing 10x overlapping spam from rapid taps.
+     - Enforced audio concurrency caps (max 2 active instances per asset).
+     - Implemented dynamic priority ducking: major reward stingers (priority >= 75: `finale_qualified`, `rank_up`, `badge_unlock`, `quest_complete`) suppress/duck low-priority UI clicks during playback to guarantee crisp, uncluttered sonic clarity.
+  3. **Intentional Reward Sequencing**:
+     - Implemented `playSequence` with deterministic stagger delays, ensuring multi-event completions (quest complete -> rank up -> badge unlock -> chain unlock) sequence with cinematic intentionality rather than firing simultaneously.
+  4. **Global User Control, Mobile Autoplay & Persistence**:
+     - Created compact, accessible `SoundToggleControl` components integrated across the HUD and primary navigation bars (`CinematicNav`, `Header`, `GameMomentOverlay`).
+     - Persists sound preferences (`cq_sound_enabled`, `cq_sound_volume`) in `localStorage` without touching auth credentials.
+     - Implemented passive one-time gesture unlock on `pointerdown`/`touchstart`/`keydown` ensuring reliable playback on iOS Safari and Android Chrome without unhandled promise rejections.
+  5. **Procedural Audio Bridge**:
+     - Retained procedural Web Audio synthesizer in `lib/game-audio.ts` for dynamic oscillator sweeps (radar pings, sub-bass impacts, fallback synthesis) while delegating high-stakes game moments to `cqSoundManager`.
+- **Reason**:
+  - The previous procedural audio was composed of simple synthetic beeps that felt arcade-like and did not match Canton Quests' premium, cinematic, real-world tactical identity. The new architecture provides grounded, impactful sound design with centralized asset management, spam protection, and mobile reliability.
+- **Status**: **ACCEPTED**
+
 

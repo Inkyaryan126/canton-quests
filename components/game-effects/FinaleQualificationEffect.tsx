@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { Ticket, ShieldCheck, ShieldAlert, Trophy, Sparkles, ArrowRight, Lock, Clock } from 'lucide-react';
 import { FinaleQualifiedMoment } from '@/lib/game-effects';
 import HudParticlesCanvas from './HudParticlesCanvas';
-import { proceduralSoundEngine } from '@/lib/game-audio';
+import { cqSoundManager } from '@/lib/audio';
 
 interface FinaleQualificationEffectProps {
   moment: FinaleQualifiedMoment;
@@ -21,9 +21,9 @@ export default function FinaleQualificationEffect({
 
   useEffect(() => {
     if (isQualified) {
-      proceduralSoundEngine.playFinaleQualified();
+      cqSoundManager.play('finale_qualified');
     } else {
-      proceduralSoundEngine.playCityScan();
+      cqSoundManager.play('scan');
     }
   }, [isQualified]);
 

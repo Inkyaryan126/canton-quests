@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
+import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
 import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
@@ -83,6 +84,7 @@ export default function Header() {
         </Link>
 
         <div className="flex items-center gap-2">
+          <SoundToggleControl compact showLabel={false} />
           <Link
             href="/watch"
             className="btn btn-primary text-xs px-3 py-1.5 min-h-[36px] font-mono font-bold flex items-center gap-1.5 text-amber-400 bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20"
