@@ -534,7 +534,7 @@ export function generateQRCodeToken(
   initializeGameEngine();
   const qrs = getStoredItem<GeneratedQR[]>(STORAGE_KEYS.GENERATED_QRS, []);
   const token = `CQQR-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-  const targetUrl = `https://divinedesigndestinations.com/qr/${token}`;
+  const targetUrl = `https://www.cantonquests.com/qr/${token}`;
 
   const newQr: GeneratedQR = {
     id: `qr-${Date.now()}`,

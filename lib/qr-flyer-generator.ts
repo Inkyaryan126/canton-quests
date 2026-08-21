@@ -215,7 +215,7 @@ export async function getActiveCampaignAssignments(campaignIdentifier: string): 
     }
 
     const flyerType = classifyFlyerType(flyerVariant.name);
-    const canonicalUrl = qr.trackingUrl || `https://www.divinedesigndestinations.com/go/${qr.trackingSlug}`;
+    const canonicalUrl = qr.trackingUrl || `https://www.cantonquests.com/go/${qr.trackingSlug}`;
 
     if (!canonicalUrl || !canonicalUrl.startsWith('http')) {
       throw new Error(

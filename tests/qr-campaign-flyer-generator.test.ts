@@ -147,7 +147,7 @@ describe('QR Campaign Promotional Flyer Generator', () => {
   });
 
   it('4. URL -> QR generation produces high quality scanable QR code buffers', async () => {
-    const testUrl = 'https://www.divinedesigndestinations.com/go/canton-quests-street-team-2026-family-dustin-9ad7f4';
+    const testUrl = 'https://www.cantonquests.com/go/canton-quests-street-team-2026-family-dustin-9ad7f4';
     const qrBuffer = await generateQrCodeBuffer(testUrl, 150);
 
     expect(qrBuffer).toBeInstanceOf(Buffer);

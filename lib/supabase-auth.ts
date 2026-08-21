@@ -62,8 +62,13 @@ export const AUTH_ACCESS_COOKIE = 'sb-access-token';
 export const AUTH_REFRESH_COOKIE = 'sb-refresh-token';
 export const AUTH_PLAYER_COOKIE = 'canton_player_id';
 export const LEGACY_AUTH_COOKIE = 'supabase-auth-token';
-export const CANONICAL_AUTH_HOST = 'www.divinedesigndestinations.com';
+export const CANONICAL_AUTH_HOST = 'www.cantonquests.com';
 export const CANONICAL_AUTH_DOMAIN = '.divinedesigndestinations.com';
+export const LEGACY_AUTH_DOMAINS = [
+  '.divinedesigndestinations.com',
+  '.cantonquests.com',
+  '.cantonquests.vip',
+];
 
 function isProductionRuntime() {
   return process.env.NODE_ENV === 'production';
@@ -132,13 +137,6 @@ export function clearAuthCookies(
   response.cookies.set(AUTH_REFRESH_COOKIE, '', clearOptions);
   response.cookies.set(AUTH_PLAYER_COOKIE, '', clearOptions);
   response.cookies.set(LEGACY_AUTH_COOKIE, '', clearOptions);
-
-  // Also purge legacy domain cookies if previously written under .divinedesigndestinations.com
-  const legacyDomainOptions = { ...clearOptions, domain: CANONICAL_AUTH_DOMAIN };
-  response.cookies.set(AUTH_ACCESS_COOKIE, '', legacyDomainOptions);
-  response.cookies.set(AUTH_REFRESH_COOKIE, '', legacyDomainOptions);
-  response.cookies.set(AUTH_PLAYER_COOKIE, '', legacyDomainOptions);
-  response.cookies.set(LEGACY_AUTH_COOKIE, '', legacyDomainOptions);
 }
 
 // In-memory dev/test OTP store when Supabase is not configured (e.g. unit testing / offline dev)
@@ -150,7 +148,7 @@ export const mockVerifiedUserStore = new Map<string, AuthSessionUser>();
 
 /**
  * Resolves the canonical site URL for authentication redirects.
- * Prioritizes NEXT_PUBLIC_SITE_URL -> NEXT_PUBLIC_APP_URL -> window.location.origin -> https://www.divinedesigndestinations.com
+ * Prioritizes NEXT_PUBLIC_SITE_URL -> NEXT_PUBLIC_APP_URL -> window.location.origin -> https://www.cantonquests.com
  */
 export function getSiteUrl(): string {
   if (process.env.NEXT_PUBLIC_SITE_URL) {
@@ -187,8 +185,13 @@ export function sanitizeRedirectUrl(rawUrl?: string | null, fallbackPath: string
 
     const allowedOrigins = [
       siteOrigin,
+      'https://cantonquests.com',
+      'https://www.cantonquests.com',
+      'https://cantonquests.vip',
+      'https://www.cantonquests.vip',
       'https://divinedesigndestinations.com',
       'https://www.divinedesigndestinations.com',
+      'https://canton-quests.vercel.app',
     ];
     if (process.env.NODE_ENV !== 'production') {
       allowedOrigins.push('http://localhost:3000', 'http://127.0.0.1:3000');

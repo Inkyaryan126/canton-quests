@@ -108,7 +108,7 @@ for (const qr of qrs) {
   }
 
   console.log(
-    `${flyer.name} / ${distributor.name} -> https://divinedesigndestinations.com/go/${shortSlug}`
+    `${flyer.name} / ${distributor.name} -> https://www.cantonquests.com/go/${shortSlug}`
   );
 }
 

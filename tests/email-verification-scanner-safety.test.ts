@@ -40,12 +40,12 @@ describe('Canton Quests — Email Verification Flow & Scanner Safety Suite', () 
 
   describe('1. Site URL & Redirect Configuration', () => {
     it('1. Defaults to the canonical www production host when no environment variable is set', () => {
-      expect(getSiteUrl()).toBe('https://www.divinedesigndestinations.com');
+      expect(getSiteUrl()).toBe('https://www.cantonquests.com');
     });
 
     it('2. Uses NEXT_PUBLIC_SITE_URL when configured and trims trailing slashes', () => {
-      process.env.NEXT_PUBLIC_SITE_URL = 'https://divinedesigndestinations.com/';
-      expect(getSiteUrl()).toBe('https://divinedesigndestinations.com');
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://www.cantonquests.com/';
+      expect(getSiteUrl()).toBe('https://www.cantonquests.com');
     });
 
     it('3. Falls back to NEXT_PUBLIC_APP_URL when SITE_URL is not set', () => {
@@ -56,7 +56,7 @@ describe('Canton Quests — Email Verification Flow & Scanner Safety Suite', () 
 
   describe('2. Scanner-Safe Verification Functionality', () => {
     it('4. sendEmailOtp creates scanner-safe redirect URL to /auth/confirm', async () => {
-      process.env.NEXT_PUBLIC_SITE_URL = 'https://divinedesigndestinations.com';
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://www.cantonquests.com';
       const result = await sendEmailOtp('player1@example.com', {
         startingPath: 'family',
         redirectTo: '/events/canton-weekend-1',
@@ -100,9 +100,9 @@ describe('Canton Quests — Email Verification Flow & Scanner Safety Suite', () 
 
   describe('3. HTTP Endpoints & Email Scanner Protection', () => {
     it('7. GET /api/auth/confirm forwards to /auth/confirm without consuming verification tokens (Scanner-Safe)', async () => {
-      process.env.NEXT_PUBLIC_SITE_URL = 'https://divinedesigndestinations.com';
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://www.cantonquests.com';
       const scannerReq = new Request(
-        'https://divinedesigndestinations.com/api/auth/confirm?token_hash=token-secret-777&type=email&next=/quests',
+        'https://www.cantonquests.com/api/auth/confirm?token_hash=token-secret-777&type=email&next=/quests',
         { method: 'GET' }
       );
 
@@ -110,7 +110,7 @@ describe('Canton Quests — Email Verification Flow & Scanner Safety Suite', () 
 
       expect(redirectRes.status).toBe(307);
       const location = redirectRes.headers.get('location');
-      expect(location).toContain('https://divinedesigndestinations.com/auth/confirm');
+      expect(location).toContain('https://www.cantonquests.com/auth/confirm');
       expect(location).toContain('token_hash=token-secret-777');
       expect(location).toContain('next=%2Fquests');
 

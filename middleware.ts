@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const CANONICAL_AUTH_HOST = 'www.divinedesigndestinations.com';
+const CANONICAL_AUTH_HOST = 'www.cantonquests.com';
 const CANONICAL_REDIRECT_HOSTS = new Set([
   'divinedesigndestinations.com',
+  'www.divinedesigndestinations.com',
+  'cantonquests.com',
   'canton-quests.vercel.app',
 ]);
 

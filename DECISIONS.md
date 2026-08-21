@@ -903,4 +903,23 @@ Each entry follows the standard ADR structure:
   - The previous procedural audio was composed of simple synthetic beeps that felt arcade-like and did not match Canton Quests' premium, cinematic, real-world tactical identity. The new architecture provides grounded, impactful sound design with centralized asset management, spam protection, and mobile reliability.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-043] 2026-08-21: Canonical Production Domain Migration to www.cantonquests.com
+
+- **Decision**:
+  1. **Canonical Production Origin (`https://www.cantonquests.com`)**:
+     - Configured `https://www.cantonquests.com` as the canonical production origin across Next.js metadata (`metadataBase`, OpenGraph, Twitter cards), auth redirect resolver (`lib/supabase-auth.ts:getSiteUrl()`), QR campaigns (`lib/qr-campaigns.ts`, `lib/qr-flyer-generator.ts`), and game engine token generation (`lib/game-engine.ts`).
+  2. **Host-Only Auth Cookie Invariance**:
+     - Maintained host-only cookie emission (`Set-Cookie: sb-access-token=...; Path=/; HttpOnly; Secure; SameSite=Lax`) with no explicit Domain attribute, preventing cookie rejection across production domains, preview branches, and localhost.
+     - Enhanced `clearAuthCookies()` to purge legacy cookies across all connected domains (`.divinedesigndestinations.com`, `.cantonquests.com`, `.cantonquests.vip`).
+  3. **Safe Middleware Canonicalization (`middleware.ts`)**:
+     - Redirects legacy production domains (`divinedesigndestinations.com`, `www.divinedesigndestinations.com`), the apex domain (`cantonquests.com`), and the Vercel alias (`canton-quests.vercel.app`) to `https://www.cantonquests.com` with HTTP 308 (preserving paths and query parameters).
+     - Explicitly preserves direct serving without redirect for `cantonquests.vip`, `www.cantonquests.vip`, `localhost`, and Vercel preview deployments (`*.vercel.app`).
+  4. **Email Verification & Scanner Safety**:
+     - All verification/recovery links generate with `https://www.cantonquests.com` while allowing multi-domain redirect sanitization (`sanitizeRedirectUrl`) without open-redirect vulnerabilities.
+- **Reason**:
+  - Unifies brand identity under the official Canton Quests domain while maintaining seamless authentication, email verification, persistent sessions, and multi-domain flexibility across `.com` and `.vip`.
+- **Status**: **ACCEPTED**
+
 

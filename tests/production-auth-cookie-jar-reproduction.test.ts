@@ -106,7 +106,8 @@ describe('Production Auth Cookie-Jar Reproduction & Verification Test Suite', ()
   });
 
   const TEST_HOSTS = [
-    'https://www.divinedesigndestinations.com',
+    'https://www.cantonquests.com',
+    'https://www.cantonquests.vip',
     'https://canton-quests.vercel.app',
     'https://canton-quests-dpl-b6tqjz2swi1m8tut7ehheoy9n9gd.vercel.app',
     'http://localhost:3000',
@@ -158,6 +159,8 @@ describe('Production Auth Cookie-Jar Reproduction & Verification Test Suite', ()
         expect(setCookie.toLowerCase()).toContain('samesite=lax');
 
         // Crucial invariant: No hardcoded Domain that breaks Vercel or preview deployments
+        expect(setCookie).not.toContain('Domain=');
+        expect(setCookie).not.toContain('Domain=.cantonquests.com');
         expect(setCookie).not.toContain('Domain=.divinedesigndestinations.com');
 
         // 4. Ingest into simulated browser Cookie Jar
@@ -213,7 +216,7 @@ describe('Production Auth Cookie-Jar Reproduction & Verification Test Suite', ()
 
   describe('Contract and Isolation Tests', () => {
     it('verifies /api/auth/me JSON contract returns 200 with isAuthenticated: false when unauthenticated', async () => {
-      const meReq = new Request('https://www.divinedesigndestinations.com/api/auth/me');
+      const meReq = new Request('https://www.cantonquests.com/api/auth/me');
       const meRes = await meHandler(meReq);
       const meJson = await meRes.json();
 
@@ -224,7 +227,7 @@ describe('Production Auth Cookie-Jar Reproduction & Verification Test Suite', ()
     });
 
     it('verifies /api/player/command-center returns 401 when unauthenticated', async () => {
-      const ccReq = new Request('https://www.divinedesigndestinations.com/api/player/command-center');
+      const ccReq = new Request('https://www.cantonquests.com/api/player/command-center');
       const ccRes = await commandCenterHandler(ccReq);
       const ccJson = await ccRes.json();
 
@@ -244,7 +247,7 @@ describe('Production Auth Cookie-Jar Reproduction & Verification Test Suite', ()
       const expiredJar = new HttpCookieJar();
 
       // Send GET /api/auth/me with expired access token and valid refresh token
-      const meReq = new Request('https://www.divinedesigndestinations.com/api/auth/me', {
+      const meReq = new Request('https://www.cantonquests.com/api/auth/me', {
         headers: { cookie: `sb-access-token=expired-mock-token; sb-refresh-token=${refreshToken}` },
       });
 
@@ -256,13 +259,13 @@ describe('Production Auth Cookie-Jar Reproduction & Verification Test Suite', ()
       expect(meJson.player.displayName).toBe('RotateRanger');
 
       // Update cookie jar with refreshed cookies from /api/auth/me response
-      expiredJar.acceptResponseCookies(meRes, 'www.divinedesigndestinations.com');
+      expiredJar.acceptResponseCookies(meRes, 'www.cantonquests.com');
 
       expect(expiredJar.has('sb-access-token')).toBe(true);
       expect(expiredJar.has('sb-refresh-token')).toBe(true);
 
       // Subsequent /api/player/command-center call succeeds with refreshed cookie jar
-      const ccReq = new Request('https://www.divinedesigndestinations.com/api/player/command-center', {
+      const ccReq = new Request('https://www.cantonquests.com/api/player/command-center', {
         headers: { cookie: expiredJar.getCookieHeader() },
       });
 
@@ -288,10 +291,10 @@ describe('Production Auth Cookie-Jar Reproduction & Verification Test Suite', ()
             'set-cookie': `sb-access-token=${signUpRes.session!.access_token}; Path=/, sb-refresh-token=${signUpRes.session!.refresh_token}; Path=/`,
           },
         }),
-        'www.divinedesigndestinations.com'
+        'www.cantonquests.com'
       );
 
-      const logoutReq = new Request('https://www.divinedesigndestinations.com/api/auth/logout', {
+      const logoutReq = new Request('https://www.cantonquests.com/api/auth/logout', {
         method: 'POST',
         headers: { cookie: cookieJar.getCookieHeader() },
       });
@@ -300,14 +303,14 @@ describe('Production Auth Cookie-Jar Reproduction & Verification Test Suite', ()
       expect(logoutRes.status).toBe(200);
 
       // Ingest logout response Set-Cookie headers (Max-Age=0)
-      cookieJar.acceptResponseCookies(logoutRes, 'www.divinedesigndestinations.com');
+      cookieJar.acceptResponseCookies(logoutRes, 'www.cantonquests.com');
 
       expect(cookieJar.has('sb-access-token')).toBe(false);
       expect(cookieJar.has('sb-refresh-token')).toBe(false);
 
       // Now verify /api/auth/me shows unauthenticated
       const postLogoutMe = await meHandler(
-        new Request('https://www.divinedesigndestinations.com/api/auth/me', {
+        new Request('https://www.cantonquests.com/api/auth/me', {
           headers: { cookie: cookieJar.getCookieHeader() },
         })
       );
@@ -317,7 +320,7 @@ describe('Production Auth Cookie-Jar Reproduction & Verification Test Suite', ()
 
       // Now verify /api/player/command-center returns 401
       const postLogoutCc = await commandCenterHandler(
-        new Request('https://www.divinedesigndestinations.com/api/player/command-center', {
+        new Request('https://www.cantonquests.com/api/player/command-center', {
           headers: { cookie: cookieJar.getCookieHeader() },
         })
       );

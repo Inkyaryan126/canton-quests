@@ -13,7 +13,7 @@ As a Live Game Director, your job is to keep Canton feeling alive, surprising, a
 ## ⏱️ 60-Minute Live Demo Runbook
 
 ### Phase 1: Pre-Game & Event Launch (0 – 10 Mins)
-1. **Access Control Room**: Navigate to `https://divinedesigndestinations.com/admin/live` (or `/admin/live` locally).
+1. **Access Control Room**: Navigate to `https://www.cantonquests.com/admin/live` (or `/admin/live` locally).
 2. **Set Event Phase**: Click **OPENING** on the Phase Selector Bar.
 3. **Broadcast Launch Announcement**:
    - Click **📢 Broadcast Alert**.

@@ -639,7 +639,7 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
         selectedStartingPath: 'challenge',
       });
 
-      const loginReq = new Request('https://www.divinedesigndestinations.com/api/auth/login', {
+      const loginReq = new Request('https://www.cantonquests.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -666,7 +666,7 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(loginRes.status).toBe(200);
       expect(loginJson.success).toBe(true);
 
-      const meRes = await meHandler(new Request('https://www.divinedesigndestinations.com/api/auth/me', {
+      const meRes = await meHandler(new Request('https://www.cantonquests.com/api/auth/me', {
         headers: { cookie },
       }));
       const meJson = await meRes.json();
@@ -674,7 +674,7 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(meJson.isAuthenticated).toBe(true);
       expect(meJson.player.id).toBe(loginJson.player.id);
 
-      const commandRes = await commandCenterHandler(new Request('https://www.divinedesigndestinations.com/api/player/command-center', {
+      const commandRes = await commandCenterHandler(new Request('https://www.cantonquests.com/api/player/command-center', {
         headers: { cookie },
       }));
       const commandJson = await commandRes.json();
@@ -685,10 +685,10 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
     });
 
     it('anonymous and invalid command-center sessions return 401', async () => {
-      const anonymous = await commandCenterHandler(new Request('https://www.divinedesigndestinations.com/api/player/command-center'));
+      const anonymous = await commandCenterHandler(new Request('https://www.cantonquests.com/api/player/command-center'));
       expect(anonymous.status).toBe(401);
 
-      const invalid = await commandCenterHandler(new Request('https://www.divinedesigndestinations.com/api/player/command-center', {
+      const invalid = await commandCenterHandler(new Request('https://www.cantonquests.com/api/player/command-center', {
         headers: { cookie: 'sb-access-token=invalid; sb-refresh-token=invalid' },
       }));
       expect(invalid.status).toBe(401);
@@ -697,14 +697,14 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
     it('/api/player/profile uses the same canonical session and rejects client-controlled player impersonation', async () => {
       const { loginJson, cookie } = await loginExistingPlayer();
 
-      const profileGet = await profileHandler(new Request('https://www.divinedesigndestinations.com/api/player/profile', {
+      const profileGet = await profileHandler(new Request('https://www.cantonquests.com/api/player/profile', {
         headers: { cookie },
       }));
       const profileJson = await profileGet.json();
       expect(profileGet.status).toBe(200);
       expect(profileJson.player.id).toBe(loginJson.player.id);
 
-      const profilePost = await profilePostHandler(new Request('https://www.divinedesigndestinations.com/api/player/profile', {
+      const profilePost = await profilePostHandler(new Request('https://www.cantonquests.com/api/player/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', cookie },
         body: JSON.stringify({
@@ -719,7 +719,7 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       const { loginJson } = await loginExistingPlayer();
       const refreshOnlyCookie = `sb-access-token=expired-token; sb-refresh-token=${loginJson.session.refresh_token}`;
 
-      const meRes = await meHandler(new Request('https://www.divinedesigndestinations.com/api/auth/me', {
+      const meRes = await meHandler(new Request('https://www.cantonquests.com/api/auth/me', {
         headers: { cookie: refreshOnlyCookie },
       }));
       const meJson = await meRes.json();
@@ -732,12 +732,12 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
         `sb-refresh-token=${meJson.session.refresh_token}`,
       ].join('; ');
 
-      const commandRes = await commandCenterHandler(new Request('https://www.divinedesigndestinations.com/api/player/command-center', {
+      const commandRes = await commandCenterHandler(new Request('https://www.cantonquests.com/api/player/command-center', {
         headers: { cookie: rotatedCookie },
       }));
       expect(commandRes.status).toBe(200);
 
-      const profileRes = await profileHandler(new Request('https://www.divinedesigndestinations.com/api/player/profile', {
+      const profileRes = await profileHandler(new Request('https://www.cantonquests.com/api/player/profile', {
         headers: { cookie: rotatedCookie },
       }));
       expect(profileRes.status).toBe(200);
@@ -746,31 +746,59 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
     it('logout clears auth and command-center stays unauthorized after browser reopen', async () => {
       const { cookie } = await loginExistingPlayer();
 
-      const logoutRes = await logoutHandler(new Request('https://www.divinedesigndestinations.com/api/auth/logout', {
+      const logoutRes = await logoutHandler(new Request('https://www.cantonquests.com/api/auth/logout', {
         method: 'POST',
         headers: { cookie },
       }));
       expect(logoutRes.status).toBe(200);
       expect(logoutRes.headers.get('set-cookie') || '').toContain('Max-Age=0');
 
-      const reopened = await commandCenterHandler(new Request('https://www.divinedesigndestinations.com/api/player/command-center'));
+      const reopened = await commandCenterHandler(new Request('https://www.cantonquests.com/api/player/command-center'));
       expect(reopened.status).toBe(401);
     });
 
     it('rejects external redirects and canonicalizes production hosts without splitting auth cookies', async () => {
       expect(sanitizeRedirectUrl('https://attacker.example/steal')).toBe('/profile');
 
-      const apexRedirect = middleware(new NextRequest('https://divinedesigndestinations.com/profile'));
+      // 1. Apex cantonquests.com redirects to www.cantonquests.com (308)
+      const apexRedirect = middleware(new NextRequest('https://cantonquests.com/profile'));
       expect(apexRedirect?.status).toBe(308);
-      expect(apexRedirect?.headers.get('location')).toBe('https://www.divinedesigndestinations.com/profile');
+      expect(apexRedirect?.headers.get('location')).toBe('https://www.cantonquests.com/profile');
 
+      // 2. Legacy domain redirects to www.cantonquests.com (308)
+      const legacyApexRedirect = middleware(new NextRequest('https://divinedesigndestinations.com/quests'));
+      expect(legacyApexRedirect?.status).toBe(308);
+      expect(legacyApexRedirect?.headers.get('location')).toBe('https://www.cantonquests.com/quests');
+
+      const legacyWwwRedirect = middleware(new NextRequest('https://www.divinedesigndestinations.com/profile'));
+      expect(legacyWwwRedirect?.status).toBe(308);
+      expect(legacyWwwRedirect?.headers.get('location')).toBe('https://www.cantonquests.com/profile');
+
+      // 3. Vercel alias redirects to www.cantonquests.com (308)
       const aliasRedirect = middleware(new NextRequest('https://canton-quests.vercel.app/api/auth/login'));
       expect(aliasRedirect?.status).toBe(308);
-      expect(aliasRedirect?.headers.get('location')).toBe('https://www.divinedesigndestinations.com/api/auth/login');
+      expect(aliasRedirect?.headers.get('location')).toBe('https://www.cantonquests.com/api/auth/login');
 
+      // 4. cantonquests.vip and www.cantonquests.vip are NOT redirected to .com
+      const vipWwwReq = middleware(new NextRequest('https://www.cantonquests.vip/watch'));
+      expect(vipWwwReq?.status).toBe(200); // Passes through via NextResponse.next()
+      expect(vipWwwReq?.headers.get('location')).toBeNull();
+
+      const vipApexReq = middleware(new NextRequest('https://cantonquests.vip/watch'));
+      expect(vipApexReq?.status).toBe(200); // Passes through via NextResponse.next()
+      expect(vipApexReq?.headers.get('location')).toBeNull();
+
+      // 5. Preview deployments are NOT redirected
+      const previewReq = middleware(new NextRequest('https://canton-quests-dpl-xyz.vercel.app/quests'));
+      expect(previewReq?.status).toBe(200);
+      expect(previewReq?.headers.get('location')).toBeNull();
+
+      // 6. Host-only cookies with NO explicit Domain attribute
       vi.stubEnv('NODE_ENV', 'production');
       const { loginRes } = await loginExistingPlayer();
       const setCookie = loginRes.headers.get('set-cookie') || '';
+      expect(setCookie).not.toContain('Domain=');
+      expect(setCookie).not.toContain('Domain=.cantonquests.com');
       expect(setCookie).not.toContain('Domain=.divinedesigndestinations.com');
       expect(setCookie).toContain('sb-access-token');
       expect(setCookie).toContain('sb-refresh-token');
