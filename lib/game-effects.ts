@@ -27,6 +27,9 @@ export interface BaseGameMoment {
   autoDismiss?: boolean;
   priority?: number; // Higher number = higher priority
   timestamp?: number;
+  sequenceId?: string; // Group ID for multi-part moments (e.g. quest reward sequence)
+  sequenceIndex?: number; // Order within the sequence group (0, 1, 2...)
+  sequencePriority?: number; // Priority of the entire sequence group when sorting
 }
 
 export interface CityScanMoment extends BaseGameMoment {
@@ -211,6 +214,43 @@ class GameMomentManager {
   }
 
   /**
+   * Compare two moments for queue ordering:
+   * - Moments in the same sequence group strictly preserve sequenceIndex ascending
+   * - Moments across different groups/standalone compare effective sequencePriority / priority descending
+   * - Ties preserve FIFO arrival order by timestamp
+   */
+  public static compareMoments(a: GameMoment, b: GameMoment): number {
+    // 1. If both belong to the same atomic sequence, maintain strict sequential order
+    if (a.sequenceId && b.sequenceId && a.sequenceId === b.sequenceId) {
+      const indexDiff = (a.sequenceIndex ?? 0) - (b.sequenceIndex ?? 0);
+      if (indexDiff !== 0) return indexDiff;
+      return (a.timestamp ?? 0) - (b.timestamp ?? 0);
+    }
+
+    // 2. Different sequence groups or standalone moments: compare effective priorities
+    const pA = a.sequencePriority ?? a.priority ?? 0;
+    const pB = b.sequencePriority ?? b.priority ?? 0;
+
+    if (pA !== pB) {
+      return pB - pA; // Higher priority first
+    }
+
+    // 3. Same effective priority: preserve FIFO ordering
+    const timeA = a.timestamp ?? 0;
+    const timeB = b.timestamp ?? 0;
+    if (timeA !== timeB) {
+      return timeA - timeB;
+    }
+
+    // Tie-break by sequenceId if different
+    if (a.sequenceId && b.sequenceId && a.sequenceId !== b.sequenceId) {
+      return a.sequenceId.localeCompare(b.sequenceId);
+    }
+
+    return 0;
+  }
+
+  /**
    * Enqueue or immediately show a game moment
    */
   public trigger(moment: GameMoment, options?: GameMomentOptions): string {
@@ -218,9 +258,12 @@ class GameMomentManager {
     const fullMoment: GameMoment = {
       ...moment,
       id,
-      timestamp: Date.now(),
+      timestamp: moment.timestamp ?? Date.now(),
       priority: moment.priority ?? this.getDefaultPriority(moment.type),
       durationMs: moment.durationMs ?? this.getDefaultDuration(moment.type),
+      sequenceId: moment.sequenceId,
+      sequenceIndex: moment.sequenceIndex,
+      sequencePriority: moment.sequencePriority,
     };
 
     if (options?.delayMs && options.delayMs > 0) {
@@ -232,6 +275,41 @@ class GameMomentManager {
 
     this.enqueue(fullMoment, options?.skipQueue);
     return id;
+  }
+
+  /**
+   * Enqueue a batch of moments that must play in strict sequential order as a single atomic sequence.
+   */
+  public triggerSequence(moments: GameMoment[], options?: GameMomentOptions): string[] {
+    if (!moments || moments.length === 0) return [];
+    const seqId = `seq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const groupTimestamp = Date.now();
+    const maxPriority = Math.max(...moments.map((m) => m.priority ?? this.getDefaultPriority(m.type)));
+    const sequencePriority = Math.max(90, maxPriority);
+
+    const ids: string[] = [];
+    moments.forEach((m, idx) => {
+      const id = m.id || `moment-${groupTimestamp}-${idx}-${Math.random().toString(36).slice(2, 7)}`;
+      ids.push(id);
+      const fullMoment: GameMoment = {
+        ...m,
+        id,
+        timestamp: groupTimestamp,
+        priority: m.priority ?? this.getDefaultPriority(m.type),
+        durationMs: m.durationMs ?? this.getDefaultDuration(m.type),
+        sequenceId: seqId,
+        sequenceIndex: idx,
+        sequencePriority,
+      };
+
+      if (idx === 0 && options?.skipQueue) {
+        this.enqueue(fullMoment, true);
+      } else {
+        this.enqueue(fullMoment, false);
+      }
+    });
+
+    return ids;
   }
 
   private getDefaultPriority(type: GameMomentType): number {
@@ -298,8 +376,8 @@ class GameMomentManager {
       this.scheduleAutoDismiss(moment);
       this.notify();
     } else {
-      // Insert in priority order
-      const newQueue = [...this.state.queue, moment].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      // Insert in priority & sequence order
+      const newQueue = [...this.state.queue, moment].sort(GameMomentManager.compareMoments);
       this.state.queue = newQueue;
       this.notify();
     }
@@ -395,11 +473,20 @@ export function showGameMoment(moment: GameMoment, options?: GameMomentOptions):
 }
 
 /**
+ * Public trigger helper for triggering an atomic sequence of cinematic moments
+ */
+export function triggerGameMomentSequence(moments: GameMoment[], options?: GameMomentOptions): string[] {
+  return gameMomentManager.triggerSequence(moments, options);
+}
+
+/**
  * Helper to queue complete sequence when a quest is verified:
  * 1. Quest Complete (+XP)
  * 2. Rank Up (if rank improved)
  * 3. Achievement (if unlocked)
  * 4. Chain complete (if unlocked)
+ *
+ * Guarantees atomic sequential FIFO ordering even when an overlay is already active.
  */
 export function triggerQuestRewardSequence(params: {
   questId?: string;
@@ -422,9 +509,11 @@ export function triggerQuestRewardSequence(params: {
   }>;
   isChainComplete?: boolean;
   chainTitle?: string;
-}) {
-  // 1. Show Quest Complete
-  showGameMoment({
+}): string[] {
+  const moments: GameMoment[] = [];
+
+  // 1. Show Quest Complete (+XP)
+  moments.push({
     type: 'quest-complete',
     questId: params.questId,
     questTitle: params.questTitle,
@@ -443,7 +532,7 @@ export function triggerQuestRewardSequence(params: {
     params.newRank < params.oldRank
   ) {
     const tier = GameMomentManager.calculateRankTier(params.newRank, params.oldRank);
-    showGameMoment({
+    moments.push({
       type: 'rank-up',
       oldRank: params.oldRank,
       newRank: params.newRank,
@@ -455,7 +544,7 @@ export function triggerQuestRewardSequence(params: {
   // 3. Queue Achievements if any unlocked
   if (params.newAchievements && params.newAchievements.length > 0) {
     params.newAchievements.forEach((ach) => {
-      showGameMoment({
+      moments.push({
         type: 'achievement',
         achievementId: ach.id,
         title: ach.title,
@@ -469,11 +558,13 @@ export function triggerQuestRewardSequence(params: {
 
   // 4. Queue Chain Complete if applicable
   if (params.isChainComplete && params.chainTitle) {
-    showGameMoment({
+    moments.push({
       type: 'chain-complete',
       chainTitle: params.chainTitle,
       nextObjectiveTitle: params.unlockedQuestTitle,
       nextObjectiveUrl: params.unlockedQuestUrl,
     });
   }
+
+  return gameMomentManager.triggerSequence(moments);
 }

@@ -733,3 +733,20 @@ Each entry follows the standard ADR structure:
 - **Reason**:
   - Elevates Canton Quests into a AAA real-world competitive game, ensuring all visual celebrations reflect real, immutable game state and deliver a fluid, glitch-free mobile experience for players on launch day.
 - **Status**: **ACCEPTED**
+
+---
+
+### [ADR-035] 2026-08-21: Atomic Sequence Grouping & Deterministic FIFO Reward Flow in Game Moments Engine
+- **Decision**:
+  1. **Atomic Sequence Preservation via `sequenceId` and `sequenceIndex`**:
+     - Added `sequenceId`, `sequenceIndex`, and `sequencePriority` to `BaseGameMoment`.
+     - Implemented `GameMomentManager.compareMoments` to guarantee that all moments belonging to the same atomic sequence group (such as verified quest completion: `quest-complete` -> `rank-up` -> `achievement` -> `chain-complete`) are strictly executed in sequence order.
+     - Prevented individual moment priorities (e.g. `rank-up` priority 90) from reordering or overtaking `quest-complete` (XP impact) when enqueued while an existing overlay (e.g. City Scan, Flash Drop, Finale) is actively displayed.
+  2. **Unified Batch Enqueue via `triggerSequence`**:
+     - Introduced `triggerSequence` / `triggerGameMomentSequence` in `lib/game-effects.ts`.
+     - Refactored `triggerQuestRewardSequence` to use `triggerSequence`, guaranteeing atomic FIFO sequencing across both idle and active overlay states.
+  3. **Strict Integration Testing**:
+     - Added integration tests verifying that `triggerQuestRewardSequence` called during an active City Scan overlay preserves the exact sequence `[quest-complete, rank-up, achievement, chain-complete]` without priority inversion upon dismissal.
+- **Reason**:
+  - Ensures reward presentation is strictly deterministic, logical, and server-authoritative, guaranteeing players always see the XP reward for a completed quest before experiencing rank ascension or achievement awards.
+- **Status**: **ACCEPTED**

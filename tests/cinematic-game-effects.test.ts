@@ -306,7 +306,7 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(state.currentMoment?.type).toBe('quest-complete');
       expect(state.queue).toHaveLength(3); // rank-up, achievement, chain-complete
 
-      // Check sequence order by priority: rank-up (90) -> achievement (85) -> chain-complete (70)
+      // Check sequence order: rank-up -> achievement -> chain-complete
       const types = state.queue.map((q) => q.type);
       expect(types).toEqual(['rank-up', 'achievement', 'chain-complete']);
 
@@ -316,6 +316,93 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
         expect(moment.title).toBe('Arts Detective');
         expect(moment.icon).toBe('🎨');
       }
+    });
+
+    it('preserves atomic FIFO reward sequence (quest-complete -> rank-up -> achievement -> chain-complete) when an overlay is ALREADY active', () => {
+      // 1. Activate an initial moment (e.g. City Scan overlay is active)
+      showGameMoment({
+        type: 'city-scan',
+        district: 'Downtown Arts',
+        targetCount: 8,
+      });
+
+      expect(gameMomentManager.getState().currentMoment?.type).toBe('city-scan');
+
+      // 2. Trigger quest reward sequence while city-scan overlay is still showing
+      triggerQuestRewardSequence({
+        questId: 'qst-cipher-01',
+        questTitle: 'The Stone Stair Cipher',
+        xpAwarded: 350,
+        verificationType: 'cipher',
+        drawingEntriesAwarded: 2,
+        oldRank: 18,
+        newRank: 7, // triggers rank-up (tier: top10, priority 90)
+        newAchievements: [
+          {
+            id: 'ach-first-cipher',
+            title: 'Cipher Initiate',
+            description: 'Cracked first ancient cipher in Monument Park',
+            icon: '🗝️',
+            rewardXp: 50,
+          },
+        ],
+        isChainComplete: true,
+        chainTitle: 'The Monument Park Cipher Line',
+      });
+
+      const stateWithActiveScan = gameMomentManager.getState();
+      expect(stateWithActiveScan.currentMoment?.type).toBe('city-scan');
+      expect(stateWithActiveScan.queue).toHaveLength(4);
+
+      // Crucial requirement: quest-complete MUST NOT be jumped by rank-up or achievement in the queue!
+      const queuedTypes = stateWithActiveScan.queue.map((m) => m.type);
+      expect(queuedTypes).toEqual([
+        'quest-complete',
+        'rank-up',
+        'achievement',
+        'chain-complete',
+      ]);
+
+      // 3. Step through moments sequentially upon dismissal
+      // Step A: Dismiss City Scan -> reveals Quest Complete (+350 XP)
+      gameMomentManager.dismissCurrent();
+      const momentA = gameMomentManager.getState().currentMoment;
+      expect(momentA?.type).toBe('quest-complete');
+      if (momentA && momentA.type === 'quest-complete') {
+        expect(momentA.xpAwarded).toBe(350);
+        expect(momentA.questTitle).toBe('The Stone Stair Cipher');
+      }
+
+      // Step B: Dismiss Quest Complete -> reveals Rank Up (#18 -> #7)
+      gameMomentManager.dismissCurrent();
+      const momentB = gameMomentManager.getState().currentMoment;
+      expect(momentB?.type).toBe('rank-up');
+      if (momentB && momentB.type === 'rank-up') {
+        expect(momentB.oldRank).toBe(18);
+        expect(momentB.newRank).toBe(7);
+        expect(momentB.tier).toBe('top10');
+      }
+
+      // Step C: Dismiss Rank Up -> reveals Achievement Unlock (Cipher Initiate)
+      gameMomentManager.dismissCurrent();
+      const momentC = gameMomentManager.getState().currentMoment;
+      expect(momentC?.type).toBe('achievement');
+      if (momentC && momentC.type === 'achievement') {
+        expect(momentC.title).toBe('Cipher Initiate');
+      }
+
+      // Step D: Dismiss Achievement -> reveals Quest Chain Complete
+      gameMomentManager.dismissCurrent();
+      const momentD = gameMomentManager.getState().currentMoment;
+      expect(momentD?.type).toBe('chain-complete');
+      if (momentD && momentD.type === 'chain-complete') {
+        expect(momentD.chainTitle).toBe('The Monument Park Cipher Line');
+      }
+
+      // Step E: Dismiss Chain Complete -> finishes all moments cleanly
+      gameMomentManager.dismissCurrent();
+      expect(gameMomentManager.getState().currentMoment).toBeNull();
+      expect(gameMomentManager.getState().queue).toHaveLength(0);
     });
   });
 
