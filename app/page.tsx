@@ -77,16 +77,12 @@ export default function HomePage() {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
   useEffect(() => {
-    // 1. Check client local storage
+    // 1. Check client local storage display cache
     const stored = getStoredPlayer();
     if (stored) setCurrentPlayerState(stored);
 
-    // 2. Check auth API session
-    const headers: Record<string, string> = {};
-    const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-
-    fetch('/api/auth/me', { headers })
+    // 2. Check authoritative auth API session via cookies
+    fetch('/api/auth/me')
       .then((res) => res.json())
       .then((data) => {
         if (data.isAuthenticated && data.player) {

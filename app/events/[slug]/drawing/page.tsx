@@ -20,13 +20,7 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
   const [copiedNumber, setCopiedNumber] = useState(false);
 
   useEffect(() => {
-    const headers: Record<string, string> = {};
-    const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
-    if (authToken) {
-      headers['authorization'] = `Bearer ${authToken}`;
-    }
-
-    fetch('/api/auth/me', { headers })
+    fetch('/api/auth/me')
       .then((res) => res.json())
       .then((meData) => {
         if (meData.player) setCurrentPlayer(meData.player);
@@ -51,13 +45,7 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
           setIsPreLaunch(true);
         }
 
-        const headers: Record<string, string> = {};
-        const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
-        if (authToken) {
-          headers['authorization'] = `Bearer ${authToken}`;
-        }
-
-        const res = await fetch(`/api/game/events/${params.slug}/drawing`, { headers });
+        const res = await fetch(`/api/game/events/${params.slug}/drawing`);
         if (!res.ok) {
           if (res.status === 404 && isKnownCantonLaunchSlug(params.slug)) {
             setIsPreLaunch(true);

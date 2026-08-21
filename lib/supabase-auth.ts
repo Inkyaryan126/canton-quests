@@ -471,7 +471,7 @@ export async function sendPasswordResetEmail(
  */
 export async function updateUserPassword(
   newPassword: string,
-  requestOrTokens?: Request | string | { accessToken?: string; refreshToken?: string } | null
+  requestOrTokens?: Request | string | { accessToken?: string; refreshToken?: string; request?: Request } | null
 ): Promise<{ success: boolean; user?: AuthSessionUser; player?: Player; session?: AuthSessionTokens; message?: string; error?: string }> {
   const password = (newPassword || '').trim();
   if (!password || password.length < 6) {
@@ -489,23 +489,40 @@ export async function updateUserPassword(
       accessToken = tokens.accessToken;
       refreshToken = tokens.refreshToken;
     } else {
-      accessToken = (requestOrTokens as any).accessToken || '';
-      refreshToken = (requestOrTokens as any).refreshToken || '';
+      const obj = requestOrTokens as any;
+      if (obj.request && 'headers' in obj.request) {
+        const tokens = extractAuthTokens(obj.request);
+        accessToken = tokens.accessToken;
+        refreshToken = tokens.refreshToken;
+      }
+      if (obj.accessToken) accessToken = obj.accessToken;
+      if (obj.refreshToken) refreshToken = obj.refreshToken;
     }
   }
 
+  // Also resolve the session to ensure authenticated user identity
   const sessionResult = await resolveAuthenticatedSession(requestOrTokens as any);
   const authUser = sessionResult.user;
   if (!authUser || !authUser.id) {
     return { success: false, error: 'Authenticated session required to update password.' };
   }
 
+  // If accessToken was refreshed during resolution, pick up refreshed tokens
+  if (sessionResult.refreshedSession) {
+    if (!accessToken && sessionResult.refreshedSession.access_token) {
+      accessToken = sessionResult.refreshedSession.access_token;
+    }
+    if (!refreshToken && sessionResult.refreshedSession.refresh_token) {
+      refreshToken = sessionResult.refreshedSession.refresh_token;
+    }
+  }
+
   if (isSupabaseConfigured && supabase) {
     try {
-      if (accessToken) {
+      if (accessToken && refreshToken) {
         await supabase.auth.setSession({
           access_token: accessToken,
-          refresh_token: refreshToken || '',
+          refresh_token: refreshToken,
         }).catch(() => {});
       }
 
@@ -526,8 +543,18 @@ export async function updateUserPassword(
         }
       }
 
-      const updatedSession: AuthSessionTokens = {
-        access_token: data.user ? (accessToken || '') : '',
+      let activeSession: AuthSessionTokens | undefined = undefined;
+      const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+      if (sessionData?.session) {
+        activeSession = {
+          access_token: sessionData.session.access_token,
+          refresh_token: sessionData.session.refresh_token,
+          expires_at: sessionData.session.expires_at,
+        };
+      }
+
+      const updatedSession: AuthSessionTokens = activeSession || {
+        access_token: accessToken || '',
         refresh_token: refreshToken || undefined,
       };
 
@@ -552,6 +579,9 @@ export async function updateUserPassword(
     });
   }
 
+  const effectiveRefreshToken = refreshToken || `mock-refresh-${authUser.id}`;
+  mockRefreshTokenStore.set(effectiveRefreshToken, { userId: authUser.id, email: authUser.email });
+
   const player = await resolveAuthenticatedPlayer(requestOrTokens as any);
   return {
     success: true,
@@ -559,9 +589,68 @@ export async function updateUserPassword(
     player: player || undefined,
     session: {
       access_token: accessToken || `mock-jwt-${authUser.id}`,
-      refresh_token: refreshToken || `mock-refresh-${authUser.id}`,
+      refresh_token: effectiveRefreshToken,
+      expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 7,
     },
     message: 'Password updated successfully! Player access restored.',
+  };
+}
+
+/**
+ * Request-scoped user sign-out.
+ * Revokes the specific user session / refresh token and invalidates active credentials.
+ */
+export async function signOutUser(
+  requestOrTokens?: Request | string | { accessToken?: string; refreshToken?: string } | null
+): Promise<{ success: boolean; message: string }> {
+  let accessToken = '';
+  let refreshToken = '';
+
+  if (typeof requestOrTokens === 'string') {
+    accessToken = requestOrTokens.replace(/^Bearer\s+/i, '').trim();
+  } else if (requestOrTokens && typeof requestOrTokens === 'object') {
+    if ('headers' in requestOrTokens) {
+      const tokens = extractAuthTokens(requestOrTokens as Request);
+      accessToken = tokens.accessToken;
+      refreshToken = tokens.refreshToken;
+    } else {
+      accessToken = (requestOrTokens as any).accessToken || '';
+      refreshToken = (requestOrTokens as any).refreshToken || '';
+    }
+  }
+
+  if (isSupabaseConfigured) {
+    try {
+      if (supabaseAdmin && accessToken) {
+        await (supabaseAdmin.auth.admin as any).signOut(accessToken, 'global').catch(() => {});
+      }
+      if (supabase) {
+        if (accessToken && refreshToken) {
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          }).catch(() => {});
+        }
+        await supabase.auth.signOut().catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (refreshToken) {
+    mockRefreshTokenStore.delete(refreshToken);
+  }
+  if (accessToken) {
+    const userId = accessToken.replace(/^(mock-jwt-refreshed-|mock-jwt-|test-jwt-|usr-)/, '');
+    mockVerifiedUserStore.delete(userId);
+    mockRefreshTokenStore.delete(`mock-refresh-${userId}`);
+    mockRefreshTokenStore.delete(`mock-refresh-usr-${userId}`);
+  }
+
+  return {
+    success: true,
+    message: 'Signed out successfully. Session terminated.',
   };
 }
 
@@ -854,10 +943,10 @@ export async function refreshSupabaseSession(refreshToken: string): Promise<{
 
   // Dev / Test runner fallback
   const stored = mockRefreshTokenStore.get(cleanRefresh);
-  if (stored || cleanRefresh.startsWith('mock-refresh-')) {
-    const userId = stored?.userId || cleanRefresh.replace(/^mock-refresh-/, '');
+  if (stored) {
+    const userId = stored.userId || cleanRefresh.replace(/^mock-refresh-/, '');
     const verified = mockVerifiedUserStore.get(userId);
-    const email = stored?.email || verified?.email || `${userId.replace(/^usr-/, '')}@example.com`;
+    const email = stored.email || verified?.email || `${userId.replace(/^usr-/, '')}@example.com`;
 
     const authUser: AuthSessionUser = verified || {
       id: userId,
@@ -914,7 +1003,9 @@ export function registerMockUserPassword(email: string, password: string, user: 
 /**
  * Helper to extract access token and refresh token from request headers or cookies.
  */
-export function extractAuthTokens(requestOrToken?: Request | string | null): {
+export function extractAuthTokens(
+  requestOrToken?: Request | string | { request?: Request; accessToken?: string; refreshToken?: string } | null
+): {
   accessToken: string;
   refreshToken: string;
 } {
@@ -928,13 +1019,27 @@ export function extractAuthTokens(requestOrToken?: Request | string | null): {
     return { accessToken, refreshToken };
   }
 
-  if (typeof requestOrToken === 'object' && 'headers' in requestOrToken) {
-    const authHeader = requestOrToken.headers.get('authorization') || '';
-    if (authHeader) {
+  let req: Request | null = null;
+  if (typeof requestOrToken === 'object') {
+    if ('headers' in requestOrToken) {
+      req = requestOrToken as Request;
+    } else {
+      const obj = requestOrToken as any;
+      if (obj.accessToken) accessToken = String(obj.accessToken).replace(/^Bearer\s+/i, '').trim();
+      if (obj.refreshToken) refreshToken = String(obj.refreshToken).trim();
+      if (obj.request && typeof obj.request === 'object' && 'headers' in obj.request) {
+        req = obj.request as Request;
+      }
+    }
+  }
+
+  if (req && 'headers' in req) {
+    const authHeader = req.headers.get('authorization') || '';
+    if (authHeader && !accessToken) {
       accessToken = authHeader.replace(/^Bearer\s+/i, '').trim();
     }
 
-    const cookieHeader = requestOrToken.headers.get('cookie') || '';
+    const cookieHeader = req.headers.get('cookie') || '';
     if (cookieHeader) {
       // 1. Check sb-access-token
       const accessMatch = cookieHeader.match(/sb-access-token=([^;]+)/);
@@ -944,7 +1049,7 @@ export function extractAuthTokens(requestOrToken?: Request | string | null): {
 
       // 2. Check sb-refresh-token
       const refreshMatch = cookieHeader.match(/sb-refresh-token=([^;]+)/);
-      if (refreshMatch) {
+      if (refreshMatch && !refreshToken) {
         refreshToken = decodeURIComponent(refreshMatch[1].trim());
       }
 
@@ -999,7 +1104,7 @@ export interface ResolvedAuthSession {
  * Automatically refreshes expired sessions using the persistent refresh token.
  */
 export async function resolveAuthenticatedSession(
-  requestOrToken?: Request | string | null
+  requestOrToken?: Request | string | { request?: Request; accessToken?: string; refreshToken?: string } | null
 ): Promise<ResolvedAuthSession> {
   if (!requestOrToken) return { user: null, player: null };
 
@@ -1194,7 +1299,7 @@ async function resolvePlayerForAuthUserInternal(authUser: AuthSessionUser): Prom
  * Extracts and cryptographically verifies the Supabase Auth user from a Bearer token or Request.
  */
 export async function resolveAuthenticatedSupabaseUser(
-  requestOrToken?: Request | string | null
+  requestOrToken?: Request | string | { request?: Request; accessToken?: string; refreshToken?: string } | null
 ): Promise<AuthSessionUser | null> {
   const session = await resolveAuthenticatedSession(requestOrToken);
   return session.user;
@@ -1206,7 +1311,7 @@ export async function resolveAuthenticatedSupabaseUser(
  * If an unlinked legacy player exists with the same verified email, safely claims it.
  */
 export async function resolveAuthenticatedPlayer(
-  requestOrToken?: Request | string | null
+  requestOrToken?: Request | string | { request?: Request; accessToken?: string; refreshToken?: string } | null
 ): Promise<Player | null> {
   const session = await resolveAuthenticatedSession(requestOrToken);
   return session.player;
@@ -1217,7 +1322,7 @@ export async function resolveAuthenticatedPlayer(
  * Throws if unauthenticated or no player profile exists.
  */
 export async function resolveAuthenticatedPlayerId(
-  requestOrToken?: Request | string | null
+  requestOrToken?: Request | string | { request?: Request; accessToken?: string; refreshToken?: string } | null
 ): Promise<string> {
   const player = await resolveAuthenticatedPlayer(requestOrToken);
   if (!player || !player.id) {

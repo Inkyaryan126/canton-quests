@@ -137,22 +137,16 @@ export default function EnterGameModal({
       }
 
       const player = data.player;
-      const sessionToken = data.session?.access_token;
-
       if (typeof window !== 'undefined' && window.localStorage && player) {
         window.localStorage.setItem('canton_quests_current_player', JSON.stringify(player));
         window.localStorage.setItem('canton_player_profile', JSON.stringify(player));
-        if (sessionToken) {
-          window.localStorage.setItem('canton_auth_token', sessionToken);
-        }
+        window.localStorage.removeItem('canton_auth_token');
+        window.localStorage.removeItem('canton_refresh_token');
       }
 
       // Convert spectator session on server
       try {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (sessionToken) {
-          headers['Authorization'] = `Bearer ${sessionToken}`;
-        }
         await fetch('/api/game/spectator', {
           method: 'POST',
           headers,

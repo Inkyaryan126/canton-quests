@@ -74,8 +74,7 @@ const pathOptions: Array<{ value: StartingPath; label: string; district: string 
 ];
 
 function authHeaders(): Record<string, string> {
-  const token = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
-  return token ? { authorization: `Bearer ${token}` } : {};
+  return {};
 }
 
 function formatDate(value?: string) {
@@ -131,13 +130,11 @@ export default function ProfilePage() {
 
   const handleLogout = async () => {
     try {
-      if (isSupabaseConfigured && supabase) {
-        await supabase.auth.signOut().catch(() => {});
-      }
       await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     } finally {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem('canton_auth_token');
+        window.localStorage.removeItem('canton_refresh_token');
         window.localStorage.removeItem('canton_quests_current_player');
         window.localStorage.removeItem('canton_player_profile');
       }

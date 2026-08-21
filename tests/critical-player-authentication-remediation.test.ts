@@ -216,7 +216,7 @@ describe('Canton Quests — Critical Player Authentication Remediation Suite', (
     it('TEST F: Logout then submit proof -> Denied', async () => {
       // 1. Player calls logout endpoint
       const logoutReq = new Request('http://localhost:3000/api/auth/logout', { method: 'POST' });
-      const logoutRes = await logoutRoute();
+      const logoutRes = await logoutRoute(logoutReq);
       expect(logoutRes.status).toBe(200);
 
       // 2. Cookie is deleted

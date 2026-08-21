@@ -65,18 +65,15 @@ function ConfirmEmailContent() {
 
       setIsSuccess(true);
 
-      // Save player profile and token in localStorage for instant client state
+      // Save player profile in localStorage for instant UI display
+      // Persistent authentication is secured via HTTP-only cookies
       if (typeof window !== 'undefined' && window.localStorage) {
         if (data.player) {
           window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
           window.localStorage.setItem('canton_player_profile', JSON.stringify(data.player));
         }
-        if (data.session?.access_token) {
-          window.localStorage.setItem('canton_auth_token', data.session.access_token);
-        }
-        if (data.session?.refresh_token) {
-          window.localStorage.setItem('canton_refresh_token', data.session.refresh_token);
-        }
+        window.localStorage.removeItem('canton_auth_token');
+        window.localStorage.removeItem('canton_refresh_token');
       }
 
       const isRecovery = type === 'recovery';

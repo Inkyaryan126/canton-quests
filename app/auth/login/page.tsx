@@ -22,21 +22,18 @@ function LoginContent() {
 
   // If already authenticated, redirect to next or /profile
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const token = window.localStorage.getItem('canton_auth_token');
-      if (token) {
-        fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.isAuthenticated && data.player) {
-              router.push(nextParam);
-            }
-          })
-          .catch(() => {});
-      }
-    }
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isAuthenticated && data.player) {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
+            window.localStorage.setItem('canton_player_profile', JSON.stringify(data.player));
+          }
+          router.push(nextParam);
+        }
+      })
+      .catch(() => {});
   }, [router, nextParam]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -74,18 +71,16 @@ function LoginContent() {
         throw new Error(data.error || 'Invalid email or password.');
       }
 
-      // Save credentials in localStorage for instant client state and survival across browser restarts
+      // Save non-sensitive player profile in localStorage for instant UI display
+      // Auth session is persistently secured via HTTP-only cookies
       if (typeof window !== 'undefined' && window.localStorage) {
         if (data.player) {
           window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
           window.localStorage.setItem('canton_player_profile', JSON.stringify(data.player));
         }
-        if (data.session?.access_token) {
-          window.localStorage.setItem('canton_auth_token', data.session.access_token);
-        }
-        if (data.session?.refresh_token) {
-          window.localStorage.setItem('canton_refresh_token', data.session.refresh_token);
-        }
+        // Clean up legacy token keys if present
+        window.localStorage.removeItem('canton_auth_token');
+        window.localStorage.removeItem('canton_refresh_token');
       }
 
       router.push(nextParam);

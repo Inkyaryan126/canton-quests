@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Verified email session is required to register a player profile. Please complete OTP verification first.',
+            error: 'Verified email session is required to register a player profile. Please complete email verification or sign up with a password.',
           },
           { status: 401 }
         );

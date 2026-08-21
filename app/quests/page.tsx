@@ -63,13 +63,7 @@ export default function QuestsPage() {
   const [activePathFilter, setActivePathFilter] = useState<PathFilter>('all');
 
   useEffect(() => {
-    const headers: Record<string, string> = {};
-    const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
-    if (authToken) {
-      headers['authorization'] = `Bearer ${authToken}`;
-    }
-
-    fetch('/api/auth/me', { headers })
+    fetch('/api/auth/me')
       .then((res) => res.json())
       .then((data) => {
         if (data.player) setCurrentPlayer(data.player);

@@ -23,7 +23,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const updateRes = await updateUserPassword(password.trim(), effectiveToken || request);
+    const authContext = {
+      request,
+      accessToken: effectiveToken || undefined,
+    };
+
+    const updateRes = await updateUserPassword(password.trim(), authContext);
     if (!updateRes.success) {
       return NextResponse.json(
         { success: false, error: updateRes.error || 'Failed to update password.' },
@@ -31,7 +36,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const player = updateRes.player || (await resolveAuthenticatedPlayer(effectiveToken || request));
+    const player = updateRes.player || (await resolveAuthenticatedPlayer(authContext));
 
     const response = NextResponse.json({
       success: true,

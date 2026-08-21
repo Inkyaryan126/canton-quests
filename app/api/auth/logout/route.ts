@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
-import { clearAuthCookies } from '@/lib/supabase-auth';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { clearAuthCookies, signOutUser } from '@/lib/supabase-auth';
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut().catch(() => {});
-    }
+    await signOutUser(request);
   } catch {
     // ignore
   }

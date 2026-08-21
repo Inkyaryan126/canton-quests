@@ -17,7 +17,7 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
   const [player, setPlayer] = useState<Player | null>(null);
 
   useEffect(() => {
-    // 1. Instant check from localStorage
+    // 1. Instant check from localStorage display cache
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('canton_quests_current_player') ||
         window.localStorage.getItem('canton_player_profile');
@@ -30,18 +30,21 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
       }
     }
 
-    // 2. Validate session with /api/auth/me
-    const headers: Record<string, string> = {};
-    const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-
-    fetch('/api/auth/me', { headers })
+    // 2. Validate authoritative session with /api/auth/me via HTTP-only cookies
+    fetch('/api/auth/me')
       .then((res) => res.json())
       .then((data) => {
         if (data.isAuthenticated && data.player) {
           setPlayer(data.player);
-        } else if (!authToken) {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
+          }
+        } else {
           setPlayer(null);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.removeItem('canton_quests_current_player');
+            window.localStorage.removeItem('canton_player_profile');
+          }
         }
       })
       .catch(() => {});
@@ -49,12 +52,9 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
 
   const handleLogout = async () => {
     try {
-      if (isSupabaseConfigured && supabase) {
-        await supabase.auth.signOut().catch(() => {});
-      }
       await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     } finally {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem('canton_auth_token');
         window.localStorage.removeItem('canton_refresh_token');
         window.localStorage.removeItem('canton_quests_current_player');

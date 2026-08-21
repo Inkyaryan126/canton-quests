@@ -17,15 +17,6 @@ function ResetPasswordContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const token = window.localStorage.getItem('canton_auth_token');
-      if (token) setSessionToken(token);
-    }
-  }, []);
-
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -43,18 +34,11 @@ function ResetPasswordContent() {
     setErrorMessage('');
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      const token = sessionToken || (typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null);
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           password: password.trim(),
-          authToken: token || undefined,
         }),
       });
 
@@ -71,12 +55,8 @@ function ResetPasswordContent() {
           window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
           window.localStorage.setItem('canton_player_profile', JSON.stringify(data.player));
         }
-        if (data.session?.access_token) {
-          window.localStorage.setItem('canton_auth_token', data.session.access_token);
-        }
-        if (data.session?.refresh_token) {
-          window.localStorage.setItem('canton_refresh_token', data.session.refresh_token);
-        }
+        window.localStorage.removeItem('canton_auth_token');
+        window.localStorage.removeItem('canton_refresh_token');
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Password update failed. Please request a new recovery link.');

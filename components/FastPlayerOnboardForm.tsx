@@ -107,12 +107,8 @@ export default function FastPlayerOnboardForm({
           window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
           window.localStorage.setItem('canton_player_profile', JSON.stringify(data.player));
         }
-        if (data.session?.access_token) {
-          window.localStorage.setItem('canton_auth_token', data.session.access_token);
-        }
-        if (data.session?.refresh_token) {
-          window.localStorage.setItem('canton_refresh_token', data.session.refresh_token);
-        }
+        window.localStorage.removeItem('canton_auth_token');
+        window.localStorage.removeItem('canton_refresh_token');
       }
 
       // Trigger Path Lock Game Moment and navigate smoothly
@@ -188,12 +184,8 @@ export default function FastPlayerOnboardForm({
           window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
           window.localStorage.setItem('canton_player_profile', JSON.stringify(data.player));
         }
-        if (data.session?.access_token) {
-          window.localStorage.setItem('canton_auth_token', data.session.access_token);
-        }
-        if (data.session?.refresh_token) {
-          window.localStorage.setItem('canton_refresh_token', data.session.refresh_token);
-        }
+        window.localStorage.removeItem('canton_auth_token');
+        window.localStorage.removeItem('canton_refresh_token');
       }
 
       if (router && router.push) {

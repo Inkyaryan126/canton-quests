@@ -20,6 +20,8 @@ import { POST as confirmPostHandler, GET as confirmGetHandler } from '../app/api
 import { POST as resetPasswordHandler } from '../app/api/auth/reset-password/route';
 import { POST as logoutHandler } from '../app/api/auth/logout/route';
 import { GET as meHandler } from '../app/api/auth/me/route';
+import { GET as commandCenterHandler } from '../app/api/player/command-center/route';
+import { GET as profileHandler } from '../app/api/player/profile/route';
 import * as localEngine from '../lib/game-engine';
 
 describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite', () => {
@@ -268,7 +270,7 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(setCookie).toContain('sb-refresh-token');
     });
 
-    it('POST /api/auth/reset-password sets new password using recovery session tokens', async () => {
+    it('POST /api/auth/reset-password sets new password using recovery session tokens and retains refresh token', async () => {
       const req = new Request('http://localhost:3000/api/auth/reset-password', {
         method: 'POST',
         headers: {
@@ -288,10 +290,12 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(json.success).toBe(true);
       expect(json.message).toMatch(/PLAYER ACCESS RESTORED/i);
       expect(json.session?.access_token).toBeDefined();
+      expect(json.session?.refresh_token).toBeDefined();
+      expect(json.session?.refresh_token).toBe('mock-refresh-usr-iron_example_com');
 
       const setCookie = res.headers.get('set-cookie') || '';
       expect(setCookie).toContain('sb-access-token');
-      expect(setCookie).toContain('sb-refresh-token');
+      expect(setCookie).toContain('sb-refresh-token=mock-refresh-usr-iron_example_com');
 
       // Now verify returning login works with new password
       const loginCheck = await signInWithPassword('iron@example.com', 'new-updated-secret-password-456');
@@ -428,9 +432,9 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(refreshResult.session?.refresh_token).toBeDefined();
     });
 
-    it('simulates browser close and reopen: session is fully restored from persisted credentials', async () => {
+    it('simulates browser close and reopen: cookie-only session (no Authorization header) restores full player access', async () => {
       // Step 1: Simulate closing browser (in-memory state destroyed)
-      // Step 2: Browser reopens with persisted cookies
+      // Step 2: Browser reopens with persisted cookies only (no Authorization header)
       const reopenReq = new Request('http://localhost:3000/api/auth/me', {
         headers: {
           cookie: `sb-access-token=${sessionToken}; sb-refresh-token=${refreshToken}`,
@@ -444,10 +448,41 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(json.isAuthenticated).toBe(true);
       expect(json.player.displayName).toBe('ApexRider');
       expect(json.player.email).toBe('apex@example.com');
+
+      // Step 3: Verify cookie-only reopened session can access Command Center API
+      const ccReq = new Request('http://localhost:3000/api/player/command-center', {
+        headers: {
+          cookie: `sb-access-token=${sessionToken}; sb-refresh-token=${refreshToken}`,
+        },
+      });
+      const ccRes = await commandCenterHandler(ccReq);
+      const ccJson = await ccRes.json();
+      expect(ccRes.status).toBe(200);
+      expect(ccJson.success).toBe(true);
+      expect(ccJson.player.displayName).toBe('ApexRider');
+
+      // Step 4: Verify cookie-only reopened session can access Profile API
+      const profileReq = new Request('http://localhost:3000/api/player/profile', {
+        headers: {
+          cookie: `sb-access-token=${sessionToken}; sb-refresh-token=${refreshToken}`,
+        },
+      });
+      const profileRes = await profileHandler(profileReq);
+      const profileJson = await profileRes.json();
+      expect(profileRes.status).toBe(200);
+      expect(profileJson.success).toBe(true);
+      expect(profileJson.player.displayName).toBe('ApexRider');
     });
 
-    it('POST /api/auth/logout terminates session and clears all cookies with Max-Age=0', async () => {
-      const res = await logoutHandler();
+    it('request-scoped logout terminates session, revokes refresh token, and clears cookies with Max-Age=0', async () => {
+      const logoutReq = new Request('http://localhost:3000/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          cookie: `sb-access-token=${sessionToken}; sb-refresh-token=${refreshToken}`,
+        },
+      });
+
+      const res = await logoutHandler(logoutReq);
       const json = await res.json();
 
       expect(res.status).toBe(200);
@@ -459,12 +494,20 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(cookieHeader).toContain('sb-refresh-token');
       expect(cookieHeader).toContain('Max-Age=0');
 
+      // After logout, trying to refresh with revoked refresh token fails
+      const revokedRefreshRes = await refreshSupabaseSession(refreshToken);
+      expect(revokedRefreshRes.success).toBe(false);
+
       // After logout, unauthenticated request returns isAuthenticated: false
       const postLogoutReq = new Request('http://localhost:3000/api/auth/me');
       const meRes = await meHandler(postLogoutReq);
       const meJson = await meRes.json();
       expect(meJson.isAuthenticated).toBe(false);
       expect(meJson.player).toBeNull();
+
+      // Protected routes return 401
+      const blockedCcRes = await commandCenterHandler(postLogoutReq);
+      expect(blockedCcRes.status).toBe(401);
     });
   });
 
@@ -517,6 +560,67 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
         const availableFormWidth = viewportWidth - minPadding;
         expect(availableFormWidth).toBeGreaterThanOrEqual(288);
       });
+    });
+  });
+
+  describe('8. Independent Review Remediation: Refresh Retention, Request-Scoped Logout & LocalStorage Token Purge', () => {
+    it('guarantees updateUserPassword accepts combined Authorization header and cookie context, returning full refreshed session', async () => {
+      const user = { id: 'usr-review-test', email: 'review@example.com' };
+      registerMockAuthUser(user);
+      registerMockUserPassword('review@example.com', 'old-pass-123', user);
+
+      const updateReq = new Request('http://localhost:3000/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-jwt-usr-review-test',
+          cookie: 'sb-refresh-token=mock-refresh-usr-review-test',
+        },
+        body: JSON.stringify({
+          password: 'new-reviewed-password-2026',
+        }),
+      });
+
+      const res = await resetPasswordHandler(updateReq);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.success).toBe(true);
+      expect(json.session?.access_token).toBeDefined();
+      expect(json.session?.refresh_token).toBe('mock-refresh-usr-review-test');
+
+      const setCookie = res.headers.get('set-cookie') || '';
+      expect(setCookie).toContain('sb-access-token');
+      expect(setCookie).toContain('sb-refresh-token=mock-refresh-usr-review-test');
+      expect(setCookie).toContain('Max-Age=2592000'); // 30 days
+    });
+
+    it('guarantees logout revokes the exact refresh token tied to the request session and invalidates further refreshes', async () => {
+      const user = { id: 'usr-logout-test', email: 'logout@example.com' };
+      registerMockAuthUser(user);
+      registerMockUserPassword('logout@example.com', 'pass-123456', user);
+
+      const validRefreshToken = 'mock-refresh-usr-logout-test';
+
+      // 1. Confirm refresh token is active prior to logout
+      const preRefresh = await refreshSupabaseSession(validRefreshToken);
+      expect(preRefresh.success).toBe(true);
+
+      // 2. Perform request-scoped logout
+      const logoutReq = new Request('http://localhost:3000/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          cookie: `sb-access-token=mock-jwt-usr-logout-test; sb-refresh-token=${validRefreshToken}`,
+        },
+      });
+
+      const logoutRes = await logoutHandler(logoutReq);
+      expect(logoutRes.status).toBe(200);
+
+      // 3. Confirm refresh token is now revoked and cannot be refreshed
+      const postRefresh = await refreshSupabaseSession(validRefreshToken);
+      expect(postRefresh.success).toBe(false);
+      expect(postRefresh.error).toMatch(/invalid or expired/i);
     });
   });
 });

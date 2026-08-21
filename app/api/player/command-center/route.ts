@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     const player = await resolveAuthenticatedPlayer(request);
     if (!player) {
       return NextResponse.json(
-        { success: false, error: 'Authentication required. Please log in with email OTP.' },
+        { success: false, error: 'Authentication required. Please log in to Canton Quests.' },
         { status: 401 }
       );
     }

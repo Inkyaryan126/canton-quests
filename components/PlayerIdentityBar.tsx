@@ -63,11 +63,7 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
   const [selectedPath, setSelectedPath] = useState<StartingPath | undefined>(undefined);
 
   useEffect(() => {
-    const headers: Record<string, string> = {};
-    const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-
-    fetch('/api/auth/me', { headers })
+    fetch('/api/auth/me')
       .then((res) => res.json())
       .then((data) => {
         if (data.isAuthenticated && data.player) {
@@ -101,13 +97,9 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
     if (!nameInput.trim()) return;
 
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
-      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-
       const res = await fetch('/api/player/profile', {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           playerId: player?.id,
           displayName: nameInput.trim(),
