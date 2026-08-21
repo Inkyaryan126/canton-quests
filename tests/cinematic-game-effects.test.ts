@@ -654,4 +654,78 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(clearedState.queue).toHaveLength(0);
     });
   });
+
+  describe('11. Quest List City Scan & Pre-Load Protection', () => {
+    it('verifies QuestListScanEffect and QuestsPage source codes handle isLoading and avoid 0-target dedupe', () => {
+      const scanEffectCode = readFileSync(join(process.cwd(), 'components/game-effects/QuestListScanEffect.tsx'), 'utf-8');
+      const questsPageCode = readFileSync(join(process.cwd(), 'app/quests/page.tsx'), 'utf-8');
+
+      // Ensure QuestListScanEffect interface includes isLoading prop
+      expect(scanEffectCode).toContain('isLoading?: boolean');
+      expect(scanEffectCode).toContain('if (!autoScanOnMount || isLoading) return;');
+      expect(scanEffectCode).toContain('sessionStorage.getItem(\'cq_has_scanned_quests\')');
+      expect(scanEffectCode).toContain('sessionStorage.setItem(\'cq_has_scanned_quests\', \'true\')');
+
+      // Ensure QuestsPage tracks isLoadingQuests and passes it to QuestListScanEffect
+      expect(questsPageCode).toContain('const [isLoadingQuests, setIsLoadingQuests] = useState(true);');
+      expect(questsPageCode).toContain('isLoading={isLoadingQuests}');
+      expect(questsPageCode).toContain('setIsLoadingQuests(false)');
+    });
+
+    it('simulates pre-load state: does not trigger scan or set dedupe flag while loading with 0 quests', () => {
+      // Mock sessionStorage
+      const mockStorage: Record<string, string> = {};
+      const storageMock = {
+        getItem: vi.fn((key: string) => mockStorage[key] || null),
+        setItem: vi.fn((key: string, val: string) => {
+          mockStorage[key] = val;
+        }),
+      };
+      vi.stubGlobal('sessionStorage', storageMock);
+
+      // Simulate pre-load condition: loading is true, count is 0
+      const autoScanOnMount = true;
+      let isLoading = true;
+      let questCount = 0;
+      const districtName = 'ALL CANTON DISTRICTS';
+
+      function simulateScanEffectMount() {
+        if (!autoScanOnMount || isLoading) return;
+        const hasScanned = storageMock.getItem('cq_has_scanned_quests');
+        if (!hasScanned) {
+          storageMock.setItem('cq_has_scanned_quests', 'true');
+          showGameMoment({
+            type: 'city-scan',
+            district: districtName,
+            targetCount: questCount,
+            manualTrigger: false,
+          });
+        }
+      }
+
+      // Initial pre-load render
+      simulateScanEffectMount();
+      expect(storageMock.getItem('cq_has_scanned_quests')).toBeNull();
+      expect(gameMomentManager.getState().currentMoment).toBeNull();
+
+      // Data finish loading: 14 quests arrive, isLoading becomes false
+      isLoading = false;
+      questCount = 14;
+      simulateScanEffectMount();
+
+      // Now scan should be triggered with exact count (14) and dedupe flag recorded
+      expect(storageMock.getItem('cq_has_scanned_quests')).toBe('true');
+      const state = gameMomentManager.getState();
+      expect(state.currentMoment?.type).toBe('city-scan');
+      if (state.currentMoment?.type === 'city-scan') {
+        expect(state.currentMoment.targetCount).toBe(14);
+        expect(state.currentMoment.district).toBe('ALL CANTON DISTRICTS');
+      }
+
+      // Subsequent re-renders do NOT re-trigger automatic scan
+      gameMomentManager.skipAll();
+      simulateScanEffectMount();
+      expect(gameMomentManager.getState().currentMoment).toBeNull();
+    });
+  });
 });

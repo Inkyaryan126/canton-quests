@@ -57,6 +57,7 @@ const pathFilters: { label: string; value: PathFilter; icon: any; color: string;
 export default function QuestsPage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
   const [quests, setQuests] = useState<PublicQuestView[]>([]);
+  const [isLoadingQuests, setIsLoadingQuests] = useState(true);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<QuestFilter>('all');
   const [activePathFilter, setActivePathFilter] = useState<PathFilter>('all');
@@ -77,12 +78,16 @@ export default function QuestsPage() {
 
     async function loadQuests() {
       try {
+        setIsLoadingQuests(true);
         const eventsRes = await fetch('/api/game/events');
         const eventsData: { events?: QuestEvent[] } = await eventsRes.json();
         const loadedEvents = eventsData.events || [];
         const active = getActiveEvent(loadedEvents);
         setEvents(loadedEvents);
-        if (!active) return;
+        if (!active) {
+          setIsLoadingQuests(false);
+          return;
+        }
 
         const questsRes = await fetch(`/api/game/events/${active.slug}`);
         const questsData: { quests?: PublicQuestView[] } = await questsRes.json();
@@ -107,6 +112,8 @@ export default function QuestsPage() {
         }
       } catch (err) {
         console.error(err);
+      } finally {
+        setIsLoadingQuests(false);
       }
     }
 
@@ -249,6 +256,7 @@ export default function QuestsPage() {
           <div className="mb-6">
             <QuestListScanEffect
               questCount={filteredQuests.length}
+              isLoading={isLoadingQuests}
               districtName={
                 activePathFilter === 'family'
                   ? 'ARTS DISTRICT'
@@ -269,7 +277,7 @@ export default function QuestsPage() {
             </div>
             <div className="cq-filter-label">
               <Filter size={16} aria-hidden="true" />
-              {filteredQuests.length} missions
+              {isLoadingQuests ? 'Scanning...' : `${filteredQuests.length} missions`}
             </div>
           </div>
 
@@ -286,7 +294,12 @@ export default function QuestsPage() {
             ))}
           </div>
 
-          {quests.length === 0 ? (
+          {isLoadingQuests ? (
+            <div className="p-12 text-center rounded-2xl bg-stone-950/60 border border-stone-800 text-stone-400 font-mono text-xs animate-pulse my-6 flex flex-col items-center justify-center gap-3">
+              <Radar size={24} className="text-amber-400 animate-spin" />
+              <span>SYNCHRONIZING CANTON MISSION GRID & ACTIVE SATELLITE TARGETS...</span>
+            </div>
+          ) : quests.length === 0 ? (
             <div className="relative overflow-hidden p-10 sm:p-14 rounded-3xl bg-stone-950 border border-stone-800 text-center space-y-4 max-w-3xl mx-auto my-8 shadow-2xl">
               <Image
                 src={cqImages.questBoardBg}
