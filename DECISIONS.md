@@ -718,9 +718,11 @@ Each entry follows the standard ADR structure:
      - Updated `triggerQuestRewardSequence` in `app/events/[slug]/quests/[questId]/page.tsx` to consume authoritative server values, eliminating fallback defaulting to unearned rewards.
   2. **Active Live Flash Drop Detection**:
      - Wired `showGameMoment({ type: 'flash-drop', ... })` in `app/quests/page.tsx`, `app/events/[slug]/page.tsx`, and quest details page with session storage deduplication (`cq_flash_seen_${questId}`) and interactive badge inspection.
-  3. **Player-Specific Finale Qualification Integration**:
-     - Updated `app/events/[slug]/drawing/page.tsx` to derive the current player's individual qualified tickets, callsign, and ticket range from authenticated records (`data.publicPlayerEntries`, `data.ticketRanges`) rather than displaying aggregate event-wide pools.
-     - Accurately reflects 0 tickets with mission guidance for unverified or unregistered users without manufacturing fake tickets.
+  3. **Server-Authoritative Player-Specific Finale Qualification Integration**:
+     - Introduced `getAuthenticatedPlayerDrawingQualification` / `getAuthenticatedPlayerDrawingQualificationDB` and attached `authenticatedPlayerQualification` to `/api/game/events/[slug]/drawing` responses for authenticated requests.
+     - Keyed qualification strictly to the authenticated player's unique identity (`player.id`) and `publicParticipantId`, resolving their exact verified drawing entry count and locked ticket range.
+     - Updated `app/events/[slug]/drawing/page.tsx` to consume server-resolved `data.authenticatedPlayerQualification` directly, completely eliminating client-side `displayName` or partial-ID substring guessing against public projections.
+     - Guaranteed duplicate display names or stale local sessions cannot misattribute another player's tickets or qualification ceremony.
   4. **Smooth Onboarding & Path Lock Transitions**:
      - Updated `components/FastPlayerOnboardForm.tsx` and `app/auth/confirm/page.tsx` to trigger navigation via the `onFinished` callback of the `path-lock` moment with fallback timers, ensuring visual energy sequences are never prematurely cut short.
   5. **Overlay Usability & Tap-Anywhere Dismissal**:

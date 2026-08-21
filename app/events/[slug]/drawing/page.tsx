@@ -51,7 +51,13 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
           setIsPreLaunch(true);
         }
 
-        const res = await fetch(`/api/game/events/${params.slug}/drawing`);
+        const headers: Record<string, string> = {};
+        const authToken = typeof window !== 'undefined' ? window.localStorage.getItem('canton_auth_token') : null;
+        if (authToken) {
+          headers['authorization'] = `Bearer ${authToken}`;
+        }
+
+        const res = await fetch(`/api/game/events/${params.slug}/drawing`, { headers });
         if (!res.ok) {
           if (res.status === 404 && isKnownCantonLaunchSlug(params.slug)) {
             setIsPreLaunch(true);
@@ -333,19 +339,11 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
               {/* Finale Qualification Ceremony Button */}
               <div className="pt-4 mt-4 border-t border-slate-800/80 flex justify-end">
                 {(() => {
-                  const playerEntry = currentPlayer && data.publicPlayerEntries
-                    ? data.publicPlayerEntries.find(
-                        (e) =>
-                          e.playerPublicLabel === currentPlayer.displayName ||
-                          (currentPlayer.id && e.playerPublicLabel.includes(currentPlayer.id.slice(0, 4)))
-                      )
-                    : null;
-
-                  const playerTicketRange = playerEntry && data.ticketRanges
-                    ? data.ticketRanges.find((r) => r.publicPlayerLabel === playerEntry.playerPublicLabel)
-                    : null;
-
-                  const playerQualifiedEntries = playerEntry ? playerEntry.totalQualifiedEntries : 0;
+                  const authQualification = data?.authenticatedPlayerQualification;
+                  const isQualified = !!authQualification && authQualification.qualifiedEntries > 0;
+                  const playerQualifiedEntries = authQualification?.qualifiedEntries || 0;
+                  const playerTicketRange = authQualification?.ticketRange || null;
+                  const playerLabel = authQualification?.playerLabel || 'Agent (Unregistered)';
 
                   return (
                     <button
@@ -353,10 +351,10 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
                       onClick={() => {
                         showGameMoment({
                           type: 'finale-qualified',
-                          playerLabel: playerEntry?.playerPublicLabel || currentPlayer?.displayName || 'Agent (Unregistered)',
+                          playerLabel,
                           qualifiedEntries: playerQualifiedEntries,
                           ticketRange: playerTicketRange
-                            ? `Tickets #${playerTicketRange.startTicket} - #${playerTicketRange.endTicket}`
+                            ? playerTicketRange
                             : playerQualifiedEntries > 0
                             ? `${playerQualifiedEntries} Verified Ticket${playerQualifiedEntries === 1 ? '' : 's'}`
                             : 'No verified quest completions yet',
@@ -368,8 +366,8 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
                       className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/60 text-amber-300 hover:bg-amber-500/30 text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer"
                     >
                       <span>
-                        {playerQualifiedEntries > 0
-                          ? `✨ View Your Qualification Ceremony (${playerQualifiedEntries} Tickets)`
+                        {isQualified
+                          ? `✨ View Your Qualification Ceremony (${playerQualifiedEntries} Ticket${playerQualifiedEntries === 1 ? '' : 's'})`
                           : '🛡️ Drawing Status: 0 Tickets (Not Yet Qualified)'}
                       </span>
                     </button>

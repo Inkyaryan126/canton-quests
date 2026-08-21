@@ -43,6 +43,7 @@ import {
   PublicPlayerDrawingEntry,
   PublicPrizeDrawResult,
   PublicDrawingPageData,
+  AuthenticatedPlayerDrawingQualification,
   DrawingLedgerReview,
   DrawProvider,
 } from './types';
@@ -2246,5 +2247,73 @@ export async function getPublicDrawingPageDataDB(eventId: string): Promise<Publi
       ? `This drawing entry pool was finalized and cryptographically hashed (SHA-256: ${lockRow.snapshot_hash}) on ${lockRow.locked_at}. The winner selection is tied directly to the frozen canonical snapshot.`
       : undefined,
     ticketRanges,
+  };
+}
+
+export async function getAuthenticatedPlayerDrawingQualificationDB(
+  playerId: string,
+  eventId: string
+): Promise<AuthenticatedPlayerDrawingQualification | null> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.getAuthenticatedPlayerDrawingQualification(playerId, eventId);
+  }
+
+  const { data: event } = await supabaseAdmin
+    .from('events')
+    .select('id, title')
+    .or(`id.eq.${eventId},slug.eq.${eventId}`)
+    .maybeSingle();
+  const realEventId = event ? event.id : eventId;
+
+  const { data: player } = await supabaseAdmin
+    .from('players')
+    .select('id, display_name, is_minor')
+    .eq('id', playerId)
+    .maybeSingle();
+
+  if (!player) return null;
+
+  const { data: entryRows } = await supabaseAdmin
+    .from('drawing_entry_ledger')
+    .select('entries_count')
+    .eq('event_id', realEventId)
+    .eq('player_id', playerId);
+
+  const totalEntries = (entryRows || []).reduce((sum: number, r: any) => sum + (r.entries_count || 0), 0);
+
+  const isMinor = player.is_minor === true;
+  const playerLabel = localEngine.getPublicPlayerLabel(
+    { displayName: player.display_name, isMinor } as any,
+    player.id
+  );
+  const participantId = localEngine.getPublicParticipantId(player.id, realEventId);
+
+  const { data: lockRow } = await supabaseAdmin
+    .from('drawing_ledger_locks')
+    .select('*')
+    .eq('event_id', realEventId)
+    .maybeSingle();
+
+  let ticketRange: string | null = null;
+  if (lockRow?.canonical_snapshot) {
+    const { ticketRanges } = localEngine.assignTicketsToSnapshot(lockRow.canonical_snapshot);
+    const range = ticketRanges.find(
+      (r) => r.publicParticipantId === participantId
+    );
+    if (range) {
+      ticketRange = `Tickets #${range.startTicket} - #${range.endTicket}`;
+    }
+  }
+
+  if (!ticketRange && totalEntries > 0) {
+    ticketRange = `${totalEntries} Verified Ticket${totalEntries === 1 ? '' : 's'}`;
+  }
+
+  return {
+    playerId: player.id,
+    playerLabel,
+    qualifiedEntries: totalEntries,
+    ticketRange: totalEntries > 0 ? ticketRange : 'No verified quest completions yet',
+    isQualified: totalEntries > 0,
   };
 }

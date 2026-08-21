@@ -544,6 +544,14 @@ export interface PublicPrizeDrawResult {
   finalQuestReceipt?: FinalQuestDrawReceipt;
 }
 
+export interface AuthenticatedPlayerDrawingQualification {
+  playerId: string;
+  playerLabel: string;
+  qualifiedEntries: number;
+  ticketRange?: string | null;
+  isQualified: boolean;
+}
+
 export interface PublicDrawingPageData {
   eventId: string;
   eventTitle: string;
@@ -558,6 +566,7 @@ export interface PublicDrawingPageData {
   publishedAt: string | null;
   verificationInfo?: string;
   ticketRanges?: FinalQuestTicketRange[];
+  authenticatedPlayerQualification?: AuthenticatedPlayerDrawingQualification | null;
 }
 
 export interface DrawingLedgerReview {

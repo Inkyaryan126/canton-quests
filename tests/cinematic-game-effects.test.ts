@@ -16,13 +16,19 @@ import {
   submitQuestProof,
   registerPlayer,
   getLeaderboardForEvent,
+  awardDrawingEntries,
+  lockDrawingLedger,
+  getAuthenticatedPlayerDrawingQualification,
 } from '../lib/game-engine';
 import {
   getLeaderboardDB,
   getPlayerProgressDB,
   evaluatePlayerAchievementsDB,
   submitQuestProofDB,
+  getAuthenticatedPlayerDrawingQualificationDB,
 } from '../lib/supabase-db';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 describe('Canton Quests — Futuristic Game Moments Engine', () => {
   beforeEach(() => {
@@ -424,6 +430,108 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
         expect(finaleMoment.qualifiedEntries).toBe(0);
         expect(finaleMoment.ticketRange).toBe('No verified quest completions yet');
       }
+    });
+
+    it('resolves server-authoritative drawing qualification by exact player identity, preventing duplicate display name confusion', async () => {
+      // Create two players with identical display names
+      const player1 = registerPlayer({
+        displayName: 'Canton Explorer',
+        avatarUrl: '⚡',
+        selectedStartingPath: 'family',
+      });
+      const player2 = registerPlayer({
+        displayName: 'Canton Explorer',
+        avatarUrl: '🎯',
+        selectedStartingPath: 'challenge',
+      });
+
+      expect(player1.id).not.toBe(player2.id);
+      expect(player1.displayName).toBe(player2.displayName);
+
+      // Award drawing entries ONLY to player1
+      awardDrawingEntries({
+        eventId: 'evt-canton-vol-1',
+        playerId: player1.id,
+        entriesCount: 4,
+        reason: 'Completed 4 quests',
+      });
+
+      // Test local engine lookup
+      const qual1 = getAuthenticatedPlayerDrawingQualification(player1.id, 'evt-canton-vol-1');
+      const qual2 = getAuthenticatedPlayerDrawingQualification(player2.id, 'evt-canton-vol-1');
+
+      expect(qual1).not.toBeNull();
+      expect(qual1?.playerId).toBe(player1.id);
+      expect(qual1?.qualifiedEntries).toBe(4);
+      expect(qual1?.isQualified).toBe(true);
+      expect(qual1?.ticketRange).toBe('4 Verified Tickets');
+
+      expect(qual2).not.toBeNull();
+      expect(qual2?.playerId).toBe(player2.id);
+      expect(qual2?.qualifiedEntries).toBe(0);
+      expect(qual2?.isQualified).toBe(false);
+      expect(qual2?.ticketRange).toBe('No verified quest completions yet');
+
+      // Test unified DB-layer lookup
+      const dbQual1 = await getAuthenticatedPlayerDrawingQualificationDB(player1.id, 'evt-canton-vol-1');
+      const dbQual2 = await getAuthenticatedPlayerDrawingQualificationDB(player2.id, 'evt-canton-vol-1');
+
+      expect(dbQual1?.qualifiedEntries).toBe(4);
+      expect(dbQual2?.qualifiedEntries).toBe(0);
+    });
+
+    it('derives accurate ticket ranges when drawing ledger is locked without exposing or misattributing other players', async () => {
+      const playerA = registerPlayer({
+        displayName: 'Alpha Player',
+        avatarUrl: '⚡',
+      });
+      const playerB = registerPlayer({
+        displayName: 'Beta Player',
+        avatarUrl: '🔥',
+      });
+
+      awardDrawingEntries({
+        eventId: 'evt-canton-vol-1',
+        playerId: playerA.id,
+        entriesCount: 3,
+        reason: 'Alpha entries',
+      });
+      awardDrawingEntries({
+        eventId: 'evt-canton-vol-1',
+        playerId: playerB.id,
+        entriesCount: 2,
+        reason: 'Beta entries',
+      });
+
+      lockDrawingLedger('evt-canton-vol-1', { lockReason: 'Test Lock', lockedBy: 'GM' });
+
+      const qualA = getAuthenticatedPlayerDrawingQualification(playerA.id, 'evt-canton-vol-1');
+      const qualB = getAuthenticatedPlayerDrawingQualification(playerB.id, 'evt-canton-vol-1');
+
+      expect(qualA?.qualifiedEntries).toBe(3);
+      expect(qualA?.ticketRange).toMatch(/Tickets #\d+ - #\d+/);
+      expect(qualB?.qualifiedEntries).toBe(2);
+      expect(qualB?.ticketRange).toMatch(/Tickets #\d+ - #\d+/);
+      expect(qualA?.ticketRange).not.toBe(qualB?.ticketRange);
+
+      // Unregistered / invalid player returns null
+      const qualNonexistent = getAuthenticatedPlayerDrawingQualification('nonexistent-player-uuid', 'evt-canton-vol-1');
+      expect(qualNonexistent).toBeNull();
+    });
+
+    it('drawing frontend and API verify qualification authoritatively without client-side displayName matching', () => {
+      const pageCode = readFileSync(join(process.cwd(), 'app/events/[slug]/drawing/page.tsx'), 'utf-8');
+      const routeCode = readFileSync(join(process.cwd(), 'app/api/game/events/[slug]/drawing/route.ts'), 'utf-8');
+
+      // Ensure API resolves authenticated player
+      expect(routeCode).toContain('resolveAuthenticatedPlayer');
+      expect(routeCode).toContain('getAuthenticatedPlayerDrawingQualificationDB');
+      expect(routeCode).toContain('authenticatedPlayerQualification');
+
+      // Ensure frontend consumes authenticatedPlayerQualification and does NOT do client-side guessing
+      expect(pageCode).toContain('authenticatedPlayerQualification');
+      expect(pageCode).not.toContain('e.playerPublicLabel === currentPlayer.displayName');
+      expect(pageCode).not.toContain('e.playerPublicLabel.includes(currentPlayer.id.slice');
     });
   });
 

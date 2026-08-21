@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getEventBySlugDB, getPublicDrawingPageDataDB } from '@/lib/supabase-db';
+import {
+  getEventBySlugDB,
+  getPublicDrawingPageDataDB,
+  getAuthenticatedPlayerDrawingQualificationDB,
+} from '@/lib/supabase-db';
+import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
 import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
+import { AuthenticatedPlayerDrawingQualification } from '@/lib/types';
 
 export async function GET(
   request: Request,
@@ -21,11 +27,25 @@ export async function GET(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
+    let authenticatedPlayerQualification: AuthenticatedPlayerDrawingQualification | null = null;
+    try {
+      const authPlayer = await resolveAuthenticatedPlayer(request);
+      if (authPlayer && authPlayer.id) {
+        authenticatedPlayerQualification = await getAuthenticatedPlayerDrawingQualificationDB(
+          authPlayer.id,
+          event.id
+        );
+      }
+    } catch {
+      // Unauthenticated or invalid session: qualification stays null
+    }
+
     if (isPreLaunchEvent(event, slug)) {
       try {
         const drawingData = await getPublicDrawingPageDataDB(event.id);
         return NextResponse.json({
           ...drawingData,
+          authenticatedPlayerQualification,
           isPreLaunch: true,
         });
       } catch {
@@ -33,13 +53,17 @@ export async function GET(
           isPreLaunch: true,
           eventSlug: slug,
           eventTitle: event.title,
+          authenticatedPlayerQualification,
           message: 'The official Canton Quests prize drawing opens with the September 11 event.',
         });
       }
     }
 
     const drawingData = await getPublicDrawingPageDataDB(event.id);
-    return NextResponse.json(drawingData);
+    return NextResponse.json({
+      ...drawingData,
+      authenticatedPlayerQualification,
+    });
   } catch (error: any) {
     // Log diagnostics server-side only; never leak internal require stacks or paths
     console.error('[API /events/[slug]/drawing] Server error:', error);

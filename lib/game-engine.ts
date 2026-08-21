@@ -48,6 +48,7 @@ import {
   PrizeDrawRecord,
   PublicPrizeDrawResult,
   PublicDrawingPageData,
+  AuthenticatedPlayerDrawingQualification,
   DrawingLedgerReview,
   DrawProvider,
   FinalQuestEventMetrics,
@@ -2322,14 +2323,21 @@ export function awardDrawingEntries(entryData: {
 
 export function getDrawingEntriesForEvent(eventId: string): DrawingEntryLedgerEntry[] {
   initializeGameEngine();
+  const events = getEvents();
+  const event = events.find((e) => e.id === eventId || e.slug === eventId);
+  const realEventId = event ? event.id : eventId;
   const ledger = getStoredItem<DrawingEntryLedgerEntry[]>(STORAGE_KEYS.DRAWING_LEDGER, []);
-  return ledger.filter((e) => e.eventId === eventId);
+  return ledger.filter((e) => e.eventId === eventId || e.eventId === realEventId);
 }
 
 export function getDrawingEntriesForPlayer(playerId: string, eventId?: string): DrawingEntryLedgerEntry[] {
   initializeGameEngine();
   const ledger = getStoredItem<DrawingEntryLedgerEntry[]>(STORAGE_KEYS.DRAWING_LEDGER, []);
-  return ledger.filter((e) => e.playerId === playerId && (!eventId || e.eventId === eventId));
+  if (!eventId) return ledger.filter((e) => e.playerId === playerId);
+  const events = getEvents();
+  const event = events.find((e) => e.id === eventId || e.slug === eventId);
+  const realEventId = event ? event.id : eventId;
+  return ledger.filter((e) => e.playerId === playerId && (e.eventId === eventId || e.eventId === realEventId));
 }
 
 export function getPublicDrawingLedgerProjection(eventId: string): PublicDrawingLedgerProjection {
@@ -3346,6 +3354,51 @@ export function getPublicDrawingPageData(eventId: string): PublicDrawingPageData
       ? `This drawing entry pool was finalized and cryptographically hashed (SHA-256: ${lock.snapshotHash}) on ${lock.lockedAt}. The winner selection is tied directly to the frozen canonical snapshot.`
       : undefined,
     ticketRanges,
+  };
+}
+
+export function getAuthenticatedPlayerDrawingQualification(
+  playerId: string,
+  eventId: string
+): AuthenticatedPlayerDrawingQualification | null {
+  initializeGameEngine();
+  const player = getPlayerById(playerId);
+  if (!player) return null;
+
+  const events = getEvents();
+  const event = events.find((e) => e.id === eventId || e.slug === eventId);
+  const realEventId = event ? event.id : eventId;
+
+  const entries = getDrawingEntriesForPlayer(playerId, realEventId);
+  const totalEntries = entries.reduce((sum, e) => sum + (e.entriesCount || 0), 0);
+
+  const playerLabel = getPublicPlayerLabel(player, playerId);
+  const participantId = getPublicParticipantId(playerId, realEventId);
+
+  const locks = getStoredItem<EventDrawingLedgerLock[]>(STORAGE_KEYS.DRAWING_LOCKS, []);
+  const lock = locks.find((l) => l.eventId === realEventId);
+
+  let ticketRange: string | null = null;
+  if (lock && lock.canonicalSnapshot) {
+    const { ticketRanges } = assignTicketsToSnapshot(lock.canonicalSnapshot);
+    const range = ticketRanges.find(
+      (r) => r.publicParticipantId === participantId
+    );
+    if (range) {
+      ticketRange = `Tickets #${range.startTicket} - #${range.endTicket}`;
+    }
+  }
+
+  if (!ticketRange && totalEntries > 0) {
+    ticketRange = `${totalEntries} Verified Ticket${totalEntries === 1 ? '' : 's'}`;
+  }
+
+  return {
+    playerId: player.id,
+    playerLabel,
+    qualifiedEntries: totalEntries,
+    ticketRange: totalEntries > 0 ? ticketRange : 'No verified quest completions yet',
+    isQualified: totalEntries > 0,
   };
 }
 
