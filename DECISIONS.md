@@ -855,3 +855,27 @@ Each entry follows the standard ADR structure:
   - Browser cookie engines (RFC 6265) reject cookies whose Domain attribute does not domain-match the request host (e.g. `.divinedesigndestinations.com` on `vercel.app`). Host-only cookies provide universal browser acceptance, tighter origin isolation, and complete cross-deployment reliability.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-041] 2026-08-21: Player Card Coordinate System Calibration & Dynamic Single-Line Sizing Overlay
+- **Decision**:
+  1. **Guide-Calibrated Coordinate Architecture (`lib/player-card-layout.ts`)**:
+     - Extracted exact mathematical bounding boxes from `public/canton-quests/player_card_guide.png` (1024 x 1536 px, 2:3 aspect ratio).
+     - Centralized all 12 field coordinates in `PLAYER_CARD_LAYOUT` to ensure single source of truth across components and CSS.
+     - Fixed master artwork `public/canton-quests/player_card.png` remains untouched as background; dynamic values render as absolute percentage overlays inside their intended golden box cutouts without occluding pre-printed labels.
+  2. **Single-Line Callsign Guarantee & Dynamic Scaling**:
+     - Enforced `white-space: nowrap; overflow: hidden; text-overflow: ellipsis;` on `.cq-card-callsign` with length-aware font scaling classes (`cq-callsign-lg`, `cq-callsign-md`, `cq-callsign-sm`, `cq-callsign-xs`).
+     - Real production stress case `dustinsigley126` (15 chars) renders cleanly on one single line inside the Callsign header bracket.
+  3. **District & Metadata Alignment**:
+     - Starting District positioned at `top: 34.51%, height: 5.14%` (under the printed label `"STARTING DISTRICT"`), scaling dynamically for long values like `"9th St Skate Park area"` and `"West Lawn Cemetery / McKinley area"`.
+     - Numeric stat boxes (`TOTAL XP`, `QUESTS COMPLETE`, `PRIZE ENTRIES`, `CITY RANK`) mapped to their exact icon-aligned positions (`top: 52.28%`) with flex centering.
+     - 6 individual circular badge slots mapped to their respective artwork rings (`top: 60.81%`), rendering transparent overlays that preserve empty rings when fewer than 6 badges are earned.
+  4. **Responsive Container Query Invariance**:
+     - Added `container-type: inline-size` on `.cq-player-card-wrap` using container query units (`cqi`). Card overlay positions, font proportions, and layout geometry scale with 100% mathematical fidelity across desktop, 430px, 390px, 375px, and 320px screens.
+  5. **Verification**:
+     - Added `tests/player-card-guide-calibration.test.ts` testing coordinate fidelity, callsign scaling, district scaling, stat centering, and 0-6 badge variations.
+- **Reason**:
+  - The live player card was using coarse approximate CSS coordinates and multi-line word wrapping that caused callsigns and district names to cover printed card art labels. Guide calibration guarantees pixel-accurate alignment across all mobile and desktop devices.
+- **Status**: **ACCEPTED**
+
+

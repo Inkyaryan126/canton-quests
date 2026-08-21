@@ -28,6 +28,7 @@ import CinematicNav from '@/components/CinematicNav';
 import CinematicFooter from '@/components/CinematicFooter';
 import { Achievement, Player, PlayerAchievement, Quest, StartingPath } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import PlayerCard from '@/components/PlayerCard';
 import {
   PLAYER_AVATAR_PRESETS,
   PLAYER_CARD_BADGE_SLOT_COUNT,
@@ -323,44 +324,24 @@ export default function ProfilePage() {
         ) : (
           <form onSubmit={saveProfile} className="cq-command-grid">
             <section className="cq-player-card-panel" aria-label="Player ID Card preview">
-              <div className="cq-player-card-wrap">
-                <Image
-                  src="/canton-quests/player_card.png"
-                  alt=""
-                  fill
-                  priority
-                  sizes="(max-width: 640px) 96vw, 420px"
-                  className="cq-player-card-art"
-                />
-                <div
-                  className="cq-card-photo"
-                  style={{
-                    backgroundImage: `url(${avatarImage})`,
-                    backgroundSize: `${cropZoom * 100}%`,
-                    backgroundPosition: `${cropX}% ${cropY}%`,
-                  }}
-                  role="img"
-                  aria-label={`${displayName || 'Player'} avatar preview`}
-                />
-                <div className="cq-card-callsign">{displayName || 'Canton Agent'}</div>
-                <div className="cq-card-path">{data.startingDistrict.label}</div>
-                <div className="cq-card-district">{data.startingDistrict.district}</div>
-                <div className="cq-card-stat cq-card-xp">{data.stats.totalXp}</div>
-                <div className="cq-card-stat cq-card-rank">{data.stats.cityRank ? `#${data.stats.cityRank}` : 'Unranked'}</div>
-                <div className="cq-card-stat cq-card-completed">{data.stats.completedQuests}</div>
-                <div className="cq-card-stat cq-card-entries">{data.stats.prizeEntries}</div>
-                <div className="cq-card-member">Since {formatDate(data.player.createdAt)}</div>
-                <div className="cq-card-badges">
-                  {Array.from({ length: data.badges.maxFeatured }).map((_, index) => {
-                    const badge = featuredBadges[index];
-                    return (
-                      <div key={index} className="cq-card-badge-slot">
-                        {badge && <Image src={badge.iconPath} alt={badge.name} width={42} height={42} />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <PlayerCard
+                displayName={displayName || 'Canton Agent'}
+                startingPathLabel={data.startingDistrict.label}
+                startingDistrictName={data.startingDistrict.district}
+                avatarImage={avatarImage}
+                cropZoom={cropZoom}
+                cropX={cropX}
+                cropY={cropY}
+                totalXp={data.stats.totalXp}
+                completedQuests={data.stats.completedQuests}
+                prizeEntries={data.stats.prizeEntries}
+                cityRank={data.stats.cityRank}
+                memberSinceDate={data.player.createdAt ? formatDate(data.player.createdAt).toUpperCase() : 'AUG 2026'}
+                playerCode={data.player.id ? `CQ-${data.player.id.slice(-4).toUpperCase()}` : 'CQ-2026'}
+                playerLevelText={`LEVEL ${Math.max(1, Math.floor((data.stats.totalXp || 0) / 500) + 1)} // ${data.startingDistrict.label}`}
+                clearanceLevelText="VOL. 1 OPERATIVE"
+                featuredBadges={featuredBadges}
+              />
             </section>
 
             <section className="cq-command-section cq-next-move" aria-labelledby="next-move-heading">

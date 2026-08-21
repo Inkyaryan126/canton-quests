@@ -3276,99 +3276,249 @@ code, pre, .font-mono {
   aspect-ratio: 2 / 3;
   overflow: hidden;
   border-radius: 8px;
+  container-type: inline-size;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(251, 191, 36, 0.2);
+  user-select: none;
 }
 
 .cq-player-card-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  z-index: 1;
 }
 
 .cq-card-photo,
+.cq-card-header-id,
 .cq-card-callsign,
 .cq-card-path,
 .cq-card-district,
+.cq-card-signal,
 .cq-card-stat,
-.cq-card-member,
-.cq-card-badges {
+.cq-card-badge-slot,
+.cq-card-member-since,
+.cq-card-id-code,
+.cq-card-clearance {
   position: absolute;
   z-index: 2;
+  box-sizing: border-box;
 }
 
-.cq-card-photo {
-  left: 9%;
-  top: 12.5%;
-  width: 34%;
-  height: 22.7%;
-  border-radius: 50%;
-  border: 3px solid rgba(251, 191, 36, 0.85);
-  background-repeat: no-repeat;
-  background-color: #080b10;
-}
-
-.cq-card-callsign {
-  left: 47%;
-  right: 9%;
-  top: 14%;
-  color: #fff;
-  font-weight: 950;
-  font-size: clamp(1rem, 5.6vw, 1.55rem);
-  line-height: 1;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.cq-card-path,
-.cq-card-district,
-.cq-card-member {
-  left: 47%;
-  right: 9%;
+/* 1. Header Player ID */
+.cq-card-header-id {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #fbbf24;
   font-family: var(--font-mono, monospace);
-  font-size: clamp(0.62rem, 2.8vw, 0.86rem);
+  font-size: clamp(0.48rem, 2.3cqi, 0.72rem);
   font-weight: 900;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.cq-card-path { top: 24.5%; }
-.cq-card-district { top: 28.7%; color: #e7e5e4; }
-.cq-card-member { top: 34%; color: #a7f3d0; }
-
-.cq-card-stat {
-  width: 24%;
-  text-align: center;
-  color: #fff;
-  font-size: clamp(0.8rem, 4vw, 1.12rem);
-  font-weight: 950;
-  font-family: var(--font-mono, monospace);
-}
-
-.cq-card-xp { left: 11%; top: 47%; }
-.cq-card-rank { left: 38%; top: 47%; }
-.cq-card-completed { left: 64%; top: 47%; }
-.cq-card-entries { left: 38%; top: 57.2%; }
-
-.cq-card-badges {
-  left: 4.6%;
-  right: 4.6%;
-  top: 61.6%;
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 2.9%;
-}
-
-.cq-card-badge-slot {
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 2px solid rgba(251, 191, 36, 0.6);
-  background: rgba(8, 11, 16, 0.82);
-  display: grid;
-  place-items: center;
   overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.cq-card-badge-slot img {
-  width: 76%;
-  height: 76%;
+/* 2. Circular Photo / Avatar */
+.cq-card-photo {
+  border-radius: 50%;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  background-color: #080b10;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8);
+}
+
+/* 3. Callsign (Single line guaranteed, dynamic scaling) */
+.cq-card-callsign {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-family: var(--font-cinematic, sans-serif);
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.35);
+  line-height: 1;
+  padding-inline: 4%;
+}
+
+.cq-callsign-lg {
+  font-size: clamp(0.92rem, 5.0cqi, 1.40rem);
+}
+
+.cq-callsign-md {
+  font-size: clamp(0.78rem, 4.0cqi, 1.15rem);
+}
+
+.cq-callsign-sm {
+  font-size: clamp(0.68rem, 3.4cqi, 0.98rem);
+}
+
+.cq-callsign-xs {
+  font-size: clamp(0.58rem, 2.8cqi, 0.84rem);
+}
+
+/* 4. Starting Path */
+.cq-card-path {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 3%;
+  color: #fbbf24;
+  font-family: var(--font-mono, monospace);
+  font-size: clamp(0.58rem, 3.0cqi, 0.88rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 5. Starting District */
+.cq-card-district {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 3%;
+  color: #f5f5f4;
+  font-family: var(--font-mono, monospace);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cq-district-lg {
+  font-size: clamp(0.52rem, 2.6cqi, 0.78rem);
+}
+
+.cq-district-md {
+  font-size: clamp(0.46rem, 2.2cqi, 0.68rem);
+}
+
+.cq-district-sm {
+  font-size: clamp(0.40rem, 1.8cqi, 0.58rem);
+}
+
+/* 6. Player Signal / Status */
+.cq-card-signal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38bdf8;
+  font-family: var(--font-mono, monospace);
+  font-size: clamp(0.48rem, 2.4cqi, 0.72rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 7. Numeric Stat Row */
+.cq-card-stat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: var(--font-mono, monospace);
+  font-weight: 950;
+  font-size: clamp(0.60rem, 3.2cqi, 0.95rem);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cq-card-stat-xp {
+  color: #fbbf24;
+}
+
+.cq-card-stat-completed {
+  color: #38bdf8;
+}
+
+.cq-card-stat-entries {
+  color: #fb7185;
+}
+
+.cq-card-stat-rank {
+  color: #c084fc;
+}
+
+/* 8. Six Individual Badge Slots */
+.cq-card-badge-slot {
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cq-card-badge-img {
+  width: 82% !important;
+  height: 82% !important;
+  top: 9% !important;
+  left: 9% !important;
   object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+/* 9. Bottom Metadata Boxes */
+.cq-card-member-since {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a7f3d0;
+  font-family: var(--font-mono, monospace);
+  font-size: clamp(0.44rem, 2.1cqi, 0.64rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cq-card-id-code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38bdf8;
+  font-family: var(--font-mono, monospace);
+  font-size: clamp(0.44rem, 2.1cqi, 0.64rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cq-card-clearance {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fcd34d;
+  font-family: var(--font-mono, monospace);
+  font-size: clamp(0.44rem, 2.1cqi, 0.64rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cq-command-section {

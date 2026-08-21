@@ -238,16 +238,34 @@ describe('Player Command Center profile rules', () => {
     expect(activity.map((item) => item.label)).toContain('Prize entry earned');
   });
 
-  it('uses player_card.png as the card foundation with overlay fields and mobile overflow guards', () => {
+  it('uses player_card.png as the card foundation with guide-calibrated overlay fields and single-line callsign scaling', () => {
     const profileSource = fs.readFileSync(path.join(process.cwd(), 'app/profile/page.tsx'), 'utf8');
+    const cardComponentSource = fs.readFileSync(path.join(process.cwd(), 'components/PlayerCard.tsx'), 'utf8');
+    const layoutSource = fs.readFileSync(path.join(process.cwd(), 'lib/player-card-layout.ts'), 'utf8');
     const cssSource = fs.readFileSync(path.join(process.cwd(), 'app/globals.css'), 'utf8');
 
-    expect(profileSource).toContain('/canton-quests/player_card.png');
-    expect(profileSource).toContain('cq-card-callsign');
-    expect(profileSource).toContain('cq-card-badge-slot');
+    expect(profileSource).toContain('<PlayerCard');
+    expect(cardComponentSource).toContain('/canton-quests/player_card.png');
+    expect(cardComponentSource).toContain('cq-card-callsign');
+    expect(cardComponentSource).toContain('cq-card-badge-slot');
+
+    // Layout coordinate map verification
+    expect(layoutSource).toContain('PLAYER_CARD_LAYOUT');
+    expect(layoutSource).toContain("left: '42.97%'"); // Callsign box
+    expect(layoutSource).toContain("left: '51.17%'"); // Starting Path box
+    expect(layoutSource).toContain("left: '51.27%'"); // Starting District box
+    expect(layoutSource).toContain("left: '12.21%'"); // Total XP box
+    expect(layoutSource).toContain("left: '34.67%'"); // Quests Complete box
+    expect(layoutSource).toContain("left: '58.20%'"); // Prize Entries box
+    expect(layoutSource).toContain("left: '82.03%'"); // City Rank box
+
+    // CSS guarantees
     expect(cssSource).toContain('aspect-ratio: 2 / 3');
-    expect(cssSource).toContain('grid-template-columns: repeat(6, minmax(0, 1fr))');
-    expect(cssSource).toContain('@media (max-width: 520px)');
-    expect(cssSource).toContain('overflow-wrap: anywhere');
+    expect(cssSource).toContain('container-type: inline-size');
+    expect(cssSource).toContain('.cq-callsign-lg');
+    expect(cssSource).toContain('.cq-callsign-md');
+    expect(cssSource).toContain('.cq-callsign-sm');
+    expect(cssSource).toContain('.cq-callsign-xs');
+    expect(cssSource).not.toContain('overflow-wrap: anywhere');
   });
 });
