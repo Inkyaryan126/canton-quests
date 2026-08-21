@@ -836,3 +836,22 @@ Each entry follows the standard ADR structure:
 - **Reason**:
   - Provides a frictionless, modern player account experience for returning festival explorers while eliminating email link fatigue on return visits, guaranteeing durable session survival across browser closes outdoors on mobile devices, and protecting against token pre-consumption by corporate email scanner bots.
 - **Status**: **ACCEPTED**
+
+---
+
+### [ADR-040] 2026-08-21: Host-Only Cookie Architecture, Dual-State Contract Integrity, and Auth Diagnostic Telemetry
+- **Decision**:
+  1. **Host-Only Authentication Cookies (RFC 6265 Compliance)**:
+     - Removed hardcoded `Domain=.divinedesigndestinations.com` from `persistentCookieOptions` and `expiredCookieOptions` in `lib/supabase-auth.ts`.
+     - Cookies are emitted as standard host-only cookies, eliminating browser rejection due to domain mismatches across production hosts (`www.divinedesigndestinations.com`, `canton-quests.vercel.app`, preview deployments `*.vercel.app`, and local test environments).
+     - `clearAuthCookies` expires both host-only cookies and legacy domain cookies (`.divinedesigndestinations.com`) to purge any old cookies from players' browsers.
+  2. **Auth Route Contract Clarity & Diagnostic Logging**:
+     - `GET /api/auth/me` returns HTTP 200 with `{ isAuthenticated: false, player: null, achievements: [] }` when unauthenticated, and `{ isAuthenticated: true, player: {...}, ... }` when authenticated. Added `export const dynamic = 'force-dynamic'`.
+     - `GET /api/player/command-center` strictly returns HTTP 401 when unauthenticated and HTTP 200 with complete command center state when authenticated. Automatically sets refreshed tokens if background session rotation occurred.
+     - Added safe `logAuthDiagnostic` helper across `/api/auth/login`, `/api/auth/me`, `/api/player/command-center`, and `resolveAuthenticatedSession` logging user presence, user IDs, and cookie presence without exposing secrets or tokens.
+  3. **Verification**:
+     - Added `tests/production-auth-cookie-jar-reproduction.test.ts` testing complete cURL-style cookie jar flow across multiple hostnames (`www.divinedesigndestinations.com`, `canton-quests.vercel.app`, `*.vercel.app`, `localhost:3000`).
+- **Reason**:
+  - Browser cookie engines (RFC 6265) reject cookies whose Domain attribute does not domain-match the request host (e.g. `.divinedesigndestinations.com` on `vercel.app`). Host-only cookies provide universal browser acceptance, tighter origin isolation, and complete cross-deployment reliability.
+- **Status**: **ACCEPTED**
+

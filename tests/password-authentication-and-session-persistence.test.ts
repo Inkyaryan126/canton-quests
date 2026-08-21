@@ -771,7 +771,9 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       vi.stubEnv('NODE_ENV', 'production');
       const { loginRes } = await loginExistingPlayer();
       const setCookie = loginRes.headers.get('set-cookie') || '';
-      expect(setCookie).toContain('Domain=.divinedesigndestinations.com');
+      expect(setCookie).not.toContain('Domain=.divinedesigndestinations.com');
+      expect(setCookie).toContain('sb-access-token');
+      expect(setCookie).toContain('sb-refresh-token');
       expect(setCookie).toContain(`Max-Age=${AUTH_COOKIE_MAX_AGE}`);
     });
   });

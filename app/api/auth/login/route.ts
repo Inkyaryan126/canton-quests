@@ -7,6 +7,7 @@ import {
   resolveAuthenticatedSession,
   resolveOrCreatePlayerForAuthUser,
   setAuthCookies,
+  logAuthDiagnostic,
 } from '@/lib/supabase-auth';
 import { StartingPath } from '@/lib/types';
 
@@ -49,6 +50,9 @@ export async function POST(request: Request) {
 
       const loginRes = await signInWithPassword(email.trim(), password);
       if (!loginRes.success || !loginRes.player) {
+        logAuthDiagnostic('POST /api/auth/login:password_login_failed', {
+          error: loginRes.error || 'Invalid credentials',
+        });
         return NextResponse.json(
           { success: false, error: loginRes.error || 'Invalid email or password.' },
           { status: 401 }
@@ -64,6 +68,13 @@ export async function POST(request: Request) {
 
       // Persistent 30-day cookies (access token, refresh token, player ID) for browser session persistence
       setAuthCookies(response, loginRes.session, loginRes.player.id);
+
+      logAuthDiagnostic('POST /api/auth/login:password_login_success', {
+        playerId: loginRes.player.id,
+        displayName: loginRes.player.displayName,
+        hasAccessToken: Boolean(loginRes.session?.access_token),
+        hasRefreshToken: Boolean(loginRes.session?.refresh_token),
+      });
 
       return response;
     }

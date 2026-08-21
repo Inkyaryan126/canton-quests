@@ -69,10 +69,6 @@ function isProductionRuntime() {
   return process.env.NODE_ENV === 'production';
 }
 
-function shouldUseSharedAuthCookieDomain() {
-  return isProductionRuntime();
-}
-
 function persistentCookieOptions(httpOnly: boolean) {
   return {
     path: '/',
@@ -80,7 +76,6 @@ function persistentCookieOptions(httpOnly: boolean) {
     secure: isProductionRuntime(),
     maxAge: AUTH_COOKIE_MAX_AGE,
     sameSite: 'lax' as const,
-    ...(shouldUseSharedAuthCookieDomain() ? { domain: CANONICAL_AUTH_DOMAIN } : {}),
   };
 }
 
@@ -88,8 +83,20 @@ function expiredCookieOptions() {
   return {
     path: '/',
     maxAge: 0,
-    ...(shouldUseSharedAuthCookieDomain() ? { domain: CANONICAL_AUTH_DOMAIN } : {}),
   };
+}
+
+/**
+ * Safe diagnostic logging helper for auth state verification.
+ * Logs only non-sensitive metadata (cookie names, user presence, user IDs).
+ * NEVER logs tokens, secrets, or passwords.
+ */
+export function logAuthDiagnostic(context: string, details: Record<string, any>) {
+  try {
+    console.log(`[AUTH-DIAGNOSTIC][${context}]`, JSON.stringify(details));
+  } catch {
+    // Ignore logging errors
+  }
 }
 
 /**
@@ -115,6 +122,7 @@ export function setAuthCookies(
 
 /**
  * Explicitly clears all authentication and session cookies.
+ * Also expires legacy cookies set with explicit domain attribute if any exist.
  */
 export function clearAuthCookies(
   response: { cookies: { set: (name: string, value: string, options?: any) => void } }
@@ -124,6 +132,13 @@ export function clearAuthCookies(
   response.cookies.set(AUTH_REFRESH_COOKIE, '', clearOptions);
   response.cookies.set(AUTH_PLAYER_COOKIE, '', clearOptions);
   response.cookies.set(LEGACY_AUTH_COOKIE, '', clearOptions);
+
+  // Also purge legacy domain cookies if previously written under .divinedesigndestinations.com
+  const legacyDomainOptions = { ...clearOptions, domain: CANONICAL_AUTH_DOMAIN };
+  response.cookies.set(AUTH_ACCESS_COOKIE, '', legacyDomainOptions);
+  response.cookies.set(AUTH_REFRESH_COOKIE, '', legacyDomainOptions);
+  response.cookies.set(AUTH_PLAYER_COOKIE, '', legacyDomainOptions);
+  response.cookies.set(LEGACY_AUTH_COOKIE, '', legacyDomainOptions);
 }
 
 // In-memory dev/test OTP store when Supabase is not configured (e.g. unit testing / offline dev)
@@ -1052,25 +1067,25 @@ export function extractAuthTokens(
     const cookieHeader = req.headers.get('cookie') || '';
     if (cookieHeader) {
       // 1. Check sb-access-token
-      const accessMatch = cookieHeader.match(/sb-access-token=([^;]+)/);
+      const accessMatch = cookieHeader.match(/(?:^|;\s*)sb-access-token=([^;]+)/);
       if (accessMatch && !accessToken) {
-        accessToken = decodeURIComponent(accessMatch[1].trim());
+        accessToken = decodeURIComponent(accessMatch[1].trim()).replace(/^"|"$/g, '');
       }
 
       // 2. Check sb-refresh-token
-      const refreshMatch = cookieHeader.match(/sb-refresh-token=([^;]+)/);
+      const refreshMatch = cookieHeader.match(/(?:^|;\s*)sb-refresh-token=([^;]+)/);
       if (refreshMatch && !refreshToken) {
-        refreshToken = decodeURIComponent(refreshMatch[1].trim());
+        refreshToken = decodeURIComponent(refreshMatch[1].trim()).replace(/^"|"$/g, '');
       }
 
       // 3. Check legacy / supabase-auth-token / project-specific cookies
       if (!accessToken || !refreshToken) {
         const fallbackMatch =
-          cookieHeader.match(/supabase-auth-token=([^;]+)/) ||
-          cookieHeader.match(/sb-[^;=]+-auth-token=([^;]+)/);
+          cookieHeader.match(/(?:^|;\s*)supabase-auth-token=([^;]+)/) ||
+          cookieHeader.match(/(?:^|;\s*)sb-[^;=]+-auth-token=([^;]+)/);
 
         if (fallbackMatch) {
-          let cookieVal = decodeURIComponent(fallbackMatch[1].trim());
+          let cookieVal = decodeURIComponent(fallbackMatch[1].trim()).replace(/^"|"$/g, '');
           if (cookieVal.startsWith('base64-')) {
             try {
               cookieVal = Buffer.from(cookieVal.slice(7), 'base64').toString('utf-8');
@@ -1120,15 +1135,33 @@ export async function resolveAuthenticatedSession(
 
   const { accessToken, refreshToken } = extractAuthTokens(requestOrToken);
 
+  let rawCookieHeader = '';
+  if (typeof requestOrToken === 'object' && requestOrToken !== null) {
+    if ('headers' in requestOrToken && typeof (requestOrToken as Request).headers?.get === 'function') {
+      rawCookieHeader = (requestOrToken as Request).headers.get('cookie') || '';
+    } else if ('request' in requestOrToken && (requestOrToken as any).request?.headers?.get) {
+      rawCookieHeader = (requestOrToken as any).request.headers.get('cookie') || '';
+    }
+  }
+
+  const cookiesDetected: string[] = [];
+  if (rawCookieHeader) {
+    if (rawCookieHeader.includes('sb-access-token')) cookiesDetected.push('sb-access-token');
+    if (rawCookieHeader.includes('sb-refresh-token')) cookiesDetected.push('sb-refresh-token');
+    if (rawCookieHeader.includes('canton_player_id')) cookiesDetected.push('canton_player_id');
+    if (rawCookieHeader.includes('supabase-auth-token')) cookiesDetected.push('supabase-auth-token');
+  }
+
   let authUser: AuthSessionUser | null = null;
   let refreshedSession: AuthSessionTokens | undefined = undefined;
 
   // 1. Try validating access token first
   if (accessToken) {
-    if (isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && (supabase?.auth || supabaseAdmin?.auth)) {
       try {
-        const { data, error } = await supabase.auth.getUser(accessToken);
-        if (!error && data.user) {
+        const client = supabase?.auth ? supabase : supabaseAdmin!;
+        const { data, error } = await client.auth.getUser(accessToken);
+        if (!error && data?.user) {
           authUser = {
             id: data.user.id,
             email: data.user.email,
@@ -1169,10 +1202,27 @@ export async function resolveAuthenticatedSession(
   }
 
   if (!authUser) {
+    if (cookiesDetected.length > 0 || accessToken || refreshToken) {
+      logAuthDiagnostic('resolveAuthenticatedSession:unauthenticated', {
+        hasAccessToken: Boolean(accessToken),
+        hasRefreshToken: Boolean(refreshToken),
+        cookiesDetected,
+      });
+    }
     return { user: null, player: null };
   }
 
-  const player = await resolvePlayerForAuthUserInternal(authUser);
+  const player = (await resolvePlayerForAuthUserInternal(authUser)) ||
+    (await resolveOrCreatePlayerForAuthUser(authUser).catch(() => null));
+
+  logAuthDiagnostic('resolveAuthenticatedSession:authenticated', {
+    userId: authUser.id,
+    hasPlayer: Boolean(player),
+    playerId: player?.id || null,
+    wasRefreshed: Boolean(refreshedSession),
+    cookiesDetected,
+  });
+
   return {
     user: authUser,
     player,
@@ -1371,7 +1421,7 @@ export async function resolveOrCreatePlayerForAuthUser(
     throw new Error('Verified Supabase user required.');
   }
 
-  const existing = await resolveAuthenticatedPlayer(authUser.id);
+  const existing = await resolvePlayerForAuthUserInternal(authUser);
   if (existing) {
     return existing;
   }

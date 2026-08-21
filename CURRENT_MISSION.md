@@ -1,474 +1,333 @@
-# CANTON QUESTS — PASSWORD ACCOUNTS + STAY LOGGED IN UNTIL EXPLICIT LOGOUT
+# CANTON QUESTS — REPAIR AUTH SESSION CONSISTENCY BETWEEN LOGIN AND PLAYER COMMAND CENTER
 
 ## Mission
 
-Convert Canton Quests authentication to a normal password-account system.
+Fix the production authentication bug where a player successfully logs in, `/api/auth/me` returns 200, but `/api/player/command-center` immediately returns 401 Unauthorized and the UI shows:
 
-The current magic-link / email-link flow should NOT be the normal returning login experience anymore.
+"Authentication required. Please log in to Canton Quests."
 
-Desired behavior:
+This is a focused production repair mission.
 
-NEW PLAYER
-→ callsign + email + password
-→ verify email once
-→ enter Player Command Center
-→ remain logged in
+Do NOT redesign the entire auth system again.
 
-RETURNING PLAYER
-→ email + password
-→ immediate authenticated session
-→ Player Command Center
-→ no callsign required
-→ no email link required for normal login
+Do NOT replace the new password-account architecture.
 
-FORGOT PASSWORD
-→ use the existing scanner-safe email flow
-→ verify recovery securely
-→ choose new password
-→ return to Player Command Center
+Do NOT regress the new persistent-login requirement.
+
+The goal is to make all authenticated player routes recognize the SAME canonical Supabase session.
 
 ---
 
-# CRITICAL SESSION REQUIREMENT
+# PRODUCTION EVIDENCE
 
-Players must stay logged in until they explicitly press LOG OUT.
+Current production deployment:
 
-Do not interpret this as merely surviving refresh or a short return visit.
+dpl_2uMnr2rX3dh5AhHYdB4dWkMx6FC7
 
-Required:
+Current production commit:
 
-- refresh keeps player logged in
-- navigation keeps player logged in
-- closing browser does NOT intentionally log player out
-- reopening browser restores authenticated session when valid
-- returning later restores authenticated session when valid
-- do not add an automatic logout timer
-- do not use session-only cookies that intentionally disappear on browser close
-- normal player-controlled session termination is explicit LOG OUT
+ca91f047529905ee97e7497e72447adde7a62d8e
 
-Security exceptions are acceptable:
+Observed live behavior:
 
-- refresh token revoked
-- Supabase invalidates session
-- password/security change invalidates session
-- server-side security revocation
+POST /api/auth/login
+→ 200
 
-Do not invent permanent custom auth tokens.
+GET /api/auth/me
+→ 200
 
-Use Supabase secure refresh-token/session persistence correctly.
+GET /api/player/command-center
+→ 401
+
+Observed multiple times in production.
+
+Therefore:
+
+- credentials are being accepted
+- some auth/session state is being established
+- /api/auth/me can recognize the session
+- /api/player/command-center is NOT recognizing the same session
+
+The repair must identify and eliminate that inconsistency.
 
 ---
 
-# 1. AUDIT CURRENT AUTH
+# 1. AUDIT AUTH RESOLUTION PATHS
 
-Inspect:
+Inspect and compare the exact authentication logic used by:
 
-- signup UI
-- login UI
-- auth API routes
-- app/auth/confirm/page.tsx
-- app/api/auth/confirm/route.ts
+- app/api/auth/login/route.ts
+- app/api/auth/me/route.ts
+- app/api/player/command-center/route.ts
+- app/api/player/profile/route.ts
+- any player/private APIs
 - lib/supabase-auth.ts
-- session endpoint
-- logout
+- Supabase server client helpers
 - middleware
-- profile routing
-- recovery/password-reset code
-- Supabase client/server helpers
-- tests
-- auth-related architecture docs
+- cookie/session utilities
+- logout route
+- profile page
+- command center page
+- any legacy CQ session helpers
 
-Preserve working scanner-safe verification architecture.
+Find out exactly why `/api/auth/me` accepts the current player but `/api/player/command-center` rejects them.
+
+Do not guess.
+
+Trace the cookie/session from login response through the next request.
 
 ---
 
-# 2. NEW PLAYER SIGNUP
+# 2. ESTABLISH ONE CANONICAL AUTH RESOLVER
 
-Signup should collect:
+There must be ONE canonical server-side way to determine the current authenticated player.
+
+Preferred model:
+
+1. read Supabase auth session from request cookies
+2. validate/refresh session securely
+3. obtain authenticated `auth.users.id`
+4. resolve `public.players` from `players.user_id = auth.users.id`
+5. return canonical player identity
+
+Do not authenticate player APIs using:
 
 - callsign
-- email
-- password
-- confirm password
-- starting path where current onboarding requires it
+- email from client
+- query parameters
+- localStorage
+- client-submitted player ID
+- old custom session cookie if it has been superseded
 
-Use Supabase password signup.
-
-Do NOT store passwords in public tables.
-
-Do NOT build custom password hashing.
-
-Passwords belong only to Supabase Auth.
-
-Keep email verification enabled.
-
-After signup:
-
-- send verification email
-- preserve callsign/path attribution
-- provision/claim player idempotently
-- after verification route to Player Command Center
+If legacy helpers still exist, either remove them from private player routes or route them through the canonical Supabase session resolver.
 
 ---
 
-# 3. RETURNING LOGIN
+# 3. FIX COMMAND CENTER AUTH
 
-Returning login should require ONLY:
+`GET /api/player/command-center` must accept the same authenticated session recognized by `/api/auth/me`.
 
-- email
-- password
+On successful login:
 
-Do not require callsign.
+POST /api/auth/login
+→ establishes persistent Supabase session
 
-Desired UI:
+then:
 
-WELCOME BACK
+GET /api/auth/me
+→ 200 authenticated
 
-Email
-Password
+then:
 
-[ ENTER CANTON QUESTS ]
+GET /api/player/command-center
+→ MUST also return 200
 
-[ FORGOT PASSWORD? ]
+No additional login step.
 
-Optional:
-[ SHOW PASSWORD ]
+No callsign re-entry.
 
-After successful login:
+No magic link.
 
-- identify authenticated Supabase user
-- resolve linked player from auth user ID
-- restore callsign
-- restore avatar/photo
-- restore path
-- restore XP
-- restore badges
-- restore quest progress
-- restore prize entries
-- route to Player Command Center
+No separate CQ auth token.
+
+No duplicated session mechanism.
 
 ---
 
-# 4. PLAYER IDENTITY
+# 4. FIX ALL PRIVATE PLAYER ROUTES CONSISTENTLY
 
-Once authenticated, use server-side auth identity.
+Audit all player-authenticated APIs and pages for similar divergence.
 
-Preferred relationship:
+At minimum inspect:
 
-players.user_id = auth.users.id
+- /api/player/command-center
+- /api/player/profile
+- profile-image upload route
+- private badge/featured badge routes if any
+- quest submission APIs requiring player identity
+- prize/drawing APIs requiring authenticated player
+- authenticated profile page
+- player command center page
 
-or the current canonical equivalent.
+All private player routes must resolve identity from the same authenticated Supabase user.
 
-Do not trust client-submitted:
-
-- callsign
-- player ID
-- email
-- path
-
-to decide which player is authenticated.
-
----
-
-# 5. EXISTING PLAYERS
-
-Existing players created under magic-link/OTP auth must NOT lose their accounts.
-
-Implement a safe transition.
-
-For an existing player who does not yet have a password:
-
-- they can use FORGOT PASSWORD / SET PASSWORD
-- recovery email goes to their existing auth user
-- recovery verifies securely
-- they choose a password
-- SAME auth user remains
-- SAME player row remains
-- SAME callsign remains
-- SAME avatar remains
-- SAME path remains
-- SAME XP remains
-- SAME badges remain
-- SAME quest progress remains
-- SAME prize entries remain
-
-Do not create duplicate auth users or player rows.
+Do not leave one route on old auth and another on new auth.
 
 ---
 
-# 6. RECOVERY FLOW
+# 5. COOKIE / SESSION PROPAGATION
 
-Turn the current email-link behavior into account recovery.
+Inspect actual cookie behavior after login.
 
-Desired:
+Verify:
 
-1. Click FORGOT PASSWORD
-2. Enter email
-3. Send Supabase recovery email
-4. Scanner-safe CQ recovery page loads
-5. GET does not consume token
-6. deliberate action verifies token_hash with type=recovery
-7. recovery session established
-8. show SET NEW PASSWORD screen
-9. securely update password using Supabase Auth
-10. redirect to Player Command Center
+- login response writes all required Supabase cookies
+- Set-Cookie values are preserved
+- cookies are available on subsequent server routes
+- www/non-www canonical redirect does not drop cookies
+- cookie path is correct
+- cookie domain is correct
+- SameSite behavior is correct
+- Secure behavior is correct in production
+- refresh token cookie persists
+- access-token/session refresh works
+- browser restart persistence remains supported
+- no session-only cookie accidentally replaces persistent cookie
 
-Do not use normal magic-link login for returning players.
-
----
-
-# 7. PRESERVE SCANNER-SAFE EMAIL SECURITY
-
-Do NOT regress the previous fix.
-
-Preserve:
-
-- token_hash
-- custom confirmation/recovery page
-- deliberate POST verification
-- verifyOtp
-- open-redirect protection
-- safe internal next routing
-- secure session handling
-
-DO NOT restore raw:
-
-{{ .ConfirmationURL }}
-
-for signup/recovery templates if scanner-safe templates are already configured.
+Do not invent custom permanent tokens.
 
 ---
 
-# 8. PASSWORD RESET PAGE
+# 6. REQUEST-SCOPED SUPABASE CLIENT
 
-Build a CQ-styled reset page.
+Confirm server routes are not accidentally using a Supabase client that:
 
-Example:
+- does not receive request cookies
+- has stale cookies
+- mutates cookies incorrectly
+- uses browser storage on server
+- creates a new unauthenticated client
+- cannot refresh auth state
 
-RESTORE PLAYER ACCESS
-
-New Password
-Confirm Password
-
-[ SET NEW PASSWORD ]
-
-Requirements:
-
-- minimum sensible password length
-- matching validation
-- useful errors
-- password never logged
-- password never written to player database
-- no password in query params
-
-After success:
-
-PLAYER ACCESS RESTORED
-
-[ ENTER COMMAND CENTER ]
+Private routes should use a request-scoped server Supabase client with correct cookie get/set handling.
 
 ---
 
-# 9. POST-AUTH ROUTING
+# 7. REMOVE LEGACY AUTH CONFLICTS
 
-Successful login should NOT go to anonymous homepage.
+Search for old CQ auth/session logic such as:
 
-Routing precedence:
+- custom `cq_session`
+- player session cookies
+- magic-link-specific session helpers
+- old email/callsign auth resolvers
+- localStorage session tokens
+- duplicate bearer token systems
 
-complete player
-→ Player Command Center / profile
+Do not remove something blindly if still needed for compatibility.
 
-incomplete player
-→ required onboarding
-→ Player Command Center
-
-Safe explicit internal next routes may be honored where appropriate.
-
-Canonical profile/command-center route should be determined from current code.
-
-Likely:
-/profile
-
-Do not rebuild the Player Command Center.
+But private player routes must not require an obsolete session in addition to the current Supabase password session.
 
 ---
 
-# 10. KEEP PLAYERS LOGGED IN
+# 8. PRESERVE PERSISTENT LOGIN REQUIREMENT
 
-Audit current cookie/session behavior carefully.
+The previously implemented product requirement remains:
 
-Confirm:
+Players stay logged in until they explicitly press LOG OUT, except legitimate security invalidation.
 
-- Supabase refresh token persists
-- browser restart does not intentionally clear auth
-- session can refresh automatically
-- server-rendered protected routes recognize player
-- canonical domain redirects do not break session
-- logout explicitly clears session
+Do not fix this bug by making sessions shorter.
 
-Do not add a fake "remember me" checkbox if persistence is always intended.
+Do not force re-login after refresh/browser restart.
 
-Persistence should be the default.
+Do not add temporary one-request sessions.
+
+Do not revert to magic-link login.
 
 ---
 
-# 11. LOGOUT
+# 9. PRESERVE RECOVERY FLOW
 
-LOG OUT must:
+Do not break:
 
-- call correct Supabase signOut flow
-- clear auth cookies/session state
-- clear browser persistence appropriately
-- return player to anonymous state
-- prevent private profile access
-- remain logged out after browser close/reopen
-
-Explicit logout is the normal player-controlled end of session.
-
----
-
-# 12. AUTHENTICATED NAVIGATION
-
-When logged in, navigation should clearly show authenticated state.
-
-At minimum:
-
-- player avatar or callsign
-- COMMAND CENTER / PROFILE
-- QUESTS
-- LEADERBOARD
-- LOG OUT
-
-Do not show JOIN / SIGN UP as the primary action to logged-in players.
-
-Mobile nav must expose the profile/command center clearly.
-
----
-
-# 13. HOMEPAGE AUTHENTICATED STATE
-
-If logged-in player visits `/`:
-
-show obvious recognition.
-
-Example:
-
-WELCOME BACK, NIGHTWOLF
-
-[ ENTER COMMAND CENTER ]
-
-Do not render homepage exactly like anonymous visitor.
-
----
-
-# 14. DOMAIN / COOKIE BEHAVIOR
-
-Audit canonical production host behavior.
-
-Current production may redirect:
-
-divinedesigndestinations.com
-→ www.divinedesigndestinations.com
-
-Make session persistence intentional across the canonical host.
-
-Do not allow localhost URLs to appear in production auth redirects.
-
----
-
-# 15. SUPABASE HOSTED SETTINGS
-
-Verify if tooling permits:
-
-- email/password provider enabled
-- email confirmation enabled
-- recovery behavior supported
-- redirect URLs valid
-- site URL correct
-
-If a Supabase Dashboard change is required, report the exact change.
-
-Do not claim full completion if hosted config still blocks password auth.
-
----
-
-# 16. TESTS
-
-Add/update tests for:
-
-NEW SIGNUP
-- callsign + email + password
-- verification required
-- player provisioning preserved
-
-RETURNING LOGIN
-- email + password only
-- callsign not required
-- correct player restored
-
-PERSISTENCE
-- refresh preserves session
-- navigation preserves session
-- browser-reopen persistence architecture is correct
-- server recognizes session
-
-EXISTING PLAYER TRANSITION
-- recovery sets password
-- no duplicate auth user
-- no duplicate player
-- progress preserved
-
-RECOVERY
 - scanner-safe recovery
-- set new password
-- return to Command Center
+- token_hash verification
+- deliberate recovery confirmation
+- password reset
+- existing-account password transition
 
-LOGOUT
-- session cleared
-- private route blocked after logout
-- logged-out state survives browser reopen
-
-SECURITY
-- external next rejected
-- wrong password handled safely
-- no plaintext password storage
-- player cannot impersonate another account
+Recovery is separate from normal login.
 
 ---
 
-# 17. REAL BROWSER VERIFICATION
+# 10. PROFILE / COMMAND CENTER DATA
 
-Test brand-new player:
+After authentication succeeds, command center must resolve the existing player row and preserve:
 
-1. create account with callsign + email + password
-2. receive verification
-3. verify once
-4. land on Command Center
-5. refresh
-6. still logged in
-7. close browser
-8. reopen browser
-9. still logged in
-10. log out
-11. close browser
-12. reopen browser
-13. remains logged out
-14. login with email + password
-15. no callsign requested
-16. land on Command Center
+- callsign
+- avatar/photo
+- path
+- district
+- XP
+- rank
+- badges
+- quest progress
+- prize entries
+- member since
+- privacy settings
+- Commander’s Next Move
 
-Test existing pre-password player:
+Do not create a new player row.
 
-1. use forgot password
-2. receive recovery email
-3. scanner-safe recovery
-4. set password
-5. confirm same player profile/progress
-6. log out
-7. login with email + password
-8. confirm same identity restored
+Do not duplicate the auth user.
 
-Test mobile widths:
+---
+
+# 11. TESTS
+
+Add regression tests specifically for this production bug.
+
+Required sequence:
+
+A. successful password login
+B. response establishes session
+C. `/api/auth/me` returns authenticated player
+D. SAME session cookies used against `/api/player/command-center`
+E. command center returns 200
+F. correct existing player is returned
+
+Also test:
+
+- anonymous command-center request → 401
+- wrong/expired session → 401
+- profile route recognizes same session
+- private player routes use canonical resolver
+- refresh token/session refresh path works
+- logout clears session
+- after logout command-center returns 401
+- no localStorage auth dependency
+- no client-controlled player impersonation
+
+---
+
+# 12. PRODUCTION-STYLE COOKIE TEST
+
+If possible, test with the canonical production host behavior:
+
+https://divinedesigndestinations.com
+→ https://www.divinedesigndestinations.com
+
+Confirm authentication survives that canonicalization.
+
+---
+
+# 13. REAL BROWSER VERIFICATION
+
+Use real Chrome against production after deployment.
+
+Exact required flow:
+
+1. Open production site
+2. Log out fully
+3. Login with existing email + password
+4. Confirm login response succeeds
+5. Confirm player is redirected to Command Center/Profile
+6. Confirm no "Authentication required" error
+7. Confirm player data loads
+8. Refresh page
+9. Still authenticated
+10. Navigate to quests
+11. Navigate back to profile
+12. Still authenticated
+13. Close browser
+14. Reopen browser
+15. Still authenticated
+16. Press LOG OUT
+17. Confirm private command-center access now fails
+18. Reopen browser
+19. Confirm still logged out
+
+Mobile widths:
 
 320
 375
@@ -476,11 +335,28 @@ Test mobile widths:
 414
 430
 
-No horizontal overflow.
+---
+
+# 14. PRODUCTION LOG VERIFICATION
+
+After deployment, inspect production logs.
+
+Required:
+
+POST /api/auth/login
+→ 200
+
+GET /api/auth/me
+→ 200
+
+GET /api/player/command-center
+→ 200
+
+There must be no immediate 401 from command-center for the same authenticated browser session.
 
 ---
 
-# 18. VERIFICATION
+# 15. VERIFICATION SUITE
 
 Run:
 
@@ -494,18 +370,21 @@ All must pass.
 
 ---
 
-# 19. DEPLOYMENT
+# 16. COMMIT / PUSH / DEPLOY
 
-If all checks pass:
+If all verification passes:
 
 1. commit
 2. push main
-3. deploy production
-4. verify live
+3. deploy production explicitly with Vercel CLI if Git auto-deploy is still unreliable
+4. verify deployment alias includes:
+   - divinedesigndestinations.com
+   - www.divinedesigndestinations.com
+   - canton-quests.vercel.app
 
 Suggested commit:
 
-feat(auth): add persistent password accounts
+fix(auth): unify player APIs on canonical Supabase session
 
 ---
 
@@ -513,38 +392,33 @@ feat(auth): add persistent password accounts
 
 Report:
 
-1. Old auth architecture
-2. New password-account architecture
-3. Files changed
-4. Signup behavior
-5. Returning login behavior
-6. Existing-player transition
-7. Recovery behavior
-8. Session persistence behavior
-9. Exact logout behavior
-10. Scanner-safe verification status
-11. Canonical domain/cookie behavior
-12. Command Center routing
-13. Hosted Supabase settings
-14. Manual action still required, if any
-15. Browser verification
-16. Browser-close/reopen persistence test
-17. Explicit logout persistence test
-18. Mobile results
-19. Test count
-20. Typecheck
-21. Lint
-22. Build
-23. Production deployment
-24. Commit hash
+1. Exact root cause
+2. Why /api/auth/me returned 200 while /api/player/command-center returned 401
+3. Canonical auth resolver used
+4. Legacy auth conflicts removed/fixed
+5. Cookie/session issue found
+6. Files changed
+7. Private routes audited
+8. Command center result
+9. Profile result
+10. Persistent login status
+11. Logout status
+12. Recovery flow status
+13. Tests added
+14. Total test count
+15. Typecheck
+16. Lint
+17. Build
+18. Browser verification
+19. Production log verification
+20. Deployment ID
+21. Production commit hash
+22. Domain aliases verified
 
-The mission succeeds only when:
+The mission is complete only when a real production login produces this sequence:
 
-- new players create password accounts
-- email is verified once
-- returning players use EMAIL + PASSWORD
-- callsign is not required for login
-- players stay logged in until explicit LOG OUT, except legitimate security invalidation
-- existing players can set passwords without losing progress
-- forgot password uses the scanner-safe recovery flow
-- successful login enters the personalized Player Command Center.
+POST /api/auth/login → 200
+GET /api/auth/me → 200
+GET /api/player/command-center → 200
+
+and the player remains logged in until explicit logout.

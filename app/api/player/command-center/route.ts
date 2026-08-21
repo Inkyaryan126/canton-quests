@@ -7,7 +7,7 @@ import {
   getPlayerProgressDB,
   getQuestsForEventDB,
 } from '@/lib/supabase-db';
-import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession, setAuthCookies, logAuthDiagnostic } from '@/lib/supabase-auth';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
 import {
   buildRecentActivity,
@@ -36,8 +36,12 @@ async function getOwnerImageUrl(path?: string) {
 
 export async function GET(request: Request) {
   try {
-    const player = await resolveAuthenticatedPlayer(request);
+    const sessionResult = await resolveAuthenticatedSession(request);
+    const player = sessionResult.player;
     if (!player) {
+      logAuthDiagnostic('GET /api/player/command-center:unauthorized', {
+        authenticated: false,
+      });
       return NextResponse.json(
         { success: false, error: 'Authentication required. Please log in to Canton Quests.' },
         { status: 401 }
@@ -67,7 +71,7 @@ export async function GET(request: Request) {
       earnedAt: achievements.find((item) => item.achievementSlug === achievement.slug || item.achievement?.slug === achievement.slug)?.earnedAt,
     }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       eventId,
       player: {
@@ -106,8 +110,21 @@ export async function GET(request: Request) {
       },
       recentActivity: buildRecentActivity(completedQuests, achievements, drawingEntries),
     });
+
+    if (sessionResult.refreshedSession) {
+      setAuthCookies(response, sessionResult.refreshedSession, player.id);
+    }
+
+    logAuthDiagnostic('GET /api/player/command-center:success', {
+      playerId: player.id,
+      displayName: player.displayName,
+      wasRefreshed: Boolean(sessionResult.refreshedSession),
+    });
+
+    return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load command center.';
+    logAuthDiagnostic('GET /api/player/command-center:error', { error: message });
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
