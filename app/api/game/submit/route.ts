@@ -24,9 +24,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const authHeader = request.headers.get('authorization') || '';
-    const authToken = authHeader.replace(/^Bearer\s+/i, '').trim() || undefined;
-
     const result = await submitQuestProofDB(
       {
         playerId,
@@ -40,7 +37,7 @@ export async function POST(request: Request) {
         userAccuracyMeters,
         stepIndex,
       },
-      authToken
+      request
     );
 
     return NextResponse.json(result);

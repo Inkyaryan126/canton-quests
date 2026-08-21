@@ -62,6 +62,35 @@ export const AUTH_ACCESS_COOKIE = 'sb-access-token';
 export const AUTH_REFRESH_COOKIE = 'sb-refresh-token';
 export const AUTH_PLAYER_COOKIE = 'canton_player_id';
 export const LEGACY_AUTH_COOKIE = 'supabase-auth-token';
+export const CANONICAL_AUTH_HOST = 'www.divinedesigndestinations.com';
+export const CANONICAL_AUTH_DOMAIN = '.divinedesigndestinations.com';
+
+function isProductionRuntime() {
+  return process.env.NODE_ENV === 'production';
+}
+
+function shouldUseSharedAuthCookieDomain() {
+  return isProductionRuntime();
+}
+
+function persistentCookieOptions(httpOnly: boolean) {
+  return {
+    path: '/',
+    httpOnly,
+    secure: isProductionRuntime(),
+    maxAge: AUTH_COOKIE_MAX_AGE,
+    sameSite: 'lax' as const,
+    ...(shouldUseSharedAuthCookieDomain() ? { domain: CANONICAL_AUTH_DOMAIN } : {}),
+  };
+}
+
+function expiredCookieOptions() {
+  return {
+    path: '/',
+    maxAge: 0,
+    ...(shouldUseSharedAuthCookieDomain() ? { domain: CANONICAL_AUTH_DOMAIN } : {}),
+  };
+}
 
 /**
  * Sets persistent 30-day authentication cookies (access token, refresh token, and player ID).
@@ -71,35 +100,16 @@ export function setAuthCookies(
   session?: AuthSessionTokens | null,
   playerId?: string | null
 ) {
-  const isProd = process.env.NODE_ENV === 'production';
-
   if (session?.access_token) {
-    response.cookies.set(AUTH_ACCESS_COOKIE, session.access_token, {
-      path: '/',
-      httpOnly: true,
-      secure: isProd,
-      maxAge: AUTH_COOKIE_MAX_AGE,
-      sameSite: 'lax',
-    });
+    response.cookies.set(AUTH_ACCESS_COOKIE, session.access_token, persistentCookieOptions(true));
   }
 
   if (session?.refresh_token) {
-    response.cookies.set(AUTH_REFRESH_COOKIE, session.refresh_token, {
-      path: '/',
-      httpOnly: true,
-      secure: isProd,
-      maxAge: AUTH_COOKIE_MAX_AGE,
-      sameSite: 'lax',
-    });
+    response.cookies.set(AUTH_REFRESH_COOKIE, session.refresh_token, persistentCookieOptions(true));
   }
 
   if (playerId) {
-    response.cookies.set(AUTH_PLAYER_COOKIE, playerId, {
-      path: '/',
-      httpOnly: false,
-      maxAge: AUTH_COOKIE_MAX_AGE,
-      sameSite: 'lax',
-    });
+    response.cookies.set(AUTH_PLAYER_COOKIE, playerId, persistentCookieOptions(false));
   }
 }
 
@@ -109,7 +119,7 @@ export function setAuthCookies(
 export function clearAuthCookies(
   response: { cookies: { set: (name: string, value: string, options?: any) => void } }
 ) {
-  const clearOptions = { path: '/', maxAge: 0 };
+  const clearOptions = expiredCookieOptions();
   response.cookies.set(AUTH_ACCESS_COOKIE, '', clearOptions);
   response.cookies.set(AUTH_REFRESH_COOKIE, '', clearOptions);
   response.cookies.set(AUTH_PLAYER_COOKIE, '', clearOptions);
@@ -125,7 +135,7 @@ export const mockVerifiedUserStore = new Map<string, AuthSessionUser>();
 
 /**
  * Resolves the canonical site URL for authentication redirects.
- * Prioritizes NEXT_PUBLIC_SITE_URL -> NEXT_PUBLIC_APP_URL -> window.location.origin -> https://divinedesigndestinations.com
+ * Prioritizes NEXT_PUBLIC_SITE_URL -> NEXT_PUBLIC_APP_URL -> window.location.origin -> https://www.divinedesigndestinations.com
  */
 export function getSiteUrl(): string {
   if (process.env.NEXT_PUBLIC_SITE_URL) {
@@ -137,7 +147,7 @@ export function getSiteUrl(): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;
   }
-  return 'https://divinedesigndestinations.com';
+  return `https://${CANONICAL_AUTH_HOST}`;
 }
 
 /**

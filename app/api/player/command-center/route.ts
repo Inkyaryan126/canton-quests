@@ -6,8 +6,8 @@ import {
   getLeaderboardDB,
   getPlayerProgressDB,
   getQuestsForEventDB,
-  resolveAuthenticatedPlayer,
 } from '@/lib/supabase-db';
+import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
 import {
   buildRecentActivity,

@@ -39,8 +39,8 @@ describe('Canton Quests — Email Verification Flow & Scanner Safety Suite', () 
   });
 
   describe('1. Site URL & Redirect Configuration', () => {
-    it('1. Defaults to https://divinedesigndestinations.com when no environment variable is set', () => {
-      expect(getSiteUrl()).toBe('https://divinedesigndestinations.com');
+    it('1. Defaults to the canonical www production host when no environment variable is set', () => {
+      expect(getSiteUrl()).toBe('https://www.divinedesigndestinations.com');
     });
 
     it('2. Uses NEXT_PUBLIC_SITE_URL when configured and trims trailing slashes', () => {

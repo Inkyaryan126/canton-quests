@@ -286,8 +286,10 @@ function failedSubmissionResult(params: SubmitProofParams, message: string): Sub
   };
 }
 
-async function resolveAuthenticatedPlayerId(authToken?: string): Promise<string> {
-  return resolveAuthPlayerIdHelper(authToken);
+async function resolveAuthenticatedPlayerId(
+  requestOrToken?: Request | string | { request?: Request; accessToken?: string; refreshToken?: string } | null
+): Promise<string> {
+  return resolveAuthPlayerIdHelper(requestOrToken);
 }
 
 function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -1086,7 +1088,10 @@ export {
 } from './supabase-auth';
 
 // 8. PROOF SUBMISSION & SCORING
-export async function submitQuestProofDB(params: SubmitProofParams, authToken?: string): Promise<SubmitProofResult> {
+export async function submitQuestProofDB(
+  params: SubmitProofParams,
+  requestOrToken?: Request | string | { request?: Request; accessToken?: string; refreshToken?: string } | null
+): Promise<SubmitProofResult> {
   if (!isSupabaseConfigured || !supabase) return localEngine.submitQuestProof(params);
 
   if (!isSupabaseAdminConfigured || !supabaseAdmin) {
@@ -1094,7 +1099,7 @@ export async function submitQuestProofDB(params: SubmitProofParams, authToken?: 
   }
 
   try {
-    const trustedPlayerId = await resolveAuthenticatedPlayerId(authToken);
+    const trustedPlayerId = await resolveAuthenticatedPlayerId(requestOrToken);
     if (params.playerId && params.playerId !== trustedPlayerId) {
       return failedSubmissionResult(
         { ...params, playerId: trustedPlayerId },

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { NextRequest } from 'next/server';
 import {
   signUpWithPassword,
   signInWithPassword,
@@ -14,6 +15,7 @@ import {
   registerMockAuthUser,
   AUTH_COOKIE_MAX_AGE,
 } from '../lib/supabase-auth';
+import { middleware } from '../middleware';
 import { POST as loginHandler } from '../app/api/auth/login/route';
 import { POST as registerHandler } from '../app/api/auth/register/route';
 import { POST as confirmPostHandler, GET as confirmGetHandler } from '../app/api/auth/confirm/route';
@@ -21,13 +23,17 @@ import { POST as resetPasswordHandler } from '../app/api/auth/reset-password/rou
 import { POST as logoutHandler } from '../app/api/auth/logout/route';
 import { GET as meHandler } from '../app/api/auth/me/route';
 import { GET as commandCenterHandler } from '../app/api/player/command-center/route';
-import { GET as profileHandler } from '../app/api/player/profile/route';
+import { GET as profileHandler, POST as profilePostHandler } from '../app/api/player/profile/route';
 import * as localEngine from '../lib/game-engine';
 
 describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite', () => {
   beforeEach(() => {
     resetMockAuthStores();
     localEngine.resetGameEngineStore();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   describe('1. New Player Sign Up with Callsign, Email, and Password', () => {
@@ -621,6 +627,152 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       const postRefresh = await refreshSupabaseSession(validRefreshToken);
       expect(postRefresh.success).toBe(false);
       expect(postRefresh.error).toMatch(/invalid or expired/i);
+    });
+  });
+
+  describe('9. Production Auth Regression — One Canonical Session Across Private Player APIs', () => {
+    async function loginExistingPlayer() {
+      await signUpWithPassword({
+        displayName: 'SessionRanger',
+        email: 'session-ranger@example.com',
+        password: 'same-session-pass-2026',
+        selectedStartingPath: 'challenge',
+      });
+
+      const loginReq = new Request('https://www.divinedesigndestinations.com/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'password_login',
+          email: 'session-ranger@example.com',
+          password: 'same-session-pass-2026',
+        }),
+      });
+
+      const loginRes = await loginHandler(loginReq);
+      const loginJson = await loginRes.json();
+      const cookie = [
+        `sb-access-token=${loginJson.session.access_token}`,
+        `sb-refresh-token=${loginJson.session.refresh_token}`,
+        'canton_player_id=stale-legacy-player-id',
+      ].join('; ');
+
+      return { loginRes, loginJson, cookie };
+    }
+
+    it('password login, /api/auth/me, and /api/player/command-center all accept the same Supabase cookie session', async () => {
+      const { loginRes, loginJson, cookie } = await loginExistingPlayer();
+
+      expect(loginRes.status).toBe(200);
+      expect(loginJson.success).toBe(true);
+
+      const meRes = await meHandler(new Request('https://www.divinedesigndestinations.com/api/auth/me', {
+        headers: { cookie },
+      }));
+      const meJson = await meRes.json();
+      expect(meRes.status).toBe(200);
+      expect(meJson.isAuthenticated).toBe(true);
+      expect(meJson.player.id).toBe(loginJson.player.id);
+
+      const commandRes = await commandCenterHandler(new Request('https://www.divinedesigndestinations.com/api/player/command-center', {
+        headers: { cookie },
+      }));
+      const commandJson = await commandRes.json();
+      expect(commandRes.status).toBe(200);
+      expect(commandJson.success).toBe(true);
+      expect(commandJson.player.id).toBe(loginJson.player.id);
+      expect(commandJson.player.displayName).toBe('SessionRanger');
+    });
+
+    it('anonymous and invalid command-center sessions return 401', async () => {
+      const anonymous = await commandCenterHandler(new Request('https://www.divinedesigndestinations.com/api/player/command-center'));
+      expect(anonymous.status).toBe(401);
+
+      const invalid = await commandCenterHandler(new Request('https://www.divinedesigndestinations.com/api/player/command-center', {
+        headers: { cookie: 'sb-access-token=invalid; sb-refresh-token=invalid' },
+      }));
+      expect(invalid.status).toBe(401);
+    });
+
+    it('/api/player/profile uses the same canonical session and rejects client-controlled player impersonation', async () => {
+      const { loginJson, cookie } = await loginExistingPlayer();
+
+      const profileGet = await profileHandler(new Request('https://www.divinedesigndestinations.com/api/player/profile', {
+        headers: { cookie },
+      }));
+      const profileJson = await profileGet.json();
+      expect(profileGet.status).toBe(200);
+      expect(profileJson.player.id).toBe(loginJson.player.id);
+
+      const profilePost = await profilePostHandler(new Request('https://www.divinedesigndestinations.com/api/player/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify({
+          playerId: 'attacker-controlled-player-id',
+          displayName: 'Impersonator',
+        }),
+      }));
+      expect(profilePost.status).toBe(403);
+    });
+
+    it('refresh rotation keeps /api/auth/me, command-center, and profile on the same player without localStorage', async () => {
+      const { loginJson } = await loginExistingPlayer();
+      const refreshOnlyCookie = `sb-access-token=expired-token; sb-refresh-token=${loginJson.session.refresh_token}`;
+
+      const meRes = await meHandler(new Request('https://www.divinedesigndestinations.com/api/auth/me', {
+        headers: { cookie: refreshOnlyCookie },
+      }));
+      const meJson = await meRes.json();
+      expect(meJson.isAuthenticated).toBe(true);
+      expect(meJson.player.id).toBe(loginJson.player.id);
+      expect(meJson.session.access_token).toMatch(/^mock-jwt-refreshed-/);
+
+      const rotatedCookie = [
+        `sb-access-token=${meJson.session.access_token}`,
+        `sb-refresh-token=${meJson.session.refresh_token}`,
+      ].join('; ');
+
+      const commandRes = await commandCenterHandler(new Request('https://www.divinedesigndestinations.com/api/player/command-center', {
+        headers: { cookie: rotatedCookie },
+      }));
+      expect(commandRes.status).toBe(200);
+
+      const profileRes = await profileHandler(new Request('https://www.divinedesigndestinations.com/api/player/profile', {
+        headers: { cookie: rotatedCookie },
+      }));
+      expect(profileRes.status).toBe(200);
+    });
+
+    it('logout clears auth and command-center stays unauthorized after browser reopen', async () => {
+      const { cookie } = await loginExistingPlayer();
+
+      const logoutRes = await logoutHandler(new Request('https://www.divinedesigndestinations.com/api/auth/logout', {
+        method: 'POST',
+        headers: { cookie },
+      }));
+      expect(logoutRes.status).toBe(200);
+      expect(logoutRes.headers.get('set-cookie') || '').toContain('Max-Age=0');
+
+      const reopened = await commandCenterHandler(new Request('https://www.divinedesigndestinations.com/api/player/command-center'));
+      expect(reopened.status).toBe(401);
+    });
+
+    it('rejects external redirects and canonicalizes production hosts without splitting auth cookies', async () => {
+      expect(sanitizeRedirectUrl('https://attacker.example/steal')).toBe('/profile');
+
+      const apexRedirect = middleware(new NextRequest('https://divinedesigndestinations.com/profile'));
+      expect(apexRedirect?.status).toBe(308);
+      expect(apexRedirect?.headers.get('location')).toBe('https://www.divinedesigndestinations.com/profile');
+
+      const aliasRedirect = middleware(new NextRequest('https://canton-quests.vercel.app/api/auth/login'));
+      expect(aliasRedirect?.status).toBe(308);
+      expect(aliasRedirect?.headers.get('location')).toBe('https://www.divinedesigndestinations.com/api/auth/login');
+
+      vi.stubEnv('NODE_ENV', 'production');
+      const { loginRes } = await loginExistingPlayer();
+      const setCookie = loginRes.headers.get('set-cookie') || '';
+      expect(setCookie).toContain('Domain=.divinedesigndestinations.com');
+      expect(setCookie).toContain(`Max-Age=${AUTH_COOKIE_MAX_AGE}`);
     });
   });
 });
