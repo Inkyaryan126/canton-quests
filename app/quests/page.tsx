@@ -13,14 +13,12 @@ import {
   Radio,
   Search,
   Sparkles,
-  Trophy,
   Zap,
 } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import PlayerIdentityBar from '@/components/PlayerIdentityBar';
-import { showGameMoment } from '@/lib/game-effects';
 import { Player, PublicQuestView, QuestCategory, QuestEvent, StartingPath } from '@/lib/types';
 import {
   cleanQuestTitle,
@@ -86,23 +84,6 @@ export default function QuestsPage() {
         const questsData: { quests?: PublicQuestView[] } = await questsRes.json();
         const loadedQuests = questsData.quests || [];
         setQuests(loadedQuests);
-
-        // Check for active live Flash Quest Drop
-        const activeFlash = loadedQuests.find((q) => q.isFlash && q.status === 'active');
-        if (activeFlash && typeof window !== 'undefined') {
-          const sessionKey = `cq_flash_seen_${activeFlash.id}`;
-          if (!sessionStorage.getItem(sessionKey)) {
-            sessionStorage.setItem(sessionKey, 'true');
-            showGameMoment({
-              type: 'flash-drop',
-              questId: activeFlash.id,
-              questTitle: activeFlash.title,
-              pointValue: activeFlash.pointValue,
-              district: activeFlash.location?.name || activeFlash.startingPath,
-              questUrl: `/events/${active.slug}/quests/${activeFlash.id}`,
-            });
-          }
-        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -140,8 +121,6 @@ export default function QuestsPage() {
         return b.pointValue - a.pointValue;
       });
   }, [activeCategoryFilter, activePathFilter, quests, currentPlayer]);
-
-  const topQuest = filteredQuests[0] || quests[0];
 
   return (
     <div className="cq-home-shell">
@@ -196,21 +175,6 @@ export default function QuestsPage() {
             </Link>
           </div>
         </section>
-
-        {topQuest && (
-          <section className="cq-feature-panel">
-            <Image src={getQuestImage(topQuest, 0)} alt={`${cleanQuestTitle(topQuest.title)} featured quest`} fill sizes="100vw" />
-            <div>
-              <span className="cq-kicker">FEATURED MISSION</span>
-              <h2>{cleanQuestTitle(topQuest.title)}</h2>
-              <p>{topQuest.description}</p>
-              <Link href={`${eventHref}/quests/${topQuest.id}`} className="cq-gold-button">
-                VIEW QUEST
-                <Radar size={17} aria-hidden="true" />
-              </Link>
-            </div>
-          </section>
-        )}
 
         <section className="cq-page-section">
           {/* Starting District Filter Tabs */}
