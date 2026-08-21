@@ -20,7 +20,6 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import PlayerIdentityBar from '@/components/PlayerIdentityBar';
-import QuestListScanEffect from '@/components/game-effects/QuestListScanEffect';
 import { showGameMoment } from '@/lib/game-effects';
 import { Player, PublicQuestView, QuestCategory, QuestEvent, StartingPath } from '@/lib/types';
 import {
@@ -244,23 +243,6 @@ export default function QuestsPage() {
                 );
               })}
             </div>
-          </div>
-
-          {/* City Scan Status and Control Bar */}
-          <div className="mb-6">
-            <QuestListScanEffect
-              questCount={filteredQuests.length}
-              isLoading={isLoadingQuests}
-              districtName={
-                activePathFilter === 'family'
-                  ? 'ARTS DISTRICT'
-                  : activePathFilter === 'challenge'
-                  ? 'MOTHER GOOSE LAND'
-                  : activePathFilter === 'secret'
-                  ? 'MONUMENT PARK'
-                  : 'ALL CANTON DISTRICTS'
-              }
-            />
           </div>
 
           {/* Mission Type Category Filters */}

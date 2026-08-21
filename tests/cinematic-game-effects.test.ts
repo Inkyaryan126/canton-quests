@@ -833,7 +833,7 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
   });
 
   describe('11. Quest List City Scan & Pre-Load Protection', () => {
-    it('verifies QuestListScanEffect and QuestsPage source codes handle isLoading and avoid 0-target dedupe', () => {
+    it('verifies QuestListScanEffect component handles isLoading and avoids 0-target dedupe', () => {
       const scanEffectCode = readFileSync(join(process.cwd(), 'components/game-effects/QuestListScanEffect.tsx'), 'utf-8');
       const questsPageCode = readFileSync(join(process.cwd(), 'app/quests/page.tsx'), 'utf-8');
 
@@ -843,10 +843,10 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(scanEffectCode).toContain('sessionStorage.getItem(\'cq_has_scanned_quests\')');
       expect(scanEffectCode).toContain('sessionStorage.setItem(\'cq_has_scanned_quests\', \'true\')');
 
-      // Ensure QuestsPage tracks isLoadingQuests and passes it to QuestListScanEffect
+      // Ensure QuestsPage tracks isLoadingQuests and renders clean hero without extra tactical map block
       expect(questsPageCode).toContain('const [isLoadingQuests, setIsLoadingQuests] = useState(true);');
-      expect(questsPageCode).toContain('isLoading={isLoadingQuests}');
       expect(questsPageCode).toContain('setIsLoadingQuests(false)');
+      expect(questsPageCode).not.toContain('<QuestListScanEffect');
     });
 
     it('simulates pre-load state: does not trigger scan or set dedupe flag while loading with 0 quests', () => {
