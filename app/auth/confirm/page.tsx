@@ -76,7 +76,18 @@ function ConfirmEmailContent() {
         }
       }
 
-      const targetDestination = data.redirectTo || next || '/profile';
+      const isRecovery = type === 'recovery';
+      const targetDestination = data.redirectTo || next || (isRecovery ? '/auth/reset-password' : '/profile');
+
+      if (isRecovery) {
+        if (router && router.push) {
+          router.push(targetDestination);
+        } else if (typeof window !== 'undefined') {
+          window.location.href = targetDestination;
+        }
+        return;
+      }
+
       let hasNavigated = false;
       let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -110,22 +121,32 @@ function ConfirmEmailContent() {
     }
   };
 
+  const isRecovery = type === 'recovery';
+
   return (
     <div className="cq-confirm-card">
       {/* Top Header Badge */}
       <div className="cq-confirm-badge-row">
         <span className="cq-confirm-live-dot" />
-        <span className="cq-confirm-eyebrow">CANTON QUESTS // IDENTITY VERIFICATION</span>
+        <span className="cq-confirm-eyebrow">
+          {isRecovery ? 'CANTON QUESTS // IDENTITY RECOVERY' : 'CANTON QUESTS // IDENTITY VERIFICATION'}
+        </span>
       </div>
 
       <h1 className="cq-confirm-title">
-        {isSuccess ? 'EMAIL CONFIRMED!' : 'CONFIRM YOUR EMAIL'}
+        {isSuccess
+          ? (isRecovery ? 'RECOVERY VERIFIED!' : 'EMAIL CONFIRMED!')
+          : (isRecovery ? 'RESTORE PLAYER ACCESS' : 'CONFIRM YOUR EMAIL')}
       </h1>
 
       <p className="cq-confirm-desc">
         {isSuccess
-          ? 'Your email is verified and your player identity is activated. Entering Canton Quests...'
-          : 'Click below to verify your email address and activate your player identity for Canton Quests.'}
+          ? (isRecovery
+              ? 'Recovery verified. Redirecting to set new password...'
+              : 'Your email is verified and your player identity is activated. Entering Canton Quests...')
+          : (isRecovery
+              ? 'Click below to securely verify your recovery link and choose a new password.'
+              : 'Click below to verify your email address and activate your player identity for Canton Quests.')}
       </p>
 
       {errorMessage && (
@@ -142,7 +163,7 @@ function ConfirmEmailContent() {
         <div className="cq-confirm-success">
           <CheckCircle2 size={32} className="text-emerald-400" />
           <p className="font-mono text-sm text-emerald-300 font-bold">
-            Player Profile Verified. Launching game board...
+            {isRecovery ? 'Recovery Session Established. Redirecting...' : 'Player Profile Verified. Launching game board...'}
           </p>
           <div className="w-full bg-emerald-950/60 rounded-full h-1.5 overflow-hidden border border-emerald-500/30">
             <div className="bg-emerald-400 h-full w-full animate-pulse" />
@@ -150,27 +171,29 @@ function ConfirmEmailContent() {
         </div>
       ) : tokenHash ? (
         <form onSubmit={handleConfirm} className="cq-confirm-form">
-          <div className="cq-confirm-callsign-box">
-            <label htmlFor="confirm-callsign-input" className="cq-confirm-label">
-              Player Callsign (Optional / Can be set later)
-            </label>
-            <input
-              id="confirm-callsign-input"
-              type="text"
-              value={callsign}
-              onChange={(e) => setCallsign(e.target.value)}
-              placeholder="e.g. NeonVoyager_330"
-              maxLength={30}
-              className="cq-confirm-input"
-            />
-          </div>
+          {!isRecovery && (
+            <div className="cq-confirm-callsign-box">
+              <label htmlFor="confirm-callsign-input" className="cq-confirm-label">
+                Player Callsign (Optional / Can be set later)
+              </label>
+              <input
+                id="confirm-callsign-input"
+                type="text"
+                value={callsign}
+                onChange={(e) => setCallsign(e.target.value)}
+                placeholder="e.g. NeonVoyager_330"
+                maxLength={30}
+                className="cq-confirm-input"
+              />
+            </div>
+          )}
 
           <div className="cq-confirm-security-bar">
             <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-xs">
               <ShieldCheck size={14} />
-              <span>Passwordless Cryptographic Verification</span>
+              <span>{isRecovery ? 'Encrypted Account Recovery' : 'Cryptographic Email Verification'}</span>
             </div>
-            <span className="text-stone-400 font-mono text-[11px]">One-Click Activation</span>
+            <span className="text-stone-400 font-mono text-[11px]">One-Click Action</span>
           </div>
 
           <button
@@ -181,12 +204,12 @@ function ConfirmEmailContent() {
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
                 <RefreshCw size={18} className="animate-spin" />
-                <span>Verifying Credentials...</span>
+                <span>{isRecovery ? 'Verifying Recovery...' : 'Verifying Credentials...'}</span>
               </span>
             ) : (
               <span className="flex items-center justify-center gap-2">
                 <KeyRound size={18} />
-                <span>CONFIRM & ENTER CANTON QUESTS</span>
+                <span>{isRecovery ? 'VERIFY & SET NEW PASSWORD' : 'CONFIRM & ENTER CANTON QUESTS'}</span>
                 <ArrowRight size={18} />
               </span>
             )}
@@ -198,7 +221,7 @@ function ConfirmEmailContent() {
             No verification token was detected in this link, or the link has expired.
           </p>
           <Link href="/" className="cq-confirm-home-btn">
-            Return to Homepage to Request New Code
+            Return to Homepage to Request New Link
           </Link>
         </div>
       )}

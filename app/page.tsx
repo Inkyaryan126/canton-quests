@@ -120,6 +120,56 @@ export default function HomePage() {
       <CinematicNav eventHref={eventHref} />
 
       <main className="cq-page-main pt-4">
+        {/* AUTHENTICATED AGENT HERO BANNER */}
+        {currentPlayer && (
+          <section className="cq-section pt-2 pb-6" aria-label="Authenticated player welcome">
+            <div className="cq-section-shell">
+              <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-amber-950/40 via-stone-900/90 to-stone-950/90 border-2 border-amber-500/40 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-stone-950 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-lg shrink-0">
+                    {currentPlayer.avatarUrl || '⚡'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-xs font-mono font-bold uppercase text-amber-400 tracking-wider">
+                        ACTIVE AGENT LOGGED IN
+                      </span>
+                    </div>
+                    <h2 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                      WELCOME BACK, {currentPlayer.displayName}
+                    </h2>
+                    <div className="flex items-center gap-3 text-xs font-mono text-stone-300 mt-1">
+                      <span className="text-amber-400 font-bold">{currentPlayer.totalXp || 0} XP</span>
+                      <span>•</span>
+                      <span className="capitalize">{currentPlayer.selectedStartingPath || 'Family'} Path</span>
+                      <span>•</span>
+                      <span>Level {currentPlayer.level || 1}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  <Link
+                    href="/profile"
+                    className="cq-gold-button flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-6"
+                  >
+                    <span>ENTER COMMAND CENTER</span>
+                    <ArrowRight size={15} />
+                  </Link>
+                  <Link
+                    href="/quests"
+                    className="cq-dark-button flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-5"
+                  >
+                    <Compass size={15} />
+                    <span>BROWSE QUESTS</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* SHORT HOW IT WORKS (PICK, GO, PROVE, SCORE) & THREE DOORS PATH SELECTOR */}
         <section className="cq-section cq-pillars-section" aria-labelledby="how-it-works-pillars-heading">
           <div className="cq-section-shell space-y-12">

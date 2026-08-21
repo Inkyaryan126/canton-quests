@@ -21,10 +21,13 @@ import {
   Upload,
   User,
   Zap,
+  LogOut,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import CinematicNav from '@/components/CinematicNav';
 import CinematicFooter from '@/components/CinematicFooter';
 import { Achievement, Player, PlayerAchievement, Quest, StartingPath } from '@/lib/types';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import {
   PLAYER_AVATAR_PRESETS,
   PLAYER_CARD_BADGE_SLOT_COUNT,
@@ -108,6 +111,7 @@ function QuestList({ title, quests }: { title: string; quests: Quest[] }) {
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [data, setData] = useState<CommandCenterData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -124,6 +128,23 @@ export default function ProfilePage() {
   const [featuredBadgeSlugs, setFeaturedBadgeSlugs] = useState<string[]>([]);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    try {
+      if (isSupabaseConfigured && supabase) {
+        await supabase.auth.signOut().catch(() => {});
+      }
+      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    } finally {
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem('canton_auth_token');
+        window.localStorage.removeItem('canton_quests_current_player');
+        window.localStorage.removeItem('canton_player_profile');
+      }
+      router.push('/');
+      router.refresh();
+    }
+  };
 
   const loadCommandCenter = async () => {
     setLoading(true);
@@ -271,10 +292,21 @@ export default function ProfilePage() {
             <p className="cq-command-eyebrow">Authenticated Player Command Center</p>
             <h1>{data?.player.displayName || 'Canton Agent'}</h1>
           </div>
-          <Link href="/quests" className="cq-command-primary-link">
-            <Compass size={18} />
-            <span>All Quests</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/quests" className="cq-command-primary-link">
+              <Compass size={18} />
+              <span>All Quests</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="px-3 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-300 hover:text-red-400 font-mono text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
+              title="Explicit Log Out"
+            >
+              <LogOut size={15} />
+              <span>LOG OUT</span>
+            </button>
+          </div>
         </div>
 
         {message && (

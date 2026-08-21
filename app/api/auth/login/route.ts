@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
+  signInWithPassword,
+  sendPasswordResetEmail,
   sendEmailOtp,
   verifyEmailOtp,
   resolveAuthenticatedPlayer,
@@ -13,6 +15,7 @@ export async function POST(request: Request) {
     const {
       action,
       email,
+      password,
       token,
       authToken,
       identifier,
@@ -24,8 +27,79 @@ export async function POST(request: Request) {
       redirectTo,
     } = body;
 
-    // 1. Send OTP / Magic Code
-    if (action === 'send_otp' || (email && !token && !authToken && !identifier)) {
+    // 1. Password Login (Returning Player — Email + Password Only)
+    if (
+      action === 'password_login' ||
+      action === 'login' ||
+      (email && password && !token && !identifier)
+    ) {
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return NextResponse.json(
+          { success: false, error: 'Valid email address is required.' },
+          { status: 400 }
+        );
+      }
+      if (!password || typeof password !== 'string') {
+        return NextResponse.json(
+          { success: false, error: 'Password is required.' },
+          { status: 400 }
+        );
+      }
+
+      const loginRes = await signInWithPassword(email.trim(), password);
+      if (!loginRes.success || !loginRes.player) {
+        return NextResponse.json(
+          { success: false, error: loginRes.error || 'Invalid email or password.' },
+          { status: 401 }
+        );
+      }
+
+      const response = NextResponse.json({
+        success: true,
+        player: loginRes.player,
+        session: loginRes.session,
+        message: loginRes.message || `Welcome back to Canton Quests, ${loginRes.player.displayName}!`,
+      });
+
+      // Persistent cookie for browser session persistence
+      response.cookies.set('canton_player_id', loginRes.player.id, {
+        path: '/',
+        httpOnly: false,
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        sameSite: 'lax',
+      });
+
+      return response;
+    }
+
+    // 2. Forgot Password / Send Recovery Link
+    if (action === 'forgot_password' || action === 'send_recovery') {
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return NextResponse.json(
+          { success: false, error: 'Valid email address is required.' },
+          { status: 400 }
+        );
+      }
+
+      const recoveryRes = await sendPasswordResetEmail(email.trim(), {
+        redirectTo,
+      });
+
+      if (!recoveryRes.success) {
+        return NextResponse.json(
+          { success: false, error: recoveryRes.error || recoveryRes.message },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: recoveryRes.message,
+      });
+    }
+
+    // 3. Send OTP / Confirmation Code (Legacy & Scanner-Safe compatibility)
+    if (action === 'send_otp') {
       if (!email || typeof email !== 'string' || !email.includes('@')) {
         return NextResponse.json(
           { success: false, error: 'Valid email address is required.' },
@@ -53,7 +127,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2. Verify OTP / Magic Code & Authenticate / Restore Player
+    // 4. Verify OTP / Confirmation Code
     if (action === 'verify_otp' || (email && token)) {
       if (!email || !token) {
         return NextResponse.json(
@@ -89,7 +163,7 @@ export async function POST(request: Request) {
         message: `Welcome to Canton Quests, ${player.displayName}!`,
       });
 
-      // Set convenience cookie for mobile client UX (non-authoritative cache)
+      // Set persistent cookie
       response.cookies.set('canton_player_id', player.id, {
         path: '/',
         httpOnly: false,
@@ -100,7 +174,7 @@ export async function POST(request: Request) {
       return response;
     }
 
-    // 3. Restore / Validate Verified Supabase Session
+    // 5. Restore / Validate Verified Supabase Session
     if (action === 'session' || authToken) {
       const authHeader = request.headers.get('authorization') || '';
       const effectiveToken = authToken || authHeader.replace(/^Bearer\s+/i, '').trim();
@@ -129,14 +203,14 @@ export async function POST(request: Request) {
       return response;
     }
 
-    // 4. Reject Insecure / Callsign-Only / Email-Only Login Attempts
-    // Public identifiers (callsigns, display names) are NOT credentials.
+    // 6. Reject Insecure / Callsign-Only / Email-Only Login Attempts
+    // Public identifiers (callsigns, display names, raw unauthenticated emails) are NOT credentials.
     if (identifier || displayName || email) {
       return NextResponse.json(
         {
           success: false,
           error:
-            'Authentication denied. Callsigns and emails are public identifiers. Secure email OTP verification through Supabase Auth is required.',
+            'Authentication denied. Callsigns and emails are public identifiers. Valid password credentials or secure email verification through Supabase Auth is required.',
         },
         { status: 401 }
       );

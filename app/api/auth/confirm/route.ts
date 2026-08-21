@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   verifyTokenHash,
+  resolveAuthenticatedPlayer,
   resolveOrCreatePlayerForAuthUser,
   getSiteUrl,
   EmailOtpType,
@@ -51,10 +52,35 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: verifyRes.error || 'Invalid or expired confirmation link. Please request a new verification code.',
+          error: verifyRes.error || 'Invalid or expired confirmation link. Please request a new link.',
         },
         { status: 401 }
       );
+    }
+
+    if (cleanType === 'recovery') {
+      const safeRedirect = sanitizeNextPath(next === '/profile' ? '/auth/reset-password' : next);
+      const player = await resolveAuthenticatedPlayer(verifyRes.session?.access_token || `mock-jwt-${verifyRes.user.id}`).catch(() => null);
+
+      const response = NextResponse.json({
+        success: true,
+        session: verifyRes.session,
+        user: verifyRes.user,
+        player: player || undefined,
+        redirectTo: safeRedirect || '/auth/reset-password',
+        message: 'Recovery session verified. Please set your new password.',
+      });
+
+      if (player) {
+        response.cookies.set('canton_player_id', player.id, {
+          path: '/',
+          httpOnly: false,
+          maxAge: 60 * 60 * 24 * 30,
+          sameSite: 'lax',
+        });
+      }
+
+      return response;
     }
 
     const cleanPath: StartingPath | undefined = ['family', 'challenge', 'secret'].includes(selectedStartingPath)

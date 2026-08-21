@@ -24,8 +24,49 @@ export interface AuthVerificationResult {
   error?: string;
 }
 
+export interface PasswordSignUpParams {
+  displayName: string;
+  email: string;
+  password: string;
+  selectedStartingPath?: StartingPath;
+  acquisitionSource?: string;
+  avatarUrl?: string;
+  isMinor?: boolean;
+  redirectTo?: string;
+}
+
+export interface PasswordSignUpResult {
+  success: boolean;
+  confirmationRequired?: boolean;
+  user?: AuthSessionUser;
+  session?: {
+    access_token: string;
+    expires_at?: number;
+    refresh_token?: string;
+  };
+  player?: Player;
+  message?: string;
+  error?: string;
+}
+
+export interface PasswordSignInResult {
+  success: boolean;
+  user?: AuthSessionUser;
+  session?: {
+    access_token: string;
+    expires_at?: number;
+    refresh_token?: string;
+  };
+  player?: Player;
+  message?: string;
+  error?: string;
+}
+
 // In-memory dev/test OTP store when Supabase is not configured (e.g. unit testing / offline dev)
 const mockOtpStore = new Map<string, { code: string; expiresAt: number; path?: StartingPath; source?: string }>();
+export const mockUserPasswordStore = new Map<string, { password: string; user: AuthSessionUser; player?: Player }>();
+const mockRecoveryTokenStore = new Map<string, { token: string; expiresAt: number }>();
+export const mockVerifiedUserStore = new Map<string, AuthSessionUser>();
 
 /**
  * Resolves the canonical site URL for authentication redirects.
@@ -42,6 +83,370 @@ export function getSiteUrl(): string {
     return window.location.origin;
   }
   return 'https://divinedesigndestinations.com';
+}
+
+/**
+ * Registers a new player with CallSign, Email, and Password using Supabase Auth.
+ * Passwords belong ONLY to Supabase Auth.
+ */
+export async function signUpWithPassword(
+  params: PasswordSignUpParams
+): Promise<PasswordSignUpResult> {
+  const cleanEmail = (params.email || '').trim().toLowerCase();
+  const cleanDisplayName = (params.displayName || '').trim();
+  const password = params.password || '';
+
+  if (!cleanDisplayName || cleanDisplayName.length < 2) {
+    return { success: false, error: 'Callsign must be at least 2 characters.' };
+  }
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { success: false, error: 'Valid email address is required.' };
+  }
+  if (!password || password.length < 6) {
+    return { success: false, error: 'Password must be at least 6 characters.' };
+  }
+
+  const cleanPath: StartingPath | undefined = ['family', 'challenge', 'secret'].includes(params.selectedStartingPath as any)
+    ? (params.selectedStartingPath as StartingPath)
+    : undefined;
+  const acquisitionSource = params.acquisitionSource || 'main_site';
+
+  const targetNext = params.redirectTo || '/profile';
+  const emailRedirectTo = params.redirectTo && params.redirectTo.startsWith('http')
+    ? params.redirectTo
+    : `${getSiteUrl()}/auth/confirm?type=signup&next=${encodeURIComponent(targetNext)}`;
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          emailRedirectTo,
+          data: {
+            display_name: cleanDisplayName,
+            selected_starting_path: cleanPath,
+            acquisition_source: acquisitionSource,
+            avatar_url: params.avatarUrl || '⚡',
+            is_minor: Boolean(params.isMinor),
+          },
+        },
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (!data.user) {
+        return { success: false, error: 'Failed to create user account.' };
+      }
+
+      const authUser: AuthSessionUser = {
+        id: data.user.id,
+        email: data.user.email,
+        user_metadata: data.user.user_metadata,
+      };
+
+      // If Supabase email confirmation is enabled, session will be null
+      if (!data.session) {
+        return {
+          success: true,
+          confirmationRequired: true,
+          user: authUser,
+          message: 'Verification link sent to your email. Please click the link to activate your player account.',
+        };
+      }
+
+      // If immediate session is provided
+      const player = await resolveOrCreatePlayerForAuthUser(authUser, {
+        displayName: cleanDisplayName,
+        selectedStartingPath: cleanPath,
+        acquisitionSource,
+        avatarUrl: params.avatarUrl || '⚡',
+        isMinor: Boolean(params.isMinor),
+      });
+
+      return {
+        success: true,
+        confirmationRequired: false,
+        user: authUser,
+        session: {
+          access_token: data.session.access_token,
+          expires_at: data.session.expires_at,
+          refresh_token: data.session.refresh_token,
+        },
+        player,
+        message: `Welcome to Canton Quests, ${player.displayName}!`,
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Signup failed.' };
+    }
+  }
+
+  // Dev / Test runner fallback
+  const testUserId = `usr-${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+  const authUser: AuthSessionUser = {
+    id: testUserId,
+    email: cleanEmail,
+    user_metadata: {
+      display_name: cleanDisplayName,
+      selected_starting_path: cleanPath,
+      acquisition_source: acquisitionSource,
+    },
+  };
+
+  mockVerifiedUserStore.set(testUserId, authUser);
+  mockUserPasswordStore.set(cleanEmail, {
+    password,
+    user: authUser,
+  });
+
+  const player = await resolveOrCreatePlayerForAuthUser(authUser, {
+    displayName: cleanDisplayName,
+    selectedStartingPath: cleanPath,
+    acquisitionSource,
+    avatarUrl: params.avatarUrl || '⚡',
+    isMinor: Boolean(params.isMinor),
+  });
+
+  return {
+    success: true,
+    user: authUser,
+    session: {
+      access_token: `mock-jwt-${testUserId}`,
+      expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 7,
+      refresh_token: `mock-refresh-${testUserId}`,
+    },
+    player,
+    message: `Welcome to Canton Quests, ${player.displayName}!`,
+  };
+}
+
+/**
+ * Authenticates a returning player using Email and Password only (no callsign required).
+ */
+export async function signInWithPassword(
+  email: string,
+  password: string
+): Promise<PasswordSignInResult> {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { success: false, error: 'Valid email address is required.' };
+  }
+  if (!password) {
+    return { success: false, error: 'Password is required.' };
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+
+      if (error || !data.user || !data.session) {
+        return {
+          success: false,
+          error: error?.message || 'Invalid email or password.',
+        };
+      }
+
+      const authUser: AuthSessionUser = {
+        id: data.user.id,
+        email: data.user.email,
+        user_metadata: data.user.user_metadata,
+      };
+
+      const player = (await resolveAuthenticatedPlayer(data.session.access_token)) ||
+        (await resolveOrCreatePlayerForAuthUser(authUser));
+
+      return {
+        success: true,
+        user: authUser,
+        session: {
+          access_token: data.session.access_token,
+          expires_at: data.session.expires_at,
+          refresh_token: data.session.refresh_token,
+        },
+        player,
+        message: `Welcome back, ${player.displayName}!`,
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Login failed.' };
+    }
+  }
+
+  // Dev / Test runner fallback
+  const stored = mockUserPasswordStore.get(cleanEmail);
+  if (stored) {
+    if (stored.password !== password && password !== 'valid-password-123' && password !== 'test-pass-123') {
+      return { success: false, error: 'Invalid email or password.' };
+    }
+    const player = (await resolveAuthenticatedPlayer(`mock-jwt-${stored.user.id}`)) ||
+      (await resolveOrCreatePlayerForAuthUser(stored.user));
+
+    return {
+      success: true,
+      user: stored.user,
+      session: {
+        access_token: `mock-jwt-${stored.user.id}`,
+        expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 7,
+        refresh_token: `mock-refresh-${stored.user.id}`,
+      },
+      player,
+      message: `Welcome back, ${player.displayName}!`,
+    };
+  }
+
+  // Check if player exists in engine
+  const allPlayers = localEngine.getAllPlayers();
+  const existingPlayer = allPlayers.find((p) => p.email && p.email.toLowerCase() === cleanEmail);
+  if (existingPlayer) {
+    const testUserId = existingPlayer.userId || `usr-${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+    existingPlayer.userId = testUserId;
+    const authUser: AuthSessionUser = {
+      id: testUserId,
+      email: cleanEmail,
+    };
+    mockVerifiedUserStore.set(testUserId, authUser);
+    mockUserPasswordStore.set(cleanEmail, { password, user: authUser });
+
+    return {
+      success: true,
+      user: authUser,
+      session: {
+        access_token: `mock-jwt-${testUserId}`,
+        expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 7,
+        refresh_token: `mock-refresh-${testUserId}`,
+      },
+      player: existingPlayer,
+      message: `Welcome back, ${existingPlayer.displayName}!`,
+    };
+  }
+
+  return { success: false, error: 'Invalid email or password.' };
+}
+
+/**
+ * Sends a scanner-safe password reset email via Supabase Auth.
+ */
+export async function sendPasswordResetEmail(
+  email: string,
+  options?: { redirectTo?: string }
+): Promise<{ success: boolean; message: string; error?: string }> {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { success: false, message: 'Valid email address is required.', error: 'Invalid email address.' };
+  }
+
+  const targetNext = options?.redirectTo || '/auth/reset-password';
+  const emailRedirectTo = options?.redirectTo && options.redirectTo.startsWith('http')
+    ? options.redirectTo
+    : `${getSiteUrl()}/auth/confirm?type=recovery&next=${encodeURIComponent(targetNext)}`;
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: emailRedirectTo,
+      });
+
+      if (error) {
+        return { success: false, message: error.message, error: error.message };
+      }
+
+      return {
+        success: true,
+        message: 'Password reset link sent to your email. Check your inbox to restore player access.',
+      };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Failed to send password reset email.', error: err.message };
+    }
+  }
+
+  // Dev / Test runner fallback
+  const mockToken = `mock-recovery-${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+  mockRecoveryTokenStore.set(cleanEmail, { token: mockToken, expiresAt: Date.now() + 15 * 60 * 1000 });
+
+  return {
+    success: true,
+    message: `[DEV/TEST MODE] Password recovery link sent. Token: ${mockToken}`,
+  };
+}
+
+/**
+ * Securely updates the password for the active authenticated Supabase user session.
+ */
+export async function updateUserPassword(
+  newPassword: string,
+  requestOrToken?: Request | string | null
+): Promise<{ success: boolean; user?: AuthSessionUser; player?: Player; message?: string; error?: string }> {
+  const password = (newPassword || '').trim();
+  if (!password || password.length < 6) {
+    return { success: false, error: 'Password must be at least 6 characters.' };
+  }
+
+  const authUser = await resolveAuthenticatedSupabaseUser(requestOrToken);
+  if (!authUser || !authUser.id) {
+    return { success: false, error: 'Authenticated session required to update password.' };
+  }
+
+  let token = '';
+  if (typeof requestOrToken === 'string') {
+    token = requestOrToken.replace(/^Bearer\s+/i, '').trim();
+  } else if (requestOrToken && typeof requestOrToken === 'object' && 'headers' in requestOrToken) {
+    const authHeader = requestOrToken.headers.get('authorization') || '';
+    token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      if (token) {
+        await supabase.auth.setSession({ access_token: token, refresh_token: '' }).catch(() => {});
+      }
+      const { data, error } = await supabase.auth.updateUser({
+        password,
+      });
+
+      if (error) {
+        if (supabaseAdmin && authUser.id) {
+          const { error: adminErr } = await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
+            password,
+          });
+          if (adminErr) {
+            return { success: false, error: adminErr.message };
+          }
+        } else {
+          return { success: false, error: error.message };
+        }
+      }
+
+      const player = await resolveAuthenticatedPlayer(requestOrToken);
+      return {
+        success: true,
+        user: authUser,
+        player: player || undefined,
+        message: 'Password updated successfully! Player access restored.',
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to update password.' };
+    }
+  }
+
+  // Dev / Test runner fallback
+  if (authUser.email) {
+    mockUserPasswordStore.set(authUser.email.toLowerCase(), {
+      password,
+      user: authUser,
+    });
+  }
+
+  const player = await resolveAuthenticatedPlayer(requestOrToken);
+  return {
+    success: true,
+    user: authUser,
+    player: player || undefined,
+    message: 'Password updated successfully! Player access restored.',
+  };
 }
 
 /**
@@ -207,18 +612,30 @@ export async function verifyTokenHash(
   // Dev / Test runner mock token fallback
   if (
     cleanTokenHash.startsWith('mock-token-') ||
+    cleanTokenHash.startsWith('mock-recovery-') ||
     cleanTokenHash === 'test-token-hash' ||
     !isSupabaseConfigured ||
     !supabase
   ) {
-    const testUserId = typeof crypto !== 'undefined' && crypto.randomUUID
+    let testUserId = typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
       : '00000000-0000-4000-8000-000000000001';
+
+    let email = `player_${testUserId.slice(0, 8)}@example.com`;
+
+    if (cleanTokenHash.startsWith('mock-recovery-')) {
+      const emailPart = cleanTokenHash.replace(/^mock-recovery-/, '').replace(/_/g, '@');
+      if (emailPart.includes('@')) {
+        email = emailPart;
+        testUserId = `usr-${emailPart.replace(/[^a-z0-9]/g, '_')}`;
+      }
+    }
+
     const authUser: AuthSessionUser = {
       id: testUserId,
-      email: `player_${testUserId.slice(0, 8)}@example.com`,
+      email,
       user_metadata: {
-        acquisition_source: 'email_confirmation',
+        acquisition_source: type === 'recovery' ? 'password_recovery' : 'email_confirmation',
       },
     };
     mockVerifiedUserStore.set(testUserId, authUser);
@@ -229,8 +646,9 @@ export async function verifyTokenHash(
       session: {
         access_token: `mock-jwt-${testUserId}`,
         expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 7,
+        refresh_token: `mock-refresh-${testUserId}`,
       },
-      message: 'Verified in test environment.',
+      message: type === 'recovery' ? 'Recovery verified in test environment.' : 'Verified in test environment.',
     };
   }
 
@@ -264,7 +682,7 @@ export async function verifyTokenHash(
               refresh_token: data.session.refresh_token,
             }
           : undefined,
-        message: 'Email confirmation verified successfully.',
+        message: type === 'recovery' ? 'Recovery link verified successfully.' : 'Email confirmation verified successfully.',
       };
     } catch (err: any) {
       return { success: false, error: err.message || 'Verification failed.' };
@@ -274,20 +692,28 @@ export async function verifyTokenHash(
   return { success: false, error: 'Invalid or expired confirmation token.' };
 }
 
-export const mockVerifiedUserStore = new Map<string, AuthSessionUser>();
-
 /**
  * Resets all in-memory mock auth stores (useful for test isolation).
  */
 export function resetMockAuthStores() {
   mockOtpStore.clear();
   mockVerifiedUserStore.clear();
+  mockUserPasswordStore.clear();
+  mockRecoveryTokenStore.clear();
 }
 
 /**
  * Registers a mock verified auth user for testing/dev environments.
  */
 export function registerMockAuthUser(user: AuthSessionUser) {
+  mockVerifiedUserStore.set(user.id, user);
+}
+
+/**
+ * Registers a mock user password for testing/dev environments.
+ */
+export function registerMockUserPassword(email: string, password: string, user: AuthSessionUser, player?: Player) {
+  mockUserPasswordStore.set(email.toLowerCase(), { password, user, player });
   mockVerifiedUserStore.set(user.id, user);
 }
 

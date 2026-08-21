@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
+  signUpWithPassword,
   resolveAuthenticatedSupabaseUser,
   resolveOrCreatePlayerForAuthUser,
 } from '@/lib/supabase-auth';
@@ -13,6 +14,7 @@ export async function POST(request: Request) {
     const {
       displayName,
       email,
+      password,
       avatarUrl,
       selectedStartingPath,
       acquisitionSource,
@@ -23,6 +25,7 @@ export async function POST(request: Request) {
       themeColor,
       favoriteStyle,
       selectedFlair,
+      redirectTo,
     } = body;
 
     if (!displayName || typeof displayName !== 'string' || displayName.trim().length < 2) {
@@ -37,6 +40,66 @@ export async function POST(request: Request) {
       : undefined;
 
     const source = acquisitionSource || 'main_site';
+
+    // 1. Password Signup Flow
+    if (password) {
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return NextResponse.json(
+          { success: false, error: 'Valid email address is required.' },
+          { status: 400 }
+        );
+      }
+      if (typeof password !== 'string' || password.length < 6) {
+        return NextResponse.json(
+          { success: false, error: 'Password must be at least 6 characters.' },
+          { status: 400 }
+        );
+      }
+
+      const signUpRes = await signUpWithPassword({
+        displayName: displayName.trim(),
+        email: email.trim(),
+        password,
+        selectedStartingPath: path,
+        acquisitionSource: source,
+        avatarUrl,
+        isMinor: Boolean(isMinor),
+        redirectTo,
+      });
+
+      if (!signUpRes.success) {
+        return NextResponse.json(
+          { success: false, error: signUpRes.error || 'Registration failed.' },
+          { status: 400 }
+        );
+      }
+
+      if (signUpRes.confirmationRequired) {
+        return NextResponse.json({
+          success: true,
+          confirmationRequired: true,
+          message: signUpRes.message || 'Verification link sent to your email. Check your inbox to activate your player account.',
+        });
+      }
+
+      const response = NextResponse.json({
+        success: true,
+        player: signUpRes.player,
+        session: signUpRes.session,
+        message: signUpRes.message || `Welcome to Canton Quests, ${signUpRes.player?.displayName}!`,
+      });
+
+      if (signUpRes.player) {
+        response.cookies.set('canton_player_id', signUpRes.player.id, {
+          path: '/',
+          httpOnly: false,
+          maxAge: 60 * 60 * 24 * 30,
+          sameSite: 'lax',
+        });
+      }
+
+      return response;
+    }
 
     // Verify Supabase Auth Session
     const authUser = await resolveAuthenticatedSupabaseUser(request);
