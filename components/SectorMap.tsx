@@ -662,6 +662,30 @@ export default function SectorMap({
           border-radius: 50%;
           display: inline-block;
         }
+
+        /* REDUCED MOTION ACCESSIBILITY OVERRIDES */
+        @media (prefers-reduced-motion: reduce) {
+          .cq-sector-map-root .top-label .dot {
+            animation: none !important;
+            opacity: 1 !important;
+          }
+
+          .cq-sector-map-root .radar-sweep {
+            display: none !important;
+            animation: none !important;
+          }
+
+          .cq-sector-map-root .quest-pin .ring.pulse {
+            animation: none !important;
+            opacity: 0 !important;
+          }
+
+          .cq-sector-map-root .ticker-item {
+            animation: none !important;
+            transform: none !important;
+            opacity: 1 !important;
+          }
+        }
       `}</style>
 
       <div className="wrap">

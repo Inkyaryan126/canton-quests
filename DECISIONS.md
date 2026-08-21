@@ -792,3 +792,21 @@ Each entry follows the standard ADR structure:
 - **Reason**:
   - Eliminates false public game state, preserves strict server-authoritative reward integrity, and guarantees glitch-free mobile navigation across all onboarding and game moment flows.
 - **Status**: **ACCEPTED**
+
+---
+
+### [ADR-038] 2026-08-21: Authoritative Chain Completion Integrity & SectorMap Reduced-Motion Accessibility
+- **Decision**:
+  1. **Authoritative Quest Chain Completion vs. Intermediate Progression**:
+     - Updated quest submission resolution in `app/events/[slug]/quests/[questId]/page.tsx` so that `isChainComplete: true` is strictly passed only when a quest chain is actually finished:
+       - Multi-step quests (`verificationType === 'multi_step'` or multi-step arrays) whose steps are all fully verified.
+       - Terminal leaf quests in a prerequisite chain (`prerequisiteQuestId` present, with no downstream dependent quests).
+     - Intermediate quest progression (where completing quest $A$ unlocks quest $B$) displays `unlockedQuestTitle` ("🔓 UNLOCKED IN CHAIN: <Title>") in the `quest-complete` moment without triggering a false `QUEST CHAIN COMPLETE` takeover.
+  2. **SectorMap HUD Reduced-Motion Accessibility**:
+     - Added `@media (prefers-reduced-motion: reduce)` rules in `components/SectorMap.tsx` to disable the continuous radar sweep (`display: none`), status dot blink (`animation: none`), quest pin pulse rings (`animation: none`), and ticker item slide entrance.
+     - Preserves full readability and semantic data access without battery drain or vestibular discomfort.
+  3. **Verification**:
+     - Added unit tests in `tests/cinematic-game-effects.test.ts` asserting intermediate chain progression does not queue false chain completions, terminal and multi-step chains fire chain completions, and SectorMap handles reduced motion.
+- **Reason**:
+  - Enforces authoritative truth in game moment celebrations (never presenting false milestone completion) and guarantees complete reduced-motion compliance across all HUD and spectator interfaces.
+- **Status**: **ACCEPTED**

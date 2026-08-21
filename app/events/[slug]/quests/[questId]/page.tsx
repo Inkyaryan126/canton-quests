@@ -266,6 +266,15 @@ export default function QuestDetailPage({
         const nextInChain = allEventQuests.find((q) => q.prerequisiteQuestId === quest.id);
 
         if (result.isQuestFullyCompleted) {
+          // Determine if this is a real chain completion or a milestone:
+          // Case 1: Multi-step quest (like secret-cipher-77) whose steps are all fully verified
+          const isMultiStepChain = quest.verificationType === 'multi_step' || Boolean(quest.steps && quest.steps.length > 1);
+
+          // Case 2: Terminal leaf of a prerequisite chain (has a prerequisite and no further dependent quests)
+          const isTerminalChainQuest = Boolean(quest.prerequisiteQuestId && !nextInChain);
+
+          const isActualChainComplete = isMultiStepChain || isTerminalChainQuest;
+
           triggerQuestRewardSequence({
             questId: quest.id,
             questTitle: quest.title,
@@ -277,13 +286,13 @@ export default function QuestDetailPage({
             oldRank: result.oldRank,
             newRank: result.newRank,
             newAchievements: result.newAchievements,
-            isChainComplete: Boolean(nextInChain),
-            chainTitle: quest.title,
+            isChainComplete: isActualChainComplete,
+            chainTitle: isMultiStepChain ? `${quest.title} Sequence` : quest.title,
           });
 
           setFeedback({
             type: 'quest_completed',
-            title: `QUEST SOLVED!`,
+            title: isActualChainComplete ? `CHAIN COMPLETED!` : `QUEST SOLVED!`,
             message: result.message,
             pointsAwarded: result.awardedPoints,
             unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,

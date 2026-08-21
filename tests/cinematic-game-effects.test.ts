@@ -431,6 +431,53 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(gameMomentManager.getState().currentMoment).toBeNull();
       expect(gameMomentManager.getState().queue).toHaveLength(0);
     });
+
+    it('intermediate chain progression reveals next objective in quest-complete without queuing a false chain-complete moment', () => {
+      gameMomentManager.skipAll();
+
+      // Intermediate quest solved: unlocks next quest in chain, but isChainComplete is false
+      triggerQuestRewardSequence({
+        questId: 'qst-onesto-brass-motto',
+        questTitle: 'The Onesto Brass Motto',
+        xpAwarded: 150,
+        unlockedQuestTitle: 'The Secrets of 4th Street',
+        unlockedQuestUrl: '/events/canton-weekend-1/quests/qst-secret-cipher-77',
+        isChainComplete: false,
+      });
+
+      const state = gameMomentManager.getState();
+      expect(state.currentMoment?.type).toBe('quest-complete');
+      if (state.currentMoment && state.currentMoment.type === 'quest-complete') {
+        expect(state.currentMoment.unlockedQuestTitle).toBe('The Secrets of 4th Street');
+        expect(state.currentMoment.unlockedQuestUrl).toBe('/events/canton-weekend-1/quests/qst-secret-cipher-77');
+      }
+
+      // Assert queue has ZERO chain-complete moments
+      expect(state.queue).toHaveLength(0);
+      expect(state.queue.some((m) => m.type === 'chain-complete')).toBe(false);
+    });
+
+    it('terminal quest completion or multi-step chain completion triggers chain-complete moment', () => {
+      gameMomentManager.skipAll();
+
+      // Terminal / multi-step chain completed: isChainComplete is true
+      triggerQuestRewardSequence({
+        questId: 'qst-secret-cipher-77',
+        questTitle: 'The Secrets of 4th Street',
+        xpAwarded: 350,
+        isChainComplete: true,
+        chainTitle: 'The Secrets of 4th Street Sequence',
+      });
+
+      const state = gameMomentManager.getState();
+      expect(state.currentMoment?.type).toBe('quest-complete');
+      expect(state.queue).toHaveLength(1);
+      expect(state.queue[0].type).toBe('chain-complete');
+      if (state.queue[0].type === 'chain-complete') {
+        const chainMoment = state.queue[0];
+        expect(chainMoment.chainTitle).toBe('The Secrets of 4th Street Sequence');
+      }
+    });
   });
 
   describe('4. End-to-End Game Engine & Submission Integration', () => {
@@ -662,6 +709,22 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
 
       const current = gameMomentManager.getState().currentMoment;
       expect(current?.durationMs).toBe(2000); // 2000ms in reduced motion vs 3200ms default
+    });
+
+    it('verifies SectorMap and globals.css have explicit prefers-reduced-motion overrides for all continuous HUD animations', () => {
+      const sectorMapCode = readFileSync(join(process.cwd(), 'components/SectorMap.tsx'), 'utf-8');
+      const globalsCss = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf-8');
+
+      // SectorMap reduced motion overrides
+      expect(sectorMapCode).toContain('@media (prefers-reduced-motion: reduce)');
+      expect(sectorMapCode).toContain('.radar-sweep');
+      expect(sectorMapCode).toContain('.top-label .dot');
+      expect(sectorMapCode).toContain('.quest-pin .ring.pulse');
+      expect(sectorMapCode).toContain('.ticker-item');
+
+      // globals.css reduced motion overrides
+      expect(globalsCss).toContain('@media (prefers-reduced-motion: reduce)');
+      expect(globalsCss).toContain('.cq-hud-scanline');
     });
   });
 
