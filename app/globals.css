@@ -551,110 +551,6 @@ code, pre, .font-mono {
   box-shadow: 0 0 12px rgba(66, 245, 155, 0.86);
 }
 
-/* Authenticated Top Nav Player Control */
-.cq-nav-player-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.25rem 0.75rem 0.25rem 0.35rem;
-  min-height: 42px;
-  background: linear-gradient(135deg, rgba(22, 28, 42, 0.95) 0%, rgba(10, 14, 22, 0.98) 100%);
-  border: 1px solid rgba(245, 158, 11, 0.45);
-  border-radius: 9999px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.08);
-  text-decoration: none;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  cursor: pointer;
-}
-
-.cq-nav-player-pill:hover,
-.cq-nav-player-pill:focus-visible {
-  border-color: #f59e0b;
-  background: linear-gradient(135deg, rgba(34, 44, 66, 0.98) 0%, rgba(16, 22, 34, 0.99) 100%);
-  box-shadow: 0 0 18px rgba(245, 158, 11, 0.35), 0 4px 18px rgba(0, 0, 0, 0.55);
-  transform: translateY(-1px);
-}
-
-.cq-nav-player-pill:focus-visible {
-  outline: 2px solid #06b6d4;
-  outline-offset: 2px;
-}
-
-.cq-nav-player-info {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-  line-height: 1;
-}
-
-.cq-nav-player-eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.52rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  color: #06b6d4;
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
-
-.cq-nav-player-name {
-  font-family: var(--font-rajdhani, 'Rajdhani', sans-serif);
-  font-size: 0.92rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #ffffff;
-  text-transform: uppercase;
-  max-width: 110px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: color 0.15s ease;
-}
-
-.cq-nav-player-pill:hover .cq-nav-player-name {
-  color: #fbbf24;
-}
-
-.cq-nav-player-arrow {
-  color: rgba(245, 158, 11, 0.75);
-  transition: transform 0.2s ease, color 0.2s ease;
-  flex-shrink: 0;
-}
-
-.cq-nav-player-pill:hover .cq-nav-player-arrow {
-  color: #fbbf24;
-  transform: translateX(2px);
-}
-
-.cq-nav-logout-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 38px;
-  padding: 0.35rem 0.65rem;
-  background: rgba(18, 22, 31, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  color: #9ca3af;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  transition: all 0.18s ease;
-  cursor: pointer;
-}
-
-.cq-nav-logout-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.45);
-  color: #f87171;
-}
-
-.cq-nav-logout-btn:focus-visible {
-  outline: 2px solid #ef4444;
-  outline-offset: 2px;
-}
-
 .cq-gold-button,
 .cq-dark-button,
 .cq-view-all-button {
@@ -3267,151 +3163,10 @@ code, pre, .font-mono {
 .cq-command-shell {
   width: min(1180px, 100%);
   margin: 0 auto;
-  padding: calc(4.75rem + 1.25rem) clamp(14px, 3vw, 24px) 56px;
+  padding: 24px 14px 56px;
 }
 
-@media (max-width: 768px) {
-  .cq-command-shell {
-    padding-top: calc(4.25rem + 1rem);
-    padding-bottom: 40px;
-  }
-}
-
-.cq-command-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0 20px;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
-  margin-bottom: 24px;
-}
-
-@media (max-width: 640px) {
-  .cq-command-hero {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-  }
-}
-
-.cq-command-identity-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.cq-command-eyebrow-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.cq-command-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: #10b981;
-  box-shadow: 0 0 10px #10b981, 0 0 4px #10b981;
-  flex-shrink: 0;
-  animation: cqEnergyPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.cq-command-eyebrow {
-  margin: 0;
-  color: #06b6d4;
-  text-transform: uppercase;
-  font-family: var(--font-mono, monospace);
-  font-weight: 800;
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-}
-
-.cq-command-callsign {
-  margin: 0;
-  font-family: var(--font-rajdhani, 'Rajdhani', sans-serif);
-  font-size: clamp(2.2rem, 6.5vw, 4.25rem);
-  line-height: 0.95;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  background: linear-gradient(135deg, #ffffff 0%, #fef3c7 40%, #f59e0b 80%, #d97706 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 2px 14px rgba(245, 158, 11, 0.28));
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-
-.cq-command-substatus {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 4px;
-}
-
-.cq-command-path-pill {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  padding: 0.2rem 0.55rem;
-  border-radius: 4px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #fbbf24;
-}
-
-.cq-command-clearance-pill {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 0.2rem 0.55rem;
-  border-radius: 4px;
-  background: rgba(6, 182, 212, 0.1);
-  border: 1px solid rgba(6, 182, 212, 0.3);
-  color: #38bdf8;
-}
-
-.cq-command-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.cq-command-logout-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 48px;
-  padding: 0 14px;
-  border-radius: 8px;
-  background: rgba(22, 27, 38, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #d1d5db;
-  font-family: var(--font-mono, monospace);
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  transition: all 0.18s ease;
-  cursor: pointer;
-}
-
-.cq-command-logout-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.45);
-  color: #f87171;
-}
-
-.cq-command-logout-btn:focus-visible {
-  outline: 2px solid #ef4444;
-  outline-offset: 2px;
-}
-
+.cq-command-hero,
 .cq-command-section-head,
 .cq-button-row,
 .cq-privacy-note {
@@ -3421,12 +3176,30 @@ code, pre, .font-mono {
   gap: 12px;
 }
 
+.cq-command-hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2rem, 7vw, 4.8rem);
+  line-height: 0.9;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.cq-command-eyebrow,
 .cq-command-section-head h2,
 .cq-command-stat span,
 .cq-command-quest-meta,
 .cq-section-note,
 .cq-empty-state {
   font-family: var(--font-mono, monospace);
+}
+
+.cq-command-eyebrow {
+  color: #fbbf24;
+  text-transform: uppercase;
+  font-weight: 900;
+  font-size: 0.75rem;
+  letter-spacing: 0;
 }
 
 .cq-command-primary-link,
@@ -4059,29 +3832,16 @@ code, pre, .font-mono {
 
 @media (max-width: 520px) {
   .cq-command-shell {
-    padding-inline: 12px;
+    padding-inline: 10px;
   }
 
   .cq-command-hero {
     align-items: flex-start;
     flex-direction: column;
-    gap: 14px;
-  }
-
-  .cq-command-actions {
-    width: 100%;
-    display: flex;
-    gap: 8px;
   }
 
   .cq-command-primary-link {
-    flex: 1;
-    min-height: 44px;
-  }
-
-  .cq-command-logout-btn {
-    flex-shrink: 0;
-    min-height: 44px;
+    width: 100%;
   }
 
   .cq-command-stats,

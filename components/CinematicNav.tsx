@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, LogOut, User, Compass, Trophy } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
-import PlayerAvatar from '@/components/PlayerAvatar';
 import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
@@ -103,31 +102,21 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
           <div className="flex items-center gap-2">
             <Link
               href="/profile"
-              className="cq-nav-player-pill group"
-              title={`Player Command Center: ${player.displayName}`}
-              aria-label={`Player Command Center for ${player.displayName}`}
+              className="cq-gold-button cq-nav-cta flex items-center gap-1.5"
+              title={`Logged in as ${player.displayName}`}
             >
-              <PlayerAvatar
-                avatarUrl={player.avatarUrl}
-                displayName={player.displayName}
-                size={30}
-                className="cq-nav-avatar"
-                showRing={true}
-              />
-              <div className="cq-nav-player-info">
-                <span className="cq-nav-player-eyebrow">AGENT</span>
-                <span className="cq-nav-player-name">{player.displayName}</span>
-              </div>
-              <ArrowRight size={13} className="cq-nav-player-arrow" aria-hidden="true" />
+              <span>{player.avatarUrl || '⚡'}</span>
+              <span className="truncate max-w-[110px]">{player.displayName}</span>
+              <ArrowRight size={14} aria-hidden="true" />
             </Link>
             <button
               type="button"
               onClick={handleLogout}
-              className="cq-nav-logout-btn"
+              className="px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-400 hover:text-red-400 text-xs font-mono transition-colors flex items-center gap-1 cursor-pointer"
               title="Explicit Log Out"
               aria-label="Log Out"
             >
-              <LogOut size={13} aria-hidden="true" />
+              <LogOut size={13} />
               <span className="hidden sm:inline">LOG OUT</span>
             </button>
           </div>

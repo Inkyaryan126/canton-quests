@@ -19,7 +19,6 @@ import {
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
-import PlayerAvatar from '@/components/PlayerAvatar';
 import ThreePathSelector from '@/components/ThreePathSelector';
 import { Player, PublicQuestView, QuestEvent } from '@/lib/types';
 import {
@@ -123,13 +122,9 @@ export default function HomePage() {
             <div className="cq-section-shell">
               <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-amber-950/40 via-stone-900/90 to-stone-950/90 border-2 border-amber-500/40 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
-                  <PlayerAvatar
-                    avatarUrl={currentPlayer.avatarUrl}
-                    displayName={currentPlayer.displayName}
-                    size={64}
-                    borderColor="#f59e0b"
-                    className="rounded-2xl border-2 shadow-lg shrink-0"
-                  />
+                  <div className="w-16 h-16 rounded-2xl bg-stone-950 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-lg shrink-0">
+                    {currentPlayer.avatarUrl || '⚡'}
+                  </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />

@@ -7,7 +7,6 @@ import { Crown, Medal, Radio, Trophy, Zap } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
-import PlayerAvatar from '@/components/PlayerAvatar';
 import { LeaderboardEntry, Player, QuestEvent } from '@/lib/types';
 import { cqImages, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
 
@@ -135,14 +134,7 @@ export default function LeaderboardPage() {
                     {entry.rank === 1 ? <Crown size={20} /> : <Medal size={20} />}
                     #{entry.rank}
                   </span>
-                  <div className="flex justify-center my-2">
-                    <PlayerAvatar
-                      avatarUrl={entry.avatarUrl}
-                      displayName={entry.displayName}
-                      size={48}
-                      className="mx-auto shadow-md"
-                    />
-                  </div>
+                  <div>{entry.avatarUrl || '⚡'}</div>
                   <h2>{entry.displayName}</h2>
                   <strong>{entry.totalPoints} XP</strong>
                   <p>{entry.questsCompletedCount} missions verified</p>
@@ -166,12 +158,7 @@ export default function LeaderboardPage() {
                   return (
                     <article className={isCurrent ? 'is-current' : ''} key={entry.playerId}>
                       <div className="cq-rank-number">#{entry.rank}</div>
-                      <PlayerAvatar
-                        avatarUrl={entry.avatarUrl}
-                        displayName={entry.displayName}
-                        size={36}
-                        className="cq-rank-avatar shrink-0"
-                      />
+                      <div className="cq-rank-avatar">{entry.avatarUrl || '⚡'}</div>
                       <div className="cq-rank-name">
                         <h3>
                           {entry.displayName}

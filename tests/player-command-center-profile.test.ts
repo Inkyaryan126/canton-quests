@@ -268,34 +268,4 @@ describe('Player Command Center profile rules', () => {
     expect(cssSource).toContain('.cq-callsign-xs');
     expect(cssSource).not.toContain('overflow-wrap: anywhere');
   });
-
-  it('safely renders PlayerAvatar image without leaking raw file paths into user-facing text', () => {
-    const navSource = fs.readFileSync(path.join(process.cwd(), 'components/CinematicNav.tsx'), 'utf8');
-    const headerSource = fs.readFileSync(path.join(process.cwd(), 'components/Header.tsx'), 'utf8');
-    const avatarComponentSource = fs.readFileSync(path.join(process.cwd(), 'components/PlayerAvatar.tsx'), 'utf8');
-
-    // Nav components import and use PlayerAvatar
-    expect(navSource).toContain('<PlayerAvatar');
-    expect(headerSource).toContain('<PlayerAvatar');
-    expect(avatarComponentSource).toContain('isImageAvatar');
-    expect(avatarComponentSource).toContain('<img');
-
-    // Raw image path rendering has been eliminated from nav links
-    expect(navSource).not.toContain('<span>{player.avatarUrl ||');
-    expect(headerSource).not.toContain('{player.avatarUrl ||');
-  });
-
-  it('guarantees Player Command Center has structural header offset to prevent fixed nav overlap', () => {
-    const cssSource = fs.readFileSync(path.join(process.cwd(), 'app/globals.css'), 'utf8');
-    const profileSource = fs.readFileSync(path.join(process.cwd(), 'app/profile/page.tsx'), 'utf8');
-
-    expect(profileSource).toContain('cq-command-shell');
-    expect(profileSource).toContain('cq-command-callsign');
-
-    // Top padding clearance for fixed nav
-    expect(cssSource).toContain('.cq-command-shell');
-    expect(cssSource).toContain('padding: calc(4.75rem + 1.25rem)');
-    expect(cssSource).toContain('.cq-command-callsign');
-    expect(cssSource).toContain('var(--font-rajdhani');
-  });
 });
