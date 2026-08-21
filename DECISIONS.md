@@ -810,3 +810,29 @@ Each entry follows the standard ADR structure:
 - **Reason**:
   - Enforces authoritative truth in game moment celebrations (never presenting false milestone completion) and guarantees complete reduced-motion compliance across all HUD and spectator interfaces.
 - **Status**: **ACCEPTED**
+
+---
+
+### [ADR-039] 2026-08-21: Persistent Password Accounts, Secure Session Refresh, Scanner-Safe Recovery, and Explicit Logout Architecture
+- **Decision**:
+  1. **Canonical Password Account Model**:
+     - Converted Canton Quests player authentication to standard password accounts managed authoritatively via Supabase Auth (`auth.users`).
+     - **New Player Signup**: Collects callsign + email + password (min 6 chars) + confirm password + starting path (`FastPlayerOnboardForm`, `/api/auth/register`). Passwords belong strictly to Supabase Auth and are never written to public tables or custom database columns. Sends 1-time scanner-safe confirmation link.
+     - **Returning Player Login**: Requires **EMAIL + PASSWORD ONLY** (`app/auth/login/page.tsx`, `components/FastPlayerOnboardForm.tsx`, `/api/auth/login`). Callsign is not requested or required for login.
+     - **Post-Login Routing**: Resolves authenticated Supabase user -> `players.user_id = auth.users.id` -> linked player row, restoring callsign, avatar/photo, starting path, XP, badges, and drawing entries, routing directly to the Player Command Center (`/profile`).
+  2. **Session Persistence Until Explicit Logout**:
+     - Configured persistent session cookies (`canton_player_id`, `sb-access-token`, `sb-refresh-token` with 30-day `maxAge`) and localStorage credentials (`canton_auth_token`, `canton_quests_current_player`, `canton_player_profile`).
+     - Page refresh, in-app navigation, and browser close/reopen preserve authenticated player state. No automatic logout timers or ephemeral session-only cookie terminations.
+     - Normal player-controlled session termination is explicit **LOG OUT**, which revokes Supabase session state, clears cookies (`Max-Age=0`), and purges browser persistence.
+  3. **Safe Legacy Player Account Transition**:
+     - Existing pre-password players retain 100% of their historical XP, badges, starting path, and drawing tickets.
+     - Pre-password players set their password via **FORGOT PASSWORD** (`/auth/login` -> `/auth/reset-password`). Verification securely attaches their password to their existing `auth.users` identity without creating duplicate auth records or duplicate player rows.
+  4. **Scanner-Safe Account Recovery**:
+     - Forgot Password flow dispatches a Supabase recovery email with `type=recovery` and token hash pointing to scanner-safe `/auth/confirm`.
+     - Initial `GET /auth/confirm` and `GET /api/auth/confirm` do NOT consume recovery tokens or trigger actions.
+     - Human click deliberately executes `POST /api/auth/confirm`, verifies `type=recovery`, opens `/auth/reset-password`, validates new password + confirmation, calls Supabase `updateUser`, and returns the player to their Command Center (`/profile`).
+  5. **Authenticated Navigation & Homepage States**:
+     - Logged-in players receive prominent recognition on `/` ("WELCOME BACK, <CALLSIGN>", with 1-click CTA to Command Center) and in primary navigation (`CinematicNav`, `Header`) displaying player avatar, callsign, and explicit LOG OUT button.
+- **Reason**:
+  - Provides a frictionless, modern player account experience for returning festival explorers while eliminating email link fatigue on return visits, guaranteeing durable session survival across browser closes outdoors on mobile devices, and protecting against token pre-consumption by corporate email scanner bots.
+- **Status**: **ACCEPTED**

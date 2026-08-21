@@ -80,6 +80,16 @@ export async function POST(request: Request) {
         });
       }
 
+      if (verifyRes.session?.access_token) {
+        response.cookies.set('sb-access-token', verifyRes.session.access_token, {
+          path: '/',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: 60 * 60 * 24 * 30,
+          sameSite: 'lax',
+        });
+      }
+
       return response;
     }
 
@@ -113,6 +123,16 @@ export async function POST(request: Request) {
       maxAge: 60 * 60 * 24 * 30,
       sameSite: 'lax',
     });
+
+    if (verifyRes.session?.access_token) {
+      response.cookies.set('sb-access-token', verifyRes.session.access_token, {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: 'lax',
+      });
+    }
 
     return response;
   } catch (error: any) {

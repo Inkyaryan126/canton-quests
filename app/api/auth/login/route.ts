@@ -61,13 +61,23 @@ export async function POST(request: Request) {
         message: loginRes.message || `Welcome back to Canton Quests, ${loginRes.player.displayName}!`,
       });
 
-      // Persistent cookie for browser session persistence
+      // Persistent cookies for browser session persistence
       response.cookies.set('canton_player_id', loginRes.player.id, {
         path: '/',
         httpOnly: false,
         maxAge: 60 * 60 * 24 * 30, // 30 days
         sameSite: 'lax',
       });
+
+      if (loginRes.session?.access_token) {
+        response.cookies.set('sb-access-token', loginRes.session.access_token, {
+          path: '/',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: 60 * 60 * 24 * 30, // 30 days
+          sameSite: 'lax',
+        });
+      }
 
       return response;
     }
@@ -170,6 +180,16 @@ export async function POST(request: Request) {
         maxAge: 60 * 60 * 24 * 30,
         sameSite: 'lax',
       });
+
+      if (verifyRes.session?.access_token) {
+        response.cookies.set('sb-access-token', verifyRes.session.access_token, {
+          path: '/',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: 60 * 60 * 24 * 30,
+          sameSite: 'lax',
+        });
+      }
 
       return response;
     }

@@ -354,6 +354,56 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(json.player.email).toBe('apex@example.com');
     });
 
+    it('GET /api/auth/me resolves active player from sb-access-token cookie without Bearer header', async () => {
+      const req = new Request('http://localhost:3000/api/auth/me', {
+        headers: {
+          cookie: `sb-access-token=${sessionToken}; canton_player_id=${sessionToken.replace(/^mock-jwt-usr-/, '')}`,
+        },
+      });
+
+      const res = await meHandler(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.isAuthenticated).toBe(true);
+      expect(json.player.displayName).toBe('ApexRider');
+    });
+
+    it('GET /api/auth/me resolves active player from sb-project-auth-token JSON cookie format', async () => {
+      const cookiePayload = JSON.stringify({ access_token: sessionToken });
+      const req = new Request('http://localhost:3000/api/auth/me', {
+        headers: {
+          cookie: `sb-abcdefgh-auth-token=${encodeURIComponent(cookiePayload)}`,
+        },
+      });
+
+      const res = await meHandler(req);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.isAuthenticated).toBe(true);
+      expect(json.player.displayName).toBe('ApexRider');
+    });
+
+    it('simulates browser close and reopen: session is fully restored from persisted credentials', async () => {
+      // Step 1: Simulate closing browser (all in-memory state lost, only cookies / localStorage persist)
+      // Step 2: Simulate reopening browser and making initial navigation to /api/auth/me
+      const reopenReq = new Request('http://localhost:3000/api/auth/me', {
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          cookie: `sb-access-token=${sessionToken}`,
+        },
+      });
+
+      const res = await meHandler(reopenReq);
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.isAuthenticated).toBe(true);
+      expect(json.player.displayName).toBe('ApexRider');
+      expect(json.player.email).toBe('apex@example.com');
+    });
+
     it('POST /api/auth/logout terminates session and clears cookies', async () => {
       const res = await logoutHandler();
       const json = await res.json();
@@ -363,7 +413,15 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
 
       const cookieHeader = res.headers.get('set-cookie') || '';
       expect(cookieHeader).toContain('canton_player_id');
+      expect(cookieHeader).toContain('sb-access-token');
       expect(cookieHeader).toContain('Max-Age=0');
+
+      // After logout, unauthenticated request returns isAuthenticated: false
+      const postLogoutReq = new Request('http://localhost:3000/api/auth/me');
+      const meRes = await meHandler(postLogoutReq);
+      const meJson = await meRes.json();
+      expect(meJson.isAuthenticated).toBe(false);
+      expect(meJson.player).toBeNull();
     });
   });
 });

@@ -733,8 +733,30 @@ export async function resolveAuthenticatedSupabaseUser(
     token = authHeader.replace(/^Bearer\s+/i, '').trim();
     if (!token) {
       const cookieHeader = requestOrToken.headers.get('cookie') || '';
-      const match = cookieHeader.match(/sb-access-token=([^;]+)/) || cookieHeader.match(/supabase-auth-token=([^;]+)/);
-      if (match) token = match[1].trim();
+      const match =
+        cookieHeader.match(/sb-access-token=([^;]+)/) ||
+        cookieHeader.match(/supabase-auth-token=([^;]+)/) ||
+        cookieHeader.match(/sb-[^;=]+-auth-token=([^;]+)/);
+      if (match) {
+        let cookieVal = decodeURIComponent(match[1].trim());
+        if (cookieVal.startsWith('base64-')) {
+          try {
+            cookieVal = Buffer.from(cookieVal.slice(7), 'base64').toString('utf-8');
+          } catch {
+            // ignore
+          }
+        }
+        if (cookieVal.startsWith('{') || cookieVal.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(cookieVal);
+            token = parsed.access_token || (Array.isArray(parsed) ? parsed[0] : '');
+          } catch {
+            token = cookieVal;
+          }
+        } else {
+          token = cookieVal;
+        }
+      }
     }
   }
 
