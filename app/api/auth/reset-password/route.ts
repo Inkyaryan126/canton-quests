@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateUserPassword, resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
+import { updateUserPassword, resolveAuthenticatedPlayer, setAuthCookies } from '@/lib/supabase-auth';
 
 export async function POST(request: Request) {
   try {
@@ -36,27 +36,12 @@ export async function POST(request: Request) {
     const response = NextResponse.json({
       success: true,
       player,
+      session: updateRes.session,
       message: 'PLAYER ACCESS RESTORED: Your new password has been set successfully!',
     });
 
-    if (player) {
-      response.cookies.set('canton_player_id', player.id, {
-        path: '/',
-        httpOnly: false,
-        maxAge: 60 * 60 * 24 * 30,
-        sameSite: 'lax',
-      });
-    }
-
-    if (effectiveToken) {
-      response.cookies.set('sb-access-token', effectiveToken, {
-        path: '/',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24 * 30,
-        sameSite: 'lax',
-      });
-    }
+    // Set persistent 30-day cookies (access token, refresh token, player ID)
+    setAuthCookies(response, updateRes.session, player?.id);
 
     return response;
   } catch (error: any) {

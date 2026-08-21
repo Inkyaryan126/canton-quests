@@ -3,6 +3,7 @@ import {
   signUpWithPassword,
   resolveAuthenticatedSupabaseUser,
   resolveOrCreatePlayerForAuthUser,
+  setAuthCookies,
 } from '@/lib/supabase-auth';
 import { StartingPath } from '@/lib/types';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -89,24 +90,7 @@ export async function POST(request: Request) {
         message: signUpRes.message || `Welcome to Canton Quests, ${signUpRes.player?.displayName}!`,
       });
 
-      if (signUpRes.player) {
-        response.cookies.set('canton_player_id', signUpRes.player.id, {
-          path: '/',
-          httpOnly: false,
-          maxAge: 60 * 60 * 24 * 30,
-          sameSite: 'lax',
-        });
-      }
-
-      if (signUpRes.session?.access_token) {
-        response.cookies.set('sb-access-token', signUpRes.session.access_token, {
-          path: '/',
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          maxAge: 60 * 60 * 24 * 30,
-          sameSite: 'lax',
-        });
-      }
+      setAuthCookies(response, signUpRes.session, signUpRes.player?.id);
 
       return response;
     }

@@ -56,6 +56,7 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
     } finally {
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem('canton_auth_token');
+        window.localStorage.removeItem('canton_refresh_token');
         window.localStorage.removeItem('canton_quests_current_player');
         window.localStorage.removeItem('canton_player_profile');
       }

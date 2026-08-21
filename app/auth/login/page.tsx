@@ -83,6 +83,9 @@ function LoginContent() {
         if (data.session?.access_token) {
           window.localStorage.setItem('canton_auth_token', data.session.access_token);
         }
+        if (data.session?.refresh_token) {
+          window.localStorage.setItem('canton_refresh_token', data.session.refresh_token);
+        }
       }
 
       router.push(nextParam);

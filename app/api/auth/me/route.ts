@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 import { getAchievementsForPlayer } from '@/lib/game-engine';
 
 export async function GET(request: Request) {
   try {
-    const player = await resolveAuthenticatedPlayer(request);
+    const sessionResult = await resolveAuthenticatedSession(request);
+    const player = sessionResult.player;
 
     // If cookie is present, ensure it matches authenticated player (fail closed on mismatch)
     let cookieStore: any;
@@ -36,11 +37,19 @@ export async function GET(request: Request) {
 
     const achievements = getAchievementsForPlayer(player.id);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       isAuthenticated: true,
       player,
       achievements,
+      session: sessionResult.refreshedSession,
     });
+
+    // If session was refreshed during resolution, automatically persist updated tokens
+    if (sessionResult.refreshedSession) {
+      setAuthCookies(response, sessionResult.refreshedSession, player.id);
+    }
+
+    return response;
   } catch (error: any) {
     return NextResponse.json(
       { isAuthenticated: false, player: null, achievements: [], error: error.message || 'Failed to fetch session.' },

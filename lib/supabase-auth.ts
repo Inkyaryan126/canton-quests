@@ -11,14 +11,16 @@ export interface AuthSessionUser {
   user_metadata?: Record<string, any>;
 }
 
+export interface AuthSessionTokens {
+  access_token: string;
+  refresh_token?: string;
+  expires_at?: number;
+}
+
 export interface AuthVerificationResult {
   success: boolean;
   user?: AuthSessionUser;
-  session?: {
-    access_token: string;
-    expires_at?: number;
-    refresh_token?: string;
-  };
+  session?: AuthSessionTokens;
   player?: Player;
   message?: string;
   error?: string;
@@ -39,11 +41,7 @@ export interface PasswordSignUpResult {
   success: boolean;
   confirmationRequired?: boolean;
   user?: AuthSessionUser;
-  session?: {
-    access_token: string;
-    expires_at?: number;
-    refresh_token?: string;
-  };
+  session?: AuthSessionTokens;
   player?: Player;
   message?: string;
   error?: string;
@@ -52,19 +50,76 @@ export interface PasswordSignUpResult {
 export interface PasswordSignInResult {
   success: boolean;
   user?: AuthSessionUser;
-  session?: {
-    access_token: string;
-    expires_at?: number;
-    refresh_token?: string;
-  };
+  session?: AuthSessionTokens;
   player?: Player;
   message?: string;
   error?: string;
 }
 
+// Cookie constants for consistent 30-day session persistence until explicit logout
+export const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days in seconds (2,592,000s)
+export const AUTH_ACCESS_COOKIE = 'sb-access-token';
+export const AUTH_REFRESH_COOKIE = 'sb-refresh-token';
+export const AUTH_PLAYER_COOKIE = 'canton_player_id';
+export const LEGACY_AUTH_COOKIE = 'supabase-auth-token';
+
+/**
+ * Sets persistent 30-day authentication cookies (access token, refresh token, and player ID).
+ */
+export function setAuthCookies(
+  response: { cookies: { set: (name: string, value: string, options?: any) => void } },
+  session?: AuthSessionTokens | null,
+  playerId?: string | null
+) {
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (session?.access_token) {
+    response.cookies.set(AUTH_ACCESS_COOKIE, session.access_token, {
+      path: '/',
+      httpOnly: true,
+      secure: isProd,
+      maxAge: AUTH_COOKIE_MAX_AGE,
+      sameSite: 'lax',
+    });
+  }
+
+  if (session?.refresh_token) {
+    response.cookies.set(AUTH_REFRESH_COOKIE, session.refresh_token, {
+      path: '/',
+      httpOnly: true,
+      secure: isProd,
+      maxAge: AUTH_COOKIE_MAX_AGE,
+      sameSite: 'lax',
+    });
+  }
+
+  if (playerId) {
+    response.cookies.set(AUTH_PLAYER_COOKIE, playerId, {
+      path: '/',
+      httpOnly: false,
+      maxAge: AUTH_COOKIE_MAX_AGE,
+      sameSite: 'lax',
+    });
+  }
+}
+
+/**
+ * Explicitly clears all authentication and session cookies.
+ */
+export function clearAuthCookies(
+  response: { cookies: { set: (name: string, value: string, options?: any) => void } }
+) {
+  const clearOptions = { path: '/', maxAge: 0 };
+  response.cookies.set(AUTH_ACCESS_COOKIE, '', clearOptions);
+  response.cookies.set(AUTH_REFRESH_COOKIE, '', clearOptions);
+  response.cookies.set(AUTH_PLAYER_COOKIE, '', clearOptions);
+  response.cookies.set(LEGACY_AUTH_COOKIE, '', clearOptions);
+}
+
 // In-memory dev/test OTP store when Supabase is not configured (e.g. unit testing / offline dev)
 const mockOtpStore = new Map<string, { code: string; expiresAt: number; path?: StartingPath; source?: string }>();
 export const mockUserPasswordStore = new Map<string, { password: string; user: AuthSessionUser; player?: Player }>();
+export const mockRefreshTokenStore = new Map<string, { userId: string; email?: string }>();
 const mockRecoveryTokenStore = new Map<string, { token: string; expiresAt: number }>();
 export const mockVerifiedUserStore = new Map<string, AuthSessionUser>();
 
@@ -83,6 +138,45 @@ export function getSiteUrl(): string {
     return window.location.origin;
   }
   return 'https://divinedesigndestinations.com';
+}
+
+/**
+ * Strictly sanitizes auth redirect destinations against open-redirect vulnerabilities.
+ * Permits safe relative paths or matching canonical site origins.
+ */
+export function sanitizeRedirectUrl(rawUrl?: string | null, fallbackPath: string = '/profile'): string {
+  if (!rawUrl || typeof rawUrl !== 'string') return fallbackPath;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return fallbackPath;
+
+  // Relative path: starts with / and not //, no backslashes, no null bytes, no protocols
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//') && !trimmed.includes('\\') && !trimmed.includes('\0')) {
+    return trimmed;
+  }
+
+  // Absolute URL: validate origin against canonical hosts and development localhost
+  try {
+    const parsed = new URL(trimmed);
+    const siteUrl = getSiteUrl();
+    const siteOrigin = new URL(siteUrl).origin;
+
+    const allowedOrigins = [
+      siteOrigin,
+      'https://divinedesigndestinations.com',
+      'https://www.divinedesigndestinations.com',
+    ];
+    if (process.env.NODE_ENV !== 'production') {
+      allowedOrigins.push('http://localhost:3000', 'http://127.0.0.1:3000');
+    }
+
+    if (allowedOrigins.includes(parsed.origin)) {
+      return parsed.pathname + parsed.search + parsed.hash;
+    }
+  } catch {
+    // Malformed URL
+  }
+
+  return fallbackPath;
 }
 
 /**
@@ -111,10 +205,8 @@ export async function signUpWithPassword(
     : undefined;
   const acquisitionSource = params.acquisitionSource || 'main_site';
 
-  const targetNext = params.redirectTo || '/profile';
-  const emailRedirectTo = params.redirectTo && params.redirectTo.startsWith('http')
-    ? params.redirectTo
-    : `${getSiteUrl()}/auth/confirm?type=signup&next=${encodeURIComponent(targetNext)}`;
+  const safeTargetNext = sanitizeRedirectUrl(params.redirectTo, '/profile');
+  const emailRedirectTo = `${getSiteUrl()}/auth/confirm?type=signup&next=${encodeURIComponent(safeTargetNext)}`;
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -200,6 +292,8 @@ export async function signUpWithPassword(
     password,
     user: authUser,
   });
+  const mockRefreshToken = `mock-refresh-${testUserId}`;
+  mockRefreshTokenStore.set(mockRefreshToken, { userId: testUserId, email: cleanEmail });
 
   const player = await resolveOrCreatePlayerForAuthUser(authUser, {
     displayName: cleanDisplayName,
@@ -215,7 +309,7 @@ export async function signUpWithPassword(
     session: {
       access_token: `mock-jwt-${testUserId}`,
       expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 7,
-      refresh_token: `mock-refresh-${testUserId}`,
+      refresh_token: mockRefreshToken,
     },
     player,
     message: `Welcome to Canton Quests, ${player.displayName}!`,
@@ -339,10 +433,8 @@ export async function sendPasswordResetEmail(
     return { success: false, message: 'Valid email address is required.', error: 'Invalid email address.' };
   }
 
-  const targetNext = options?.redirectTo || '/auth/reset-password';
-  const emailRedirectTo = options?.redirectTo && options.redirectTo.startsWith('http')
-    ? options.redirectTo
-    : `${getSiteUrl()}/auth/confirm?type=recovery&next=${encodeURIComponent(targetNext)}`;
+  const safeTargetNext = sanitizeRedirectUrl(options?.redirectTo, '/auth/reset-password');
+  const emailRedirectTo = `${getSiteUrl()}/auth/confirm?type=recovery&next=${encodeURIComponent(safeTargetNext)}`;
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -375,34 +467,48 @@ export async function sendPasswordResetEmail(
 
 /**
  * Securely updates the password for the active authenticated Supabase user session.
+ * Uses the authenticated user / recovery session tokens directly.
  */
 export async function updateUserPassword(
   newPassword: string,
-  requestOrToken?: Request | string | null
-): Promise<{ success: boolean; user?: AuthSessionUser; player?: Player; message?: string; error?: string }> {
+  requestOrTokens?: Request | string | { accessToken?: string; refreshToken?: string } | null
+): Promise<{ success: boolean; user?: AuthSessionUser; player?: Player; session?: AuthSessionTokens; message?: string; error?: string }> {
   const password = (newPassword || '').trim();
   if (!password || password.length < 6) {
     return { success: false, error: 'Password must be at least 6 characters.' };
   }
 
-  const authUser = await resolveAuthenticatedSupabaseUser(requestOrToken);
+  let accessToken = '';
+  let refreshToken = '';
+
+  if (typeof requestOrTokens === 'string') {
+    accessToken = requestOrTokens.replace(/^Bearer\s+/i, '').trim();
+  } else if (requestOrTokens && typeof requestOrTokens === 'object') {
+    if ('headers' in requestOrTokens) {
+      const tokens = extractAuthTokens(requestOrTokens as Request);
+      accessToken = tokens.accessToken;
+      refreshToken = tokens.refreshToken;
+    } else {
+      accessToken = (requestOrTokens as any).accessToken || '';
+      refreshToken = (requestOrTokens as any).refreshToken || '';
+    }
+  }
+
+  const sessionResult = await resolveAuthenticatedSession(requestOrTokens as any);
+  const authUser = sessionResult.user;
   if (!authUser || !authUser.id) {
     return { success: false, error: 'Authenticated session required to update password.' };
   }
 
-  let token = '';
-  if (typeof requestOrToken === 'string') {
-    token = requestOrToken.replace(/^Bearer\s+/i, '').trim();
-  } else if (requestOrToken && typeof requestOrToken === 'object' && 'headers' in requestOrToken) {
-    const authHeader = requestOrToken.headers.get('authorization') || '';
-    token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  }
-
   if (isSupabaseConfigured && supabase) {
     try {
-      if (token) {
-        await supabase.auth.setSession({ access_token: token, refresh_token: '' }).catch(() => {});
+      if (accessToken) {
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || '',
+        }).catch(() => {});
       }
+
       const { data, error } = await supabase.auth.updateUser({
         password,
       });
@@ -420,11 +526,17 @@ export async function updateUserPassword(
         }
       }
 
-      const player = await resolveAuthenticatedPlayer(requestOrToken);
+      const updatedSession: AuthSessionTokens = {
+        access_token: data.user ? (accessToken || '') : '',
+        refresh_token: refreshToken || undefined,
+      };
+
+      const player = await resolveAuthenticatedPlayer(requestOrTokens as any);
       return {
         success: true,
         user: authUser,
         player: player || undefined,
+        session: updatedSession.access_token ? updatedSession : undefined,
         message: 'Password updated successfully! Player access restored.',
       };
     } catch (err: any) {
@@ -440,11 +552,15 @@ export async function updateUserPassword(
     });
   }
 
-  const player = await resolveAuthenticatedPlayer(requestOrToken);
+  const player = await resolveAuthenticatedPlayer(requestOrTokens as any);
   return {
     success: true,
     user: authUser,
     player: player || undefined,
+    session: {
+      access_token: accessToken || `mock-jwt-${authUser.id}`,
+      refresh_token: refreshToken || `mock-refresh-${authUser.id}`,
+    },
     message: 'Password updated successfully! Player access restored.',
   };
 }
@@ -465,11 +581,8 @@ export async function sendEmailOtp(
     return { success: false, message: 'Valid email address is required.', error: 'Invalid email address.' };
   }
 
-  // Construct scanner-safe confirmation redirect URL
-  const targetNext = options?.redirectTo || '/profile';
-  const emailRedirectTo = options?.redirectTo && options.redirectTo.startsWith('http')
-    ? options.redirectTo
-    : `${getSiteUrl()}/auth/confirm?next=${encodeURIComponent(targetNext)}`;
+  const safeTargetNext = sanitizeRedirectUrl(options?.redirectTo, '/profile');
+  const emailRedirectTo = `${getSiteUrl()}/auth/confirm?next=${encodeURIComponent(safeTargetNext)}`;
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -579,6 +692,8 @@ export async function verifyEmailOtp(
     };
 
     mockVerifiedUserStore.set(testUserId, authUser);
+    const mockRefreshToken = `mock-refresh-${testUserId}`;
+    mockRefreshTokenStore.set(mockRefreshToken, { userId: testUserId, email: cleanEmail });
 
     return {
       success: true,
@@ -586,6 +701,7 @@ export async function verifyEmailOtp(
       session: {
         access_token: `mock-jwt-${testUserId}`,
         expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 7,
+        refresh_token: mockRefreshToken,
       },
       message: 'Verified in test environment.',
     };
@@ -639,6 +755,8 @@ export async function verifyTokenHash(
       },
     };
     mockVerifiedUserStore.set(testUserId, authUser);
+    const mockRefreshToken = `mock-refresh-${testUserId}`;
+    mockRefreshTokenStore.set(mockRefreshToken, { userId: testUserId, email });
 
     return {
       success: true,
@@ -646,7 +764,7 @@ export async function verifyTokenHash(
       session: {
         access_token: `mock-jwt-${testUserId}`,
         expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 7,
-        refresh_token: `mock-refresh-${testUserId}`,
+        refresh_token: mockRefreshToken,
       },
       message: type === 'recovery' ? 'Recovery verified in test environment.' : 'Verified in test environment.',
     };
@@ -693,6 +811,80 @@ export async function verifyTokenHash(
 }
 
 /**
+ * Refreshes an expired Supabase Auth session using a persistent refresh token.
+ */
+export async function refreshSupabaseSession(refreshToken: string): Promise<{
+  success: boolean;
+  user?: AuthSessionUser;
+  session?: AuthSessionTokens;
+  error?: string;
+}> {
+  const cleanRefresh = (refreshToken || '').trim();
+  if (!cleanRefresh) {
+    return { success: false, error: 'Refresh token is required.' };
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.auth.refreshSession({
+        refresh_token: cleanRefresh,
+      });
+
+      if (error || !data.session || !data.user) {
+        return { success: false, error: error?.message || 'Failed to refresh session.' };
+      }
+
+      return {
+        success: true,
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          user_metadata: data.user.user_metadata,
+        },
+        session: {
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+          expires_at: data.session.expires_at,
+        },
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Refresh failed.' };
+    }
+  }
+
+  // Dev / Test runner fallback
+  const stored = mockRefreshTokenStore.get(cleanRefresh);
+  if (stored || cleanRefresh.startsWith('mock-refresh-')) {
+    const userId = stored?.userId || cleanRefresh.replace(/^mock-refresh-/, '');
+    const verified = mockVerifiedUserStore.get(userId);
+    const email = stored?.email || verified?.email || `${userId.replace(/^usr-/, '')}@example.com`;
+
+    const authUser: AuthSessionUser = verified || {
+      id: userId,
+      email,
+      user_metadata: {},
+    };
+    mockVerifiedUserStore.set(userId, authUser);
+
+    const newAccessToken = `mock-jwt-refreshed-${userId}`;
+    const newRefreshToken = `mock-refresh-${userId}`;
+    mockRefreshTokenStore.set(newRefreshToken, { userId, email });
+
+    return {
+      success: true,
+      user: authUser,
+      session: {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+        expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 7,
+      },
+    };
+  }
+
+  return { success: false, error: 'Invalid or expired refresh token.' };
+}
+
+/**
  * Resets all in-memory mock auth stores (useful for test isolation).
  */
 export function resetMockAuthStores() {
@@ -700,6 +892,7 @@ export function resetMockAuthStores() {
   mockVerifiedUserStore.clear();
   mockUserPasswordStore.clear();
   mockRecoveryTokenStore.clear();
+  mockRefreshTokenStore.clear();
 }
 
 /**
@@ -715,103 +908,168 @@ export function registerMockAuthUser(user: AuthSessionUser) {
 export function registerMockUserPassword(email: string, password: string, user: AuthSessionUser, player?: Player) {
   mockUserPasswordStore.set(email.toLowerCase(), { password, user, player });
   mockVerifiedUserStore.set(user.id, user);
+  mockRefreshTokenStore.set(`mock-refresh-${user.id}`, { userId: user.id, email });
 }
 
 /**
- * Extracts and cryptographically verifies the Supabase Auth user from a Bearer token or Request.
+ * Helper to extract access token and refresh token from request headers or cookies.
  */
-export async function resolveAuthenticatedSupabaseUser(
-  requestOrToken?: Request | string | null
-): Promise<AuthSessionUser | null> {
-  if (!requestOrToken) return null;
+export function extractAuthTokens(requestOrToken?: Request | string | null): {
+  accessToken: string;
+  refreshToken: string;
+} {
+  if (!requestOrToken) return { accessToken: '', refreshToken: '' };
 
-  let token = '';
+  let accessToken = '';
+  let refreshToken = '';
+
   if (typeof requestOrToken === 'string') {
-    token = requestOrToken.replace(/^Bearer\s+/i, '').trim();
-  } else if (requestOrToken && typeof requestOrToken === 'object' && 'headers' in requestOrToken) {
+    accessToken = requestOrToken.replace(/^Bearer\s+/i, '').trim();
+    return { accessToken, refreshToken };
+  }
+
+  if (typeof requestOrToken === 'object' && 'headers' in requestOrToken) {
     const authHeader = requestOrToken.headers.get('authorization') || '';
-    token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    if (!token) {
-      const cookieHeader = requestOrToken.headers.get('cookie') || '';
-      const match =
-        cookieHeader.match(/sb-access-token=([^;]+)/) ||
-        cookieHeader.match(/supabase-auth-token=([^;]+)/) ||
-        cookieHeader.match(/sb-[^;=]+-auth-token=([^;]+)/);
-      if (match) {
-        let cookieVal = decodeURIComponent(match[1].trim());
-        if (cookieVal.startsWith('base64-')) {
-          try {
-            cookieVal = Buffer.from(cookieVal.slice(7), 'base64').toString('utf-8');
-          } catch {
-            // ignore
+    if (authHeader) {
+      accessToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+    }
+
+    const cookieHeader = requestOrToken.headers.get('cookie') || '';
+    if (cookieHeader) {
+      // 1. Check sb-access-token
+      const accessMatch = cookieHeader.match(/sb-access-token=([^;]+)/);
+      if (accessMatch && !accessToken) {
+        accessToken = decodeURIComponent(accessMatch[1].trim());
+      }
+
+      // 2. Check sb-refresh-token
+      const refreshMatch = cookieHeader.match(/sb-refresh-token=([^;]+)/);
+      if (refreshMatch) {
+        refreshToken = decodeURIComponent(refreshMatch[1].trim());
+      }
+
+      // 3. Check legacy / supabase-auth-token / project-specific cookies
+      if (!accessToken || !refreshToken) {
+        const fallbackMatch =
+          cookieHeader.match(/supabase-auth-token=([^;]+)/) ||
+          cookieHeader.match(/sb-[^;=]+-auth-token=([^;]+)/);
+
+        if (fallbackMatch) {
+          let cookieVal = decodeURIComponent(fallbackMatch[1].trim());
+          if (cookieVal.startsWith('base64-')) {
+            try {
+              cookieVal = Buffer.from(cookieVal.slice(7), 'base64').toString('utf-8');
+            } catch {
+              // ignore
+            }
           }
-        }
-        if (cookieVal.startsWith('{') || cookieVal.startsWith('[')) {
-          try {
-            const parsed = JSON.parse(cookieVal);
-            token = parsed.access_token || (Array.isArray(parsed) ? parsed[0] : '');
-          } catch {
-            token = cookieVal;
+          if (cookieVal.startsWith('{') || cookieVal.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(cookieVal);
+              if (Array.isArray(parsed)) {
+                if (!accessToken && parsed[0]) accessToken = parsed[0];
+                if (!refreshToken && parsed[1]) refreshToken = parsed[1];
+              } else if (parsed && typeof parsed === 'object') {
+                if (!accessToken && parsed.access_token) accessToken = parsed.access_token;
+                if (!refreshToken && parsed.refresh_token) refreshToken = parsed.refresh_token;
+              }
+            } catch {
+              if (!accessToken) accessToken = cookieVal;
+            }
+          } else if (!accessToken) {
+            accessToken = cookieVal;
           }
-        } else {
-          token = cookieVal;
         }
       }
     }
   }
 
-  if (!token) return null;
+  return { accessToken, refreshToken };
+}
 
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const { data, error } = await supabase.auth.getUser(token);
-      if (error || !data.user) return null;
-      return {
-        id: data.user.id,
-        email: data.user.email,
-        user_metadata: data.user.user_metadata,
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  // Dev / Test token parser
-  if (token.startsWith('mock-jwt-') || token.startsWith('test-jwt-') || token.startsWith('usr-')) {
-    const userId = token.replace(/^(mock-jwt-|test-jwt-)/, '');
-    const verified = mockVerifiedUserStore.get(userId);
-    if (verified) return verified;
-
-    const allPlayers = localEngine.getAllPlayers();
-    const existingPlayer = allPlayers.find((p) => p.userId === userId);
-    if (existingPlayer && existingPlayer.email) {
-      return {
-        id: userId,
-        email: existingPlayer.email,
-      };
-    }
-
-    return {
-      id: userId,
-      email: `${userId.replace(/^usr-/, '')}@example.com`,
-    };
-  }
-
-  return null;
+export interface ResolvedAuthSession {
+  user: AuthSessionUser | null;
+  player: Player | null;
+  refreshedSession?: AuthSessionTokens;
 }
 
 /**
- * Canonical Server-Side Player Resolver.
- * Resolves the Canton Quests player linked to the verified Supabase Auth user.
- * If an unlinked legacy player exists with the same verified email, safely claims it.
+ * Core Session Resolver.
+ * Resolves the authenticated Supabase user and linked Canton Quests player.
+ * Automatically refreshes expired sessions using the persistent refresh token.
  */
-export async function resolveAuthenticatedPlayer(
+export async function resolveAuthenticatedSession(
   requestOrToken?: Request | string | null
-): Promise<Player | null> {
-  const authUser = await resolveAuthenticatedSupabaseUser(requestOrToken);
-  if (!authUser || !authUser.id) {
-    return null;
+): Promise<ResolvedAuthSession> {
+  if (!requestOrToken) return { user: null, player: null };
+
+  const { accessToken, refreshToken } = extractAuthTokens(requestOrToken);
+
+  let authUser: AuthSessionUser | null = null;
+  let refreshedSession: AuthSessionTokens | undefined = undefined;
+
+  // 1. Try validating access token first
+  if (accessToken) {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.auth.getUser(accessToken);
+        if (!error && data.user) {
+          authUser = {
+            id: data.user.id,
+            email: data.user.email,
+            user_metadata: data.user.user_metadata,
+          };
+        }
+      } catch {
+        authUser = null;
+      }
+    } else if (
+      accessToken.startsWith('mock-jwt-refreshed-') ||
+      accessToken.startsWith('mock-jwt-') ||
+      accessToken.startsWith('test-jwt-') ||
+      accessToken.startsWith('usr-')
+    ) {
+      const userId = accessToken.replace(/^(mock-jwt-refreshed-|mock-jwt-|test-jwt-)/, '');
+      const verified = mockVerifiedUserStore.get(userId);
+      if (verified) {
+        authUser = verified;
+      } else {
+        const allPlayers = localEngine.getAllPlayers();
+        const existingPlayer = allPlayers.find((p) => p.userId === userId);
+        authUser = {
+          id: userId,
+          email: existingPlayer?.email || `${userId.replace(/^usr-/, '')}@example.com`,
+        };
+      }
+    }
   }
+
+  // 2. If access token is expired or invalid, but refresh token is available, refresh the session!
+  if (!authUser && refreshToken) {
+    const refreshRes = await refreshSupabaseSession(refreshToken);
+    if (refreshRes.success && refreshRes.user && refreshRes.session) {
+      authUser = refreshRes.user;
+      refreshedSession = refreshRes.session;
+    }
+  }
+
+  if (!authUser) {
+    return { user: null, player: null };
+  }
+
+  const player = await resolvePlayerForAuthUserInternal(authUser);
+  return {
+    user: authUser,
+    player,
+    refreshedSession,
+  };
+}
+
+/**
+ * Helper to resolve player record from database or local engine for a verified Auth user.
+ */
+async function resolvePlayerForAuthUserInternal(authUser: AuthSessionUser): Promise<Player | null> {
+  if (!authUser || !authUser.id) return null;
 
   if (isSupabaseConfigured && supabase) {
     const db = supabaseAdmin || supabase;
@@ -930,6 +1188,28 @@ export async function resolveAuthenticatedPlayer(
   }
 
   return null;
+}
+
+/**
+ * Extracts and cryptographically verifies the Supabase Auth user from a Bearer token or Request.
+ */
+export async function resolveAuthenticatedSupabaseUser(
+  requestOrToken?: Request | string | null
+): Promise<AuthSessionUser | null> {
+  const session = await resolveAuthenticatedSession(requestOrToken);
+  return session.user;
+}
+
+/**
+ * Canonical Server-Side Player Resolver.
+ * Resolves the Canton Quests player linked to the verified Supabase Auth user.
+ * If an unlinked legacy player exists with the same verified email, safely claims it.
+ */
+export async function resolveAuthenticatedPlayer(
+  requestOrToken?: Request | string | null
+): Promise<Player | null> {
+  const session = await resolveAuthenticatedSession(requestOrToken);
+  return session.player;
 }
 
 /**

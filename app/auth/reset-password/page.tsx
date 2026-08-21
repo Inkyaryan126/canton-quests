@@ -71,6 +71,12 @@ function ResetPasswordContent() {
           window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
           window.localStorage.setItem('canton_player_profile', JSON.stringify(data.player));
         }
+        if (data.session?.access_token) {
+          window.localStorage.setItem('canton_auth_token', data.session.access_token);
+        }
+        if (data.session?.refresh_token) {
+          window.localStorage.setItem('canton_refresh_token', data.session.refresh_token);
+        }
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Password update failed. Please request a new recovery link.');

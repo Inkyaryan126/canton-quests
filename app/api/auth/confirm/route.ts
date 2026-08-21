@@ -4,21 +4,11 @@ import {
   resolveAuthenticatedPlayer,
   resolveOrCreatePlayerForAuthUser,
   getSiteUrl,
+  sanitizeRedirectUrl,
+  setAuthCookies,
   EmailOtpType,
 } from '@/lib/supabase-auth';
 import { StartingPath } from '@/lib/types';
-
-/**
- * Validates and sanitizes the next redirect destination to prevent open redirect vulnerabilities.
- */
-function sanitizeNextPath(rawNext?: string | null): string {
-  if (!rawNext || typeof rawNext !== 'string') return '/profile';
-  const trimmed = rawNext.trim();
-  if (trimmed.startsWith('/') && !trimmed.startsWith('//') && !trimmed.includes('\\') && !trimmed.includes('\0')) {
-    return trimmed;
-  }
-  return '/profile';
-}
 
 /**
  * POST /api/auth/confirm
@@ -59,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     if (cleanType === 'recovery') {
-      const safeRedirect = sanitizeNextPath(next === '/profile' ? '/auth/reset-password' : next);
+      const safeRedirect = sanitizeRedirectUrl(next === '/profile' ? '/auth/reset-password' : next, '/auth/reset-password');
       const player = await resolveAuthenticatedPlayer(verifyRes.session?.access_token || `mock-jwt-${verifyRes.user.id}`).catch(() => null);
 
       const response = NextResponse.json({
@@ -71,24 +61,8 @@ export async function POST(request: Request) {
         message: 'Recovery session verified. Please set your new password.',
       });
 
-      if (player) {
-        response.cookies.set('canton_player_id', player.id, {
-          path: '/',
-          httpOnly: false,
-          maxAge: 60 * 60 * 24 * 30,
-          sameSite: 'lax',
-        });
-      }
-
-      if (verifyRes.session?.access_token) {
-        response.cookies.set('sb-access-token', verifyRes.session.access_token, {
-          path: '/',
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          maxAge: 60 * 60 * 24 * 30,
-          sameSite: 'lax',
-        });
-      }
+      // Set persistent 30-day cookies including refresh token
+      setAuthCookies(response, verifyRes.session, player?.id);
 
       return response;
     }
@@ -106,7 +80,7 @@ export async function POST(request: Request) {
       isMinor: Boolean(isMinor),
     });
 
-    const safeRedirect = sanitizeNextPath(next);
+    const safeRedirect = sanitizeRedirectUrl(next, '/profile');
 
     const response = NextResponse.json({
       success: true,
@@ -116,23 +90,8 @@ export async function POST(request: Request) {
       message: `Email verified successfully! Welcome to Canton Quests, ${player.displayName}!`,
     });
 
-    // Set convenience cookie for mobile client UX
-    response.cookies.set('canton_player_id', player.id, {
-      path: '/',
-      httpOnly: false,
-      maxAge: 60 * 60 * 24 * 30,
-      sameSite: 'lax',
-    });
-
-    if (verifyRes.session?.access_token) {
-      response.cookies.set('sb-access-token', verifyRes.session.access_token, {
-        path: '/',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24 * 30,
-        sameSite: 'lax',
-      });
-    }
+    // Set persistent 30-day cookies (access token, refresh token, player ID)
+    setAuthCookies(response, verifyRes.session, player.id);
 
     return response;
   } catch (error: any) {
@@ -152,7 +111,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get('token_hash') || searchParams.get('token') || '';
   const type = searchParams.get('type') || 'email';
-  const next = sanitizeNextPath(searchParams.get('next') || searchParams.get('redirectTo'));
+  const next = sanitizeRedirectUrl(searchParams.get('next') || searchParams.get('redirectTo'), '/profile');
   const error = searchParams.get('error') || '';
   const error_description = searchParams.get('error_description') || '';
 

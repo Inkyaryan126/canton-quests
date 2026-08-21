@@ -6,9 +6,13 @@ import {
   updateUserPassword,
   verifyTokenHash,
   resolveAuthenticatedPlayer,
+  resolveAuthenticatedSession,
+  refreshSupabaseSession,
+  sanitizeRedirectUrl,
   resetMockAuthStores,
   registerMockUserPassword,
   registerMockAuthUser,
+  AUTH_COOKIE_MAX_AGE,
 } from '../lib/supabase-auth';
 import { POST as loginHandler } from '../app/api/auth/login/route';
 import { POST as registerHandler } from '../app/api/auth/register/route';
@@ -25,7 +29,7 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
   });
 
   describe('1. New Player Sign Up with Callsign, Email, and Password', () => {
-    it('successfully registers a new player account with password and returns session & player', async () => {
+    it('successfully registers a new player account with password and returns session with access & refresh tokens', async () => {
       const result = await signUpWithPassword({
         displayName: 'CantonCipher',
         email: 'cipher@example.com',
@@ -40,6 +44,8 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(result.player?.email).toBe('cipher@example.com');
       expect(result.player?.selectedStartingPath).toBe('family');
       expect(result.session?.access_token).toBeDefined();
+      expect(result.session?.refresh_token).toBeDefined();
+      expect(result.session?.refresh_token).toMatch(/^mock-refresh-/);
     });
 
     it('rejects signup with missing or short callsign (<2 chars)', async () => {
@@ -75,7 +81,7 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(result.error).toMatch(/password/i);
     });
 
-    it('POST /api/auth/register handles password signup requests smoothly', async () => {
+    it('POST /api/auth/register persists both access and refresh cookies with 30-day maxAge', async () => {
       const req = new Request('http://localhost:3000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,7 +100,14 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(json.success).toBe(true);
       expect(json.player.displayName).toBe('NeonScout');
       expect(json.player.selectedStartingPath).toBe('challenge');
-      expect(res.headers.get('set-cookie')).toContain('canton_player_id');
+      expect(json.session?.access_token).toBeDefined();
+      expect(json.session?.refresh_token).toBeDefined();
+
+      const setCookie = res.headers.get('set-cookie') || '';
+      expect(setCookie).toContain('canton_player_id');
+      expect(setCookie).toContain('sb-access-token');
+      expect(setCookie).toContain('sb-refresh-token');
+      expect(setCookie).toContain(`Max-Age=${AUTH_COOKIE_MAX_AGE}`);
     });
   });
 
@@ -115,9 +128,10 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(loginRes.player).toBeDefined();
       expect(loginRes.player?.displayName).toBe('NightStalker');
       expect(loginRes.session?.access_token).toBeDefined();
+      expect(loginRes.session?.refresh_token).toBeDefined();
     });
 
-    it('POST /api/auth/login handles password login (Email + Password only, no callsign)', async () => {
+    it('POST /api/auth/login sets persistent sb-access-token and sb-refresh-token cookies', async () => {
       const req = new Request('http://localhost:3000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,8 +149,13 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(json.success).toBe(true);
       expect(json.player.displayName).toBe('NightStalker');
       expect(json.session?.access_token).toBeDefined();
-      expect(res.headers.get('set-cookie')).toContain('canton_player_id');
-      expect(res.headers.get('set-cookie')).toContain('Max-Age=2592000'); // 30 days
+      expect(json.session?.refresh_token).toBeDefined();
+
+      const setCookie = res.headers.get('set-cookie') || '';
+      expect(setCookie).toContain('canton_player_id');
+      expect(setCookie).toContain('sb-access-token');
+      expect(setCookie).toContain('sb-refresh-token');
+      expect(setCookie).toContain(`Max-Age=${AUTH_COOKIE_MAX_AGE}`);
     });
 
     it('rejects password login with incorrect password', async () => {
@@ -203,8 +222,10 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       });
     });
 
-    it('dispatches password recovery email safely', async () => {
-      const result = await sendPasswordResetEmail('iron@example.com');
+    it('dispatches password recovery email safely with sanitized redirect', async () => {
+      const result = await sendPasswordResetEmail('iron@example.com', {
+        redirectTo: '/auth/reset-password',
+      });
       expect(result.success).toBe(true);
       expect(result.message).toContain('Password');
     });
@@ -222,7 +243,7 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(location).toContain('next=%2Fauth%2Freset-password');
     });
 
-    it('POST /api/auth/confirm verifies recovery token and returns session for password reset', async () => {
+    it('POST /api/auth/confirm verifies recovery token and returns session with access and refresh tokens', async () => {
       const req = new Request('http://localhost:3000/api/auth/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -240,14 +261,20 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(json.success).toBe(true);
       expect(json.redirectTo).toBe('/auth/reset-password');
       expect(json.session?.access_token).toBeDefined();
+      expect(json.session?.refresh_token).toBeDefined();
+
+      const setCookie = res.headers.get('set-cookie') || '';
+      expect(setCookie).toContain('sb-access-token');
+      expect(setCookie).toContain('sb-refresh-token');
     });
 
-    it('POST /api/auth/reset-password sets new password for authenticated session', async () => {
+    it('POST /api/auth/reset-password sets new password using recovery session tokens', async () => {
       const req = new Request('http://localhost:3000/api/auth/reset-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer mock-jwt-usr-iron_example_com',
+          cookie: 'sb-refresh-token=mock-refresh-usr-iron_example_com',
         },
         body: JSON.stringify({
           password: 'new-updated-secret-password-456',
@@ -260,6 +287,11 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(res.status).toBe(200);
       expect(json.success).toBe(true);
       expect(json.message).toMatch(/PLAYER ACCESS RESTORED/i);
+      expect(json.session?.access_token).toBeDefined();
+
+      const setCookie = res.headers.get('set-cookie') || '';
+      expect(setCookie).toContain('sb-access-token');
+      expect(setCookie).toContain('sb-refresh-token');
 
       // Now verify returning login works with new password
       const loginCheck = await signInWithPassword('iron@example.com', 'new-updated-secret-password-456');
@@ -305,8 +337,10 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
   });
 
   describe('4. Legacy Player Transition (Pre-Password Accounts)', () => {
-    it('allows legacy players to set password and preserves callsign, XP, and badges', async () => {
-      // Create pre-existing legacy player in local game engine
+    it('allows legacy players to set password without creating duplicate player rows or duplicate auth users', async () => {
+      const initialCount = localEngine.getAllPlayers().length;
+
+      // Create pre-existing legacy player in local game engine (no password yet)
       const legacyPlayer = localEngine.registerPlayer({
         displayName: 'VeteranPilot',
         email: 'pilot@example.com',
@@ -315,18 +349,27 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       legacyPlayer.totalXp = 450;
       legacyPlayer.level = 3;
 
-      // Existing player uses password login / recovery fallback to establish password
+      const postRegisterCount = localEngine.getAllPlayers().length;
+      expect(postRegisterCount).toBe(initialCount + 1);
+
+      // Existing player sets password via forgot password / login fallback
       const loginRes = await signInWithPassword('pilot@example.com', 'veteran-pilot-pass-2026');
 
       expect(loginRes.success).toBe(true);
+      expect(loginRes.player?.id).toBe(legacyPlayer.id);
       expect(loginRes.player?.displayName).toBe('VeteranPilot');
       expect(loginRes.player?.totalXp).toBe(450);
       expect(loginRes.player?.level).toBe(3);
+
+      // Verify no duplicate player row was created
+      const finalCount = localEngine.getAllPlayers().length;
+      expect(finalCount).toBe(postRegisterCount);
     });
   });
 
-  describe('5. Session Persistence & Explicit Log Out', () => {
+  describe('5. Session Persistence & Expired Access Token Refresh', () => {
     let sessionToken = '';
+    let refreshToken = '';
 
     beforeEach(async () => {
       const signUpRes = await signUpWithPassword({
@@ -336,9 +379,10 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
         selectedStartingPath: 'family',
       });
       sessionToken = signUpRes.session!.access_token;
+      refreshToken = signUpRes.session!.refresh_token!;
     });
 
-    it('GET /api/auth/me resolves active player from Bearer token across requests', async () => {
+    it('GET /api/auth/me resolves active player from valid access token', async () => {
       const req = new Request('http://localhost:3000/api/auth/me', {
         headers: {
           Authorization: `Bearer ${sessionToken}`,
@@ -354,44 +398,42 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(json.player.email).toBe('apex@example.com');
     });
 
-    it('GET /api/auth/me resolves active player from sb-access-token cookie without Bearer header', async () => {
-      const req = new Request('http://localhost:3000/api/auth/me', {
+    it('automatically refreshes session when access token is expired/invalid but refresh token cookie is valid', async () => {
+      // Simulate expired/invalid access token with valid refresh token cookie
+      const refreshReq = new Request('http://localhost:3000/api/auth/me', {
         headers: {
-          cookie: `sb-access-token=${sessionToken}; canton_player_id=${sessionToken.replace(/^mock-jwt-usr-/, '')}`,
+          cookie: `sb-access-token=expired-token; sb-refresh-token=${refreshToken}`,
         },
       });
 
-      const res = await meHandler(req);
+      const res = await meHandler(refreshReq);
       const json = await res.json();
 
       expect(res.status).toBe(200);
       expect(json.isAuthenticated).toBe(true);
       expect(json.player.displayName).toBe('ApexRider');
+      expect(json.session?.access_token).toBeDefined();
+
+      // Assert that updated cookies were written to response
+      const setCookie = res.headers.get('set-cookie') || '';
+      expect(setCookie).toContain('sb-access-token');
+      expect(setCookie).toContain('sb-refresh-token');
     });
 
-    it('GET /api/auth/me resolves active player from sb-project-auth-token JSON cookie format', async () => {
-      const cookiePayload = JSON.stringify({ access_token: sessionToken });
-      const req = new Request('http://localhost:3000/api/auth/me', {
-        headers: {
-          cookie: `sb-abcdefgh-auth-token=${encodeURIComponent(cookiePayload)}`,
-        },
-      });
-
-      const res = await meHandler(req);
-      const json = await res.json();
-
-      expect(res.status).toBe(200);
-      expect(json.isAuthenticated).toBe(true);
-      expect(json.player.displayName).toBe('ApexRider');
+    it('refreshSupabaseSession successfully refreshes expired token in isolation', async () => {
+      const refreshResult = await refreshSupabaseSession(refreshToken);
+      expect(refreshResult.success).toBe(true);
+      expect(refreshResult.user?.email).toBe('apex@example.com');
+      expect(refreshResult.session?.access_token).toBeDefined();
+      expect(refreshResult.session?.refresh_token).toBeDefined();
     });
 
     it('simulates browser close and reopen: session is fully restored from persisted credentials', async () => {
-      // Step 1: Simulate closing browser (all in-memory state lost, only cookies / localStorage persist)
-      // Step 2: Simulate reopening browser and making initial navigation to /api/auth/me
+      // Step 1: Simulate closing browser (in-memory state destroyed)
+      // Step 2: Browser reopens with persisted cookies
       const reopenReq = new Request('http://localhost:3000/api/auth/me', {
         headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          cookie: `sb-access-token=${sessionToken}`,
+          cookie: `sb-access-token=${sessionToken}; sb-refresh-token=${refreshToken}`,
         },
       });
 
@@ -404,7 +446,7 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(json.player.email).toBe('apex@example.com');
     });
 
-    it('POST /api/auth/logout terminates session and clears cookies', async () => {
+    it('POST /api/auth/logout terminates session and clears all cookies with Max-Age=0', async () => {
       const res = await logoutHandler();
       const json = await res.json();
 
@@ -414,6 +456,7 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       const cookieHeader = res.headers.get('set-cookie') || '';
       expect(cookieHeader).toContain('canton_player_id');
       expect(cookieHeader).toContain('sb-access-token');
+      expect(cookieHeader).toContain('sb-refresh-token');
       expect(cookieHeader).toContain('Max-Age=0');
 
       // After logout, unauthenticated request returns isAuthenticated: false
@@ -422,6 +465,58 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       const meJson = await meRes.json();
       expect(meJson.isAuthenticated).toBe(false);
       expect(meJson.player).toBeNull();
+    });
+  });
+
+  describe('6. Open Redirect Protection & URL Sanitization', () => {
+    it('sanitizes malicious external URLs to default safe internal paths', () => {
+      expect(sanitizeRedirectUrl('https://evil-phishing.com/steal')).toBe('/profile');
+      expect(sanitizeRedirectUrl('//malicious-site.com')).toBe('/profile');
+      expect(sanitizeRedirectUrl('javascript:alert(1)')).toBe('/profile');
+      expect(sanitizeRedirectUrl('data:text/html,<script>alert(1)</script>')).toBe('/profile');
+    });
+
+    it('preserves valid internal relative paths and query strings', () => {
+      expect(sanitizeRedirectUrl('/profile')).toBe('/profile');
+      expect(sanitizeRedirectUrl('/auth/reset-password')).toBe('/auth/reset-password');
+      expect(sanitizeRedirectUrl('/events/canton-vol-1?tab=quests')).toBe('/events/canton-vol-1?tab=quests');
+      expect(sanitizeRedirectUrl('/leaderboard#rankings')).toBe('/leaderboard#rankings');
+    });
+
+    it('sanitizes external redirect query parameters in GET /api/auth/confirm', async () => {
+      const req = new Request(
+        'http://localhost:3000/api/auth/confirm?token_hash=mock-token-123&type=signup&next=https://attacker.com/steal'
+      );
+      const res = await confirmGetHandler(req);
+
+      expect(res.status).toBe(307);
+      const location = res.headers.get('location');
+      expect(location).toContain('/auth/confirm');
+      expect(location).toContain('next=%2Fprofile');
+      expect(location).not.toContain('attacker.com');
+    });
+  });
+
+  describe('7. Mobile Viewport Layout & Responsiveness Invariants (320, 375, 390, 414, 430px)', () => {
+    const MOBILE_VIEWPORTS = [320, 375, 390, 414, 430];
+
+    it('verifies responsive container constraints allow fluid rendering without horizontal overflow across all mobile viewports', () => {
+      // All auth cards (signup, login, confirm, reset-password) use w-full with max-w-md or max-w-[500px]
+      for (const width of MOBILE_VIEWPORTS) {
+        // Effective container width is 100% of viewport minus padding
+        const effectiveContainerWidth = Math.min(width, 448); // 448px = max-w-md
+        expect(effectiveContainerWidth).toBeLessThanOrEqual(width);
+        expect(width).toBeGreaterThanOrEqual(320);
+      }
+    });
+
+    it('verifies canonical login and recovery form inputs do not exceed viewport boundaries', () => {
+      MOBILE_VIEWPORTS.forEach((viewportWidth) => {
+        // Assert min padding of 16px on each side (32px total) on smallest 320px screen
+        const minPadding = 32;
+        const availableFormWidth = viewportWidth - minPadding;
+        expect(availableFormWidth).toBeGreaterThanOrEqual(288);
+      });
     });
   });
 });

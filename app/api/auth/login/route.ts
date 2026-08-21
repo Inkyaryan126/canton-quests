@@ -4,8 +4,9 @@ import {
   sendPasswordResetEmail,
   sendEmailOtp,
   verifyEmailOtp,
-  resolveAuthenticatedPlayer,
+  resolveAuthenticatedSession,
   resolveOrCreatePlayerForAuthUser,
+  setAuthCookies,
 } from '@/lib/supabase-auth';
 import { StartingPath } from '@/lib/types';
 
@@ -61,23 +62,8 @@ export async function POST(request: Request) {
         message: loginRes.message || `Welcome back to Canton Quests, ${loginRes.player.displayName}!`,
       });
 
-      // Persistent cookies for browser session persistence
-      response.cookies.set('canton_player_id', loginRes.player.id, {
-        path: '/',
-        httpOnly: false,
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        sameSite: 'lax',
-      });
-
-      if (loginRes.session?.access_token) {
-        response.cookies.set('sb-access-token', loginRes.session.access_token, {
-          path: '/',
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          maxAge: 60 * 60 * 24 * 30, // 30 days
-          sameSite: 'lax',
-        });
-      }
+      // Persistent 30-day cookies (access token, refresh token, player ID) for browser session persistence
+      setAuthCookies(response, loginRes.session, loginRes.player.id);
 
       return response;
     }
@@ -173,23 +159,8 @@ export async function POST(request: Request) {
         message: `Welcome to Canton Quests, ${player.displayName}!`,
       });
 
-      // Set persistent cookie
-      response.cookies.set('canton_player_id', player.id, {
-        path: '/',
-        httpOnly: false,
-        maxAge: 60 * 60 * 24 * 30,
-        sameSite: 'lax',
-      });
-
-      if (verifyRes.session?.access_token) {
-        response.cookies.set('sb-access-token', verifyRes.session.access_token, {
-          path: '/',
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          maxAge: 60 * 60 * 24 * 30,
-          sameSite: 'lax',
-        });
-      }
+      // Set persistent 30-day cookies
+      setAuthCookies(response, verifyRes.session, player.id);
 
       return response;
     }
@@ -199,7 +170,9 @@ export async function POST(request: Request) {
       const authHeader = request.headers.get('authorization') || '';
       const effectiveToken = authToken || authHeader.replace(/^Bearer\s+/i, '').trim();
 
-      const player = await resolveAuthenticatedPlayer(effectiveToken);
+      const sessionResult = await resolveAuthenticatedSession(effectiveToken || request);
+      const player = sessionResult.player;
+
       if (!player) {
         return NextResponse.json(
           { success: false, error: 'Session is invalid, expired, or unlinked.' },
@@ -210,15 +183,11 @@ export async function POST(request: Request) {
       const response = NextResponse.json({
         success: true,
         player,
+        session: sessionResult.refreshedSession,
         message: `Welcome back, ${player.displayName}!`,
       });
 
-      response.cookies.set('canton_player_id', player.id, {
-        path: '/',
-        httpOnly: false,
-        maxAge: 60 * 60 * 24 * 30,
-        sameSite: 'lax',
-      });
+      setAuthCookies(response, sessionResult.refreshedSession, player.id);
 
       return response;
     }
