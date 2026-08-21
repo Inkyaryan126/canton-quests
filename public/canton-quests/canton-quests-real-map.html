@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canton Quests — Live Sector Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --bg-void:#0a0d12;
+    --bg-panel:#10151d;
+    --bg-panel-2:#141b25;
+    --signal:#ffb238;
+    --signal-dim:#7a5220;
+    --signal-glow:rgba(255,178,56,0.35);
+    --door-red:#ff3b3b;
+    --door-gold:#ffcf3f;
+    --door-purple:#b46bff;
+    --text-primary:#eef2f5;
+    --text-dim:#8a93a3;
+    --border-soft:rgba(255,255,255,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg-void);color:var(--text-primary);font-family:'Rajdhani',sans-serif;}
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 20px 60px;}
+  .top-label{
+    display:flex;align-items:center;gap:10px;
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;
+    color:var(--signal);text-transform:uppercase;margin-bottom:14px;
+  }
+  .top-label .dot{width:6px;height:6px;border-radius:50%;background:var(--signal);box-shadow:0 0 8px var(--signal);animation:blink 1.6s ease-in-out infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+  h1{font-weight:700;font-size:clamp(28px,4.5vw,48px);letter-spacing:0.01em;margin:0 0 6px;line-height:1.05;}
+  h1 span{color:var(--signal);}
+  .sub{color:var(--text-dim);font-size:16px;max-width:600px;margin:0 0 32px;font-weight:400;}
+
+  .grid-layout{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;}
+  @media (max-width:900px){.grid-layout{grid-template-columns:1fr;}}
+
+  .panel{
+    background:linear-gradient(180deg,var(--bg-panel),var(--bg-panel-2));
+    border:1px solid var(--border-soft);border-radius:4px;position:relative;overflow:hidden;
+  }
+  .panel-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:14px 18px;border-bottom:1px solid var(--border-soft);
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;
+    text-transform:uppercase;color:var(--text-dim);position:relative;z-index:5;
+    background:var(--bg-panel);
+  }
+  .panel-head b{color:var(--text-primary);font-weight:500;}
+
+  /* MAP */
+  .map-holder{position:relative;height:520px;}
+  #leaflet-map{width:100%;height:100%;background:#0c1017;}
+
+  .scan-overlay{
+    position:absolute;inset:0;
+    pointer-events:none;
+    z-index:450;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode:overlay;
+  }
+  .radar-sweep{
+    position:absolute;
+    top:50%;left:50%;
+    width:820px;height:820px;
+    margin:-410px 0 0 -410px;
+    border-radius:50%;
+    background:conic-gradient(from 0deg, rgba(255,178,56,0.28), transparent 22%);
+    animation:spin 6s linear infinite;
+    pointer-events:none;
+    mix-blend-mode:screen;
+    z-index:400;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .quest-pin{ position:relative; width:16px; height:16px; }
+  .quest-pin .core{
+    position:absolute; left:4px; top:4px; width:8px; height:8px; border-radius:50%;
+    background:var(--bg-void); border:2px solid var(--signal); box-shadow:0 0 6px var(--signal-glow);
+  }
+  .quest-pin.active .core{ border-color:#fff; }
+  .quest-pin .ring{
+    position:absolute; left:8px; top:8px; width:0; height:0; border-radius:50%;
+    border:1.4px solid var(--signal); opacity:0; transform:translate(-50%,-50%);
+  }
+  .quest-pin .ring.pulse{ animation:ping 1.3s cubic-bezier(0,.5,.5,1); }
+  @keyframes ping{
+    0%{ width:2px; height:2px; opacity:0.9; }
+    100%{ width:56px; height:56px; opacity:0; }
+  }
+  .quest-label-tip{
+    font-family:'JetBrains Mono',monospace !important;
+    font-size:10px; letter-spacing:0.04em;
+    background:rgba(10,13,18,0.9) !important;
+    color:var(--text-primary) !important;
+    border:1px solid var(--border-soft) !important;
+    border-radius:2px !important;
+    box-shadow:none !important;
+    padding:4px 7px !important;
+  }
+  .quest-label-tip::before{ display:none !important; }
+
+  .leaflet-container{ font-family:'Rajdhani',sans-serif; background:#0c1017; }
+  .leaflet-control-zoom a{
+    background:var(--bg-panel) !important; color:var(--text-primary) !important;
+    border-color:var(--border-soft) !important;
+  }
+  .leaflet-control-attribution{
+    background:rgba(10,13,18,0.75) !important; color:var(--text-dim) !important;
+    font-family:'JetBrains Mono',monospace; font-size:9px !important;
+  }
+  .leaflet-control-attribution a{ color:var(--text-dim) !important; }
+
+  .map-footer{
+    position:relative;z-index:5;
+    display:flex;justify-content:space-between;
+    padding:10px 18px 14px;
+    font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);
+    border-top:1px solid var(--border-soft);letter-spacing:0.06em;
+    background:var(--bg-panel);
+  }
+
+  /* TICKER */
+  .ticker-list{ list-style:none; margin:0;padding:10px 0; overflow:hidden; max-height:460px; }
+  .ticker-item{
+    display:flex;gap:10px;align-items:flex-start;padding:10px 18px;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+    animation:enter .5s ease both;
+  }
+  @keyframes enter{from{opacity:0; transform:translateY(-6px);}to{opacity:1; transform:translateY(0);}}
+  .ticker-item .glyph{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--signal);margin-top:2px;flex-shrink:0;}
+  .ticker-item .body{flex:1;min-width:0;}
+  .ticker-item .who{font-weight:600;font-size:14.5px;color:var(--text-primary);}
+  .ticker-item .who .tag{font-family:'JetBrains Mono',monospace;font-weight:400;font-size:10px;color:var(--signal);margin-left:6px;letter-spacing:0.04em;}
+  .ticker-item .what{color:var(--text-dim);font-size:12.5px;font-family:'JetBrains Mono',monospace;margin-top:2px;}
+  .ticker-item .time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);white-space:nowrap;margin-left:auto;padding-top:3px;}
+
+  .stats-row{display:flex;gap:1px;background:var(--border-soft);margin-top:18px;border-radius:4px;overflow:hidden;border:1px solid var(--border-soft);}
+  .stat{flex:1;background:var(--bg-panel);padding:14px 16px;text-align:left;}
+  .stat .num{font-family:'JetBrains Mono',monospace;font-size:22px;color:var(--signal);font-weight:700;}
+  .stat .lbl{font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;font-family:'JetBrains Mono',monospace;}
+
+  .legend{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-dim);}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top-label"><span class="dot"></span> LIVE SECTOR MAP · DOWNTOWN CANTON, OH</div>
+  <h1>Real coordinates. <span>Real streets.</span></h1>
+  <p class="sub">Every zone and node below sits on its true GPS location in Canton. Watch the grid react as agents move through the actual city.</p>
+
+  <div class="grid-layout">
+
+    <div class="panel">
+      <div class="panel-head"><span>SECTOR MAP</span> <b id="active-count">3 ZONES ONLINE</b></div>
+      <div class="map-holder">
+        <div id="leaflet-map"></div>
+        <div class="radar-sweep"></div>
+        <div class="scan-overlay"></div>
+      </div>
+      <div class="map-footer">
+        <span>CANTON, OH · 40.7989° N, 81.3784° W</span>
+        <span id="clock">--:--:--</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span>ACTIVITY FEED</span> <b>REAL-TIME</b></div>
+      <ul class="ticker-list" id="ticker-list"></ul>
+    </div>
+
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="num" id="stat-players">142</div><div class="lbl">Agents in field</div></div>
+    <div class="stat"><div class="num" id="stat-quests">318</div><div class="lbl">Quests completed</div></div>
+    <div class="stat"><div class="num" id="stat-entries">318</div><div class="lbl">Drawing entries</div></div>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:var(--door-purple)"></i>McKinley / West Lawn zone</span>
+    <span><i style="background:var(--door-gold)"></i>Downtown / Arts District zone</span>
+    <span><i style="background:var(--door-red)"></i>South Side / 9th St zone</span>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ---- THREE ZONE SECTIONS (matching reference art) ----
+const zones = {
+  mckinley: { name:"McKinley / West Lawn",     color:"#b46bff", lat:40.8070, lng:-81.3936, radius:520 },
+  downtown: { name:"Downtown / Arts District", color:"#ffcf3f", lat:40.8000, lng:-81.3758, radius:560 },
+  southside:{ name:"South Side / 9th St",      color:"#ff3b3b", lat:40.7880, lng:-81.3805, radius:480 }
+};
+const zoneKeys = Object.keys(zones);
+
+// ---- MAP INIT ----
+const map = L.map('leaflet-map', {
+  zoomControl:true,
+  scrollWheelZoom:false,
+  attributionControl:true
+}).setView([40.7980, -81.3820], 13.6);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; OpenStreetMap contributors &copy; CARTO',
+  subdomains:'abcd',
+  maxZoom:19
+}).addTo(map);
+
+// zone glow circles + pulse rings (soft outer glow + crisp ring, echoing the reference art)
+const zoneRingEls = {};
+zoneKeys.forEach(key=>{
+  const z = zones[key];
+  L.circle([z.lat,z.lng], { radius:z.radius*1.4, color:z.color, weight:0, fillColor:z.color, fillOpacity:0.05 }).addTo(map);
+  L.circle([z.lat,z.lng], { radius:z.radius, color:z.color, weight:1.8, opacity:0.9, fillColor:z.color, fillOpacity:0.1 }).addTo(map);
+  L.marker([z.lat,z.lng], {
+    icon: L.divIcon({
+      className:'',
+      html:'<div style="font-family:\'JetBrains Mono\',monospace;font-size:11px;letter-spacing:.06em;color:'+z.color+';text-shadow:0 0 6px '+z.color+';white-space:nowrap;transform:translate(-50%,-'+(z.radius/3.2)+'px);">'+z.name.toUpperCase()+'</div>',
+      iconSize:[0,0]
+    }),
+    interactive:false
+  }).addTo(map);
+
+  // dedicated pulse ring marker at zone center
+  const ringIcon = L.divIcon({
+    className:'quest-pin',
+    html:'<div class="ring" style="border-color:'+z.color+';"></div><div class="core" style="border-color:'+z.color+';box-shadow:0 0 6px '+z.color+';"></div>',
+    iconSize:[16,16],
+    iconAnchor:[8,8]
+  });
+  zoneRingEls[key] = L.marker([z.lat,z.lng], { icon:ringIcon, interactive:false }).addTo(map);
+});
+
+function pulseZone(key){
+  const marker = zoneRingEls[key];
+  if(!marker) return;
+  const el = marker.getElement();
+  if(!el) return;
+  el.classList.add('active');
+  const ring = el.querySelector('.ring');
+  ring.classList.remove('pulse');
+  void ring.offsetWidth;
+  ring.classList.add('pulse');
+  setTimeout(()=>el.classList.remove('active'), 1300);
+}
+
+// ---- LIVE TICKER ----
+const verbs = ["completed a quest in", "checked in at", "solved a cipher in", "scanned an emblem in", "submitted photo proof in"];
+const callsigns = ["Ghost_07","Recruit_19","FieldAgent_3","Operative_X","Nightowl","Cipher_Sal","Agent_Mika","RouteRunner","Vantage_22","Echo_Nine","Blackbird","Agent_Dex"];
+const glyphs = ["»","◆","▲","●","■"];
+
+let playerCount = 142;
+let questCount = 318;
+
+function addTickerEntry(){
+  const key = zoneKeys[Math.floor(Math.random()*zoneKeys.length)];
+  const who = callsigns[Math.floor(Math.random()*callsigns.length)];
+  const verb = verbs[Math.floor(Math.random()*verbs.length)];
+  const glyph = glyphs[Math.floor(Math.random()*glyphs.length)];
+
+  const li = document.createElement('li');
+  li.className = 'ticker-item';
+  li.innerHTML =
+    '<span class="glyph">'+glyph+'</span>' +
+    '<div class="body">' +
+      '<div class="who">'+who+'<span class="tag">XP +'+(Math.floor(Math.random()*40)+10)+'</span></div>' +
+      '<div class="what">'+verb+' '+zones[key].name+'</div>' +
+    '</div>' +
+    '<span class="time">just now</span>';
+
+  const list = document.getElementById('ticker-list');
+  list.insertBefore(li, list.firstChild);
+  while(list.children.length > 6){ list.removeChild(list.lastChild); }
+
+  pulseZone(key);
+
+  questCount++;
+  document.getElementById('stat-quests').textContent = questCount;
+  document.getElementById('stat-entries').textContent = questCount;
+  if(Math.random() > 0.6){
+    playerCount++;
+    document.getElementById('stat-players').textContent = playerCount;
+  }
+}
+
+for(let i=0;i<3;i++){ setTimeout(addTickerEntry, i*220 + 400); }
+setInterval(addTickerEntry, 3400);
+
+function tickClock(){
+  const d = new Date();
+  document.getElementById('clock').textContent = d.toLocaleTimeString('en-US',{hour12:false});
+}
+tickClock();
+setInterval(tickClock, 1000);
+</script>
+</body>
+</html>

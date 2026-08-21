@@ -10,6 +10,7 @@ import PublicGameFeed from '@/components/spectator/PublicGameFeed';
 import DistrictActivityView, { DistrictInfo } from '@/components/spectator/DistrictActivityView';
 import CommunityStatsBar from '@/components/spectator/CommunityStatsBar';
 import EnterGameModal from '@/components/spectator/EnterGameModal';
+import SectorMapWrapper from '@/components/SectorMapWrapper';
 import {
   PublicAudienceEvent,
   PublicAudienceEventOption,
@@ -483,6 +484,9 @@ export default function WatchPage() {
           onVoteSubmitted={handleVoteSubmission}
           isSystemDisabled={isSystemDisabled}
         />
+
+        {/* Canton Citywide Live Sector Map & Telemetry HUD */}
+        <SectorMapWrapper />
 
         {/* Canton Citywide District Activity View */}
         <DistrictActivityView districts={districts} />

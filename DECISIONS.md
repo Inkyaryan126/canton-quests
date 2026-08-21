@@ -750,3 +750,26 @@ Each entry follows the standard ADR structure:
 - **Reason**:
   - Ensures reward presentation is strictly deterministic, logical, and server-authoritative, guaranteeing players always see the XP reward for a completed quest before experiencing rank ascension or achievement awards.
 - **Status**: **ACCEPTED**
+
+---
+
+### [ADR-036] 2026-08-21: Native React SectorMap Conversion, Tactical CARTO Radar Grid & Spectator Telemetry HUD
+- **Decision**:
+  1. **Native Component Architecture (`components/SectorMap.tsx`, `components/SectorMapWrapper.tsx`)**:
+     - Converted the standalone HTML/JS prototype (`public/canton-quests/canton-quests-real-map.html`) into an idiomatic, typed React component (`SectorMap.tsx`) and Next.js dynamic client wrapper (`SectorMapWrapper.tsx`).
+     - Replaced vanilla DOM manipulation with React state and lifecycle hooks (`useState`, `useEffect`, `useCallback`) for the live activity ticker, player/quest counters, HUD 24-hr clock, and zone marker pulses.
+  2. **Configurable Canton Sector Zones**:
+     - Maintained `SECTOR_ZONES` as a typed configuration array at the top of `SectorMap.tsx` defining exact real-world GPS coordinates, colors, and radii in meters:
+       - McKinley / West Lawn (`#b46bff`, lat: `40.8070`, lng: `-81.3936`, radius: `520m`)
+       - Downtown / Arts District (`#ffcf3f`, lat: `40.8000`, lng: `-81.3758`, radius: `560m`)
+       - South Side / 9th St (`#ff3b3b`, lat: `40.7880`, lng: `-81.3805`, radius: `480m`)
+  3. **Visual Aesthetics & Tactical HUD Styling**:
+     - Preserved exact tactical HUD aesthetics: CARTO dark basemap tiles, 360-degree rotating radar sweep overlay, scanline overlay, zone glow circles, interactive pulsing pin animations, 3-stat summary bar, and district color legends.
+  4. **Google Fonts & Typography Standardization**:
+     - Updated `@import url(...)` in `app/globals.css` to load `Rajdhani` (`wght@400;500;600;700`) alongside `JetBrains Mono` and `Inter`/`Outfit`.
+  5. **Clear Telemetry Extension Boundary & Watch Page Integration**:
+     - Structured mock telemetry generation with clear comments documenting how to swap in Supabase Realtime or WebSocket telemetry channels.
+     - Mounted `<SectorMapWrapper />` on `app/watch/page.tsx` within the public live spectator watch feed.
+- **Reason**:
+  - Provides a high-energy, real-world visual representation of the active Canton game grid on the live spectator watch airwaves with 0 server-side rendering friction.
+- **Status**: **ACCEPTED**
