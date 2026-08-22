@@ -7,6 +7,7 @@ import { Crown, Medal, Radio, Trophy, Zap } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
+import PageHeader from '@/components/PageHeader';
 import { LeaderboardEntry, Player, QuestEvent } from '@/lib/types';
 import { cqImages, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
 
@@ -55,26 +56,25 @@ export default function LeaderboardPage() {
       <CinematicNav eventHref={eventHref} />
 
       <main className="cq-page-main">
-        <section className="cq-page-hero cq-page-hero-split">
-          <div>
-            <span className="cq-kicker">LIVE STANDINGS</span>
-            <h1>CLIMB THE BOARD.</h1>
-            <p>
-              Complete quests to earn XP. The more proof you verify, the higher you rank.
-            </p>
-            <div className="cq-page-actions">
-              <Link href={eventHref} className="cq-gold-button">
-                START QUEST
-                <Zap size={17} aria-hidden="true" />
-              </Link>
-              <Link href="/quests" className="cq-dark-button">
-                BROWSE QUESTS
-              </Link>
-            </div>
-          </div>
-          <div className="cq-page-hero-art">
-            <Image src={cqImages.footballClose} alt="Competitive Canton sculpture at sunset" fill priority sizes="(max-width: 900px) 100vw, 44vw" />
-          </div>
+        <section className="cq-page-section" style={{ paddingBottom: '0' }}>
+          <PageHeader
+            eyebrow="LIVE STANDINGS"
+            title="CITY LEADERBOARD"
+            body="Complete quests to earn XP. Every verified proof submission climbs your rank."
+            accent="cyan"
+            action={
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <Link href={eventHref} className="cq-gold-button cq-btn-sm">
+                  START QUEST
+                  <Zap size={14} aria-hidden="true" />
+                </Link>
+                <Link href="/quests" className="cq-dark-button cq-btn-sm">
+                  BROWSE QUESTS
+                </Link>
+              </div>
+            }
+            divider
+          />
         </section>
 
         <section className="cq-scoreboard-overview">

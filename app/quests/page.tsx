@@ -18,6 +18,7 @@ import {
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
+import PageHeader from '@/components/PageHeader';
 import PlayerIdentityBar from '@/components/PlayerIdentityBar';
 import { Player, PublicQuestView, QuestCategory, QuestEvent, StartingPath } from '@/lib/types';
 import {
@@ -177,44 +178,48 @@ export default function QuestsPage() {
         </section>
 
         <section className="cq-page-section">
-          {/* Starting District Filter Tabs */}
-          <div className="mb-6">
-            <div className="text-xs font-mono font-bold text-stone-400 uppercase tracking-wider mb-2">
-              Filter By District / Starting Path:
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {/* Page Header + District Path Chips */}
+          <PageHeader
+            eyebrow="MISSION SYSTEM"
+            title="MISSION BOARD"
+            body="Filter by starting district, then by mission type. Your path guides where to begin — every quest in Canton is always accessible."
+            accent="gold"
+            divider
+          />
+
+          {/* Starting District Path Chips */}
+          <div style={{ marginTop: '1.25rem', marginBottom: '1.5rem' }}>
+            <div role="group" aria-label="Filter by starting district" className="cq-path-chips">
               {pathFilters.map((p) => {
                 const Icon = p.icon;
                 const isActive = activePathFilter === p.value;
+                const chipClass = p.value === 'all' ? 'is-all'
+                  : p.value === 'family' ? 'is-family'
+                  : p.value === 'challenge' ? 'is-challenge'
+                  : 'is-secret';
                 return (
                   <button
                     key={p.value}
                     type="button"
                     onClick={() => setActivePathFilter(p.value)}
-                    className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
-                      isActive
-                        ? 'bg-stone-900 border-2 font-bold shadow-lg scale-[1.02]'
-                        : 'bg-stone-950/60 border-stone-800 hover:border-stone-700 text-stone-400'
-                    }`}
-                    style={{ borderColor: isActive ? p.color : undefined }}
+                    aria-pressed={isActive}
+                    className={`cq-path-chip ${chipClass}${isActive ? ' is-active' : ''}`}
                   >
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="text-xs font-mono text-white font-bold">{p.label}</span>
-                      <Icon size={14} style={{ color: p.color }} />
-                    </div>
-                    <span className="text-[10px] text-stone-400 font-body truncate">{p.desc}</span>
+                    <Icon size={13} aria-hidden="true" />
+                    {p.label}
                   </button>
                 );
               })}
             </div>
+            {activePathFilter !== 'all' && (
+              <p style={{ marginTop: '0.5rem', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                {pathFilters.find(p => p.value === activePathFilter)?.desc}
+              </p>
+            )}
           </div>
 
           {/* Mission Type Category Filters */}
           <div className="cq-section-heading">
-            <div>
-              <span className="cq-kicker">MISSION BOARD</span>
-              <h2>ALL ACTIVE MISSIONS</h2>
-            </div>
             <div className="cq-filter-label">
               <Filter size={16} aria-hidden="true" />
               {isLoadingQuests ? 'Scanning...' : `${filteredQuests.length} missions`}
