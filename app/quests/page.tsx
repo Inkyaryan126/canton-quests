@@ -151,12 +151,12 @@ export default function QuestsPage() {
         </section>
 
         {/* Identity & Starting Path Bar */}
-        <section className="max-w-6xl mx-auto px-4 mb-4">
+        <section className="cq-page-section" style={{ paddingTop: '0.75rem', paddingBottom: '0' }}>
           <PlayerIdentityBar onPlayerChanged={setCurrentPlayer} />
         </section>
 
         {/* Path Guidance Alert */}
-        <section className="max-w-6xl mx-auto px-4 mb-6">
+        <section className="cq-page-section" style={{ paddingTop: '0', paddingBottom: '0.75rem' }}>
           <div className="p-4 rounded-2xl bg-stone-900/80 border border-stone-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5">
               <Sparkles size={18} className="text-amber-400 shrink-0" />
@@ -289,7 +289,7 @@ export default function QuestsPage() {
                       />
                       <span className={`cq-rarity ${rarityClassName[rarity] || ''}`}>{rarity}</span>
                       {isRecommended && (
-                        <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-amber-500 text-black font-mono font-extrabold text-[10px] uppercase tracking-wider shadow-lg">
+                        <span className="cq-quest-recommended-badge">
                           ★ Recommended For You
                         </span>
                       )}

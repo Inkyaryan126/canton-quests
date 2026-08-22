@@ -282,7 +282,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080b10] text-stone-100 flex flex-col font-body antialiased">
+    <div className="cq-home-shell">
       <CinematicNav eventHref="/events/canton-weekend-1" />
       <main className="cq-command-shell">
         <div className="cq-command-hero">
@@ -290,7 +290,7 @@ export default function ProfilePage() {
             <p className="cq-command-eyebrow">Authenticated Player Command Center</p>
             <h1>{data?.player.displayName || 'Canton Agent'}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="cq-command-actions">
             <Link href="/quests" className="cq-command-primary-link">
               <Compass size={18} />
               <span>All Quests</span>
@@ -298,7 +298,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={handleLogout}
-              className="px-3 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-300 hover:text-red-400 font-mono text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
+              className="cq-command-logout-btn"
               title="Explicit Log Out"
             >
               <LogOut size={15} />

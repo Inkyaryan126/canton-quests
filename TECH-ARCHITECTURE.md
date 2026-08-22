@@ -15,7 +15,7 @@ Canton Quests requires a lightweight, highly responsive, mobile-first Progressiv
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        CLIENT / FRONTEND (PWA)                         │
-│   Next.js 14+ (App Router) • React 18+ • TypeScript • Tailwind CSS    │
+│   Next.js 14+ (App Router) • React 18+ • TypeScript • Custom CSS (.cq-) + Tailwind v4 Utilities │
 │   Mapbox GL / Leaflet • HTML5 Camera API • Geolocation API • Workbox   │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ HTTPS / WebSockets / Server Actions
@@ -31,6 +31,7 @@ Canton Quests requires a lightweight, highly responsive, mobile-first Progressiv
 | :--- | :--- | :--- | :--- |
 | **Framework** | **[DECISION]** | **Next.js 14+ (App Router)** | Full-stack React framework with SSR, Edge API routes, PWA support, and Vercel optimization. |
 | **Language** | **[DECISION]** | **TypeScript 5.x** | End-to-end type safety across backend schemas, client state, and API payload definitions. |
+| **Styling** | **[DECISION]** | **Custom CSS / CQ System + Tailwind v4 Utilities** | Primary design system is scoped `.cq-*` classes in `app/globals.css`. Tailwind CSS v4 utilities (`@tailwindcss/postcss`) are installed for layout/spacing helpers only — no Preflight reset, `.cq-*` classes always win via CSS layer priority. |
 | **Database** | **[DECISION]** | **Supabase (PostgreSQL)** | Enterprise relational DB with built-in PostGIS location extension, RLS policies, and real-time triggers. |
 | **Auth** | **[DECISION]** | **Supabase Auth** | Frictionless passwordless auth via SMS OTP, Magic Link, and OAuth (Google/Apple). |
 | **Storage** | **[DECISION]** | **Supabase Storage** | S3-backed CDN storage for player proof photos, video submissions, and avatar assets. |
