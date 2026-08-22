@@ -261,7 +261,7 @@ function LoginContent() {
               className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white placeholder-stone-600 focus:outline-none focus:border-amber-400 font-mono text-sm"
             />
             <p className="text-[11px] text-stone-400 mt-1 font-mono">
-              We'll send a secure reset link to your inbox.
+              We&apos;ll send a secure reset link to your inbox.
             </p>
           </div>
 
