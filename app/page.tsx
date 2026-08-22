@@ -166,47 +166,8 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* SHORT HOW IT WORKS (PICK, GO, PROVE, SCORE) & THREE DOORS PATH SELECTOR */}
-        <section className="cq-section cq-pillars-section" aria-labelledby="how-it-works-pillars-heading">
-          <div className="cq-section-shell space-y-12">
-            <div className="text-center max-w-2xl mx-auto mb-4">
-              <span className="cq-kicker">GAMEPLAY LOOP</span>
-              <h2 id="how-it-works-pillars-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-                Four Steps to Conquer Canton
-              </h2>
-            </div>
-
-            <div className="cq-pillars">
-              {featureBlocks.map(({ title, text, Icon }) => (
-                <article className="cq-pillar-card" key={title}>
-                  <span className="cq-pillar-icon">
-                    <Icon size={28} aria-hidden="true" />
-                  </span>
-                  <h2>{title}</h2>
-                  <p>{text}</p>
-                </article>
-              ))}
-            </div>
-
-            {/* CHOOSE YOUR STARTING PATH */}
-            <ThreePathSelector
-              currentPath={currentPlayer?.selectedStartingPath || null}
-              onSelectPath={(path) => {
-                if (currentPlayer) {
-                  const updated = { ...currentPlayer, selectedStartingPath: path };
-                  setCurrentPlayerState(updated);
-                  if (typeof window !== 'undefined') {
-                    window.localStorage.setItem('canton_quests_current_player', JSON.stringify(updated));
-                  }
-                }
-              }}
-              eventSlug={activeEvent?.slug || 'canton-weekend-1'}
-            />
-          </div>
-        </section>
-
         {/* PROMOTIONAL BRIEFING TRANSMISSION & VIDEO PLAYER */}
-        <section className="cq-section bg-stone-950/70 border-y border-stone-800/80 py-16" aria-labelledby="briefing-section-heading">
+        <section className="cq-section bg-stone-950/70 border-b border-stone-800/80 py-16" aria-labelledby="briefing-section-heading">
           <div className="cq-section-shell">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-5 space-y-4 text-left">
@@ -286,6 +247,45 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* SHORT HOW IT WORKS (PICK, GO, PROVE, SCORE) & THREE DOORS PATH SELECTOR */}
+        <section className="cq-section cq-pillars-section" aria-labelledby="how-it-works-pillars-heading">
+          <div className="cq-section-shell space-y-12">
+            <div className="text-center max-w-2xl mx-auto mb-4">
+              <span className="cq-kicker">GAMEPLAY LOOP</span>
+              <h2 id="how-it-works-pillars-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                Four Steps to Conquer Canton
+              </h2>
+            </div>
+
+            <div className="cq-pillars">
+              {featureBlocks.map(({ title, text, Icon }) => (
+                <article className="cq-pillar-card" key={title}>
+                  <span className="cq-pillar-icon">
+                    <Icon size={28} aria-hidden="true" />
+                  </span>
+                  <h2>{title}</h2>
+                  <p>{text}</p>
+                </article>
+              ))}
+            </div>
+
+            {/* CHOOSE YOUR STARTING PATH */}
+            <ThreePathSelector
+              currentPath={currentPlayer?.selectedStartingPath || null}
+              onSelectPath={(path) => {
+                if (currentPlayer) {
+                  const updated = { ...currentPlayer, selectedStartingPath: path };
+                  setCurrentPlayerState(updated);
+                  if (typeof window !== 'undefined') {
+                    window.localStorage.setItem('canton_quests_current_player', JSON.stringify(updated));
+                  }
+                }
+              }}
+              eventSlug={activeEvent?.slug || 'canton-weekend-1'}
+            />
           </div>
         </section>
 
