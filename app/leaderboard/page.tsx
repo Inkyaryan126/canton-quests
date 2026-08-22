@@ -79,7 +79,7 @@ export default function LeaderboardPage() {
 
         <section className="cq-scoreboard-overview">
           <div>
-            <span className="cq-kicker">CURRENT QUEST</span>
+            <span className="cq-kicker">ACTIVE EVENT</span>
             <h2>{activeEvent?.title || 'Canton Quest Weekend'}</h2>
             <p>{activeEvent ? formatEventWindow(activeEvent) : 'Quest dates loading'} · Downtown Canton</p>
           </div>
@@ -145,7 +145,6 @@ export default function LeaderboardPage() {
             <section className="cq-page-section cq-board-section">
               <div className="cq-section-heading">
                 <div>
-                  <span className="cq-kicker">INDIVIDUAL BOARD</span>
                   <h2>AGENT RANKINGS</h2>
                 </div>
                 {currentPlayer && <div className="cq-filter-label">Current: {currentPlayer.displayName}</div>}

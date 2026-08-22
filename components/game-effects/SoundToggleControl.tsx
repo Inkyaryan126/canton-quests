@@ -56,19 +56,15 @@ export default function SoundToggleControl({
     <button
       type="button"
       onClick={handleToggle}
-      className={`rounded-xl border transition-all font-mono flex items-center gap-1.5 cursor-pointer select-none ${
-        compact ? 'p-1.5 text-xs' : 'p-2 text-xs'
-      } ${
-        isEnabled
-          ? 'bg-stone-900/90 border-amber-500/50 text-amber-400 hover:bg-stone-800 hover:border-amber-400'
-          : 'bg-stone-950/80 border-stone-800 text-stone-500 hover:bg-stone-900 hover:text-stone-400'
+      className={`cq-sound-toggle-btn ${compact ? 'is-compact' : ''} ${
+        isEnabled ? 'is-enabled' : 'is-muted'
       } ${className}`}
       aria-label={isEnabled ? 'Mute Canton Quests sound effects' : 'Unmute Canton Quests sound effects'}
       title={isEnabled ? 'Sound Effects Active (Click to mute)' : 'Sound Effects Muted (Click to enable)'}
     >
       {isEnabled ? <Volume2 size={compact ? 14 : 16} /> : <VolumeX size={compact ? 14 : 16} />}
       {showLabel && (
-        <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider">
+        <span className="cq-sound-toggle-label">
           {isEnabled ? 'SOUND ON' : 'SOUND OFF'}
         </span>
       )}

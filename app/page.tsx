@@ -371,7 +371,7 @@ export default function HomePage() {
                 <div className="lg:col-span-5 p-6 rounded-2xl bg-stone-900/90 border border-stone-800 text-xs font-mono space-y-3">
                   <div className="flex items-center gap-2 text-amber-300 font-bold uppercase text-[11px]">
                     <HelpCircle size={15} />
-                    <span>WHAT IS XP? (FOR NEW PLAYERS)</span>
+                    <span>YOUR XP SCORE</span>
                   </div>
                   <p className="text-stone-300 leading-relaxed">
                     <strong>XP means Experience Points.</strong> You earn XP when verified quests are completed. XP is your score in Canton Quests. The more XP you earn, the higher you climb on the citywide leaderboard.

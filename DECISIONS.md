@@ -922,4 +922,21 @@ Each entry follows the standard ADR structure:
   - Unifies brand identity under the official Canton Quests domain while maintaining seamless authentication, email verification, persistent sessions, and multi-domain flexibility across `.com` and `.vip`.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-044] 2026-08-21: Permanent No-Tailwind Frontend Rule & Scoped Custom CSS Enforcement
+
+- **Decision**:
+  1. **Zero Tailwind Dependency & Utility Ban**:
+     - Canton Quests does not use Tailwind CSS. Tailwind utility classes (`w-*`, `h-*`, `flex`, `grid`, `absolute`, `relative`, `inset-*`, `rounded-*`, `object-*`, `shrink-*`, `text-*`, `bg-*`, `border-*`, `ring-*`, `p-*`, `m-*`, `gap-*`, etc.) are prohibited unless explicitly defined in `app/globals.css`.
+  2. **Scoped `.cq-*` Custom CSS Architecture**:
+     - All visual styling is defined in `app/globals.css` with structured `.cq-*` class naming conventions or component-scoped `<style jsx>`.
+  3. **Strict Image Sizing & Blowout Prevention**:
+     - All `<img>` elements must include explicit `width` and `height` attributes and CSS sizing constraints (`.cq-*-img`, `max-width`, `object-fit`) to prevent high-resolution natural asset blowout.
+  4. **Automated Static Safety Guardrails**:
+     - Created static unit tests (`tests/no-tailwind-frontend-safety.test.ts`) that scan frontend components for undeclared Tailwind-style utility classes and fail if invalid utilities are introduced.
+- **Reason**:
+  - The Next.js architecture does not compile Tailwind CSS. Writing Tailwind utility classes creates silent no-op strings in the DOM, causing images to render at full natural dimensions (e.g. 1254px avatars) and breaking layout containers in production.
+- **Status**: **ACCEPTED**
+
 

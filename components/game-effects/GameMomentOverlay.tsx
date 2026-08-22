@@ -56,41 +56,40 @@ export default function GameMomentOverlay() {
 
   return (
     <div
-      className="fixed inset-0 z-[9990] flex flex-col justify-between pointer-events-auto"
-      style={{ isolation: 'isolate' }}
+      className="cq-moment-overlay"
       onClick={handleDismiss}
     >
       {/* Top HUD Utility Bar */}
       <header
-        className="relative z-[9999] flex items-center justify-between p-4 sm:p-6 pointer-events-auto"
+        className="cq-moment-header"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2">
+        <div className="cq-header-actions">
           <SoundToggleControl soundEnabled={effectsState.soundEnabled} />
           {effectsState.queue.length > 0 && (
-            <span className="text-[10px] font-mono text-stone-400 bg-stone-900/90 border border-stone-800 px-2.5 py-1 rounded-lg">
+            <span className="cq-moment-queue-badge">
               +{effectsState.queue.length} QUEUED
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="cq-header-actions">
           {effectsState.queue.length > 0 && (
             <button
               type="button"
               onClick={handleSkipAll}
-              className="p-2 px-3 rounded-xl bg-stone-900/90 border border-stone-700 text-stone-300 hover:text-white text-xs font-mono flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+              className="cq-moment-skip-btn"
               aria-label="Skip all queued moments"
             >
               <FastForward size={14} />
-              <span className="hidden sm:inline text-[10px] uppercase font-bold">SKIP ALL</span>
+              <span className="cq-sound-toggle-label">SKIP ALL</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={handleDismiss}
-            className="p-2 rounded-xl bg-stone-900/90 border border-stone-700 text-stone-300 hover:text-white text-xs cursor-pointer transition-all active:scale-95"
+            className="cq-moment-close-btn"
             aria-label="Close current game moment"
           >
             <X size={18} />
@@ -99,7 +98,7 @@ export default function GameMomentOverlay() {
       </header>
 
       {/* Render Active Moment Content */}
-      <main className="relative z-[9995] flex-1 flex items-center justify-center">
+      <main className="cq-moment-main">
         {current.type === 'city-scan' && (
           <CityScanOverlay
             moment={current}
@@ -166,8 +165,8 @@ export default function GameMomentOverlay() {
       </main>
 
       {/* Bottom Hint */}
-      <footer className="relative z-[9999] p-3 text-center pointer-events-none select-none">
-        <span className="text-[10px] font-mono text-stone-500 uppercase tracking-widest bg-black/60 px-3 py-1 rounded-full border border-stone-900">
+      <footer className="cq-moment-footer-hint">
+        <span>
           TAP ANYWHERE OR PRESS ESC TO CONTINUE
         </span>
       </footer>

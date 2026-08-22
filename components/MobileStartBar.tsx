@@ -13,7 +13,7 @@ interface MobileStartBarProps {
 export default function MobileStartBar({
   href,
   label = 'Start Quest',
-  eyebrow = 'Ready in 60 seconds',
+  eyebrow = 'Free to play · No app download',
 }: MobileStartBarProps) {
   return (
     <div className="cq-mobile-start" aria-label="Quick start">

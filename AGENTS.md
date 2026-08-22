@@ -26,3 +26,16 @@
 18. **Protect Core Code & Docs**: Do not delete large systems, configuration files, or documentation without understanding their complete purpose and dependency graph.
 19. **Boring Infrastructure, Creative Experience**: Build rock-solid, predictable, standard infrastructure (auth, DB, routing) where reliability matters, and unleash high creativity where player experience, story, and fun matter.
 20. **FUN Is a Hard Requirement**: The fun, mystery, and excitement of Canton Quests is a core product requirement, not an optional visual decoration. If a feature feels boring or bureaucratic, refine it.
+21. **CRITICAL FRONTEND RULE — CANTON QUESTS DOES NOT USE TAILWIND**:
+    Never use Tailwind utility classes such as:
+    `w-*`, `h-*`, `flex`, `grid`, `absolute`, `relative`, `inset-*`, `rounded-*`, `object-*`, `shrink-*`, `text-*`, `bg-*`, `border-*`, `ring-*`, `p-*`, `m-*`, `gap-*`
+    unless the exact class is already defined in the project's compiled/custom CSS.
+
+    Canton Quests uses custom CSS in `app/globals.css` and scoped CQ-prefixed classes (`.cq-*`).
+
+    For new visual elements:
+    - Create explicit CQ-prefixed CSS classes
+    - Use real CSS properties in `app/globals.css`
+    - Provide explicit `width`/`height` attributes and min/max constraints on images when dimensions matter
+    - Do not assume Tailwind exists
+    - Do not introduce Tailwind without an explicit project-wide migration decision

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { AlertOctagon, AlertTriangle, ArrowRight, BookOpen, Map, Moon, Radar, RefreshCw, Shield, Trophy, Zap } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import Header from '@/components/Header';
+import CinematicNav from '@/components/CinematicNav';
 import AudienceVoteCard from '@/components/spectator/AudienceVoteCard';
 import HostBroadcastCard from '@/components/spectator/HostBroadcastCard';
 import PublicGameFeed from '@/components/spectator/PublicGameFeed';
@@ -45,6 +46,7 @@ export default function WatchPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [isPollingActive, setIsPollingActive] = useState<boolean>(true);
+  const [eventHref, setEventHref] = useState<string>('/events');
 
   // Restore local vote history & register session on mount
   useEffect(() => {
@@ -147,6 +149,7 @@ export default function WatchPage() {
         if (mainEventData?.events && mainEventData.events.length > 0) {
           const eventItem = mainEventData.events[0];
           if (eventItem.title) setActiveEventTitle(eventItem.title);
+          if (eventItem.slug) setEventHref(`/events/${eventItem.slug}`);
           const status = eventItem.status;
           if (status === 'draft') setParentEventStatus('upcoming');
           else if (status === 'completed' || status === 'archived') setParentEventStatus('ended');
@@ -275,12 +278,13 @@ export default function WatchPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col font-mono text-xs">
-        <Header />
+        <CinematicNav eventHref={eventHref} />
         <main className="flex-1 max-w-4xl w-full mx-auto p-6 space-y-6 flex flex-col items-center justify-center min-h-[65vh]">
           <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
           <div className="text-center space-y-1">
-            <h2 className="text-sm font-extrabold text-white font-mono uppercase tracking-wider">
-              📡 CONNECTING TO DOWNTOWN CANTON WATCH AIRWAVES...
+            <h2 className="text-sm font-extrabold text-white font-mono uppercase tracking-wider flex items-center gap-2">
+              <Radar size={16} className="text-amber-400 animate-spin" aria-hidden="true" />
+              CONNECTING TO LIVE AIRWAVES...
             </h2>
             <p className="text-xs text-gray-400">Synchronizing live feed, broadcasts, and audience voting channels</p>
           </div>
@@ -290,17 +294,17 @@ export default function WatchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col font-mono text-xs pb-20">
-      <Header />
+    <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col font-mono text-xs pb-20" style={{ paddingTop: '68px' }}>
+      <CinematicNav eventHref={eventHref} />
 
       {/* Watch Mode Banner Header */}
-      <div className="bg-[#121824] border-b border-gray-800 py-3 px-4 sticky top-[61px] z-30 backdrop-blur-md">
+      <div className="bg-[#121824] border-b border-gray-800 py-3 px-4 sticky top-[68px] z-40 backdrop-blur-md">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
             <div>
               <span className="font-extrabold text-sm text-white tracking-wider font-display uppercase block">
-                CANTON QUESTS • SPECTATOR WATCH
+                CANTON QUESTS LIVE
               </span>
               <span className="text-[10px] text-cyan-400 font-mono">
                 Live Citywide Game Show Airwaves
@@ -310,8 +314,9 @@ export default function WatchPage() {
 
           <div className="flex items-center gap-2 flex-wrap">
             {networkError ? (
-              <span className="px-2.5 py-1 bg-red-950/80 text-red-300 border border-red-500/50 rounded-lg text-[10px] font-mono">
-                ⚠️ RECONNECTING...
+              <span className="px-2.5 py-1 bg-red-950/80 text-red-300 border border-red-500/50 rounded-lg text-[10px] font-mono flex items-center gap-1.5">
+                <AlertTriangle size={11} aria-hidden="true" />
+                RECONNECTING...
               </span>
             ) : (
               <span className="px-2.5 py-1 bg-emerald-950/80 text-emerald-300 border border-emerald-500/50 rounded-lg text-[10px] font-mono flex items-center gap-1.5">
@@ -321,21 +326,24 @@ export default function WatchPage() {
             )}
 
             {isMinorSession && (
-              <span className="px-2.5 py-1 bg-purple-950/80 text-purple-300 border border-purple-500/50 rounded-lg text-[10px] font-mono">
-                🛡️ MINOR PROTECTED
+              <span className="px-2.5 py-1 bg-purple-950/80 text-purple-300 border border-purple-500/50 rounded-lg text-[10px] font-mono flex items-center gap-1.5">
+                <Shield size={11} aria-hidden="true" />
+                SAFE MODE
               </span>
             )}
 
             {convertedPlayerId ? (
-              <span className="px-2.5 py-1 bg-emerald-950/80 text-emerald-300 border border-emerald-500/50 rounded-lg text-[10px] font-mono font-bold">
-                ⚡ AGENT CONVERTED ({convertedPlayerId})
+              <span className="px-2.5 py-1 bg-emerald-950/80 text-emerald-300 border border-emerald-500/50 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1.5">
+                <Zap size={11} aria-hidden="true" />
+                AGENT LINKED
               </span>
             ) : (
               <button
                 onClick={() => setIsEnterGameModalOpen(true)}
                 className="btn btn-primary text-xs py-1.5 px-3 font-mono font-bold flex items-center gap-1 text-amber-400 bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20"
               >
-                🎮 ENTER THE GAME →
+                ENTER THE GAME
+                <ArrowRight size={13} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -355,7 +363,7 @@ export default function WatchPage() {
               className="object-cover opacity-20 pointer-events-none"
             />
             <div className="relative z-10 space-y-4">
-              <div className="text-4xl">🌙</div>
+              <Moon size={40} className="text-amber-400/60 mx-auto" aria-hidden="true" />
               <span className="inline-block px-3 py-1 bg-amber-500/15 border border-amber-500/30 rounded-full text-xs font-mono text-amber-300 font-bold uppercase tracking-wider">
                 AIRWAVES STANDING BY
               </span>
@@ -367,13 +375,17 @@ export default function WatchPage() {
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <Link href="/quests" className="cq-gold-button text-xs py-2.5 px-4 font-mono font-bold inline-flex items-center gap-1.5">
-                  🗺️ EXPLORE MISSIONS →
+                  <Map size={13} aria-hidden="true" />
+                  EXPLORE MISSIONS
+                  <ArrowRight size={13} aria-hidden="true" />
                 </Link>
-                <Link href="/how-it-works" className="cq-dark-button text-xs py-2.5 px-4 font-mono">
-                  📖 HOW IT WORKS
+                <Link href="/how-it-works" className="cq-dark-button text-xs py-2.5 px-4 font-mono inline-flex items-center gap-1.5">
+                  <BookOpen size={13} aria-hidden="true" />
+                  HOW IT WORKS
                 </Link>
-                <Link href="/leaderboard" className="cq-dark-button text-xs py-2.5 px-4 font-mono">
-                  🏆 LEADERBOARD
+                <Link href="/leaderboard" className="cq-dark-button text-xs py-2.5 px-4 font-mono inline-flex items-center gap-1.5">
+                  <Trophy size={13} aria-hidden="true" />
+                  LEADERBOARD
                 </Link>
               </div>
             </div>
@@ -407,8 +419,9 @@ export default function WatchPage() {
                 <Link href="/" className="cq-gold-button text-xs py-2.5 px-4 font-mono font-bold">
                   RETURN TO CITY HUB →
                 </Link>
-                <Link href="/how-it-works" className="cq-dark-button text-xs py-2.5 px-4 font-mono">
-                  📖 HOW IT WORKS
+                <Link href="/how-it-works" className="cq-dark-button text-xs py-2.5 px-4 font-mono inline-flex items-center gap-1.5">
+                  <BookOpen size={13} aria-hidden="true" />
+                  HOW IT WORKS
                 </Link>
               </div>
             </div>
@@ -418,8 +431,9 @@ export default function WatchPage() {
         {parentEventStatus === 'ended' && (
           <div className="p-5 bg-purple-950/40 border-2 border-purple-500/50 rounded-2xl space-y-2">
             <div className="flex items-center justify-between">
-              <span className="badge badge-medium bg-purple-500/20 text-purple-300 font-mono font-bold uppercase">
-                🏆 EVENT CONCLUDED
+              <span className="badge badge-medium bg-purple-500/20 text-purple-300 font-mono font-bold uppercase inline-flex items-center gap-1.5">
+                <Trophy size={13} aria-hidden="true" />
+                EVENT CONCLUDED
               </span>
               <span className="text-xs text-gray-400 font-mono font-bold">FINAL RESULTS ARCHIVED</span>
             </div>
@@ -434,7 +448,8 @@ export default function WatchPage() {
         {isSystemDisabled && (
           <div className="p-4 bg-red-950/90 border-2 border-red-500 rounded-2xl text-red-200 space-y-1 animate-pulse shadow-lg shadow-red-950/50">
             <div className="flex items-center gap-2 font-bold text-sm">
-              <span>⛔ GAME MASTER EMERGENCY SYSTEM FREEZE</span>
+              <AlertOctagon size={16} aria-hidden="true" />
+              <span>SYSTEM HOLD — GAME MASTER FREEZE</span>
             </div>
             <p className="text-xs text-red-300 leading-relaxed">
               {settings?.disabledReason || 'Spectator voting and live commands have been temporarily paused by the Game Master.'}
@@ -448,9 +463,10 @@ export default function WatchPage() {
             <span>{networkError}</span>
             <button
               onClick={fetchData}
-              className="btn btn-secondary text-[11px] py-1 px-3"
+              className="btn btn-secondary text-[11px] py-1 px-3 inline-flex items-center gap-1.5"
             >
-              🔄 Retry Now
+              <RefreshCw size={11} aria-hidden="true" />
+              Retry
             </button>
           </div>
         )}
@@ -458,9 +474,13 @@ export default function WatchPage() {
         {/* Returning Spectator Session Alert */}
         {convertedPlayerId && (
           <div className="p-3.5 bg-emerald-950/50 border border-emerald-500/40 rounded-xl text-emerald-300 flex items-center justify-between gap-3 font-mono">
-            <span>⚡ Welcome back! Your spectator session is linked to Agent Profile ({convertedPlayerId}).</span>
-            <Link href="/quests" className="btn btn-primary text-[11px] py-1 px-3 font-bold">
-              🚀 PLAY NOW →
+            <span className="flex items-center gap-1.5">
+              <Zap size={12} className="text-emerald-400 shrink-0" aria-hidden="true" />
+              Back in the field. Your agent profile is linked.
+            </span>
+            <Link href="/quests" className="btn btn-primary text-[11px] py-1 px-3 font-bold inline-flex items-center gap-1.5">
+              PLAY NOW
+              <ArrowRight size={11} aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -506,7 +526,7 @@ export default function WatchPage() {
             <>
               <div>
                 <span className="font-extrabold text-white text-xs block">
-                  AGENT PROFILE LINKED ({convertedPlayerId})
+                  AGENT PROFILE LINKED
                 </span>
                 <span className="text-[10px] text-emerald-400 font-mono hidden sm:block">
                   Your spectator session is converted. Ready to complete field quests in Canton.
@@ -517,14 +537,15 @@ export default function WatchPage() {
                 href="/quests"
                 className="btn btn-primary text-xs py-2 px-4 font-mono font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform whitespace-nowrap"
               >
-                🎮 RETURN TO GAME →
+                RETURN TO GAME
+                <ArrowRight size={13} aria-hidden="true" />
               </Link>
             </>
           ) : (
             <>
               <div>
                 <span className="font-extrabold text-white text-xs block">
-                  READY TO JOIN DOWNTOWN CANTON FIELD OPS?
+                  WANT TO PLAY? JOIN THE FIELD.
                 </span>
                 <span className="text-[10px] text-gray-400 font-mono hidden sm:block">
                   Convert your spectator session into an active agent profile in 1 tap.
@@ -535,7 +556,8 @@ export default function WatchPage() {
                 onClick={() => setIsEnterGameModalOpen(true)}
                 className="btn btn-primary text-xs py-2 px-4 font-mono font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform whitespace-nowrap"
               >
-                🚀 ENTER THE GAME NOW →
+                ENTER THE GAME
+                <ArrowRight size={13} aria-hidden="true" />
               </button>
             </>
           )}

@@ -64,46 +64,75 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[#0b0f17]/90 backdrop-blur-md px-4 py-3">
-      <div className="max-w-4xl mx-auto flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5 group text-decoration-none" aria-label="Canton Quests home">
+    <header className="cq-header-bar">
+      <div className="cq-header-inner">
+        <Link href="/" className="cq-header-logo-link" aria-label="Canton Quests home">
           <CantonQuestsLogo
             variant="mark"
             size={38}
             priority
-            className="rounded-lg shadow-md shadow-amber-500/20 group-hover:scale-105 transition-transform shrink-0"
+            className="cq-nav-logo-mark"
           />
           <div>
-            <span className="font-display font-extrabold text-lg text-white tracking-tight leading-none block">
-              CANTON <span className="text-amber-400">QUESTS</span>
+            <span className="cq-header-brand-title">
+              CANTON <span className="cq-gold-text">QUESTS</span>
             </span>
-            <span className="text-[10px] font-mono text-cyan-400 tracking-wider block uppercase">
+            <span className="cq-header-brand-subtitle">
               Field Operations • Canton, OH
             </span>
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">
-          <SoundToggleControl compact showLabel={false} />
+        <div className="cq-header-actions">
+          <SoundToggleControl compact showLabel={false} className="cq-nav-sound-toggle" />
           <Link
             href="/watch"
-            className="btn btn-primary text-xs px-3 py-1.5 min-h-[36px] font-mono font-bold flex items-center gap-1.5 text-amber-400 bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20"
+            className="cq-header-live-btn"
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="cq-header-live-dot" />
             📺 WATCH LIVE
           </Link>
           {player ? (
-            <div className="flex items-center gap-1.5">
+            <div className="cq-nav-user-cluster">
               <Link
                 href="/profile"
-                className="btn btn-secondary text-xs px-3 py-1.5 min-h-[36px] font-mono font-bold text-amber-300 hover:text-white border-amber-500/40"
+                className="cq-header-profile-btn"
               >
-                {player.avatarUrl || '⚡'} {player.displayName}
+                {player.avatarUrl && (
+                  player.avatarUrl.startsWith('/') ||
+                  player.avatarUrl.startsWith('http://') ||
+                  player.avatarUrl.startsWith('https://') ||
+                  player.avatarUrl.startsWith('data:image/') ||
+                  /\.(png|jpe?g|webp|svg|gif)($|\?)/i.test(player.avatarUrl)
+                ) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={player.avatarUrl.trim()}
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="cq-nav-avatar-img"
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      minWidth: '20px',
+                      minHeight: '20px',
+                      maxWidth: '20px',
+                      maxHeight: '20px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      flexShrink: 0,
+                    }}
+                  />
+                ) : (
+                  <span>{player.avatarUrl || '⚡'}</span>
+                )}
+                <span>{player.displayName}</span>
               </Link>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="btn btn-secondary text-xs px-2 py-1.5 min-h-[36px] font-mono text-stone-400 hover:text-red-400 cursor-pointer"
+                className="cq-header-logout-btn"
                 title="Log Out"
                 aria-label="Log Out"
               >
@@ -113,7 +142,7 @@ export default function Header() {
           ) : (
             <Link
               href="/login"
-              className="btn btn-secondary text-xs px-3 py-1.5 min-h-[36px] font-mono text-gray-300 hover:text-white"
+              className="cq-header-login-btn"
             >
               🔑 Log In
             </Link>

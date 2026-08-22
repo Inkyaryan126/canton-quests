@@ -131,10 +131,37 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
       {/* Player Bio Snippet */}
       <div className="flex items-center gap-3">
         <div
-          className="w-11 h-11 rounded-2xl bg-stone-900 border flex items-center justify-center text-2xl shrink-0 shadow-inner"
+          className="cq-player-bar-avatar"
           style={{ borderColor: player.themeColor || '#f59e0b' }}
         >
-          {player.avatarUrl || '⚡'}
+          {player.avatarUrl && (
+            player.avatarUrl.startsWith('/') ||
+            player.avatarUrl.startsWith('http://') ||
+            player.avatarUrl.startsWith('https://') ||
+            player.avatarUrl.startsWith('data:image/') ||
+            /\.(png|jpe?g|webp|svg|gif)($|\?)/i.test(player.avatarUrl)
+          ) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={player.avatarUrl.trim()}
+              alt=""
+              width={44}
+              height={44}
+              className="cq-player-bar-avatar-img"
+              style={{
+                width: '44px',
+                height: '44px',
+                minWidth: '44px',
+                minHeight: '44px',
+                maxWidth: '44px',
+                maxHeight: '44px',
+                objectFit: 'cover',
+                borderRadius: '11px',
+              }}
+            />
+          ) : (
+            <span>{player.avatarUrl || '⚡'}</span>
+          )}
         </div>
         <div>
           <div className="flex items-center gap-2 flex-wrap">

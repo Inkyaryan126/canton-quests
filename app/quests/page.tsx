@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowRight,
+  BookOpen,
   Compass,
   Filter,
   KeyRound,
@@ -18,7 +19,6 @@ import {
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
-import PageHeader from '@/components/PageHeader';
 import PlayerIdentityBar from '@/components/PlayerIdentityBar';
 import { Player, PublicQuestView, QuestCategory, QuestEvent, StartingPath } from '@/lib/types';
 import {
@@ -42,11 +42,11 @@ const categoryFilters: { label: string; value: QuestFilter }[] = [
   { label: 'Arts & Media', value: 'creative' },
   { label: 'Partner Stops', value: 'business_partner' },
   { label: 'Flash Drops', value: 'flash' },
-  { label: 'Hidden', value: 'secret' },
+  { label: 'Secret Intel', value: 'secret' },
 ];
 
 const pathFilters: { label: string; value: PathFilter; icon: any; color: string; desc: string }[] = [
-  { label: 'All City Quests', value: 'all', icon: Sparkles, color: '#f59e0b', desc: 'Complete citywide mission grid' },
+  { label: 'All City Quests', value: 'all', icon: Sparkles, color: '#f59e0b', desc: 'Browse the complete Canton city grid' },
   { label: 'Arts District', value: 'family', icon: Compass, color: '#f59e0b', desc: 'Downtown Arts & Centennial Plaza' },
   { label: 'Mother Goose Land', value: 'challenge', icon: Zap, color: '#ef4444', desc: 'Mother Goose Land & Skate Corridor' },
   { label: 'Monument Park', value: 'secret', icon: KeyRound, color: '#a855f7', desc: 'Monument Park & Historic Ciphers' },
@@ -102,18 +102,15 @@ export default function QuestsPage() {
     return quests
       .filter((quest) => quest.status === 'active')
       .filter((quest) => {
-        // 1. Path filter
         if (activePathFilter !== 'all') {
           if (quest.startingPath !== activePathFilter) return false;
         }
-        // 2. Category filter
         if (activeCategoryFilter === 'all') return true;
         if (activeCategoryFilter === 'flash') return quest.isFlash;
         if (activeCategoryFilter === 'secret') return !!quest.isSecret;
         return quest.category === activeCategoryFilter;
       })
       .sort((a, b) => {
-        // Prioritize quests on player's chosen starting path
         if (currentPlayer?.selectedStartingPath) {
           const aMatch = a.startingPath === currentPlayer.selectedStartingPath ? 1 : 0;
           const bMatch = b.startingPath === currentPlayer.selectedStartingPath ? 1 : 0;
@@ -133,62 +130,38 @@ export default function QuestsPage() {
             <span className="cq-kicker">CANTON MISSION GRID</span>
             <h1>LIVE QUEST BOARD</h1>
             <p>
-              Explore real Canton landmarks. Solve clues, verify check-ins, record video celebrations,
-              and earn XP on the official city leaderboard.
+              Real Canton landmarks. Real clues. Earn XP, verify your proof, and climb the citywide leaderboard.
             </p>
             <div className="cq-page-actions">
               <Link href={eventHref} className="cq-gold-button">
                 START PLAYING
                 <ArrowRight size={17} aria-hidden="true" />
               </Link>
-              <Link href="/profile" className="cq-dark-button">
-                MY PROFILE & ACHIEVEMENTS
+              <Link href="/how-it-works" className="cq-dark-button">
+                <BookOpen size={15} aria-hidden="true" />
+                HOW IT WORKS
               </Link>
             </div>
           </div>
-          <div className="cq-page-hero-art">
-            <Image src={cqImages.mapHud} alt="Canton quest map interface" fill priority sizes="(max-width: 900px) 100vw, 44vw" />
-          </div>
+          <div
+            className="cq-page-hero-art"
+            role="img"
+            aria-label="Canton quest map interface"
+            style={{ backgroundImage: `url('${cqImages.mapHud}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          />
         </section>
 
         {/* Identity & Starting Path Bar */}
-        <section className="cq-page-section" style={{ paddingTop: '0.75rem', paddingBottom: '0' }}>
+        <section className="cq-page-section" style={{ paddingTop: '0.75rem', paddingBottom: '0.5rem' }}>
           <PlayerIdentityBar onPlayerChanged={setCurrentPlayer} />
         </section>
 
-        {/* Path Guidance Alert */}
-        <section className="cq-page-section" style={{ paddingTop: '0', paddingBottom: '0.75rem' }}>
-          <div className="p-4 rounded-2xl bg-stone-900/80 border border-stone-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5">
-              <Sparkles size={18} className="text-amber-400 shrink-0" />
-              <div>
-                <strong className="text-white block font-mono">Three Starting Districts • Open City Grid</strong>
-                <span className="text-stone-300 font-body">
-                  Your starting path guides where to begin, but never restricts you. You can solve any quest in any order across Canton!
-                </span>
-              </div>
-            </div>
-            <Link
-              href="/start/family"
-              className="text-amber-400 hover:text-amber-300 font-mono underline underline-offset-2 shrink-0"
-            >
-              Explore Starting Paths →
-            </Link>
-          </div>
-        </section>
-
         <section className="cq-page-section">
-          {/* Page Header + District Path Chips */}
-          <PageHeader
-            eyebrow="MISSION SYSTEM"
-            title="MISSION BOARD"
-            body="Filter by starting district, then by mission type. Your path guides where to begin — every quest in Canton is always accessible."
-            accent="gold"
-            divider
-          />
-
-          {/* Starting District Path Chips */}
-          <div style={{ marginTop: '1.25rem', marginBottom: '1.5rem' }}>
+          {/* District Path Chips — filter by starting area */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: '0.5rem' }}>
+              Starting District
+            </p>
             <div role="group" aria-label="Filter by starting district" className="cq-path-chips">
               {pathFilters.map((p) => {
                 const Icon = p.icon;
@@ -212,16 +185,21 @@ export default function QuestsPage() {
               })}
             </div>
             {activePathFilter !== 'all' && (
-              <p style={{ marginTop: '0.5rem', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                {pathFilters.find(p => p.value === activePathFilter)?.desc}
+              <p style={{ marginTop: '0.45rem', fontFamily: 'var(--font-mono)', fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                {pathFilters.find(p => p.value === activePathFilter)?.desc} · all other quests still available
               </p>
             )}
           </div>
 
-          {/* Mission Type Category Filters */}
-          <div className="cq-section-heading">
+          {/* Mission Type + Count */}
+          <div className="cq-section-heading" style={{ marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.09em', margin: 0 }}>
+                Mission Type
+              </p>
+            </div>
             <div className="cq-filter-label">
-              <Filter size={16} aria-hidden="true" />
+              <Filter size={15} aria-hidden="true" />
               {isLoadingQuests ? 'Scanning...' : `${filteredQuests.length} missions`}
             </div>
           </div>
@@ -242,7 +220,7 @@ export default function QuestsPage() {
           {isLoadingQuests ? (
             <div className="p-12 text-center rounded-2xl bg-stone-950/60 border border-stone-800 text-stone-400 font-mono text-xs animate-pulse my-6 flex flex-col items-center justify-center gap-3">
               <Radar size={24} className="text-amber-400 animate-spin" />
-              <span>SYNCHRONIZING CANTON MISSION GRID & ACTIVE SATELLITE TARGETS...</span>
+              <span>SCANNING CANTON MISSION GRID...</span>
             </div>
           ) : quests.length === 0 ? (
             <div className="relative overflow-hidden p-10 sm:p-14 rounded-3xl bg-stone-950 border border-stone-800 text-center space-y-4 max-w-3xl mx-auto my-8 shadow-2xl">
@@ -262,12 +240,15 @@ export default function QuestsPage() {
                   Field Missions Standing By
                 </h2>
                 <p className="text-sm text-stone-300 font-body max-w-lg mx-auto leading-relaxed">
-                  Canton Quests targets unlock on September 11, 2026. Choose your starting path now to prepare your callsign for kickoff.
+                  Canton Quests targets unlock on September 11, 2026. Choose your starting path now — your callsign will be ready at kickoff.
                 </p>
-                <div className="pt-3">
+                <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
                   <Link href="/#choose-path" className="cq-gold-button inline-flex">
                     CHOOSE STARTING PATH
                     <ArrowRight size={16} />
+                  </Link>
+                  <Link href="/how-it-works" className="cq-dark-button inline-flex">
+                    HOW IT WORKS
                   </Link>
                 </div>
               </div>
@@ -295,7 +276,7 @@ export default function QuestsPage() {
                       <span className={`cq-rarity ${rarityClassName[rarity] || ''}`}>{rarity}</span>
                       {isRecommended && (
                         <span className="cq-quest-recommended-badge">
-                          ★ Recommended For You
+                          ★ Your District
                         </span>
                       )}
                     </div>
@@ -327,8 +308,8 @@ export default function QuestsPage() {
           {quests.length > 0 && filteredQuests.length === 0 && (
             <div className="cq-empty-state">
               <Search size={24} aria-hidden="true" />
-              <h3>No missions matching this district & type filter.</h3>
-              <p>Switch district tabs or categories above to explore the rest of Canton.</p>
+              <h3>No missions match this filter combination.</h3>
+              <p>Try a different district or mission type above.</p>
             </div>
           )}
         </section>

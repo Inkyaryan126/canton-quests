@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, LogOut, User, Compass, Trophy } from 'lucide-react';
+import { ArrowRight, BookOpen, LogOut, Compass } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
 import { Player } from '@/lib/types';
@@ -75,7 +75,7 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
           <span className="cq-nav-brand-title">
             CANTON <span className="cq-gold-text">QUESTS</span>
           </span>
-          <span className="cq-nav-brand-subtitle">CITY ADVENTURE</span>
+          <span className="cq-nav-brand-subtitle">CANTON, OHIO</span>
         </div>
       </Link>
 
@@ -86,20 +86,19 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
           <Link href="/profile" className="cq-gold-text font-bold">
             COMMAND CENTER
           </Link>
-        ) : (
-          <Link href="/how-it-works">HOW IT WORKS</Link>
-        )}
+        ) : null}
+        <Link href="/how-it-works">HOW IT WORKS</Link>
       </div>
 
       <div className="cq-nav-actions">
-        <SoundToggleControl compact showLabel={false} className="hidden sm:flex" />
+        <SoundToggleControl compact showLabel={false} className="cq-nav-sound-toggle" />
         <Link href="/watch" className="cq-watch-link">
           <span aria-hidden="true" />
           WATCH LIVE
         </Link>
 
         {player ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="cq-nav-user-cluster">
             <Link
               href="/profile"
               className="cq-gold-button cq-nav-cta"
@@ -154,31 +153,19 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
             <button
               type="button"
               onClick={handleLogout}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                padding: '0.375rem 0.625rem',
-                borderRadius: '0.5rem',
-                backgroundColor: '#1c1917',
-                border: '1px solid #44403c',
-                color: '#a8a29e',
-                fontSize: '0.75rem',
-                fontFamily: 'var(--font-mono, monospace)',
-                cursor: 'pointer',
-              }}
+              className="cq-nav-logout-btn"
               title="Explicit Log Out"
               aria-label="Log Out"
             >
               <LogOut size={13} />
-              <span className="hidden sm:inline">LOG OUT</span>
+              <span className="cq-nav-logout-text">LOG OUT</span>
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="cq-nav-user-cluster">
             <Link
               href="/login"
-              className="px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-300 hover:text-white text-xs font-mono transition-colors"
+              className="cq-nav-login-btn"
             >
               LOG IN
             </Link>

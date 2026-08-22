@@ -135,7 +135,7 @@ function LoginContent() {
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs font-mono font-bold tracking-wider text-amber-400 uppercase">
-            {mode === 'login' ? 'PLAYER ACCESS // AUTHENTICATION' : 'PLAYER ACCESS // PASSWORD RECOVERY'}
+            {mode === 'login' ? 'PLAYER ACCESS' : 'PASSWORD RECOVERY'}
           </span>
         </div>
       </div>
@@ -147,7 +147,7 @@ function LoginContent() {
       <p className="text-xs sm:text-sm text-stone-300 font-body mb-5 leading-relaxed">
         {mode === 'login'
           ? 'Enter your email and password to access your Player Command Center.'
-          : 'Enter your email address to receive a secure, scanner-safe recovery link.'}
+          : 'Enter your email address to receive a secure reset link.'}
       </p>
 
       {errorMessage && (
@@ -261,7 +261,7 @@ function LoginContent() {
               className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white placeholder-stone-600 focus:outline-none focus:border-amber-400 font-mono text-sm"
             />
             <p className="text-[11px] text-stone-400 mt-1 font-mono">
-              We will send a scanner-safe password reset link to your email.
+              We'll send a secure reset link to your inbox.
             </p>
           </div>
 
@@ -302,10 +302,11 @@ function LoginContent() {
 
       {/* Footer link to Sign up */}
       <div className="mt-6 pt-4 border-t border-stone-800 flex items-center justify-between text-xs font-mono">
-        <span className="text-stone-400">New explorer?</span>
+        <span className="text-stone-400">First time here?</span>
         <Link href="/#choose-path" className="text-amber-400 hover:text-amber-300 underline font-bold flex items-center gap-1">
           <Compass size={13} />
-          <span>Pick Starting Path & Sign Up →</span>
+          <span>Create your agent profile</span>
+          <ArrowRight size={12} />
         </Link>
       </div>
     </div>

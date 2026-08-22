@@ -181,12 +181,15 @@ export default function SectorMap({
           interactive: false,
         }).addTo(map);
 
-        // 3. District label
-        L.marker([zone.lat, zone.lng], {
+        // 3. District label — anchored to the geographic north of the circle so
+        //    the label tracks with the circle boundary at every zoom level.
+        const latOffsetDeg = zone.radius / 111320; // meters → degrees latitude (≈ 1° per 111.32 km)
+        L.marker([zone.lat + latOffsetDeg, zone.lng], {
           icon: L.divIcon({
             className: 'quest-zone-label',
-            html: `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;color:${zone.color};text-shadow:0 0 6px ${zone.color};white-space:nowrap;transform:translate(-50%,-${zone.radius / 3.2}px);pointer-events:none;">${zone.name.toUpperCase()}</div>`,
+            html: `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;color:${zone.color};text-shadow:0 0 6px ${zone.color};white-space:nowrap;transform:translate(-50%,-100%);pointer-events:none;padding-bottom:4px;">${zone.name.toUpperCase()}</div>`,
             iconSize: [0, 0],
+            iconAnchor: [0, 0],
           }),
           interactive: false,
         }).addTo(map);
