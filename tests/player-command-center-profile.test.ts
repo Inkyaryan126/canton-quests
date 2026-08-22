@@ -268,4 +268,21 @@ describe('Player Command Center profile rules', () => {
     expect(cssSource).toContain('.cq-callsign-xs');
     expect(cssSource).not.toContain('overflow-wrap: anywhere');
   });
+
+  it('safely renders nav avatar as an image without leaking raw file paths into text', () => {
+    const navSource = fs.readFileSync(path.join(process.cwd(), 'components/CinematicNav.tsx'), 'utf8');
+
+    expect(navSource).toContain('<img');
+    expect(navSource).not.toContain('<span>{player.avatarUrl ||');
+    expect(navSource).toContain('player.avatarUrl.startsWith');
+  });
+
+  it('guarantees profile heading sits below fixed nav with dedicated header clearance and tactical typography', () => {
+    const cssSource = fs.readFileSync(path.join(process.cwd(), 'app/globals.css'), 'utf8');
+
+    expect(cssSource).toContain('.cq-command-shell');
+    expect(cssSource).toContain('padding: calc(4.75rem + 1.25rem)');
+    expect(cssSource).toContain('.cq-command-hero h1');
+    expect(cssSource).toContain('var(--font-rajdhani');
+  });
 });

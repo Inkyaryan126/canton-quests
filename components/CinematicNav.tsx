@@ -105,7 +105,26 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
               className="cq-gold-button cq-nav-cta flex items-center gap-1.5"
               title={`Logged in as ${player.displayName}`}
             >
-              <span>{player.avatarUrl || '⚡'}</span>
+              {player.avatarUrl && (
+                player.avatarUrl.startsWith('/') ||
+                player.avatarUrl.startsWith('http://') ||
+                player.avatarUrl.startsWith('https://') ||
+                player.avatarUrl.startsWith('data:image/') ||
+                /\.(png|jpe?g|webp|svg|gif)($|\?)/i.test(player.avatarUrl)
+              ) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={player.avatarUrl.trim()}
+                  alt=""
+                  className="w-7 h-7 rounded-full object-cover border border-amber-400/50 ring-1 ring-amber-400/30 shrink-0 bg-stone-900"
+                />
+              ) : (
+                <span className="w-7 h-7 rounded-full bg-stone-900/80 border border-amber-400/40 inline-flex items-center justify-center text-xs font-bold shrink-0 text-amber-300">
+                  {player.avatarUrl && player.avatarUrl.trim()
+                    ? player.avatarUrl.trim()
+                    : (player.displayName?.slice(0, 1).toUpperCase() || '⚡')}
+                </span>
+              )}
               <span className="truncate max-w-[110px]">{player.displayName}</span>
               <ArrowRight size={14} aria-hidden="true" />
             </Link>

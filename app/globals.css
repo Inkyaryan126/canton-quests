@@ -3163,7 +3163,7 @@ code, pre, .font-mono {
 .cq-command-shell {
   width: min(1180px, 100%);
   margin: 0 auto;
-  padding: 24px 14px 56px;
+  padding: calc(4.75rem + 1.25rem) 14px 56px;
 }
 
 .cq-command-hero,
@@ -3177,12 +3177,18 @@ code, pre, .font-mono {
 }
 
 .cq-command-hero h1 {
-  margin: 0;
-  color: #fff;
-  font-size: clamp(2rem, 7vw, 4.8rem);
-  line-height: 0.9;
-  font-weight: 950;
+  margin: 0.25rem 0 0;
+  font-family: var(--font-rajdhani, 'Rajdhani', sans-serif);
+  font-size: clamp(2.2rem, 5.5vw, 3.75rem);
+  line-height: 1.05;
+  font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: linear-gradient(135deg, #ffffff 0%, #fef3c7 40%, #f59e0b 80%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(245, 158, 11, 0.25)) drop-shadow(0 4px 16px rgba(0, 0, 0, 0.8));
+  word-break: break-word;
 }
 
 .cq-command-eyebrow,
@@ -3832,6 +3838,7 @@ code, pre, .font-mono {
 
 @media (max-width: 520px) {
   .cq-command-shell {
+    padding-top: calc(4.25rem + 1rem);
     padding-inline: 10px;
   }
 
