@@ -269,12 +269,18 @@ describe('Player Command Center profile rules', () => {
     expect(cssSource).not.toContain('overflow-wrap: anywhere');
   });
 
-  it('safely renders nav avatar as an image without leaking raw file paths into text', () => {
+  it('safely renders nav avatar as an image without leaking raw file paths into text and with explicit 28px constraints', () => {
     const navSource = fs.readFileSync(path.join(process.cwd(), 'components/CinematicNav.tsx'), 'utf8');
+    const cssSource = fs.readFileSync(path.join(process.cwd(), 'app/globals.css'), 'utf8');
 
     expect(navSource).toContain('<img');
     expect(navSource).not.toContain('<span>{player.avatarUrl ||');
     expect(navSource).toContain('player.avatarUrl.startsWith');
+    expect(navSource).toContain('cq-nav-avatar-img');
+    expect(cssSource).toContain('.cq-nav-avatar-img');
+    expect(cssSource).toContain('width: 28px');
+    expect(cssSource).toContain('height: 28px');
+    expect(cssSource).toContain('border-radius: 50%');
   });
 
   it('guarantees profile heading sits below fixed nav with dedicated header clearance and tactical typography', () => {

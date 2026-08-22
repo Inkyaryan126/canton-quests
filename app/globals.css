@@ -551,6 +551,47 @@ code, pre, .font-mono {
   box-shadow: 0 0 12px rgba(66, 245, 155, 0.86);
 }
 
+.cq-nav-avatar-img {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
+  background-color: #0b0f17;
+  flex-shrink: 0;
+  display: block;
+}
+
+.cq-nav-avatar-fallback {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  background-color: rgba(11, 15, 23, 0.9);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.cq-nav-player-callsign {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cq-gold-button,
 .cq-dark-button,
 .cq-view-all-button {

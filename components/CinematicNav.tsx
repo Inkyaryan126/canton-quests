@@ -99,10 +99,10 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
         </Link>
 
         {player ? (
-          <div className="flex items-center gap-2">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Link
               href="/profile"
-              className="cq-gold-button cq-nav-cta flex items-center gap-1.5"
+              className="cq-gold-button cq-nav-cta"
               title={`Logged in as ${player.displayName}`}
             >
               {player.avatarUrl && (
@@ -116,22 +116,57 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
                 <img
                   src={player.avatarUrl.trim()}
                   alt=""
-                  className="w-7 h-7 rounded-full object-cover border border-amber-400/50 ring-1 ring-amber-400/30 shrink-0 bg-stone-900"
+                  width={28}
+                  height={28}
+                  className="cq-nav-avatar-img"
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    minWidth: '28px',
+                    minHeight: '28px',
+                    maxWidth: '28px',
+                    maxHeight: '28px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    flexShrink: 0,
+                  }}
                 />
               ) : (
-                <span className="w-7 h-7 rounded-full bg-stone-900/80 border border-amber-400/40 inline-flex items-center justify-center text-xs font-bold shrink-0 text-amber-300">
+                <span
+                  className="cq-nav-avatar-fallback"
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    minWidth: '28px',
+                    minHeight: '28px',
+                    borderRadius: '50%',
+                    flexShrink: 0,
+                  }}
+                >
                   {player.avatarUrl && player.avatarUrl.trim()
                     ? player.avatarUrl.trim()
                     : (player.displayName?.slice(0, 1).toUpperCase() || '⚡')}
                 </span>
               )}
-              <span className="truncate max-w-[110px]">{player.displayName}</span>
-              <ArrowRight size={14} aria-hidden="true" />
+              <span className="cq-nav-player-callsign">{player.displayName}</span>
+              <ArrowRight size={14} aria-hidden="true" style={{ flexShrink: 0 }} />
             </Link>
             <button
               type="button"
               onClick={handleLogout}
-              className="px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-400 hover:text-red-400 text-xs font-mono transition-colors flex items-center gap-1 cursor-pointer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                padding: '0.375rem 0.625rem',
+                borderRadius: '0.5rem',
+                backgroundColor: '#1c1917',
+                border: '1px solid #44403c',
+                color: '#a8a29e',
+                fontSize: '0.75rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                cursor: 'pointer',
+              }}
               title="Explicit Log Out"
               aria-label="Log Out"
             >
