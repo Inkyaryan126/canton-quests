@@ -56,6 +56,7 @@ export const metadata: Metadata = {
 };
 
 import { GameEffectsProvider } from '@/components/game-effects/GameEffectsProvider';
+import VisitorTracker from '@/components/VisitorTracker';
 
 export default function RootLayout({
   children,
@@ -66,6 +67,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <GameEffectsProvider>{children}</GameEffectsProvider>
+        <VisitorTracker />
       </body>
     </html>
   );

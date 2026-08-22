@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  Activity, AlertTriangle, CheckCircle2, ChevronRight, Compass,
-  FileCheck, KeyRound, Layers, MapPin, QrCode, Radio, Shield,
-  Users, Zap,
+  Activity, AlertTriangle, BarChart2, CheckCircle2, ChevronRight, Compass,
+  FileCheck, Globe, KeyRound, Layers, MapPin, Monitor, QrCode, Radio, Shield,
+  Smartphone, Tablet, TrendingUp, Users, Zap,
 } from 'lucide-react';
 import CinematicNav from '@/components/CinematicNav';
 import { GAME_MASTER_DISPLAY_NAME, getGameMasterGreeting } from '@/lib/admin-persona';
@@ -65,7 +65,7 @@ export default function AdminPage() {
 
   // Navigation & Active Tab State
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'readiness' | 'events' | 'quests' | 'locations' | 'qr' | 'submissions'
+    'overview' | 'readiness' | 'events' | 'quests' | 'locations' | 'qr' | 'submissions' | 'visitors'
   >('overview');
 
   // Action Notification State
@@ -117,6 +117,24 @@ export default function AdminPage() {
 
   // Site Stats
   const [siteStats, setSiteStats] = useState({ totalPlayers: 0, activeSpectators: 0, pendingSubmissions: 0, verifiedSubmissions: 0, totalSubmissions: 0 });
+
+  // Visitor Analytics
+  type VisitorData = {
+    totalVisits: number;
+    uniqueVisitors: number;
+    todayVisits: number;
+    visitsByDay: { date: string; count: number }[];
+    topCountries: { code: string; name: string; count: number }[];
+    topCities: { city: string; country: string; count: number }[];
+    topPages: { page: string; count: number }[];
+    deviceBreakdown: { type: string; count: number }[];
+    topReferrers: { source: string; count: number }[];
+    recentVisits: { city: string | null; country: string; countryCode: string | null; page: string; device: string; visitedAt: string }[];
+    error?: string;
+  };
+  const [visitorRange, setVisitorRange] = useState<'7d' | '30d' | 'all'>('30d');
+  const [visitorData, setVisitorData] = useState<VisitorData | null>(null);
+  const [visitorLoading, setVisitorLoading] = useState(false);
 
   const refreshData = useCallback(() => {
     if (!isAdminAuthenticated) {
@@ -180,6 +198,16 @@ export default function AdminPage() {
     }, 15000);
     return () => clearInterval(iv);
   }, [isAdminAuthenticated]);
+
+  useEffect(() => {
+    if (!isAdminAuthenticated || activeTab !== 'visitors') return;
+    setVisitorLoading(true);
+    fetch(`/api/admin/visitors?range=${visitorRange}`)
+      .then((r) => r.json())
+      .then((d) => setVisitorData(d))
+      .catch(() => setVisitorData(null))
+      .finally(() => setVisitorLoading(false));
+  }, [isAdminAuthenticated, activeTab, visitorRange]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -402,6 +430,7 @@ export default function AdminPage() {
 
   const TABS = [
     { id: 'overview',    label: 'Overview',      Icon: Activity },
+    { id: 'visitors',    label: 'Visitors',       Icon: Globe },
     { id: 'readiness',   label: 'Pre-Launch',     Icon: CheckCircle2 },
     { id: 'events',      label: 'Event Wizard',   Icon: Layers },
     { id: 'quests',      label: 'Quest Studio',   Icon: Compass },
@@ -547,6 +576,311 @@ export default function AdminPage() {
 
           {/* Tab content */}
           <div className="p-6 md:p-8 bg-stone-900/30 space-y-8">
+
+            {/* ── VISITORS ── */}
+            {activeTab === 'visitors' && (
+              <div className="space-y-8">
+
+                {/* Range selector */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <p className="text-[10px] text-stone-500 uppercase tracking-widest mb-1">Site Analytics</p>
+                    <h2 className="text-lg font-black text-white uppercase tracking-tight">Visitor Intelligence</h2>
+                  </div>
+                  <div className="flex gap-1.5 bg-stone-950 border border-stone-800 rounded-xl p-1">
+                    {(['7d', '30d', 'all'] as const).map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => setVisitorRange(r)}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                          visitorRange === r
+                            ? 'bg-amber-500 text-black'
+                            : 'text-stone-400 hover:text-white'
+                        }`}
+                      >
+                        {r === '7d' ? '7 Days' : r === '30d' ? '30 Days' : 'All Time'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {visitorLoading && (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="flex items-center gap-3 text-stone-400">
+                      <Activity size={18} className="animate-spin" />
+                      <span className="text-sm font-mono">Loading visitor data...</span>
+                    </div>
+                  </div>
+                )}
+
+                {!visitorLoading && visitorData?.error === 'table_missing' && (
+                  <div className="p-6 bg-amber-950/40 border border-amber-700/50 rounded-2xl">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle size={20} className="text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-amber-300 mb-1">Database table not yet created</p>
+                        <p className="text-sm text-stone-400 mb-3">Run the SQL migration to enable visitor tracking. Go to your Supabase dashboard → SQL Editor and run:</p>
+                        <code className="block bg-stone-950 border border-stone-800 rounded-xl p-4 text-xs text-emerald-300 font-mono whitespace-pre leading-relaxed overflow-x-auto">
+{`supabase/migrations/20260822_site_visits.sql`}
+                        </code>
+                        <p className="text-xs text-stone-500 mt-2">File is already in your repo at the path above. Paste its contents into the Supabase SQL Editor and click Run.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!visitorLoading && visitorData?.error === 'no_db' && (
+                  <div className="p-6 bg-stone-900 border border-stone-700 rounded-2xl text-center">
+                    <Globe size={32} className="text-stone-600 mx-auto mb-2" />
+                    <p className="text-stone-400 text-sm">Supabase is not configured. Visitor tracking requires a live database.</p>
+                  </div>
+                )}
+
+                {!visitorLoading && visitorData && !visitorData.error && (
+                  <div className="space-y-8">
+
+                    {/* ── Top stat row ── */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        { label: 'Total Visits', value: visitorData.totalVisits, Icon: TrendingUp, color: 'text-amber-400' },
+                        { label: 'Unique Visitors', value: visitorData.uniqueVisitors, Icon: Users, color: 'text-cyan-400' },
+                        { label: 'Today\'s Visits', value: visitorData.todayVisits, Icon: Activity, color: 'text-emerald-400' },
+                        {
+                          label: 'Top Country',
+                          value: visitorData.topCountries[0]?.name || '—',
+                          Icon: Globe,
+                          color: 'text-purple-400',
+                          small: true,
+                        },
+                      ].map(({ label, value, Icon, color, small }) => (
+                        <div key={label} className="p-5 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-[10px] text-stone-500 uppercase tracking-widest">{label}</p>
+                            <Icon size={15} className={color} />
+                          </div>
+                          <p className={`font-black ${small ? 'text-base leading-tight' : 'text-3xl'} ${color}`}>{value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* ── Visits over time bar chart ── */}
+                    <div className="p-6 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                      <div className="flex items-center gap-2 mb-5">
+                        <BarChart2 size={15} className="text-amber-400" />
+                        <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold">Visits Over Time</p>
+                      </div>
+                      {(() => {
+                        const max = Math.max(...visitorData.visitsByDay.map((d) => d.count), 1);
+                        return (
+                          <div className="flex items-end gap-1 h-32 overflow-x-auto pb-2">
+                            {visitorData.visitsByDay.map(({ date, count }) => {
+                              const heightPct = Math.max((count / max) * 100, count > 0 ? 4 : 0);
+                              const label = new Date(date + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                              return (
+                                <div key={date} className="flex flex-col items-center gap-1 flex-1 min-w-[28px] group">
+                                  <span className="text-[9px] text-stone-600 group-hover:text-amber-400 transition-colors">{count > 0 ? count : ''}</span>
+                                  <div className="w-full relative" style={{ height: '80px' }}>
+                                    <div
+                                      className="absolute bottom-0 w-full rounded-t bg-amber-500/70 group-hover:bg-amber-400 transition-all"
+                                      style={{ height: `${heightPct}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[8px] text-stone-600 rotate-45 origin-left mt-1 whitespace-nowrap">{label}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                      {/* ── Top Countries ── */}
+                      <div className="p-6 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                        <div className="flex items-center gap-2 mb-5">
+                          <Globe size={15} className="text-purple-400" />
+                          <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold">Top Countries</p>
+                        </div>
+                        {visitorData.topCountries.length === 0 ? (
+                          <p className="text-stone-600 text-sm">No data yet</p>
+                        ) : (
+                          <div className="space-y-2.5">
+                            {visitorData.topCountries.map(({ code, name, count }) => {
+                              const maxCount = visitorData.topCountries[0]?.count || 1;
+                              return (
+                                <div key={code}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs text-stone-300 font-mono">{name}</span>
+                                    <span className="text-xs text-stone-500 font-mono">{count}</span>
+                                  </div>
+                                  <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-purple-500 rounded-full"
+                                      style={{ width: `${(count / maxCount) * 100}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ── Top Pages ── */}
+                      <div className="p-6 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                        <div className="flex items-center gap-2 mb-5">
+                          <Activity size={15} className="text-cyan-400" />
+                          <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold">Top Pages</p>
+                        </div>
+                        {visitorData.topPages.length === 0 ? (
+                          <p className="text-stone-600 text-sm">No data yet</p>
+                        ) : (
+                          <div className="space-y-2.5">
+                            {visitorData.topPages.map(({ page, count }) => {
+                              const maxCount = visitorData.topPages[0]?.count || 1;
+                              return (
+                                <div key={page}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs text-stone-300 font-mono truncate max-w-[70%]">{page}</span>
+                                    <span className="text-xs text-stone-500 font-mono">{count}</span>
+                                  </div>
+                                  <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-cyan-500 rounded-full"
+                                      style={{ width: `${(count / maxCount) * 100}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ── Device Breakdown ── */}
+                      <div className="p-6 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                        <div className="flex items-center gap-2 mb-5">
+                          <Monitor size={15} className="text-emerald-400" />
+                          <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold">Devices</p>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          {visitorData.deviceBreakdown.map(({ type, count }) => {
+                            const total = visitorData.deviceBreakdown.reduce((s, d) => s + d.count, 0) || 1;
+                            const pct = Math.round((count / total) * 100);
+                            const Icon = type === 'mobile' ? Smartphone : type === 'tablet' ? Tablet : Monitor;
+                            const color = type === 'mobile' ? 'text-emerald-400' : type === 'tablet' ? 'text-sky-400' : 'text-amber-400';
+                            return (
+                              <div key={type} className="flex flex-col items-center gap-1.5">
+                                <Icon size={24} className={color} />
+                                <span className={`font-black text-xl ${color}`}>{pct}%</span>
+                                <span className="text-[10px] text-stone-500 uppercase tracking-wider">{type}</span>
+                                <span className="text-[10px] text-stone-600">{count} visits</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* ── Top Referrers ── */}
+                      <div className="p-6 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                        <div className="flex items-center gap-2 mb-5">
+                          <ChevronRight size={15} className="text-amber-400" />
+                          <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold">Traffic Sources</p>
+                        </div>
+                        {visitorData.topReferrers.length === 0 ? (
+                          <p className="text-stone-600 text-sm">No data yet</p>
+                        ) : (
+                          <div className="space-y-2.5">
+                            {visitorData.topReferrers.map(({ source, count }) => {
+                              const maxCount = visitorData.topReferrers[0]?.count || 1;
+                              return (
+                                <div key={source}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs text-stone-300 font-mono truncate max-w-[70%]">{source}</span>
+                                    <span className="text-xs text-stone-500 font-mono">{count}</span>
+                                  </div>
+                                  <div className="h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-amber-500 rounded-full"
+                                      style={{ width: `${(count / maxCount) * 100}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+
+                    {/* ── Top Cities ── */}
+                    {visitorData.topCities.length > 0 && (
+                      <div className="p-6 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                        <div className="flex items-center gap-2 mb-5">
+                          <MapPin size={15} className="text-rose-400" />
+                          <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold">Top Cities</p>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                          {visitorData.topCities.map(({ city, country, count }) => (
+                            <div key={`${city}-${country}`} className="p-3 bg-stone-900 border border-stone-800 rounded-xl">
+                              <p className="text-xs text-white font-bold truncate">{city}</p>
+                              <p className="text-[10px] text-stone-500">{country}</p>
+                              <p className="text-sm font-black text-rose-400 mt-1">{count}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Recent Visits ── */}
+                    <div className="p-6 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                      <div className="flex items-center gap-2 mb-5">
+                        <Radio size={15} className="text-emerald-400 animate-pulse" />
+                        <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold">Recent Visits</p>
+                      </div>
+                      {visitorData.recentVisits.length === 0 ? (
+                        <p className="text-stone-600 text-sm">No visits recorded yet. The tracker is live — come back after some traffic hits the site.</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-stone-800">
+                                {['Page', 'City', 'Country', 'Device', 'Time'].map((h) => (
+                                  <th key={h} className="pb-2 pr-4 text-left text-[10px] text-stone-500 uppercase tracking-wider font-bold">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {visitorData.recentVisits.map((v, i) => (
+                                <tr key={i} className="border-b border-stone-900 hover:bg-stone-900/40 transition-colors">
+                                  <td className="py-2 pr-4 font-mono text-amber-300 truncate max-w-[120px]">{v.page}</td>
+                                  <td className="py-2 pr-4 text-stone-300">{v.city || '—'}</td>
+                                  <td className="py-2 pr-4 text-stone-400">{v.country}</td>
+                                  <td className="py-2 pr-4">
+                                    {v.device === 'mobile'
+                                      ? <Smartphone size={12} className="text-emerald-400" />
+                                      : v.device === 'tablet'
+                                      ? <Tablet size={12} className="text-sky-400" />
+                                      : <Monitor size={12} className="text-amber-400" />}
+                                  </td>
+                                  <td className="py-2 text-stone-500">
+                                    {new Date(v.visitedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                )}
+
+              </div>
+            )}
 
             {/* ── OVERVIEW ── */}
             {activeTab === 'overview' && selectedEvent && (
