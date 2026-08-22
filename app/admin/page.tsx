@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import Header from '@/components/Header';
+import {
+  Activity, AlertTriangle, CheckCircle2, ChevronRight, Compass,
+  FileCheck, KeyRound, Layers, MapPin, QrCode, Radio, Shield,
+  Users, Zap,
+} from 'lucide-react';
+import CinematicNav from '@/components/CinematicNav';
 import { GAME_MASTER_DISPLAY_NAME, getGameMasterGreeting } from '@/lib/admin-persona';
 import {
   QuestEvent,
@@ -110,6 +115,9 @@ export default function AdminPage() {
   // Preview Quest Modal
   const [previewQuest, setPreviewQuest] = useState<Quest | null>(null);
 
+  // Site Stats
+  const [siteStats, setSiteStats] = useState({ totalPlayers: 0, activeSpectators: 0, pendingSubmissions: 0, verifiedSubmissions: 0, totalSubmissions: 0 });
+
   const refreshData = useCallback(() => {
     if (!isAdminAuthenticated) {
       setEvents([]);
@@ -158,6 +166,20 @@ export default function AdminPage() {
       refreshData();
     }
   }, [isAdminAuthenticated, refreshData]);
+
+  useEffect(() => {
+    if (!isAdminAuthenticated) return;
+    fetch('/api/admin/stats')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.totalPlayers !== undefined) setSiteStats(d);
+      })
+      .catch(() => {});
+    const iv = setInterval(() => {
+      fetch('/api/admin/stats').then((r) => r.json()).then((d) => { if (d.totalPlayers !== undefined) setSiteStats(d); }).catch(() => {});
+    }, 15000);
+    return () => clearInterval(iv);
+  }, [isAdminAuthenticated]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -329,30 +351,43 @@ export default function AdminPage() {
   // Render Passphrase Login Lock Screen if unauthorized
   if (!isAdminAuthenticated) {
     return (
-      <div className="min-h-screen cq-gm-shell text-white flex flex-col justify-center items-center p-4 font-mono">
-        <div className="cq-gm-panel p-8 max-w-md w-full text-center space-y-4">
-          <div className="w-16 h-16 rounded-lg bg-amber-500/15 border border-amber-300/50 flex items-center justify-center text-3xl mx-auto shadow-lg">
-            🔐
+      <div className="min-h-screen bg-[#080b10] text-white flex flex-col justify-center items-center p-6 font-mono">
+        <div className="w-full max-w-sm space-y-6">
+          {/* Logo lockup */}
+          <div className="text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto shadow-xl shadow-amber-900/20">
+              <Shield size={26} className="text-amber-400" />
+            </div>
+            <div>
+              <p className="text-[10px] font-mono text-amber-400/70 uppercase tracking-[0.3em] mb-1">Canton Quests</p>
+              <h1 className="text-xl font-black text-white uppercase tracking-tight">Command Center</h1>
+            </div>
           </div>
-          <h1 className="text-2xl font-black text-white uppercase">Game Master Authentication</h1>
-          <p className="text-xs text-amber-100/70">
-            Enter the private key to open the Canton command room.
-          </p>
 
-          <form onSubmit={handleAdminLogin} className="space-y-3 pt-2">
-            <input
-              type="password"
-              value={adminPassphrase}
-              onChange={(e) => setAdminPassphrase(e.target.value)}
-              placeholder="Enter Game Master Passphrase"
-              className="input-field text-center tracking-wider font-bold"
-              required
-            />
-            {authError && <div className="text-red-400 text-xs font-bold">{authError}</div>}
-            <button type="submit" className="btn btn-primary w-full py-2.5 text-xs font-bold">
-              Unlock Control Room
-            </button>
-          </form>
+          {/* Auth card */}
+          <div className="bg-stone-900/80 border border-stone-700/60 rounded-2xl p-6 space-y-4 shadow-2xl">
+            <p className="text-xs text-stone-400 text-center">Enter your Game Master passphrase to continue.</p>
+            <form onSubmit={handleAdminLogin} className="space-y-3">
+              <input
+                type="password"
+                value={adminPassphrase}
+                onChange={(e) => setAdminPassphrase(e.target.value)}
+                placeholder="Game Master passphrase"
+                className="input-field text-center tracking-widest font-bold text-sm"
+                autoFocus
+                required
+              />
+              {authError && (
+                <div className="flex items-center gap-2 text-red-400 text-xs font-bold bg-red-950/40 border border-red-800/50 rounded-lg px-3 py-2">
+                  <AlertTriangle size={13} className="shrink-0" />
+                  {authError}
+                </div>
+              )}
+              <button type="submit" className="btn btn-primary w-full py-3 text-xs font-bold tracking-widest uppercase">
+                Unlock Command Center
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     );
@@ -363,763 +398,564 @@ export default function AdminPage() {
     return s.status === submissionFilter;
   });
 
+  const pendingCount = submissions.filter((s) => s.status === 'pending').length;
+
+  const TABS = [
+    { id: 'overview',    label: 'Overview',      Icon: Activity },
+    { id: 'readiness',   label: 'Pre-Launch',     Icon: CheckCircle2 },
+    { id: 'events',      label: 'Event Wizard',   Icon: Layers },
+    { id: 'quests',      label: 'Quest Studio',   Icon: Compass },
+    { id: 'locations',   label: 'Locations',      Icon: MapPin },
+    { id: 'qr',          label: 'QR Studio',      Icon: QrCode },
+    { id: 'submissions', label: `Proof Queue${pendingCount > 0 ? ` · ${pendingCount}` : ''}`, Icon: FileCheck },
+  ] as const;
+
   return (
-    <div className="min-h-screen cq-gm-shell text-[var(--text-primary)] flex flex-col font-mono text-xs">
-      <Header />
+    <div className="min-h-screen bg-[#080b10] text-stone-100 font-mono">
+      <CinematicNav eventHref="/events" />
 
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 space-y-6">
-        {/* Game Master Control Room Banner */}
-        <div className="cq-gm-panel p-5 md:p-7 relative space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="badge badge-medium bg-amber-500/15 text-amber-200 border-amber-400/40 font-mono">
-                Game Master Command Center
+      <main className="max-w-7xl mx-auto px-4 md:px-8 pb-20" style={{ paddingTop: '5.6rem' }}>
+
+        {/* ── MASTHEAD ─────────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-start justify-between gap-4 pb-7 mb-8 border-b border-stone-800">
+          <div>
+            <p className="text-[10px] text-amber-400/60 uppercase tracking-[0.3em] mb-1.5">Canton Quests — Command Center</p>
+            <h1 className="font-display font-black text-3xl md:text-4xl text-white uppercase tracking-tight">
+              {GAME_MASTER_DISPLAY_NAME}
+            </h1>
+            <p className="text-sm text-stone-400 mt-1.5 max-w-lg">{getGameMasterGreeting()}</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {selectedEvent && (
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-bold uppercase tracking-wider ${
+                selectedEvent.status === 'active'
+                  ? 'bg-emerald-950/60 border-emerald-700/50 text-emerald-300'
+                  : selectedEvent.status === 'draft'
+                  ? 'bg-amber-950/60 border-amber-700/50 text-amber-300'
+                  : 'bg-stone-800/60 border-stone-700 text-stone-400'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${selectedEvent.status === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-stone-500'}`} />
+                {selectedEvent.status.toUpperCase()}
               </span>
-              {selectedEvent && (
-                <span className="text-xs text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-800/40 font-bold uppercase">
-                  ● {selectedEvent.status}
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Link
-                href="/admin/drawing"
-                className="cq-gm-mini-button"
-              >
-                Prize Drawing
+            )}
+            <select
+              value={selectedEvent?.id || ''}
+              onChange={(e) => { const ev = events.find((evt) => evt.id === e.target.value); if (ev) setSelectedEvent(ev); }}
+              className="bg-stone-900 text-amber-400 font-bold border border-stone-700 rounded-lg px-3 py-1.5 text-xs"
+            >
+              {events.map((ev) => (
+                <option key={ev.id} value={ev.id}>{ev.title}</option>
+              ))}
+            </select>
+            {selectedEvent && (
+              <Link href={`/events/${selectedEvent.slug}`} target="_blank"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 border border-stone-700 rounded-lg text-[11px] text-cyan-400 font-bold transition-colors">
+                View Live Page <ChevronRight size={12} />
               </Link>
-              <Link
-                href="/admin/qr-campaigns"
-                className="cq-gm-mini-button"
-              >
-                QR Campaigns
-              </Link>
-              <Link
-                href="/admin/live"
-                className="cq-gm-mini-button border-red-500/50 text-red-200"
-              >
-                Live Control
-              </Link>
-              {selectedEvent && (
-                <Link
-                  href={`/events/${selectedEvent.slug}`}
-                  target="_blank"
-                  className="bg-gray-800 hover:bg-gray-700 text-cyan-400 px-3 py-1.5 rounded-xl border border-gray-700 font-bold"
-                >
-                  👁️ View Player Page
-                </Link>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.32em] text-amber-300/70">Good standing confirmed</p>
-              <h1 className="text-3xl md:text-5xl font-black text-white">{GAME_MASTER_DISPLAY_NAME}</h1>
-              <p className="mt-2 max-w-2xl text-sm md:text-base text-stone-300">{getGameMasterGreeting()}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 min-w-[260px]">
-              <Link href="/admin/live" className="cq-gm-stat">
-                <span>Live Event Control</span>
-                <strong>↗</strong>
-              </Link>
-              <button onClick={() => setActiveTab('submissions')} className="cq-gm-stat text-left">
-                <span>Submission Review</span>
-                <strong>{submissions.filter((s) => s.status === 'pending').length}</strong>
-              </button>
-            </div>
-          </div>
-
-          {actionMessage && (
-            <div className="p-3 bg-emerald-950/70 border border-emerald-500 text-emerald-300 font-bold rounded-xl animate-fade-in">
-              ✅ {actionMessage}
-            </div>
-          )}
-
-          {/* Active Event Selector */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400 font-bold">Selected Event:</span>
-              <select
-                value={selectedEvent?.id || ''}
-                onChange={(e) => {
-                  const ev = events.find((evt) => evt.id === e.target.value);
-                  if (ev) setSelectedEvent(ev);
-                }}
-                className="bg-card text-amber-400 font-bold border border-gray-800 rounded-xl px-3 py-1.5"
-              >
-                {events.map((ev) => (
-                  <option key={ev.id} value={ev.id}>
-                    {ev.title} ({ev.status.toUpperCase()})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {readiness && (
-              <div
-                className={`px-3 py-1 rounded-full font-bold flex items-center gap-1.5 border ${
-                  readiness.isReady
-                    ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300'
-                    : 'bg-amber-950/60 border-amber-500 text-amber-300'
-                }`}
-              >
-                <span>{readiness.isReady ? '✅ READY FOR PUBLISH' : '⚠️ READINESS ISSUES'}</span>
-              </div>
             )}
           </div>
         </div>
 
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Link href="/admin/live" className="cq-gm-panel p-4">
-            <h2 className="cq-gm-heading">Spectator / Watch Controls</h2>
-            <p className="mt-2 text-stone-400">Audience votes, host broadcasts, freezes, and live field effects.</p>
-          </Link>
-          <Link href="/admin/drawing" className="cq-gm-panel p-4">
-            <h2 className="cq-gm-heading">Prize Drawing</h2>
-            <p className="mt-2 text-stone-400">Lock ledgers, execute transparent draws, and publish winners.</p>
-          </Link>
-          <Link href="/admin/qr-campaigns" className="cq-gm-panel p-4">
-            <h2 className="cq-gm-heading">QR Campaigns</h2>
-            <p className="mt-2 text-stone-400">Generate flyer and distributor attribution for field promotion.</p>
-          </Link>
-        </section>
-
-        {/* NAVIGATION TABS */}
-        <div className="flex border-b border-[var(--border-subtle)] font-bold overflow-x-auto scrollbar-none">
+        {/* ── SITE STATS ROW ───────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
           {[
-            { id: 'overview', label: '📊 Overview' },
-            { id: 'readiness', label: '📋 Pre-Launch Check' },
-            { id: 'events', label: '🏭 Event Wizard' },
-            { id: 'quests', label: '🎨 Quest Studio' },
-            { id: 'locations', label: '📍 Locations' },
-            { id: 'qr', label: '📱 QR Studio' },
-            { id: 'submissions', label: `📥 Proof Queue (${submissions.filter((s) => s.status === 'pending').length})` },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`py-3 px-4 whitespace-nowrap border-b-2 transition-all ${
-                activeTab === tab.id
-                  ? 'border-amber-400 text-amber-400 font-extrabold'
-                  : 'border-transparent text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              {tab.label}
-            </button>
+            { label: 'Registered Agents', value: siteStats.totalPlayers, Icon: Users, color: 'text-cyan-400', border: 'border-cyan-900/60', glow: 'bg-cyan-950/20' },
+            { label: 'Live Spectators', value: siteStats.activeSpectators, Icon: Radio, color: 'text-emerald-400', border: 'border-emerald-900/60', glow: 'bg-emerald-950/20' },
+            { label: 'Event Quests', value: quests.length, Icon: Compass, color: 'text-amber-400', border: 'border-amber-900/60', glow: 'bg-amber-950/20' },
+            { label: 'Pending Proofs', value: pendingCount, Icon: FileCheck, color: pendingCount > 0 ? 'text-red-400' : 'text-stone-500', border: pendingCount > 0 ? 'border-red-900/60' : 'border-stone-800', glow: pendingCount > 0 ? 'bg-red-950/20' : 'bg-stone-900/40' },
+            { label: 'Map Locations', value: locations.length, Icon: MapPin, color: 'text-purple-400', border: 'border-purple-900/60', glow: 'bg-purple-950/20' },
+            { label: 'QR Tokens', value: generatedQrs.length, Icon: QrCode, color: 'text-sky-400', border: 'border-sky-900/60', glow: 'bg-sky-950/20' },
+          ].map(({ label, value, Icon, color, border, glow }) => (
+            <div key={label} className={`${glow} border ${border} rounded-xl p-4 space-y-2`}>
+              <div className="flex items-center justify-between">
+                <Icon size={15} className={`${color} opacity-70`} />
+              </div>
+              <p className={`font-black text-3xl ${color}`}>{value}</p>
+              <p className="text-[10px] text-stone-500 uppercase tracking-wider leading-tight">{label}</p>
+            </div>
           ))}
         </div>
 
-        {/* TAB 1: OVERVIEW */}
-        {activeTab === 'overview' && selectedEvent && (
-          <section className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="glass-card p-4 text-center border-amber-500/30">
-                <span className="text-gray-400 block text-[10px] uppercase">Event Quests</span>
-                <span className="text-amber-400 font-extrabold text-2xl">{quests.length}</span>
-              </div>
-              <div className="glass-card p-4 text-center">
-                <span className="text-gray-400 block text-[10px] uppercase">Pending Reviews</span>
-                <span className="text-emerald-400 font-extrabold text-2xl">
-                  {submissions.filter((s) => s.status === 'pending').length}
-                </span>
-              </div>
-              <div className="glass-card p-4 text-center">
-                <span className="text-gray-400 block text-[10px] uppercase">Active Locations</span>
-                <span className="text-cyan-400 font-extrabold text-2xl">{locations.length}</span>
-              </div>
-              <div className="glass-card p-4 text-center">
-                <span className="text-gray-400 block text-[10px] uppercase">Generated QRs</span>
-                <span className="text-purple-400 font-extrabold text-2xl">{generatedQrs.length}</span>
-              </div>
-            </div>
-
-            {/* Quick Actions Shortcuts */}
-            <div className="glass-panel p-5 space-y-3 border-gray-800">
-              <h2 className="text-sm font-bold text-white uppercase">⚡ Quick Launch Shortcuts</h2>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => triggerFlashQuest(quests[0]?.id || '', 30)}
-                  className="btn btn-primary text-xs py-2 px-4 font-bold"
-                >
-                  ⚡ Trigger Flash Drop (30m)
-                </button>
-                <button
-                  onClick={() => updateEventStatus(selectedEvent.id, selectedEvent.status === 'active' ? 'ended' : 'active')}
-                  className="btn btn-secondary text-xs py-2 px-4 font-bold"
-                >
-                  🔄 Toggle Event Status ({selectedEvent.status.toUpperCase()})
-                </button>
-              </div>
-            </div>
-          </section>
+        {/* ── ACTION NOTIFICATION ──────────────────────────────────────────── */}
+        {actionMessage && (
+          <div className="mb-6 flex items-center gap-3 p-4 bg-emerald-950/60 border border-emerald-700/50 text-emerald-300 font-bold rounded-xl text-xs">
+            <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
+            {actionMessage}
+          </div>
         )}
 
-        {/* TAB 2: EVENT READINESS CHECK & METRICS */}
-        {activeTab === 'readiness' && readiness && (
-          <section className="glass-panel p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                📋 Event Pre-Launch Readiness Check
-              </h2>
-              <span
-                className={`px-3 py-1 rounded-full font-bold text-xs ${
-                  readiness.isReady ? 'bg-emerald-950 border border-emerald-500 text-emerald-300' : 'bg-amber-950 border border-amber-500 text-amber-300'
-                }`}
-              >
-                {readiness.isReady ? '✅ PASSED — READY FOR PUBLISH' : '⚠️ BLOCKERS DETECTED'}
-              </span>
+        {/* ── QUICK ACCESS CARDS ───────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Link href="/admin/live"
+            className="group flex items-start gap-4 p-5 bg-stone-900/60 hover:bg-stone-900 border border-red-900/50 hover:border-red-700/60 rounded-2xl transition-all">
+            <div className="w-10 h-10 rounded-xl bg-red-950/60 border border-red-800/50 flex items-center justify-center shrink-0">
+              <Radio size={18} className="text-red-400" />
             </div>
-
-            {/* Blockers & Warnings */}
-            {readiness.blockers.length > 0 && (
-              <div className="p-4 bg-red-950/50 border border-red-500 rounded-xl space-y-1 text-red-200">
-                <span className="font-bold text-red-400 block">🛑 Launch Blockers:</span>
-                <ul className="list-disc pl-5 space-y-1">
-                  {readiness.blockers.map((b, i) => (
-                    <li key={i}>{b}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {readiness.warnings.length > 0 && (
-              <div className="p-4 bg-amber-950/50 border border-amber-500 rounded-xl space-y-1 text-amber-200">
-                <span className="font-bold text-amber-400 block">⚠️ Optimization Warnings:</span>
-                <ul className="list-disc pl-5 space-y-1">
-                  {readiness.warnings.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Event Design Summary Metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              <div className="bg-obsidian p-3 rounded-xl border border-gray-800">
-                <span className="text-gray-400 block text-[10px] uppercase">Total Event XP</span>
-                <span className="text-amber-400 font-extrabold text-lg">{readiness.metrics.totalXp} XP</span>
-              </div>
-              <div className="bg-obsidian p-3 rounded-xl border border-gray-800">
-                <span className="text-gray-400 block text-[10px] uppercase">Secret Quests</span>
-                <span className="text-cyan-400 font-extrabold text-lg">{readiness.metrics.secretCount}</span>
-              </div>
-              <div className="bg-obsidian p-3 rounded-xl border border-gray-800">
-                <span className="text-gray-400 block text-[10px] uppercase">Quest Chains</span>
-                <span className="text-purple-400 font-extrabold text-lg">{readiness.metrics.chainCount}</span>
-              </div>
-              <div className="bg-obsidian p-3 rounded-xl border border-gray-800">
-                <span className="text-gray-400 block text-[10px] uppercase">Time-Locked XP</span>
-                <span className="text-emerald-400 font-extrabold text-lg">{readiness.metrics.timeLockedXpPercentage}%</span>
-              </div>
+            <div>
+              <p className="font-bold text-white text-sm group-hover:text-red-300 transition-colors">Live Event Control</p>
+              <p className="text-stone-500 text-xs mt-0.5 leading-relaxed">Audience votes, host broadcasts, freezes &amp; field effects</p>
             </div>
-          </section>
-        )}
+          </Link>
 
-        {/* TAB 3: EVENT WIZARD & DUPLICATION */}
-        {activeTab === 'events' && (
-          <section className="space-y-6">
-            {/* Create Event Form */}
-            <div className="glass-panel p-6 space-y-4">
-              <h2 className="text-base font-bold text-white">🏭 Create New Canton Event (Event Factory)</h2>
-              <form onSubmit={handleCreateEvent} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-gray-400 block mb-1">Event Title</label>
-                  <input
-                    type="text"
-                    value={evTitle}
-                    onChange={(e) => {
-                      setEvTitle(e.target.value);
-                      setEvSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'));
-                    }}
-                    placeholder="e.g. Canton Quest Weekend #2 — The Art Cipher"
-                    className="input-field"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">URL Slug</label>
-                  <input
-                    type="text"
-                    value={evSlug}
-                    onChange={(e) => setEvSlug(e.target.value)}
-                    placeholder="canton-weekend-2"
-                    className="input-field"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Event Start Time (Editable)</label>
-                  <input
-                    type="datetime-local"
-                    value={evStart}
-                    onChange={(e) => setEvStart(e.target.value)}
-                    className="input-field"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Event End Time (Editable)</label>
-                  <input
-                    type="datetime-local"
-                    value={evEnd}
-                    onChange={(e) => setEvEnd(e.target.value)}
-                    className="input-field"
-                    required
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="text-gray-400 block mb-1">Description</label>
-                  <textarea
-                    value={evDesc}
-                    onChange={(e) => setEvDesc(e.target.value)}
-                    placeholder="Explore Canton landmarks, crack ciphers, and top the squad leaderboard."
-                    className="input-field h-20"
-                  />
-                </div>
-
-                <div className="md:col-span-2 flex gap-2">
-                  <button type="submit" className="btn btn-primary text-xs py-2.5 px-5 font-bold flex-1">
-                    🚀 CREATE EVENT
-                  </button>
-                </div>
-              </form>
+          <Link href="/admin/drawing"
+            className="group flex items-start gap-4 p-5 bg-stone-900/60 hover:bg-stone-900 border border-amber-900/50 hover:border-amber-700/60 rounded-2xl transition-all">
+            <div className="w-10 h-10 rounded-xl bg-amber-950/60 border border-amber-800/50 flex items-center justify-center shrink-0">
+              <Zap size={18} className="text-amber-400" />
             </div>
+            <div>
+              <p className="font-bold text-white text-sm group-hover:text-amber-300 transition-colors">Prize Drawing</p>
+              <p className="text-stone-500 text-xs mt-0.5 leading-relaxed">Lock ledgers, execute transparent draws, publish winners</p>
+            </div>
+          </Link>
 
-            {/* 1-Click Event Duplication Form */}
-            {selectedEvent && (
-              <div className="glass-panel p-6 space-y-4 border-cyan-500/40">
-                <h2 className="text-base font-bold text-white">📋 Duplicate Existing Event Template</h2>
-                <p className="text-xs text-gray-300">
-                  Duplicates &quot;{selectedEvent.title}&quot; quests, locations, and chains as a clean template for a new weekend.
-                </p>
+          <Link href="/admin/qr-campaigns"
+            className="group flex items-start gap-4 p-5 bg-stone-900/60 hover:bg-stone-900 border border-cyan-900/50 hover:border-cyan-700/60 rounded-2xl transition-all">
+            <div className="w-10 h-10 rounded-xl bg-cyan-950/60 border border-cyan-800/50 flex items-center justify-center shrink-0">
+              <QrCode size={18} className="text-cyan-400" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-sm group-hover:text-cyan-300 transition-colors">QR Campaigns</p>
+              <p className="text-stone-500 text-xs mt-0.5 leading-relaxed">Generate flyer &amp; distributor attribution for field promotion</p>
+            </div>
+          </Link>
+        </div>
 
-                <form onSubmit={handleDuplicateEvent} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-gray-400 block mb-1">New Event Title</label>
-                    <input
-                      type="text"
-                      value={dupTitle}
-                      onChange={(e) => {
-                        setDupTitle(e.target.value);
-                        setDupSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'));
-                      }}
-                      className="input-field"
-                      required
-                    />
-                  </div>
+        {/* ── TABBED WORKSPACE ─────────────────────────────────────────────── */}
+        <div className="border border-stone-800 rounded-2xl overflow-hidden">
 
-                  <div>
-                    <label className="text-gray-400 block mb-1">New URL Slug</label>
-                    <input
-                      type="text"
-                      value={dupSlug}
-                      onChange={(e) => setDupSlug(e.target.value)}
-                      className="input-field"
-                      required
-                    />
-                  </div>
+          {/* Tab bar */}
+          <div className="flex border-b border-stone-800 bg-stone-950 overflow-x-auto scrollbar-none">
+            {TABS.map(({ id, label, Icon }) => {
+              const isActive = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id as any)}
+                  className={`flex items-center gap-2 py-3.5 px-5 whitespace-nowrap border-b-2 text-xs font-bold transition-all ${
+                    isActive
+                      ? 'border-amber-400 text-amber-300 bg-stone-900/50'
+                      : 'border-transparent text-stone-500 hover:text-stone-300 hover:bg-stone-900/30'
+                  }`}
+                >
+                  <Icon size={13} aria-hidden="true" />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
 
-                  <div className="md:col-span-2">
-                    <button type="submit" className="btn btn-cyan text-xs py-2.5 px-5 font-bold w-full">
-                      📋 DUPLICATE EVENT AS TEMPLATE
+          {/* Tab content */}
+          <div className="p-6 md:p-8 bg-stone-900/30 space-y-8">
+
+            {/* ── OVERVIEW ── */}
+            {activeTab === 'overview' && selectedEvent && (
+              <div className="space-y-8">
+                <div>
+                  <p className="text-[10px] text-stone-500 uppercase tracking-widest mb-4">Quick Actions</p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={() => triggerFlashQuest(quests[0]?.id || '', 30)}
+                      className="btn btn-primary text-xs py-2.5 px-5 font-bold inline-flex items-center gap-2"
+                    >
+                      <Zap size={13} /> Trigger Flash Drop (30 min)
                     </button>
+                    <button
+                      onClick={() => updateEventStatus(selectedEvent.id, selectedEvent.status === 'active' ? 'ended' : 'active')}
+                      className="btn btn-secondary text-xs py-2.5 px-5 font-bold"
+                    >
+                      Toggle Event — Currently: {selectedEvent.status.toUpperCase()}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[10px] text-stone-500 uppercase tracking-widest mb-4">Event Snapshot</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Total Quests', value: quests.length, color: 'text-amber-400' },
+                      { label: 'Verified Proofs', value: siteStats.verifiedSubmissions, color: 'text-emerald-400' },
+                      { label: 'Pending Review', value: pendingCount, color: pendingCount > 0 ? 'text-red-400' : 'text-stone-500' },
+                      { label: 'Total Submissions', value: siteStats.totalSubmissions, color: 'text-sky-400' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="p-4 bg-stone-950/60 border border-stone-800 rounded-xl">
+                        <p className="text-[10px] text-stone-500 uppercase tracking-wider mb-2">{label}</p>
+                        <p className={`font-black text-2xl ${color}`}>{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── PRE-LAUNCH ── */}
+            {activeTab === 'readiness' && readiness && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-bold text-white">Event Pre-Launch Readiness Check</h2>
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-bold ${
+                    readiness.isReady
+                      ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300'
+                      : 'bg-amber-950/60 border-amber-700 text-amber-300'
+                  }`}>
+                    {readiness.isReady ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+                    {readiness.isReady ? 'PASSED — READY TO PUBLISH' : 'BLOCKERS DETECTED'}
+                  </span>
+                </div>
+
+                {readiness.blockers.length > 0 && (
+                  <div className="p-5 bg-red-950/30 border border-red-800/60 rounded-xl space-y-2">
+                    <p className="flex items-center gap-2 font-bold text-red-400 text-xs uppercase tracking-wider">
+                      <AlertTriangle size={13} /> Launch Blockers
+                    </p>
+                    <ul className="space-y-1 pl-5 list-disc text-red-200 text-xs">
+                      {readiness.blockers.map((b, i) => <li key={i}>{b}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {readiness.warnings.length > 0 && (
+                  <div className="p-5 bg-amber-950/30 border border-amber-800/60 rounded-xl space-y-2">
+                    <p className="flex items-center gap-2 font-bold text-amber-400 text-xs uppercase tracking-wider">
+                      <AlertTriangle size={13} /> Optimization Warnings
+                    </p>
+                    <ul className="space-y-1 pl-5 list-disc text-amber-200 text-xs">
+                      {readiness.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Total Event XP', value: `${readiness.metrics.totalXp} XP`, color: 'text-amber-400' },
+                    { label: 'Secret Quests', value: readiness.metrics.secretCount, color: 'text-cyan-400' },
+                    { label: 'Quest Chains', value: readiness.metrics.chainCount, color: 'text-purple-400' },
+                    { label: 'Time-Locked XP', value: `${readiness.metrics.timeLockedXpPercentage}%`, color: 'text-emerald-400' },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className="p-4 bg-stone-950/60 border border-stone-800 rounded-xl">
+                      <p className="text-[10px] text-stone-500 uppercase tracking-wider mb-2">{label}</p>
+                      <p className={`font-black text-xl ${color}`}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── EVENT WIZARD ── */}
+            {activeTab === 'events' && (
+              <div className="space-y-8">
+                <div className="space-y-5">
+                  <div className="border-b border-stone-800 pb-4">
+                    <h2 className="text-sm font-bold text-white">Create New Event</h2>
+                    <p className="text-xs text-stone-500 mt-1">Builds a fresh Canton Quests weekend event from scratch.</p>
+                  </div>
+                  <form onSubmit={handleCreateEvent} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Event Title</label>
+                      <input type="text" value={evTitle} onChange={(e) => { setEvTitle(e.target.value); setEvSlug(e.target.value.toLowerCase().replace(/\s+/g, '-')); }} placeholder="Canton Quest Weekend #2 — The Art Cipher" className="input-field" required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">URL Slug</label>
+                      <input type="text" value={evSlug} onChange={(e) => setEvSlug(e.target.value)} placeholder="canton-weekend-2" className="input-field" required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Start Time</label>
+                      <input type="datetime-local" value={evStart} onChange={(e) => setEvStart(e.target.value)} className="input-field" required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">End Time</label>
+                      <input type="datetime-local" value={evEnd} onChange={(e) => setEvEnd(e.target.value)} className="input-field" required />
+                    </div>
+                    <div className="md:col-span-2 space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Description</label>
+                      <textarea value={evDesc} onChange={(e) => setEvDesc(e.target.value)} placeholder="Explore Canton landmarks, crack ciphers, and top the squad leaderboard." className="input-field h-20" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <button type="submit" className="btn btn-primary text-xs py-3 px-6 font-bold w-full uppercase tracking-wider">Create Event</button>
+                    </div>
+                  </form>
+                </div>
+
+                {selectedEvent && (
+                  <div className="space-y-5 pt-4 border-t border-stone-800">
+                    <div>
+                      <h2 className="text-sm font-bold text-white">Duplicate Existing Event</h2>
+                      <p className="text-xs text-stone-500 mt-1">Copies &quot;{selectedEvent.title}&quot; — quests, locations, and chains — as a template for a new weekend.</p>
+                    </div>
+                    <form onSubmit={handleDuplicateEvent} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">New Event Title</label>
+                        <input type="text" value={dupTitle} onChange={(e) => { setDupTitle(e.target.value); setDupSlug(e.target.value.toLowerCase().replace(/\s+/g, '-')); }} className="input-field" required />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">New URL Slug</label>
+                        <input type="text" value={dupSlug} onChange={(e) => setDupSlug(e.target.value)} className="input-field" required />
+                      </div>
+                      <div className="md:col-span-2">
+                        <button type="submit" className="btn btn-cyan text-xs py-3 px-6 font-bold w-full uppercase tracking-wider">Duplicate Event as Template</button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── QUEST STUDIO ── */}
+            {activeTab === 'quests' && selectedEvent && (
+              <div className="space-y-8">
+                <div className="space-y-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-800 pb-4">
+                    <div>
+                      <h2 className="text-sm font-bold text-white">Create New Quest</h2>
+                      <p className="text-xs text-stone-500 mt-1">For: {selectedEvent.title}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Preset Template</label>
+                      <select value={selectedTemplate} onChange={(e) => handleApplyTemplate(e.target.value)} className="bg-stone-900 text-amber-400 font-bold border border-stone-700 rounded-lg px-2.5 py-1.5 text-xs">
+                        <option value="">— Choose Preset —</option>
+                        {getQuestTemplates().map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleCreateQuest} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Quest Title</label>
+                      <input type="text" value={qTitle} onChange={(e) => { setQTitle(e.target.value); setQSlug(e.target.value.toLowerCase().replace(/\s+/g, '-')); }} placeholder="Centennial Plaza Beacon Check-In" className="input-field" required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">URL Slug</label>
+                      <input type="text" value={qSlug} onChange={(e) => setQSlug(e.target.value)} placeholder="centennial-beacon" className="input-field" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Verification Type</label>
+                      <select value={qProofType} onChange={(e) => setQProofType(e.target.value as any)} className="input-field">
+                        <option value="checkin">GPS Proximity Check-In</option>
+                        <option value="passphrase">Passphrase Code</option>
+                        <option value="qr">QR Code Scan</option>
+                        <option value="photo">Photo Proof</option>
+                        <option value="video">Video Proof</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">XP Point Value</label>
+                      <input type="number" value={qPoints} onChange={(e) => setQPoints(Number(e.target.value))} className="input-field font-bold text-amber-400" required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Target Passphrase / QR Token</label>
+                      <input type="text" value={qTargetCode} onChange={(e) => setQTargetCode(e.target.value)} placeholder="Private answer or QR passcode" className="input-field font-mono uppercase" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Target Location</label>
+                      <select value={qLocationId} onChange={(e) => setQLocationId(e.target.value)} className="input-field">
+                        <option value="">— No Location (Virtual) —</option>
+                        {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Prerequisite Quest</label>
+                      <select value={qPrereqId} onChange={(e) => setQPrereqId(e.target.value)} className="input-field">
+                        <option value="">— Available Immediately —</option>
+                        {quests.map((q) => <option key={q.id} value={q.id}>{q.title}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Claim Capacity Limit</label>
+                      <input type="number" value={qClaimLimit || ''} onChange={(e) => setQClaimLimit(e.target.value ? Number(e.target.value) : undefined)} placeholder="Unlimited" className="input-field" />
+                    </div>
+                    <div className="md:col-span-2 space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Player Instructions</label>
+                      <textarea value={qInst} onChange={(e) => setQInst(e.target.value)} placeholder="Stand within 60m of Centennial Plaza and tap the check-in scanner." className="input-field h-20" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <button type="submit" className="btn btn-primary text-xs py-3 px-6 font-bold w-full uppercase tracking-wider">Publish Quest to Event</button>
+                    </div>
+                  </form>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-stone-800">
+                  <p className="text-[10px] text-stone-500 uppercase tracking-widest">Published Quests — {quests.length} total</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {quests.map((q) => (
+                      <div key={q.id} className="p-4 bg-stone-950/60 border border-stone-800 rounded-xl space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-bold text-white text-sm leading-snug">{q.title}</span>
+                          <span className="text-amber-400 font-bold shrink-0">+{q.pointValue} XP</span>
+                        </div>
+                        <p className="text-stone-500 text-xs leading-relaxed line-clamp-2">{q.instructions}</p>
+                        <div className="flex items-center gap-3 pt-1 border-t border-stone-800">
+                          <button onClick={() => handleDuplicateQuest(q.id)} className="text-xs text-cyan-400 hover:text-cyan-300 font-bold transition-colors">Duplicate</button>
+                          <button onClick={() => setPreviewQuest(q)} className="text-xs text-amber-400 hover:text-amber-300 font-bold transition-colors">Preview as Player</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── LOCATIONS ── */}
+            {activeTab === 'locations' && (
+              <div className="space-y-5">
+                <div className="border-b border-stone-800 pb-4">
+                  <h2 className="text-sm font-bold text-white">Canton Location Manager</h2>
+                  <p className="text-xs text-stone-500 mt-1">Add real-world GPS-anchored points to the Canton city map. {locations.length} locations registered.</p>
+                </div>
+                <form onSubmit={handleCreateLocation} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Place Name</label>
+                    <input type="text" value={locName} onChange={(e) => setLocName(e.target.value)} placeholder="Market Square Pavilion" className="input-field" required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Street Address</label>
+                    <input type="text" value={locAddress} onChange={(e) => setLocAddress(e.target.value)} placeholder="330 Market Ave N, Canton, OH 44702" className="input-field" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Latitude</label>
+                    <input type="number" step="any" value={locLat} onChange={(e) => setLocLat(Number(e.target.value))} className="input-field" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Longitude</label>
+                    <input type="number" step="any" value={locLon} onChange={(e) => setLocLon(Number(e.target.value))} className="input-field" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <button type="submit" className="btn btn-primary text-xs py-3 px-6 font-bold w-full uppercase tracking-wider">Save Location to Canton Map</button>
                   </div>
                 </form>
               </div>
             )}
-          </section>
-        )}
 
-        {/* TAB 4: QUEST STUDIO */}
-        {activeTab === 'quests' && selectedEvent && (
-          <section className="space-y-6">
-            {/* Create Quest Form */}
-            <div className="glass-panel p-6 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-3">
-                <h2 className="text-base font-bold text-white">🎨 Visual Quest Studio</h2>
-
-                {/* Preset Templates */}
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400">Preset Template:</span>
-                  <select
-                    value={selectedTemplate}
-                    onChange={(e) => handleApplyTemplate(e.target.value)}
-                    className="bg-card text-amber-400 font-bold border border-gray-800 rounded-lg px-2.5 py-1"
-                  >
-                    <option value="">-- Choose Preset --</option>
-                    {getQuestTemplates().map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <form onSubmit={handleCreateQuest} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-gray-400 block mb-1">Quest Title</label>
-                  <input
-                    type="text"
-                    value={qTitle}
-                    onChange={(e) => {
-                      setQTitle(e.target.value);
-                      setQSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'));
-                    }}
-                    placeholder="e.g. Centennial Plaza Beacon Check-In"
-                    className="input-field"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">URL Slug</label>
-                  <input
-                    type="text"
-                    value={qSlug}
-                    onChange={(e) => setQSlug(e.target.value)}
-                    placeholder="centennial-beacon"
-                    className="input-field"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Verification Type</label>
-                  <select
-                    value={qProofType}
-                    onChange={(e) => setQProofType(e.target.value as any)}
-                    className="input-field"
-                  >
-                    <option value="checkin">GPS Proximity Check-In</option>
-                    <option value="passphrase">Passphrase Code</option>
-                    <option value="qr">QR Code Scan</option>
-                    <option value="photo">Photo Proof</option>
-                    <option value="video">Video Proof</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">XP Point Value</label>
-                  <input
-                    type="number"
-                    value={qPoints}
-                    onChange={(e) => setQPoints(Number(e.target.value))}
-                    className="input-field font-bold text-amber-400"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Target Passphrase / QR Token</label>
-                  <input
-                    type="text"
-                    value={qTargetCode}
-                    onChange={(e) => setQTargetCode(e.target.value)}
-                    placeholder="Enter private answer or QR passcode"
-                    className="input-field font-mono uppercase"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Target Location</label>
-                  <select
-                    value={qLocationId}
-                    onChange={(e) => setQLocationId(e.target.value)}
-                    className="input-field"
-                  >
-                    <option value="">-- No Location (Virtual) --</option>
-                    {locations.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Prerequisite Quest (Chain Step)</label>
-                  <select
-                    value={qPrereqId}
-                    onChange={(e) => setQPrereqId(e.target.value)}
-                    className="input-field"
-                  >
-                    <option value="">-- No Prerequisite (Available Immediately) --</option>
-                    {quests.map((q) => (
-                      <option key={q.id} value={q.id}>
-                        {q.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Claim Capacity Limit (Optional)</label>
-                  <input
-                    type="number"
-                    value={qClaimLimit || ''}
-                    onChange={(e) => setQClaimLimit(e.target.value ? Number(e.target.value) : undefined)}
-                    placeholder="e.g. 10 claims max"
-                    className="input-field"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="text-gray-400 block mb-1">Player Instructions</label>
-                  <textarea
-                    value={qInst}
-                    onChange={(e) => setQInst(e.target.value)}
-                    placeholder="e.g. Stand within 60m of Centennial Plaza screen and tap check-in scanner."
-                    className="input-field h-20"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <button type="submit" className="btn btn-primary text-xs py-2.5 px-5 font-bold w-full">
-                    🎨 PUBLISH QUEST TO EVENT FACTORY
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Published Quests Grid */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-white uppercase">Published Event Quests ({quests.length})</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {quests.map((q) => (
-                  <div key={q.id} className="p-4 bg-obsidian border border-gray-800 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-white">{q.title}</span>
-                      <span className="text-amber-400 font-bold">+{q.pointValue} XP</span>
-                    </div>
-                    <div className="text-gray-400 text-[11px]">{q.instructions}</div>
-                    <div className="flex items-center gap-2 pt-2">
-                      <button
-                        onClick={() => handleDuplicateQuest(q.id)}
-                        className="text-[11px] text-cyan-400 hover:underline font-bold"
-                      >
-                        📋 Duplicate
-                      </button>
-                      <button
-                        onClick={() => setPreviewQuest(q)}
-                        className="text-[11px] text-amber-400 hover:underline font-bold"
-                      >
-                        👁️ Preview as Player
-                      </button>
-                    </div>
+            {/* ── QR STUDIO ── */}
+            {activeTab === 'qr' && selectedEvent && (
+              <div className="space-y-8">
+                <div className="space-y-5">
+                  <div className="border-b border-stone-800 pb-4">
+                    <h2 className="text-sm font-bold text-white">QR Code Token Studio</h2>
+                    <p className="text-xs text-stone-500 mt-1">Generate unique scannable tokens tied to specific quests.</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* TAB 5: LOCATION MANAGER */}
-        {activeTab === 'locations' && (
-          <section className="space-y-6">
-            <div className="glass-panel p-6 space-y-4">
-              <h2 className="text-base font-bold text-white">📍 Canton Location Manager</h2>
-              <form onSubmit={handleCreateLocation} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-gray-400 block mb-1">Place Name</label>
-                  <input
-                    type="text"
-                    value={locName}
-                    onChange={(e) => setLocName(e.target.value)}
-                    placeholder="e.g. Market Square Pavilion"
-                    className="input-field"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Street Address</label>
-                  <input
-                    type="text"
-                    value={locAddress}
-                    onChange={(e) => setLocAddress(e.target.value)}
-                    placeholder="330 Market Ave N, Canton, OH 44702"
-                    className="input-field"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Latitude</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={locLat}
-                    onChange={(e) => setLocLat(Number(e.target.value))}
-                    className="input-field"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Longitude</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={locLon}
-                    onChange={(e) => setLocLon(Number(e.target.value))}
-                    className="input-field"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <button type="submit" className="btn btn-primary text-xs py-2.5 px-5 font-bold w-full">
-                    📍 SAVE LOCATION TO CANTON MAP
-                  </button>
-                </div>
-              </form>
-            </div>
-          </section>
-        )}
-
-        {/* TAB 6: QR CODE STUDIO */}
-        {activeTab === 'qr' && selectedEvent && (
-          <section className="space-y-6">
-            <div className="glass-panel p-6 space-y-4">
-              <h2 className="text-base font-bold text-white">📱 QR Code Token Studio</h2>
-              <form onSubmit={handleGenerateQR} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-gray-400 block mb-1">Select Target Quest</label>
-                  <select
-                    value={qrTargetQuestId}
-                    onChange={(e) => setQrTargetQuestId(e.target.value)}
-                    className="input-field text-xs"
-                    required
-                  >
-                    <option value="">-- Select Quest --</option>
-                    {quests.map((q) => (
-                      <option key={q.id} value={q.id}>
-                        {q.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-gray-400 block mb-1">Internal Printable Label</label>
-                  <input
-                    type="text"
-                    value={qrLabel}
-                    onChange={(e) => setQrLabel(e.target.value)}
-                    placeholder="e.g. Aura Coffee Counter Sticker"
-                    className="input-field text-xs"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <button type="submit" className="btn btn-cyan text-xs py-2.5 px-5 font-bold w-full">
-                    📱 GENERATE QR TOKEN CODE
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Generated QR Tokens List */}
-            <div className="glass-panel p-5 space-y-3">
-              <h3 className="text-sm font-bold text-white uppercase">Generated QR Tokens ({generatedQrs.length})</h3>
-              <div className="space-y-2">
-                {generatedQrs.map((qr) => (
-                  <div key={qr.id} className="p-3 bg-obsidian border border-gray-800 rounded-xl flex items-center justify-between text-xs font-mono">
-                    <div>
-                      <span className="font-bold text-cyan-400">{qr.label}</span>
-                      <span className="text-gray-400 block text-[11px]">{qr.targetUrl}</span>
+                  <form onSubmit={handleGenerateQR} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Target Quest</label>
+                      <select value={qrTargetQuestId} onChange={(e) => setQrTargetQuestId(e.target.value)} className="input-field" required>
+                        <option value="">— Select Quest —</option>
+                        {quests.map((q) => <option key={q.id} value={q.id}>{q.title}</option>)}
+                      </select>
                     </div>
-                    <span className="text-amber-400 font-bold">{qr.token}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* TAB 7: PROOF REVIEW CENTER & FLAGS */}
-        {activeTab === 'submissions' && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between bg-obsidian p-3 rounded-xl border border-gray-800">
-              <span className="text-white font-bold">Filter Proofs:</span>
-              <div className="flex gap-2">
-                {['pending', 'verified', 'rejected', 'all'].map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setSubmissionFilter(st as any)}
-                    className={`px-3 py-1 rounded-full uppercase text-[11px] font-bold border ${
-                      submissionFilter === st ? 'bg-amber-500 text-obsidian border-amber-400' : 'bg-card text-gray-300 border-gray-800'
-                    }`}
-                  >
-                    {st}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {filteredSubmissions.length === 0 ? (
-              <div className="glass-panel p-8 text-center text-gray-400">No submissions found matching filter.</div>
-            ) : (
-              <div className="space-y-3">
-                {filteredSubmissions.map((sub) => (
-                  <div key={sub.id} className="p-4 bg-obsidian border border-gray-800 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-white">Proof #{sub.id.slice(-6)}</span>
-                      <span className={`px-2 py-0.5 rounded font-bold uppercase ${sub.status === 'verified' ? 'bg-emerald-950 text-emerald-300' : sub.status === 'rejected' ? 'bg-red-950 text-red-300' : 'bg-amber-950 text-amber-300'}`}>
-                        {sub.status}
-                      </span>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Internal Label</label>
+                      <input type="text" value={qrLabel} onChange={(e) => setQrLabel(e.target.value)} placeholder="Aura Coffee Counter Sticker" className="input-field" />
                     </div>
+                    <div className="md:col-span-2">
+                      <button type="submit" className="btn btn-cyan text-xs py-3 px-6 font-bold w-full uppercase tracking-wider">Generate QR Token</button>
+                    </div>
+                  </form>
+                </div>
 
-                    {/* Review Flags Badges */}
-                    {sub.reviewFlags && sub.reviewFlags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {sub.reviewFlags.map((flag, idx) => (
-                          <span key={idx} className="bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded text-[10px] font-bold">
-                            ⚠️ {flag}
-                          </span>
-                        ))}
+                <div className="space-y-3 pt-4 border-t border-stone-800">
+                  <p className="text-[10px] text-stone-500 uppercase tracking-widest">Generated Tokens — {generatedQrs.length}</p>
+                  <div className="space-y-2">
+                    {generatedQrs.map((qr) => (
+                      <div key={qr.id} className="flex items-center justify-between p-3.5 bg-stone-950/60 border border-stone-800 rounded-xl gap-4">
+                        <div>
+                          <p className="font-bold text-cyan-400 text-xs">{qr.label}</p>
+                          <p className="text-stone-500 text-[11px] mt-0.5">{qr.targetUrl}</p>
+                        </div>
+                        <span className="font-mono text-amber-400 font-bold text-xs shrink-0">{qr.token}</span>
                       </div>
-                    )}
-
-                    <div className="text-gray-300 text-xs">Proof Content: {sub.submittedContent || sub.proofUrl || 'GPS Check-In'}</div>
-
-                    {sub.status === 'pending' && (
-                      <div className="flex gap-2 pt-2">
-                        <button onClick={() => handleReview(sub.id, 'verified')} className="btn btn-primary text-xs py-1.5 px-3 font-bold">
-                          ✅ Approve
-                        </button>
-                        <button onClick={() => handleReview(sub.id, 'rejected')} className="btn btn-secondary text-xs py-1.5 px-3 font-bold">
-                          ❌ Reject
-                        </button>
-                      </div>
-                    )}
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
             )}
-          </section>
-        )}
+
+            {/* ── PROOF QUEUE ── */}
+            {activeTab === 'submissions' && (
+              <div className="space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-800 pb-4">
+                  <div>
+                    <h2 className="text-sm font-bold text-white">Proof Review Queue</h2>
+                    <p className="text-xs text-stone-500 mt-1">{pendingCount > 0 ? `${pendingCount} submissions awaiting review` : 'No pending submissions'}</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {(['pending', 'verified', 'rejected', 'all'] as const).map((st) => (
+                      <button
+                        key={st}
+                        onClick={() => setSubmissionFilter(st)}
+                        className={`px-3 py-1.5 rounded-lg uppercase text-[11px] font-bold border transition-colors ${
+                          submissionFilter === st
+                            ? 'bg-amber-500 text-stone-950 border-amber-400'
+                            : 'bg-stone-900 text-stone-400 border-stone-700 hover:border-stone-600'
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {filteredSubmissions.length === 0 ? (
+                  <div className="py-16 text-center text-stone-600 text-sm">No submissions match this filter.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredSubmissions.map((sub) => (
+                      <div key={sub.id} className="p-5 bg-stone-950/60 border border-stone-800 rounded-xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white text-xs">Proof #{sub.id.slice(-6).toUpperCase()}</span>
+                          <span className={`px-2.5 py-0.5 rounded-md font-bold uppercase text-[10px] border ${
+                            sub.status === 'verified' ? 'bg-emerald-950 border-emerald-800 text-emerald-300'
+                            : sub.status === 'rejected' ? 'bg-red-950 border-red-800 text-red-300'
+                            : 'bg-amber-950 border-amber-800 text-amber-300'
+                          }`}>{sub.status}</span>
+                        </div>
+
+                        {sub.reviewFlags && sub.reviewFlags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {sub.reviewFlags.map((flag, idx) => (
+                              <span key={idx} className="inline-flex items-center gap-1 bg-red-950/60 text-red-300 border border-red-800/50 px-2 py-0.5 rounded text-[10px] font-bold">
+                                <AlertTriangle size={10} /> {flag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <p className="text-stone-400 text-xs">Proof: {sub.submittedContent || sub.proofUrl || 'GPS Check-In'}</p>
+
+                        {sub.status === 'pending' && (
+                          <div className="flex gap-2 pt-1 border-t border-stone-800">
+                            <button onClick={() => handleReview(sub.id, 'verified')} className="btn btn-primary text-xs py-2 px-4 font-bold flex-1">Approve</button>
+                            <button onClick={() => handleReview(sub.id, 'rejected')} className="btn btn-secondary text-xs py-2 px-4 font-bold flex-1">Reject</button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>{/* end tab content */}
+        </div>{/* end tabbed workspace */}
+
       </main>
 
-      {/* Preview Quest Modal */}
+      {/* ── QUEST PREVIEW MODAL ────────────────────────────────────────────── */}
       {previewQuest && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="max-w-md w-full bg-obsidian border border-amber-500/40 p-6 rounded-3xl space-y-4 text-xs font-mono">
-            <div className="flex items-center justify-between">
-              <span className="badge badge-medium">👁️ PLAYER PREVIEW MODE</span>
-              <button onClick={() => setPreviewQuest(null)} className="text-gray-400 hover:text-white">✕</button>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="max-w-md w-full bg-stone-900 border border-amber-500/30 p-6 rounded-2xl space-y-4 text-xs font-mono shadow-2xl">
+            <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+              <span className="flex items-center gap-2 text-amber-400 font-bold uppercase text-[10px] tracking-wider">
+                <KeyRound size={12} /> Player Preview Mode
+              </span>
+              <button onClick={() => setPreviewQuest(null)} className="text-stone-500 hover:text-white transition-colors">✕</button>
             </div>
-            <h3 className="text-lg font-bold text-white">{previewQuest.title}</h3>
-            <p className="text-gray-300">{previewQuest.description}</p>
-            <div className="p-3 bg-card border border-gray-800 rounded-xl space-y-1">
-              <span className="text-amber-400 font-bold block">Instructions:</span>
-              <div className="text-gray-300">{previewQuest.instructions}</div>
+            <h3 className="text-base font-bold text-white">{previewQuest.title}</h3>
+            <p className="text-stone-400 leading-relaxed">{previewQuest.description}</p>
+            <div className="p-4 bg-stone-950 border border-stone-800 rounded-xl space-y-2">
+              <p className="text-amber-400 font-bold text-[11px] uppercase tracking-wider">Instructions</p>
+              <p className="text-stone-300 leading-relaxed">{previewQuest.instructions}</p>
             </div>
-            <div className="text-amber-400 font-extrabold text-sm">Value: +{previewQuest.pointValue} XP</div>
-            <button onClick={() => setPreviewQuest(null)} className="btn btn-secondary w-full py-2">Close Preview</button>
+            <p className="text-amber-400 font-extrabold">+{previewQuest.pointValue} XP</p>
+            <button onClick={() => setPreviewQuest(null)} className="btn btn-secondary w-full py-2.5 text-xs font-bold">Close Preview</button>
           </div>
         </div>
       )}
