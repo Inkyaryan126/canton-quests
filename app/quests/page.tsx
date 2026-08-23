@@ -274,6 +274,17 @@ export default function QuestsPage() {
                         sizes="(max-width: 760px) 100vw, 33vw"
                       />
                       <span className={`cq-rarity ${rarityClassName[rarity] || ''}`}>{rarity}</span>
+                      {quest.isFlash && (
+                        <span className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500 text-black text-[10px] font-black uppercase tracking-wider shadow-lg">
+                          <Zap size={10} className="fill-black" aria-hidden="true" />
+                          FLASH
+                        </span>
+                      )}
+                      {quest.isFinaleQuest && (
+                        <span className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500 text-white text-[10px] font-black uppercase tracking-wider shadow-lg">
+                          FINALE
+                        </span>
+                      )}
                       {isRecommended && (
                         <span className="cq-quest-recommended-badge">
                           ★ Your District

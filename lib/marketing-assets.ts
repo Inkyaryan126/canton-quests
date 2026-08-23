@@ -85,15 +85,17 @@ export const questImagePool = [
 ];
 
 const questImageByLocation: Record<string, string> = {
-  'loc-centennial-plaza': cqImages.cantonSign,
-  'loc-mckinley-monument': cqImages.monumentCinematic,
-  'loc-4th-st-mural': cqImages.butterflyMural,
-  'loc-aura-craft-coffee': cqImages.coffeeQr,
-  'loc-arcade-bar': cqImages.footballCinematic,
-  'loc-music-hall': cqImages.palaceCinematic,
-  'loc-hof-trail': cqImages.footballCinematic,
-  'loc-onesto-building': cqImages.musicBlock,
-  'loc-west-lawn-frankenstein': cqImages.frankCinematic,
+  // Real location photos used wherever available; cinematic art as fallback
+  'loc-centennial-plaza':      cqImages.cantonSign,           // real photo
+  'loc-mckinley-monument':     cqImages.mckinleySunset,       // real sunset photo (replaces cinematic)
+  'loc-4th-st-mural':          cqImages.butterflyMural,       // real mural photo
+  'loc-aura-craft-coffee':     cqImages.coffeeQr,             // real interior photo
+  'loc-arcade-bar':            cqImages.heroCity,             // inactive quest; generic fallback
+  'loc-music-hall':            cqImages.palace,               // real Palace Theatre photo
+  'loc-hof-trail':             cqImages.footballWide,         // real sculpture photo (replaces cinematic)
+  'loc-onesto-building':       cqImages.musicBlock,           // arts district photo — needs real Onesto photo
+  'loc-west-lawn-frankenstein': cqImages.frankCinematic,      // cinematic illustration (no real photo exists)
+  'loc-mother-goose-land':     cqImages.gooseWall,            // cinematic mural illustration
 };
 
 export const destinationCards = [
