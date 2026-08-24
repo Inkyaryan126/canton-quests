@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   getAchievementsDB,
   getAchievementsForPlayerDB,
+  getCollectiblesForPlayerDB,
   getDrawingEntriesForPlayerDB,
   getLeaderboardDB,
   getPlayerProgressDB,
@@ -26,7 +27,7 @@ export const dynamic = 'force-dynamic';
 
 const DEFAULT_EVENT_ID = 'evt-canton-vol-1';
 
-async function getOwnerImageUrl(path?: string) {
+async function getOwnerImageUrl(path?: string | null) {
   if (!path || !isSupabaseAdminConfigured || !supabaseAdmin) return null;
   const { data, error } = await supabaseAdmin.storage
     .from('player-profile-images')
@@ -51,13 +52,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('eventId') || DEFAULT_EVENT_ID;
 
-    const [quests, progress, leaderboard, achievements, catalog, drawingEntries] = await Promise.all([
+    const [quests, progress, leaderboard, achievements, catalog, drawingEntries, playerCollectibles] = await Promise.all([
       getQuestsForEventDB(eventId),
       getPlayerProgressDB(player.id, eventId),
       getLeaderboardDB(eventId),
       getAchievementsForPlayerDB(player.id),
       getAchievementsDB(),
       getDrawingEntriesForPlayerDB(player.id, eventId),
+      getCollectiblesForPlayerDB(player.id),
     ]);
 
     const completedSet = new Set(progress.completedQuestIds);
@@ -109,6 +111,11 @@ export async function GET(request: Request) {
         maxFeatured: PLAYER_CARD_BADGE_SLOT_COUNT,
       },
       recentActivity: buildRecentActivity(completedQuests, achievements, drawingEntries),
+      founderKeys: {
+        mark: playerCollectibles.some((c) => c.collectibleId === 'col-founder-mark'),
+        code: playerCollectibles.some((c) => c.collectibleId === 'col-founder-code'),
+        word: playerCollectibles.some((c) => c.collectibleId === 'col-founder-word'),
+      },
     });
 
     if (sessionResult.refreshedSession) {

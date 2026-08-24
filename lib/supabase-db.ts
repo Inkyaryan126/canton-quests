@@ -196,7 +196,7 @@ export function mapPlayerFromDB(row: any): Player {
     profileImageCropX: row.profile_image_crop_x,
     profileImageCropY: row.profile_image_crop_y,
     profileVisibility: row.profile_visibility || 'public',
-    playerImageVisibility: row.player_image_visibility || 'private',
+    playerImageVisibility: row.player_image_visibility || 'public',
     role: row.role || 'player',
     totalXp: row.total_xp || 0,
     level: row.level || 1,
@@ -968,7 +968,7 @@ export async function upsertPlayerDB(
         displayName: string;
         avatarUrl?: string;
         avatarPresetKey?: string;
-        profileImagePath?: string;
+        profileImagePath?: string | null;
         profileImageCropZoom?: number;
         profileImageCropX?: number;
         profileImageCropY?: number;
@@ -1013,7 +1013,7 @@ export async function upsertPlayerDB(
       profile_image_crop_x: p.profileImageCropX,
       profile_image_crop_y: p.profileImageCropY,
       profile_visibility: p.profileVisibility || 'public',
-      player_image_visibility: p.playerImageVisibility || 'private',
+      player_image_visibility: p.playerImageVisibility || 'public',
       selected_starting_path: p.selectedStartingPath || null,
       bio: p.bio,
       tagline: p.tagline,
@@ -1052,7 +1052,7 @@ export async function upsertPlayerDB(
       profile_image_crop_x: p.profileImageCropX,
       profile_image_crop_y: p.profileImageCropY,
       profile_visibility: p.profileVisibility || 'public',
-      player_image_visibility: p.playerImageVisibility || 'private',
+      player_image_visibility: p.playerImageVisibility || 'public',
       selected_starting_path: p.selectedStartingPath || null,
       acquisition_source: p.acquisitionSource || 'main_site',
       bio: p.bio,
@@ -1372,12 +1372,19 @@ export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntr
 
     // Collect all player IDs
     const playerIds = Array.from(new Set(scoreRows.map((r: any) => r.player_id).filter(Boolean)));
-    const playersMap: Record<string, { displayName: string; avatarUrl?: string }> = {};
+    type LeaderboardPlayerInfo = {
+      displayName: string;
+      avatarUrl?: string;
+      profileImageCropZoom?: number;
+      profileImageCropX?: number;
+      profileImageCropY?: number;
+    };
+    const playersMap: Record<string, LeaderboardPlayerInfo> = {};
 
     if (playerIds.length > 0) {
       const { data: playersData } = await db
         .from('players')
-        .select('id, display_name, avatar_url')
+        .select('id, display_name, avatar_url, profile_image_crop_zoom, profile_image_crop_x, profile_image_crop_y')
         .in('id', playerIds);
 
       if (playersData) {
@@ -1385,6 +1392,9 @@ export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntr
           playersMap[p.id] = {
             displayName: p.display_name,
             avatarUrl: p.avatar_url,
+            profileImageCropZoom: p.profile_image_crop_zoom,
+            profileImageCropX: p.profile_image_crop_x,
+            profileImageCropY: p.profile_image_crop_y,
           };
         }
       }
@@ -1393,15 +1403,19 @@ export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntr
     // Also include event_players registered for event even if 0 points
     const { data: eventPlayers } = await db
       .from('event_players')
-      .select('player_id, players(id, display_name, avatar_url)')
+      .select('player_id, players(id, display_name, avatar_url, profile_image_crop_zoom, profile_image_crop_x, profile_image_crop_y)')
       .eq('event_id', eventId);
 
     if (eventPlayers) {
       for (const ep of eventPlayers) {
         if (ep.player_id && !playersMap[ep.player_id] && (ep as any).players) {
+          const epPlayer = (ep as any).players;
           playersMap[ep.player_id] = {
-            displayName: (ep as any).players.display_name || 'Agent',
-            avatarUrl: (ep as any).players.avatar_url || '⚡',
+            displayName: epPlayer.display_name || 'Agent',
+            avatarUrl: epPlayer.avatar_url || '⚡',
+            profileImageCropZoom: epPlayer.profile_image_crop_zoom,
+            profileImageCropX: epPlayer.profile_image_crop_x,
+            profileImageCropY: epPlayer.profile_image_crop_y,
           };
         }
       }
@@ -1409,7 +1423,7 @@ export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntr
 
     const playerStats: Record<
       string,
-      { totalPoints: number; completedQuestIds: Set<string>; lastScoreTime: string; displayName?: string; avatarUrl?: string }
+      { totalPoints: number; completedQuestIds: Set<string>; lastScoreTime: string } & LeaderboardPlayerInfo
     > = {};
 
     for (const [pId, pInfo] of Object.entries(playersMap)) {
@@ -1417,8 +1431,7 @@ export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntr
         totalPoints: 0,
         completedQuestIds: new Set<string>(),
         lastScoreTime: '',
-        displayName: pInfo.displayName,
-        avatarUrl: pInfo.avatarUrl,
+        ...pInfo,
       };
     }
 
@@ -1430,6 +1443,9 @@ export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntr
           lastScoreTime: row.awarded_at || '',
           displayName: playersMap[row.player_id]?.displayName || 'Anonymous Agent',
           avatarUrl: playersMap[row.player_id]?.avatarUrl || '⚡',
+          profileImageCropZoom: playersMap[row.player_id]?.profileImageCropZoom,
+          profileImageCropX: playersMap[row.player_id]?.profileImageCropX,
+          profileImageCropY: playersMap[row.player_id]?.profileImageCropY,
         };
       }
       playerStats[row.player_id].totalPoints += row.points || 0;
@@ -1451,6 +1467,9 @@ export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntr
       playerId,
       displayName: stats.displayName || 'Anonymous Agent',
       avatarUrl: stats.avatarUrl || '⚡',
+      profileImageCropZoom: stats.profileImageCropZoom,
+      profileImageCropX: stats.profileImageCropX,
+      profileImageCropY: stats.profileImageCropY,
       totalPoints: Math.max(0, stats.totalPoints),
       questsCompletedCount: stats.completedQuestIds.size,
       lastScoreTime: stats.lastScoreTime,

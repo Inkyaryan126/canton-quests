@@ -1,6 +1,7 @@
 'use client';
 
 import { LeaderboardEntry } from '@/lib/types';
+import PlayerAvatar from '@/components/PlayerAvatar';
 
 interface LeaderboardProps {
   entries: LeaderboardEntry[];
@@ -64,9 +65,16 @@ export default function Leaderboard({ entries, currentPlayerId }: LeaderboardPro
                     {rankBadge}
                   </span>
 
-                  <div className="w-9 h-9 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-lg">
-                    {entry.avatarUrl || '⚡'}
-                  </div>
+                  <PlayerAvatar
+                    avatarUrl={entry.avatarUrl}
+                    cropZoom={entry.profileImageCropZoom}
+                    cropX={entry.profileImageCropX}
+                    cropY={entry.profileImageCropY}
+                    size={36}
+                    className="cq-leaderboard-avatar"
+                    ariaLabel={`${entry.displayName} avatar`}
+                    style={{ background: '#1f2937', border: '1px solid #374151', fontSize: '1.125rem' }}
+                  />
 
                   <div>
                     <div className="flex items-center gap-2">

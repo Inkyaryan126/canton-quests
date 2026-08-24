@@ -269,14 +269,24 @@ describe('Player Command Center profile rules', () => {
     expect(cssSource).not.toContain('overflow-wrap: anywhere');
   });
 
-  it('safely renders nav avatar as an image without leaking raw file paths into text and with explicit 28px constraints', () => {
+  it('safely renders nav avatar through the shared PlayerAvatar resolver without leaking raw file paths into text, with explicit 28px constraints', () => {
     const navSource = fs.readFileSync(path.join(process.cwd(), 'components/CinematicNav.tsx'), 'utf8');
+    const avatarSource = fs.readFileSync(path.join(process.cwd(), 'components/PlayerAvatar.tsx'), 'utf8');
     const cssSource = fs.readFileSync(path.join(process.cwd(), 'app/globals.css'), 'utf8');
 
-    expect(navSource).toContain('<img');
+    // Nav delegates avatar rendering to the shared PlayerAvatar resolver
+    // instead of hand-rolling its own <img>/raw-text branch.
+    expect(navSource).toContain('<PlayerAvatar');
+    expect(navSource).not.toContain('<img');
     expect(navSource).not.toContain('<span>{player.avatarUrl ||');
-    expect(navSource).toContain('player.avatarUrl.startsWith');
     expect(navSource).toContain('cq-nav-avatar-img');
+
+    // PlayerAvatar itself is the one place that decides image vs. raw-text
+    // fallback, and it never renders an unresolved avatarUrl string as
+    // visible text — only through isImageAvatarUrl-gated CSS background-image.
+    expect(avatarSource).toContain('isImageAvatarUrl');
+    expect(avatarSource).not.toMatch(/<span[^>]*>\s*\{avatarUrl/);
+
     expect(cssSource).toContain('.cq-nav-avatar-img');
     expect(cssSource).toContain('width: 28px');
     expect(cssSource).toContain('height: 28px');

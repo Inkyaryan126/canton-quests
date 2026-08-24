@@ -7,6 +7,7 @@ import {
   getCallsignFontScale,
   getDistrictFontScale,
 } from '@/lib/player-card-layout';
+import { getAvatarCropStyle } from '@/lib/avatar-crop';
 
 export interface PlayerCardBadge {
   id?: string;
@@ -84,8 +85,7 @@ export default function PlayerCard({
         style={{
           ...PLAYER_CARD_LAYOUT.avatar,
           backgroundImage: `url(${avatarImage})`,
-          backgroundSize: `${cropZoom * 100}%`,
-          backgroundPosition: `${cropX}% ${cropY}%`,
+          ...getAvatarCropStyle(cropZoom, cropX, cropY),
         }}
         role="img"
         aria-label={`${cleanName} avatar preview`}

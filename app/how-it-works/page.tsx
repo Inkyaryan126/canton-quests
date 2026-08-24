@@ -240,10 +240,10 @@ export default function HowItWorksPage() {
                   <span>EVERY COMPLETED QUEST = ONE DRAWING ENTRY</span>
                 </div>
                 <p className="text-amber-200 font-display font-bold text-lg sm:text-2xl uppercase">
-                  Canton Quests does not secretly choose prize winners.
+                  $500 in Cash Prizes. Zero secret winners.
                 </p>
                 <p className="text-stone-300 text-sm leading-relaxed max-w-3xl">
-                  You do <strong>not</strong> need to play all three days to win prizes. Every completed quest gives you <strong>one drawing entry ticket</strong>. Complete 1 quest = 1 entry. Complete 5 quests = 5 entries. Complete 10 quests = 10 entries! Winners are drawn Sunday evening using a fixed public RNG algorithm.
+                  Sign up and get <strong>1 free drawing entry</strong>. Every verified completed quest gives you <strong>+1 drawing entry</strong>. Entries feed three separate cash drawings ($100 + $50 + $50 = $200 total). Leaderboard prizes ($200 champion + $100 runner-up) go to the top two XP scorers — no drawing entries needed for those.
                 </p>
               </div>
 

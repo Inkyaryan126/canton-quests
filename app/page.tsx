@@ -336,24 +336,27 @@ export default function HomePage() {
                     <span>EVERY QUEST = ONE DRAWING ENTRY</span>
                   </div>
                   <h2 id="prize-vault-heading" className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight">
-                    Transparent Prize Vault
+                    $500 Prize Pool
                   </h2>
                   <p className="text-sm text-stone-300 font-body leading-relaxed">
-                    You do <strong>not</strong> need to play all three days to win prizes. Every verified completed mission earns <strong>1 entry ticket</strong> into the Sunday night automated drawing. Complete 1 quest = 1 entry. Complete 10 quests = 10 entries!
+                    Sign up for <strong>1 free drawing entry</strong>. Every verified completed mission earns <strong>+1 more entry</strong> into the cash drawings. Leaderboard prizes go to the top 2 XP scorers — no drawing entries required.
                   </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs font-mono">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs font-mono">
                     <div className="p-3 rounded-xl bg-stone-900/80 border border-stone-800">
-                      <span className="text-amber-400 font-bold block text-sm mb-0.5">1 QUEST</span>
-                      <span className="text-stone-400">1 Drawing Entry</span>
+                      <span className="text-amber-400 font-bold block text-[11px] uppercase mb-1.5">COMPETE FOR</span>
+                      <div className="space-y-1 text-stone-300">
+                        <div>🥇 Leaderboard Champion — <strong className="text-white">$200</strong></div>
+                        <div>🥈 Leaderboard Runner-Up — <strong className="text-white">$100</strong></div>
+                      </div>
                     </div>
                     <div className="p-3 rounded-xl bg-stone-900/80 border border-stone-800">
-                      <span className="text-amber-400 font-bold block text-sm mb-0.5">5 QUESTS</span>
-                      <span className="text-stone-400">5 Drawing Entries</span>
-                    </div>
-                    <div className="p-3 rounded-xl bg-stone-900/80 border border-stone-800">
-                      <span className="text-amber-400 font-bold block text-sm mb-0.5">PUBLIC RNG</span>
-                      <span className="text-stone-400">Verifiable Winners</span>
+                      <span className="text-amber-400 font-bold block text-[11px] uppercase mb-1.5">CASH DRAWINGS</span>
+                      <div className="space-y-1 text-stone-300">
+                        <div>🎟 $100 Cash Drawing</div>
+                        <div>🎟 $50 Cash Drawing</div>
+                        <div>🎟 $50 Cash Drawing</div>
+                      </div>
                     </div>
                   </div>
 
@@ -377,7 +380,7 @@ export default function HomePage() {
                     <strong>XP means Experience Points.</strong> You earn XP when verified quests are completed. XP is your score in Canton Quests. The more XP you earn, the higher you climb on the citywide leaderboard.
                   </p>
                   <div className="pt-2 border-t border-stone-800 text-[11px] text-stone-400">
-                    Leaderboard rankings determine final podium trophies; drawing tickets determine gift cards, partner prizes, and gear.
+                    XP determines leaderboard position. Drawing entries give chances at the $200 in random cash drawings. One entry = one chance.
                   </div>
                 </div>
               </div>

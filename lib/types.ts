@@ -79,7 +79,7 @@ export interface Player {
   displayName: string;
   avatarUrl?: string;
   avatarPresetKey?: string;
-  profileImagePath?: string;
+  profileImagePath?: string | null;
   profileImageUrl?: string;
   profileImageCropZoom?: number;
   profileImageCropX?: number;
@@ -618,6 +618,9 @@ export interface LeaderboardEntry {
   playerId: string;
   displayName: string;
   avatarUrl?: string;
+  profileImageCropZoom?: number;
+  profileImageCropX?: number;
+  profileImageCropY?: number;
   totalPoints: number;
   questsCompletedCount: number;
   lastScoreTime?: string;

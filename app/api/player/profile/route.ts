@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
 import { getAchievementsForPlayerDB, upsertPlayerDB } from '@/lib/supabase-db';
-import { PLAYER_AVATAR_PRESETS, validateFeaturedBadges } from '@/lib/player-command-center';
+import { CUSTOM_AVATAR_KEY, PLAYER_AVATAR_PRESETS, resolveAvatarUrl, validateFeaturedBadges } from '@/lib/player-command-center';
 import { StartingPath } from '@/lib/types';
 
 const STARTING_PATHS = new Set<StartingPath>(['family', 'challenge', 'secret']);
@@ -13,6 +13,10 @@ function cleanString(value: unknown, max: number) {
 }
 
 function cleanNumber(value: unknown, fallback: number, min: number, max: number) {
+  // Number(null) is 0 (not NaN), so an explicit null must be excluded
+  // before the finite check or it would silently pass as "0" instead of
+  // falling back to the existing/default value.
+  if (value === null || value === undefined || value === '') return fallback;
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
   return Math.min(max, Math.max(min, numeric));
@@ -74,20 +78,22 @@ export async function POST(request: Request) {
     const selectedStartingPath = STARTING_PATHS.has(body.selectedStartingPath)
       ? (body.selectedStartingPath as StartingPath)
       : player.selectedStartingPath;
-    const avatarPresetKey = PLAYER_AVATAR_PRESETS.includes(body.avatarPresetKey)
-      ? body.avatarPresetKey
-      : player.avatarPresetKey;
+    const avatarPresetKey =
+      PLAYER_AVATAR_PRESETS.includes(body.avatarPresetKey) ||
+      (body.avatarPresetKey === CUSTOM_AVATAR_KEY && player.profileImagePath)
+        ? body.avatarPresetKey
+        : player.avatarPresetKey;
     const profileVisibility = VISIBILITY.has(body.profileVisibility) ? body.profileVisibility : player.profileVisibility || 'public';
     const playerImageVisibility = VISIBILITY.has(body.playerImageVisibility)
       ? body.playerImageVisibility
-      : player.playerImageVisibility || 'private';
+      : player.playerImageVisibility || 'public';
 
     const updated = await upsertPlayerDB({
       id: player.id,
       userId: player.userId,
       email: player.email,
       displayName,
-      avatarUrl: body.avatarUrl || player.avatarUrl,
+      avatarUrl: resolveAvatarUrl({ id: player.id, avatarPresetKey, profileImagePath: player.profileImagePath }),
       avatarPresetKey,
       profileImagePath: player.profileImagePath,
       profileImageCropZoom: cleanNumber(body.profileImageCropZoom, player.profileImageCropZoom || 1, 1, 3),

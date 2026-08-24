@@ -1,11 +1,10 @@
 'use client';
 
-import React, { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
+import React, { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
   BadgeCheck,
-  Camera,
   CheckCircle2,
   Compass,
   Eye,
@@ -13,12 +12,12 @@ import {
   ImagePlus,
   Lock,
   Map,
+  Plus,
   RotateCcw,
   Save,
   ShieldCheck,
   Sparkles,
   Trophy,
-  Upload,
   User,
   Zap,
   LogOut,
@@ -29,7 +28,9 @@ import CinematicFooter from '@/components/CinematicFooter';
 import { Achievement, Player, PlayerAchievement, Quest, StartingPath } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import PlayerCard from '@/components/PlayerCard';
+import PlayerAvatar from '@/components/PlayerAvatar';
 import {
+  CUSTOM_AVATAR_KEY,
   PLAYER_AVATAR_PRESETS,
   PLAYER_CARD_BADGE_SLOT_COUNT,
   getAvatarPresetPath,
@@ -66,6 +67,7 @@ type CommandCenterData = {
     maxFeatured: number;
   };
   recentActivity: Array<{ id: string; label: string; detail: string; occurredAt: string }>;
+  founderKeys?: { mark: boolean; code: boolean; word: boolean };
 };
 
 const pathOptions: Array<{ value: StartingPath; label: string; district: string }> = [
@@ -121,13 +123,14 @@ export default function ProfilePage() {
   const [avatarPresetKey, setAvatarPresetKey] = useState('1');
   const [selectedStartingPath, setSelectedStartingPath] = useState<StartingPath>('family');
   const [profileVisibility, setProfileVisibility] = useState<'public' | 'private'>('public');
-  const [playerImageVisibility, setPlayerImageVisibility] = useState<'public' | 'private'>('private');
+  const [playerImageVisibility, setPlayerImageVisibility] = useState<'public' | 'private'>('public');
   const [cropZoom, setCropZoom] = useState(1);
   const [cropX, setCropX] = useState(50);
   const [cropY, setCropY] = useState(50);
   const [featuredBadgeSlugs, setFeaturedBadgeSlugs] = useState<string[]>([]);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+  const [lastNumberedPresetKey, setLastNumberedPresetKey] = useState('1');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogout = async () => {
     try {
@@ -154,10 +157,14 @@ export default function ProfilePage() {
       const nextData = payload as CommandCenterData & { success: true };
       setData(nextData);
       setDisplayName(nextData.player.displayName || '');
-      setAvatarPresetKey(nextData.player.avatarPresetKey || '1');
+      const loadedPresetKey = nextData.player.avatarPresetKey || '1';
+      setAvatarPresetKey(loadedPresetKey);
+      if (PLAYER_AVATAR_PRESETS.includes(loadedPresetKey as (typeof PLAYER_AVATAR_PRESETS)[number])) {
+        setLastNumberedPresetKey(loadedPresetKey);
+      }
       setSelectedStartingPath(nextData.player.selectedStartingPath || 'family');
       setProfileVisibility(nextData.player.profileVisibility || 'public');
-      setPlayerImageVisibility(nextData.player.playerImageVisibility || 'private');
+      setPlayerImageVisibility(nextData.player.playerImageVisibility || 'public');
       setCropZoom(nextData.player.profileImageCropZoom || 1);
       setCropX(nextData.player.profileImageCropX ?? 50);
       setCropY(nextData.player.profileImageCropY ?? 50);
@@ -179,7 +186,17 @@ export default function ProfilePage() {
     };
   }, [pendingPreviewUrl]);
 
-  const avatarImage = pendingPreviewUrl || data?.player.profileImageUrl || getAvatarPresetPath(avatarPresetKey);
+  const isCustomSelected = avatarPresetKey === CUSTOM_AVATAR_KEY;
+  const hasCustomPhoto = Boolean(data?.player.profileImagePath);
+  const customPhotoPreviewUrl = pendingPreviewUrl || data?.player.profileImageUrl || undefined;
+  const avatarImage = isCustomSelected
+    ? customPhotoPreviewUrl || getAvatarPresetPath(avatarPresetKey)
+    : getAvatarPresetPath(avatarPresetKey);
+  const resetCrop = () => {
+    setCropZoom(1);
+    setCropX(50);
+    setCropY(50);
+  };
   const featuredBadges = useMemo(
     () => featuredBadgeSlugs
       .map((slug) => data?.badges.catalog.find((badge) => badge.slug === slug && badge.earned))
@@ -200,7 +217,6 @@ export default function ProfilePage() {
           playerId: data?.player.id,
           displayName,
           avatarPresetKey,
-          avatarUrl: getAvatarPresetPath(avatarPresetKey),
           selectedStartingPath,
           profileVisibility,
           playerImageVisibility,
@@ -221,20 +237,19 @@ export default function ProfilePage() {
     }
   };
 
-  const chooseFile = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChosen = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
-    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
-    setPendingFile(file);
-    setPendingPreviewUrl(file ? URL.createObjectURL(file) : null);
-  };
+    event.target.value = '';
+    if (!file) return;
 
-  const uploadPhoto = async () => {
-    if (!pendingFile) return;
+    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+    const localPreviewUrl = URL.createObjectURL(file);
+    setPendingPreviewUrl(localPreviewUrl);
     setUploading(true);
     setMessage(null);
     try {
       const form = new FormData();
-      form.set('file', pendingFile);
+      form.set('file', file);
       form.set('cropZoom', String(cropZoom));
       form.set('cropX', String(cropX));
       form.set('cropY', String(cropY));
@@ -245,13 +260,14 @@ export default function ProfilePage() {
       });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Upload failed.');
-      setPendingFile(null);
-      if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
-      setPendingPreviewUrl(null);
-      setMessage({ type: 'success', text: 'Player image uploaded.' });
+      setMessage({ type: 'success', text: 'Custom photo uploaded and selected. Adjust crop below, then Save Command Center.' });
       await loadCommandCenter();
+      URL.revokeObjectURL(localPreviewUrl);
+      setPendingPreviewUrl(null);
     } catch (error) {
       setMessage({ type: 'error', text: getErrorMessage(error, 'Upload failed.') });
+      URL.revokeObjectURL(localPreviewUrl);
+      setPendingPreviewUrl(null);
     } finally {
       setUploading(false);
     }
@@ -261,7 +277,11 @@ export default function ProfilePage() {
     setUploading(true);
     setMessage(null);
     try {
-      const response = await fetch('/api/player/profile-image', { method: 'DELETE', headers: authHeaders() });
+      const response = await fetch('/api/player/profile-image', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ lastNumberedPresetKey }),
+      });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Remove failed.');
       setMessage({ type: 'success', text: 'Custom player image removed.' });
@@ -373,7 +393,7 @@ export default function ProfilePage() {
                 ['XP', data.stats.totalXp],
                 ['City Rank', data.stats.cityRank ? `#${data.stats.cityRank}` : 'Unranked'],
                 ['Completed', data.stats.completedQuests],
-                ['Prize Entries', data.stats.prizeEntries],
+                ['Drawing Entries', data.stats.prizeEntries],
                 ['BADGES', data.stats.badgesEarned],
               ].map(([label, value]) => (
                 <div key={label} className="cq-command-stat">
@@ -401,6 +421,48 @@ export default function ProfilePage() {
                     </div>
                   );
                 })}
+              </div>
+            </section>
+
+            <section className="cq-command-section" aria-labelledby="drawing-entries-heading">
+              <div className="cq-command-section-head">
+                <h2 id="drawing-entries-heading">DRAWING ENTRIES</h2>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.5rem', color: '#f59e0b', fontWeight: 900 }}>
+                  {data.stats.prizeEntries}
+                </span>
+              </div>
+              <p className="cq-section-note">Each entry gives you another chance at one of the random cash drawings.</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '10px', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
+                <div style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(8,11,16,0.75)' }}>
+                  <span style={{ color: '#f59e0b', fontWeight: 700, display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontSize: '0.62rem', letterSpacing: '0.08em' }}>RANDOM CASH PRIZES</span>
+                  <span style={{ color: '#fff' }}>$100 + $50 + $50 = $200</span>
+                </div>
+                <div style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(8,11,16,0.75)' }}>
+                  <span style={{ color: '#f59e0b', fontWeight: 700, display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontSize: '0.62rem', letterSpacing: '0.08em' }}>HOW TO EARN</span>
+                  <span style={{ color: '#ccc' }}>+1 signup · +1 per verified quest</span>
+                </div>
+              </div>
+              <p className="cq-section-note" style={{ marginTop: '8px' }}>Drawing entries do not affect leaderboard placement. XP determines rank.</p>
+            </section>
+
+            <section className="cq-command-section" aria-labelledby="master-key-heading">
+              <div className="cq-command-section-head">
+                <h2 id="master-key-heading">FOUNDER&apos;S THREE LOCKS</h2>
+                <ShieldCheck size={18} />
+              </div>
+              <p className="cq-section-note">Complete each district path to claim the three keys. All three unlock THE FOUNDER&apos;S THREE LOCKS finale chain.</p>
+              <div className="cq-master-key-grid">
+                {[
+                  { id: 'mark', label: 'THE MARK', path: 'FAMILY / RECORD', acquired: data.founderKeys?.mark ?? false, color: '#f59e0b' },
+                  { id: 'code', label: 'THE CODE', path: 'CHALLENGE / TRIAL', acquired: data.founderKeys?.code ?? false, color: '#ef4444' },
+                  { id: 'word', label: 'THE WORD', path: 'SECRET / ARCHIVE', acquired: data.founderKeys?.word ?? false, color: '#a855f7' },
+                ].map((key) => (
+                  <div key={key.id} className={`cq-master-key-slot${key.acquired ? ' is-acquired' : ' is-locked'}`} style={key.acquired ? { borderColor: key.color } : {}}>
+                    <span className="cq-master-key-label" style={key.acquired ? { color: key.color } : {}}>{key.label}</span>
+                    <span className="cq-master-key-path">{key.path}</span>
+                    <span className="cq-master-key-status">{key.acquired ? 'ACQUIRED' : 'LOCKED'}</span>
+                  </div>
+                ))}
               </div>
             </section>
 
@@ -481,14 +543,48 @@ export default function ProfilePage() {
               </div>
 
               <div className="cq-avatar-controls">
-                <div>
-                  <h3><User size={16} /> CQ Avatar Presets</h3>
+                <div className="cq-avatar-controls-full">
+                  <h3><User size={16} /> Custom Avatar</h3>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFileChosen}
+                    style={{ display: 'none' }}
+                  />
                   <div className="cq-avatar-grid">
+                    {hasCustomPhoto ? (
+                      <button
+                        type="button"
+                        onClick={() => setAvatarPresetKey(CUSTOM_AVATAR_KEY)}
+                        className={isCustomSelected ? 'is-selected' : ''}
+                        aria-label="Select your uploaded custom photo"
+                        title="Custom photo"
+                      >
+                        {data.player.profileImageUrl && (
+                          <Image src={data.player.profileImageUrl} alt="" width={58} height={58} unoptimized />
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="cq-avatar-add-tile"
+                        onClick={() => fileInputRef.current?.click()}
+                        aria-label="Add a custom photo"
+                        disabled={uploading}
+                      >
+                        <Plus size={20} />
+                        <span>Add Photo</span>
+                      </button>
+                    )}
                     {PLAYER_AVATAR_PRESETS.map((key) => (
                       <button
                         type="button"
                         key={key}
-                        onClick={() => setAvatarPresetKey(key)}
+                        onClick={() => {
+                          setAvatarPresetKey(key);
+                          setLastNumberedPresetKey(key);
+                        }}
                         className={avatarPresetKey === key ? 'is-selected' : ''}
                         aria-label={`Select CQ avatar ${key}`}
                       >
@@ -496,24 +592,81 @@ export default function ProfilePage() {
                       </button>
                     ))}
                   </div>
-                </div>
 
-                <div>
-                  <h3><Camera size={16} /> Custom Player Image</h3>
-                  <label className="cq-file-picker">
-                    <ImagePlus size={18} />
-                    <span>{pendingFile ? pendingFile.name : 'Choose image'}</span>
-                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseFile} />
-                  </label>
-                  <div className="cq-range-grid">
-                    <label><span>Zoom</span><input type="range" min="1" max="3" step="0.05" value={cropZoom} onChange={(event) => setCropZoom(Number(event.target.value))} /></label>
-                    <label><span>Horizontal</span><input type="range" min="0" max="100" value={cropX} onChange={(event) => setCropX(Number(event.target.value))} /></label>
-                    <label><span>Vertical</span><input type="range" min="0" max="100" value={cropY} onChange={(event) => setCropY(Number(event.target.value))} /></label>
-                  </div>
-                  <div className="cq-button-row">
-                    <button type="button" onClick={uploadPhoto} disabled={!pendingFile || uploading}><Upload size={16} />Upload</button>
-                    <button type="button" onClick={removePhoto} disabled={uploading || !data.player.profileImagePath}><RotateCcw size={16} />Remove</button>
-                  </div>
+                  {isCustomSelected && hasCustomPhoto && (
+                    <div className="cq-avatar-crop-editor">
+                      <div className="cq-avatar-crop-preview-col">
+                        <span className="cq-avatar-crop-preview-label">Live Avatar Preview</span>
+                        <div className="cq-avatar-crop-preview-ring">
+                          <PlayerAvatar
+                            avatarUrl={customPhotoPreviewUrl}
+                            cropZoom={cropZoom}
+                            cropX={cropX}
+                            cropY={cropY}
+                            size={130}
+                            className="cq-avatar-crop-preview-img"
+                            ariaLabel="Live avatar crop preview"
+                          />
+                        </div>
+                        <div className="cq-avatar-crop-nav-demo">
+                          <PlayerAvatar
+                            avatarUrl={customPhotoPreviewUrl}
+                            cropZoom={cropZoom}
+                            cropX={cropX}
+                            cropY={cropY}
+                            size={44}
+                            className="cq-avatar-crop-nav-demo-img"
+                            ariaLabel="Navigation bar avatar preview"
+                          />
+                          <span>Nav Size</span>
+                        </div>
+                      </div>
+
+                      <div className="cq-avatar-crop-controls-col">
+                        <label className="cq-crop-slider-row">
+                          <div className="cq-crop-slider-head">
+                            <span>Zoom</span>
+                            <em>{cropZoom.toFixed(2)}&times;</em>
+                          </div>
+                          <input type="range" min="1" max="3" step="0.05" value={cropZoom} onChange={(event) => setCropZoom(Number(event.target.value))} />
+                        </label>
+                        <label className="cq-crop-slider-row">
+                          <div className="cq-crop-slider-head">
+                            <span>Horizontal</span>
+                            <em>{Math.round(cropX)}%</em>
+                          </div>
+                          <input type="range" min="0" max="100" value={cropX} onChange={(event) => setCropX(Number(event.target.value))} />
+                        </label>
+                        <label className="cq-crop-slider-row">
+                          <div className="cq-crop-slider-head">
+                            <span>Vertical</span>
+                            <em>{Math.round(cropY)}%</em>
+                          </div>
+                          <input type="range" min="0" max="100" value={cropY} onChange={(event) => setCropY(Number(event.target.value))} />
+                        </label>
+                        <button type="button" className="cq-reset-crop-btn" onClick={resetCrop}>
+                          <RotateCcw size={13} />
+                          <span>Reset Crop</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {hasCustomPhoto && (
+                    <div className="cq-button-row">
+                      <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                        <ImagePlus size={16} />
+                        {uploading ? 'Uploading...' : 'Change Photo'}
+                      </button>
+                      <button type="button" onClick={removePhoto} disabled={uploading}>
+                        <RotateCcw size={16} />
+                        Remove Photo
+                      </button>
+                    </div>
+                  )}
+                  {isCustomSelected && (
+                    <p className="cq-avatar-active-note">Custom photo selected — your active avatar. Save Command Center to apply it everywhere.</p>
+                  )}
                 </div>
               </div>
 

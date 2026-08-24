@@ -11,6 +11,7 @@ import {
 } from './types';
 
 export const PLAYER_AVATAR_PRESETS = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
+export const CUSTOM_AVATAR_KEY = 'custom';
 export const PLAYER_CARD_BADGE_SLOT_COUNT = 6;
 export const CANONICAL_BADGE_ICON_PATHS: Record<string, string> = {
   'pathfinder-family': '/canton-quests/badges/family.png',
@@ -71,6 +72,18 @@ export function getAvatarPresetPath(key?: string) {
   return PLAYER_AVATAR_PRESETS.includes(key as (typeof PLAYER_AVATAR_PRESETS)[number])
     ? `/canton-quests/${key}.png`
     : '/canton-quests/1.png';
+}
+
+/**
+ * Resolves the avatar URL a player's chosen key should actually render.
+ * A player with a custom uploaded photo selected only resolves to it while
+ * that upload still exists; otherwise falls back to the numbered preset.
+ */
+export function resolveAvatarUrl(player: Pick<Player, 'id' | 'avatarPresetKey' | 'profileImagePath'>) {
+  if (player.avatarPresetKey === CUSTOM_AVATAR_KEY && player.profileImagePath) {
+    return `/api/player/${player.id}/avatar`;
+  }
+  return getAvatarPresetPath(player.avatarPresetKey);
 }
 
 export function sanitizeFeaturedBadges(

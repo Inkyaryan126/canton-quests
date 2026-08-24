@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, BookOpen, LogOut, Compass } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
+import PlayerAvatar from '@/components/PlayerAvatar';
 import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
@@ -104,49 +105,16 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
               className="cq-gold-button cq-nav-cta"
               title={`Logged in as ${player.displayName}`}
             >
-              {player.avatarUrl && (
-                player.avatarUrl.startsWith('/') ||
-                player.avatarUrl.startsWith('http://') ||
-                player.avatarUrl.startsWith('https://') ||
-                player.avatarUrl.startsWith('data:image/') ||
-                /\.(png|jpe?g|webp|svg|gif)($|\?)/i.test(player.avatarUrl)
-              ) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={player.avatarUrl.trim()}
-                  alt=""
-                  width={28}
-                  height={28}
-                  className="cq-nav-avatar-img"
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    minWidth: '28px',
-                    minHeight: '28px',
-                    maxWidth: '28px',
-                    maxHeight: '28px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    flexShrink: 0,
-                  }}
-                />
-              ) : (
-                <span
-                  className="cq-nav-avatar-fallback"
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    minWidth: '28px',
-                    minHeight: '28px',
-                    borderRadius: '50%',
-                    flexShrink: 0,
-                  }}
-                >
-                  {player.avatarUrl && player.avatarUrl.trim()
-                    ? player.avatarUrl.trim()
-                    : (player.displayName?.slice(0, 1).toUpperCase() || '⚡')}
-                </span>
-              )}
+              <PlayerAvatar
+                avatarUrl={player.avatarUrl}
+                cropZoom={player.profileImageCropZoom}
+                cropX={player.profileImageCropX}
+                cropY={player.profileImageCropY}
+                size={28}
+                className="cq-nav-avatar-img cq-nav-avatar-fallback"
+                fallback={player.displayName?.slice(0, 1).toUpperCase() || '⚡'}
+                ariaLabel={`${player.displayName || 'Player'} avatar`}
+              />
               <span className="cq-nav-player-callsign">{player.displayName}</span>
               <ArrowRight size={14} aria-hidden="true" style={{ flexShrink: 0 }} />
             </Link>

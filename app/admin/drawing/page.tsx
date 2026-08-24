@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import { QuestEvent, DrawingLedgerReview, PrizeDrawRecord } from '@/lib/types';
 import { getEvents } from '@/lib/game-engine';
+import { VOL1_PRIZES, TOTAL_PRIZE_POOL, TOTAL_DRAWING_PRIZE_POOL, TOTAL_LEADERBOARD_PRIZE_POOL } from '@/lib/prize-config';
 
 export default function AdminDrawingPage() {
   const [adminPassphrase, setAdminPassphrase] = useState('');
@@ -24,7 +25,8 @@ export default function AdminDrawingPage() {
   const [lockReason, setLockReason] = useState('Official Event Finale Freeze');
   const [confirmPendingBypass, setConfirmPendingBypass] = useState(false);
   const [drawMethod, setDrawMethod] = useState<'final_quest' | 'internal_test' | 'manual_external'>('final_quest');
-  const [prizeTitle, setPrizeTitle] = useState('Grand Prize — Canton Adventure Package');
+  const [prizeTitle, setPrizeTitle] = useState<string>(VOL1_PRIZES.drawings[0].title);
+  const [sequentialDrawing, setSequentialDrawing] = useState(false);
   const [testSeed, setTestSeed] = useState('TEST-SEED-2026-ALPHA');
   const [providerReference, setProviderReference] = useState('');
   const [manualWinnerPublicLabel, setManualWinnerPublicLabel] = useState('');
@@ -192,6 +194,36 @@ export default function AdminDrawingPage() {
     }
   };
 
+  const handleSequentialCashDrawings = async () => {
+    if (!window.confirm(
+      `RUN ALL 3 CASH DRAWINGS IN SEQUENCE?\n\n` +
+      `Draw 1: $100 Cash Drawing\n` +
+      `Draw 2: $50 Cash Drawing\n` +
+      `Draw 3: $50 Cash Drawing\n\n` +
+      `Each prior winner is automatically excluded from subsequent drawings.\n` +
+      `This action requires ledger to be LOCKED. Continue?`
+    )) return;
+    try {
+      setSequentialDrawing(true);
+      setActionMessage(null);
+      setErrorMessage(null);
+      const res = await fetch('/api/admin/drawing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': adminPassphrase },
+        body: JSON.stringify({ action: 'sequentialCashDrawings', eventId: selectedEventId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sequential draw failed');
+      const winners = (data.drawRecords || []).map((r: any) => `${r.prizeTitle}: ${r.winningPublicPlayerLabel}`).join(' | ');
+      setActionMessage(`All 3 Cash Drawings complete! ${winners}`);
+      fetchDrawingStatus(selectedEventId);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Sequential cash drawings failed');
+    } finally {
+      setSequentialDrawing(false);
+    }
+  };
+
   const handleVoidDraw = async () => {
     if (!voidRecordId || !cancellationReason) {
       setErrorMessage('Please select a draw record and enter an explicit audit cancellation reason.');
@@ -308,6 +340,30 @@ export default function AdminDrawingPage() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Prize Structure Overview */}
+        <div className="bg-slate-900 border border-amber-500/30 rounded-2xl p-5 mb-6">
+          <h2 className="text-sm font-bold text-amber-300 font-mono uppercase mb-3">
+            ${TOTAL_PRIZE_POOL} Total Prize Pool — Vol. 1 Canonical Structure
+          </h2>
+          <div className="grid grid-cols-2 gap-4 text-xs font-mono">
+            <div>
+              <p className="text-slate-400 uppercase mb-1.5">Leaderboard — ${TOTAL_LEADERBOARD_PRIZE_POOL}</p>
+              <div className="space-y-1">
+                <div className="flex gap-2"><span className="text-amber-300">🥇</span><span className="text-white">{VOL1_PRIZES.leaderboard.champion.title} — ${VOL1_PRIZES.leaderboard.champion.amount}</span></div>
+                <div className="flex gap-2"><span className="text-slate-300">🥈</span><span className="text-white">{VOL1_PRIZES.leaderboard.runnerUp.title} — ${VOL1_PRIZES.leaderboard.runnerUp.amount}</span></div>
+              </div>
+            </div>
+            <div>
+              <p className="text-slate-400 uppercase mb-1.5">Cash Drawings — ${TOTAL_DRAWING_PRIZE_POOL}</p>
+              <div className="space-y-1">
+                {VOL1_PRIZES.drawings.map((p) => (
+                  <div key={p.id} className="flex gap-2"><span className="text-amber-400">🎟</span><span className="text-white">{p.title}</span></div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         {review && (
@@ -482,7 +538,7 @@ export default function AdminDrawingPage() {
                     disabled={review.ledgerStatus === 'open' || review.ledgerStatus === 'review'}
                     className="px-6 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold font-mono text-sm rounded-xl transition-all"
                   >
-                    {drawMethod === 'manual_external' ? '📝 RECORD UNVERIFIED EXTERNAL RESULT' : '🎲 EXECUTE TEST DRAW'}
+                    {drawMethod === 'manual_external' ? '📝 RECORD UNVERIFIED EXTERNAL RESULT' : '🎲 EXECUTE SINGLE DRAW'}
                   </button>
 
                   <button
@@ -491,6 +547,20 @@ export default function AdminDrawingPage() {
                     className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold font-mono text-sm rounded-xl transition-all"
                   >
                     🚀 PUBLISH RESULTS TO PUBLIC
+                  </button>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-800">
+                  <p className="text-xs font-mono text-slate-400 mb-3">
+                    <strong className="text-white">RUN ALL 3 CASH DRAWINGS</strong> — Draws $100, $50, $50 in sequence.
+                    Each prior winner is automatically excluded. Requires ledger LOCKED. Uses Final Quest draw method.
+                  </p>
+                  <button
+                    onClick={handleSequentialCashDrawings}
+                    disabled={sequentialDrawing || (review.ledgerStatus !== 'locked' && review.ledgerStatus !== 'drawn')}
+                    className="px-6 py-3 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white font-bold font-mono text-sm rounded-xl transition-all"
+                  >
+                    {sequentialDrawing ? '⏳ DRAWING...' : '🎟 RUN ALL 3 CASH DRAWINGS — $100 · $50 · $50'}
                   </button>
                 </div>
               </div>

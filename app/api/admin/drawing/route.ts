@@ -9,6 +9,7 @@ import {
   voidPrizeDrawRecordDB,
   getPublicDrawingPageDataDB,
 } from '@/lib/supabase-db';
+import { VOL1_PRIZES } from '@/lib/prize-config';
 
 function getAdminSessionFromRequest(request: Request) {
   const headersObj = Object.fromEntries(request.headers.entries());
@@ -124,6 +125,25 @@ export async function POST(request: Request) {
         adminIdentity: session.adminName,
       });
       return NextResponse.json({ success: true, drawRecord });
+    }
+
+    // Run all three random cash drawings in sequence with unique-winner enforcement.
+    // executePrizeDrawDB already excludes previous winning_player_ids on each call,
+    // so the sequential unique-winner rule is enforced automatically.
+    if (action === 'sequentialCashDrawings') {
+      const results: any[] = [];
+      for (const prize of VOL1_PRIZES.drawings) {
+        const record = await executePrizeDrawDB({
+          eventId,
+          prizeId: prize.id,
+          prizeTitle: prize.title,
+          drawMethod: 'final_quest',
+          auditMetadata: { drawOrder: prize.drawOrder, sequentialRun: true },
+          adminIdentity: session.adminName,
+        });
+        results.push(record);
+      }
+      return NextResponse.json({ success: true, drawRecords: results });
     }
 
     if (action === 'publish') {

@@ -1334,7 +1334,7 @@ export function registerPlayer(params: {
   password?: string;
   avatarUrl?: string;
   avatarPresetKey?: string;
-  profileImagePath?: string;
+  profileImagePath?: string | null;
   profileImageCropZoom?: number;
   profileImageCropX?: number;
   profileImageCropY?: number;
@@ -1375,7 +1375,7 @@ export function registerPlayer(params: {
         profileImageCropX: params.profileImageCropX ?? existingByUser.profileImageCropX,
         profileImageCropY: params.profileImageCropY ?? existingByUser.profileImageCropY,
         profileVisibility: params.profileVisibility || existingByUser.profileVisibility || 'public',
-        playerImageVisibility: params.playerImageVisibility || existingByUser.playerImageVisibility || 'private',
+        playerImageVisibility: params.playerImageVisibility || existingByUser.playerImageVisibility || 'public',
         bio: params.bio !== undefined ? sanitizeTextContent(params.bio) : existingByUser.bio,
         tagline: params.tagline !== undefined ? sanitizeTextContent(params.tagline) : existingByUser.tagline,
         hometown: params.hometown !== undefined ? sanitizeTextContent(params.hometown) : existingByUser.hometown,
@@ -1420,7 +1420,7 @@ export function registerPlayer(params: {
     profileImageCropX: params.profileImageCropX,
     profileImageCropY: params.profileImageCropY,
     profileVisibility: params.profileVisibility || 'public',
-    playerImageVisibility: params.playerImageVisibility || 'private',
+    playerImageVisibility: params.playerImageVisibility || 'public',
     role: 'player',
     totalXp: 0,
     level: 1,
@@ -1469,7 +1469,7 @@ export function updatePlayerProfile(playerId: string, updates: Partial<Player>):
     profileImageCropX: updates.profileImageCropX !== undefined ? updates.profileImageCropX : player.profileImageCropX,
     profileImageCropY: updates.profileImageCropY !== undefined ? updates.profileImageCropY : player.profileImageCropY,
     profileVisibility: updates.profileVisibility || player.profileVisibility || 'public',
-    playerImageVisibility: updates.playerImageVisibility || player.playerImageVisibility || 'private',
+    playerImageVisibility: updates.playerImageVisibility || player.playerImageVisibility || 'public',
     selectedStartingPath: updates.selectedStartingPath || player.selectedStartingPath,
     bio: updates.bio !== undefined ? sanitizeTextContent(updates.bio) : player.bio,
     tagline: updates.tagline !== undefined ? sanitizeTextContent(updates.tagline) : player.tagline,
@@ -2166,6 +2166,13 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
 
     if (quest.id === 'qst-centennial-discovery') {
       grantedCol = awardCollectible(params.playerId, 'col-founder-token', 'Centennial Beacon Quest');
+      awardCollectible(params.playerId, 'col-founder-mark', 'Family Path — The Mark');
+    }
+    if (quest.id === 'qst-onesto-brass-motto') {
+      awardCollectible(params.playerId, 'col-founder-code', 'Challenge Path — The Code');
+    }
+    if (quest.id === 'qst-watchers-silent-court') {
+      awardCollectible(params.playerId, 'col-founder-word', 'Secret Archive — The Word');
     }
 
     // Evaluate dynamic path and district achievements

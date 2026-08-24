@@ -48,8 +48,8 @@ const categoryFilters: { label: string; value: QuestFilter }[] = [
 const pathFilters: { label: string; value: PathFilter; icon: any; color: string; desc: string }[] = [
   { label: 'All City Quests', value: 'all', icon: Sparkles, color: '#f59e0b', desc: 'Browse the complete Canton city grid' },
   { label: 'Arts District', value: 'family', icon: Compass, color: '#f59e0b', desc: 'Downtown Arts & Centennial Plaza' },
-  { label: 'Mother Goose Land', value: 'challenge', icon: Zap, color: '#ef4444', desc: 'Mother Goose Land & Skate Corridor' },
-  { label: 'Monument Park', value: 'secret', icon: KeyRound, color: '#a855f7', desc: 'Monument Park & Historic Ciphers' },
+  { label: 'Challenge District', value: 'challenge', icon: Zap, color: '#ef4444', desc: 'Mother Goose Land & 9th St Corridor' },
+  { label: 'West Lawn Archive', value: 'secret', icon: KeyRound, color: '#a855f7', desc: 'West Lawn Cemetery & The Watcher Chain' },
 ];
 
 export default function QuestsPage() {
