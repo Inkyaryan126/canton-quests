@@ -5,7 +5,6 @@ import { CUSTOM_AVATAR_KEY, PLAYER_AVATAR_PRESETS, resolveAvatarUrl, validateFea
 import { StartingPath } from '@/lib/types';
 
 const STARTING_PATHS = new Set<StartingPath>(['family', 'challenge', 'secret']);
-const VISIBILITY = new Set(['public', 'private']);
 
 function cleanString(value: unknown, max: number) {
   if (value === undefined) return undefined;
@@ -83,11 +82,6 @@ export async function POST(request: Request) {
       (body.avatarPresetKey === CUSTOM_AVATAR_KEY && player.profileImagePath)
         ? body.avatarPresetKey
         : player.avatarPresetKey;
-    const profileVisibility = VISIBILITY.has(body.profileVisibility) ? body.profileVisibility : player.profileVisibility || 'public';
-    const playerImageVisibility = VISIBILITY.has(body.playerImageVisibility)
-      ? body.playerImageVisibility
-      : player.playerImageVisibility || 'public';
-
     const updated = await upsertPlayerDB({
       id: player.id,
       userId: player.userId,
@@ -99,8 +93,6 @@ export async function POST(request: Request) {
       profileImageCropZoom: cleanNumber(body.profileImageCropZoom, player.profileImageCropZoom || 1, 1, 3),
       profileImageCropX: cleanNumber(body.profileImageCropX, player.profileImageCropX ?? 50, 0, 100),
       profileImageCropY: cleanNumber(body.profileImageCropY, player.profileImageCropY ?? 50, 0, 100),
-      profileVisibility,
-      playerImageVisibility,
       selectedStartingPath,
       bio: body.bio !== undefined ? cleanString(body.bio, 200) : player.bio,
       tagline: body.tagline !== undefined ? cleanString(body.tagline, 60) : player.tagline,

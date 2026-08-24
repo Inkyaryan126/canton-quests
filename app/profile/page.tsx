@@ -7,8 +7,6 @@ import {
   BadgeCheck,
   CheckCircle2,
   Compass,
-  Eye,
-  EyeOff,
   ImagePlus,
   Lock,
   Map,
@@ -122,8 +120,6 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState('');
   const [avatarPresetKey, setAvatarPresetKey] = useState('1');
   const [selectedStartingPath, setSelectedStartingPath] = useState<StartingPath>('family');
-  const [profileVisibility, setProfileVisibility] = useState<'public' | 'private'>('public');
-  const [playerImageVisibility, setPlayerImageVisibility] = useState<'public' | 'private'>('public');
   const [cropZoom, setCropZoom] = useState(1);
   const [cropX, setCropX] = useState(50);
   const [cropY, setCropY] = useState(50);
@@ -163,8 +159,6 @@ export default function ProfilePage() {
         setLastNumberedPresetKey(loadedPresetKey);
       }
       setSelectedStartingPath(nextData.player.selectedStartingPath || 'family');
-      setProfileVisibility(nextData.player.profileVisibility || 'public');
-      setPlayerImageVisibility(nextData.player.playerImageVisibility || 'public');
       setCropZoom(nextData.player.profileImageCropZoom || 1);
       setCropX(nextData.player.profileImageCropX ?? 50);
       setCropY(nextData.player.profileImageCropY ?? 50);
@@ -218,8 +212,6 @@ export default function ProfilePage() {
           displayName,
           avatarPresetKey,
           selectedStartingPath,
-          profileVisibility,
-          playerImageVisibility,
           profileImageCropZoom: cropZoom,
           profileImageCropX: cropX,
           profileImageCropY: cropY,
@@ -510,7 +502,7 @@ export default function ProfilePage() {
 
             <section className="cq-command-section" aria-labelledby="settings-heading">
               <div className="cq-command-section-head">
-                <h2 id="settings-heading">Profile / Privacy Settings</h2>
+                <h2 id="settings-heading">Profile Settings</h2>
                 <Lock size={18} />
               </div>
               <div className="cq-settings-grid">
@@ -524,20 +516,6 @@ export default function ProfilePage() {
                     {pathOptions.map((path) => (
                       <option key={path.value} value={path.value}>{path.label} • {path.district}</option>
                     ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Profile Visibility</span>
-                  <select value={profileVisibility} onChange={(event) => setProfileVisibility(event.target.value as 'public' | 'private')}>
-                    <option value="public">Public</option>
-                    <option value="private">Private</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Player Image Visibility</span>
-                  <select value={playerImageVisibility} onChange={(event) => setPlayerImageVisibility(event.target.value as 'public' | 'private')}>
-                    <option value="private">Hide my player image publicly</option>
-                    <option value="public">Show my player image publicly</option>
                   </select>
                 </label>
               </div>
@@ -670,10 +648,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="cq-privacy-note">
-                {profileVisibility === 'private' || playerImageVisibility === 'private' ? <EyeOff size={16} /> : <Eye size={16} />}
-                <span>The authenticated owner can always see this card. Public image exposure follows these privacy controls.</span>
-              </div>
               <button type="submit" disabled={saving} className="cq-save-command">
                 <Save size={18} />
                 <span>{saving ? 'Saving...' : 'Save Command Center'}</span>

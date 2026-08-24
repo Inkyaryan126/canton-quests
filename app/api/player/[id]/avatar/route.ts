@@ -1,21 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getPlayerByIdDB } from '@/lib/supabase-db';
-import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
-import { shouldExposePlayerImage } from '@/lib/player-command-center';
 
 export const dynamic = 'force-dynamic';
 
+// Player avatars are always public — any player with a custom uploaded
+// photo is servable to any viewer. The storage bucket itself stays
+// private; this route is the only way to reach the image, minting a
+// fresh short-lived signed URL per request rather than persisting one.
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   const player = await getPlayerByIdDB(params.id);
   if (!player || !player.profileImagePath) {
     return NextResponse.json({ success: false, error: 'No player image found.' }, { status: 404 });
-  }
-
-  const viewer = await resolveAuthenticatedPlayer(request).catch(() => null);
-  const isOwner = Boolean(viewer && viewer.id === player.id);
-  if (!shouldExposePlayerImage(player, isOwner)) {
-    return NextResponse.json({ success: false, error: 'This player image is private.' }, { status: 403 });
   }
 
   if (!isSupabaseAdminConfigured || !supabaseAdmin) {

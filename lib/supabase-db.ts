@@ -195,8 +195,12 @@ export function mapPlayerFromDB(row: any): Player {
     profileImageCropZoom: row.profile_image_crop_zoom,
     profileImageCropX: row.profile_image_crop_x,
     profileImageCropY: row.profile_image_crop_y,
-    profileVisibility: row.profile_visibility || 'public',
-    playerImageVisibility: row.player_image_visibility || 'public',
+    // Profile and player-image privacy toggles have been retired — every
+    // player is always public regardless of what's still stored in these
+    // legacy columns (kept for schema compatibility, not consulted for
+    // any access-control decision).
+    profileVisibility: 'public',
+    playerImageVisibility: 'public',
     role: row.role || 'player',
     totalXp: row.total_xp || 0,
     level: row.level || 1,
@@ -1012,8 +1016,10 @@ export async function upsertPlayerDB(
       profile_image_crop_zoom: p.profileImageCropZoom,
       profile_image_crop_x: p.profileImageCropX,
       profile_image_crop_y: p.profileImageCropY,
-      profile_visibility: p.profileVisibility || 'public',
-      player_image_visibility: p.playerImageVisibility || 'public',
+      // Privacy toggles are retired — every write is unconditionally public,
+      // regardless of any (now nonexistent) client-provided value.
+      profile_visibility: 'public',
+      player_image_visibility: 'public',
       selected_starting_path: p.selectedStartingPath || null,
       bio: p.bio,
       tagline: p.tagline,
@@ -1051,8 +1057,10 @@ export async function upsertPlayerDB(
       profile_image_crop_zoom: p.profileImageCropZoom,
       profile_image_crop_x: p.profileImageCropX,
       profile_image_crop_y: p.profileImageCropY,
-      profile_visibility: p.profileVisibility || 'public',
-      player_image_visibility: p.playerImageVisibility || 'public',
+      // Privacy toggles are retired — every write is unconditionally public,
+      // regardless of any (now nonexistent) client-provided value.
+      profile_visibility: 'public',
+      player_image_visibility: 'public',
       selected_starting_path: p.selectedStartingPath || null,
       acquisition_source: p.acquisitionSource || 'main_site',
       bio: p.bio,

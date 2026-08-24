@@ -13,7 +13,6 @@ import {
   CANONICAL_BADGE_ICON_PATHS,
   recommendQuests,
   sanitizeFeaturedBadges,
-  shouldExposePlayerImage,
   validateFeaturedBadges,
 } from '../lib/player-command-center';
 import { Achievement, Player, PlayerAchievement, Quest } from '../lib/types';
@@ -206,22 +205,23 @@ describe('Player Command Center profile rules', () => {
     expect(getBadgeIconPath({ ...achievement, slug: 'future-badge' })).toBe('/canton-quests/badges/first_step.png');
   });
 
-  it('respects player image privacy for public exposure while allowing the owner to see their image', () => {
-    const privateImagePlayer: Player = {
-      ...player,
-      profileVisibility: 'public',
-      playerImageVisibility: 'private',
-      profileImagePath: `${player.id}/avatar.jpg`,
-    };
-    const publicImagePlayer: Player = {
-      ...privateImagePlayer,
-      playerImageVisibility: 'public',
-    };
+  it('retires profile/player-image privacy gating — player avatars are always public', () => {
+    // shouldExposePlayerImage() used to decide whether a non-owner could see
+    // a player's photo based on profileVisibility/playerImageVisibility.
+    // That control has been removed app-wide; guard against it (or an
+    // equivalent gate) quietly reappearing.
+    const centerSource = fs.readFileSync(path.join(process.cwd(), 'lib/player-command-center.ts'), 'utf8');
+    const avatarRouteSource = fs.readFileSync(path.join(process.cwd(), 'app/api/player/[id]/avatar/route.ts'), 'utf8');
+    const profileRouteSource = fs.readFileSync(path.join(process.cwd(), 'app/api/player/profile/route.ts'), 'utf8');
+    const profilePageSource = fs.readFileSync(path.join(process.cwd(), 'app/profile/page.tsx'), 'utf8');
 
-    expect(shouldExposePlayerImage(privateImagePlayer, false)).toBe(false);
-    expect(shouldExposePlayerImage(privateImagePlayer, true)).toBe(true);
-    expect(shouldExposePlayerImage(publicImagePlayer, false)).toBe(true);
-    expect(shouldExposePlayerImage({ ...publicImagePlayer, profileVisibility: 'private' }, false)).toBe(false);
+    expect(centerSource).not.toContain('shouldExposePlayerImage');
+    expect(avatarRouteSource).not.toContain('shouldExposePlayerImage');
+    expect(avatarRouteSource).not.toContain('403');
+    expect(profileRouteSource).not.toContain('playerImageVisibility');
+    expect(profileRouteSource).not.toContain('profileVisibility');
+    expect(profilePageSource).not.toContain('Player Image Visibility');
+    expect(profilePageSource).not.toContain('Profile Visibility');
   });
 
   it('defines exactly the eight existing CQ avatar preset keys', () => {

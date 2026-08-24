@@ -208,9 +208,3 @@ export function buildRecentActivity(
     .sort((a, b) => new Date(b.occurredAt || 0).getTime() - new Date(a.occurredAt || 0).getTime())
     .slice(0, 8);
 }
-
-export function shouldExposePlayerImage(player: Player, isOwner = false) {
-  if (isOwner) return true;
-  if (player.profileVisibility === 'private') return false;
-  return player.playerImageVisibility === 'public';
-}
