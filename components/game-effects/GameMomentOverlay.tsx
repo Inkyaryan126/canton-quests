@@ -15,6 +15,13 @@ import AchievementEffect from './AchievementEffect';
 import FlashDropEffect from './FlashDropEffect';
 import ChainCompleteEffect from './ChainCompleteEffect';
 import FinaleQualificationEffect from './FinaleQualificationEffect';
+import ThreeLocksFragmentEffect from './ThreeLocksFragmentEffect';
+import CommanderTransmissionEffect from './CommanderTransmissionEffect';
+import RewardTokenEffect from './RewardTokenEffect';
+import UnlockEffect from './UnlockEffect';
+import FieldEventEffect from './FieldEventEffect';
+import ProgressionEffect from './ProgressionEffect';
+import MajorCinematicEffect from './MajorCinematicEffect';
 import SoundToggleControl from './SoundToggleControl';
 
 export default function GameMomentOverlay() {
@@ -157,6 +164,62 @@ export default function GameMomentOverlay() {
 
         {current.type === 'finale-qualified' && (
           <FinaleQualificationEffect
+            moment={current}
+            onDismiss={handleDismiss}
+            reducedMotion={effectsState.reducedMotion}
+          />
+        )}
+
+        {(current.type === 'three-locks-fragment' || current.type === 'three-locks-complete') && (
+          <ThreeLocksFragmentEffect
+            moment={current}
+            onDismiss={handleDismiss}
+            reducedMotion={effectsState.reducedMotion}
+          />
+        )}
+
+        {current.type === 'commander-transmission' && (
+          <CommanderTransmissionEffect
+            moment={current}
+            onDismiss={handleDismiss}
+            reducedMotion={effectsState.reducedMotion}
+          />
+        )}
+
+        {current.type === 'reward-token' && (
+          <RewardTokenEffect
+            moment={current}
+            onDismiss={handleDismiss}
+            reducedMotion={effectsState.reducedMotion}
+          />
+        )}
+
+        {current.type === 'unlock' && (
+          <UnlockEffect
+            moment={current}
+            onDismiss={handleDismiss}
+            reducedMotion={effectsState.reducedMotion}
+          />
+        )}
+
+        {current.type === 'field-event' && (
+          <FieldEventEffect
+            moment={current}
+            onDismiss={handleDismiss}
+            reducedMotion={effectsState.reducedMotion}
+          />
+        )}
+
+        {current.type === 'leaderboard-milestone' && (
+          <ProgressionEffect
+            moment={current}
+            onDismiss={handleDismiss}
+            reducedMotion={effectsState.reducedMotion}
+          />
+        )}
+
+        {current.type === 'major-cinematic' && (
+          <MajorCinematicEffect
             moment={current}
             onDismiss={handleDismiss}
             reducedMotion={effectsState.reducedMotion}

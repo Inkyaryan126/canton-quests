@@ -28,6 +28,20 @@ export function proofMatches(inputValue: string | undefined, targetValue: string
   return input === target.toUpperCase();
 }
 
+/**
+ * Same as proofMatches, but also accepts any of a list of synonym answers
+ * (e.g. "whale" / "blue whale" / "a whale" all completing the same quest).
+ * `variants` is optional so every existing single-answer quest is unaffected.
+ */
+export function proofMatchesAny(
+  inputValue: string | undefined,
+  targetValue: string | undefined,
+  variants?: string[]
+): boolean {
+  if (proofMatches(inputValue, targetValue)) return true;
+  return (variants || []).some((variant) => proofMatches(inputValue, variant));
+}
+
 export interface ServerProofSecretMaps {
   QUEST_TARGET_CODE_HASHES: Record<string, string>;
   STEP_TARGET_CODE_HASHES?: Record<string, string>;
@@ -54,6 +68,10 @@ export const CANONICAL_QUEST_PROOF_SECRETS: ServerProofSecretMaps = {
     'e0000001-0000-4000-8000-000000000013': 'sha256:e49c9702b08e49280244ca823d1a747df7a3386f0cc67a990a6e5fd9094c6a70',
     'qst-grand-finale-cipher': 'sha256:8a2199b47b3f30d63a023f8dcfc82edc66bf863b3b23189703224923ad25c56f',
     'e0000001-0000-4000-8000-000000000015': 'sha256:8a2199b47b3f30d63a023f8dcfc82edc66bf863b3b23189703224923ad25c56f',
+    // Challenge sector — C1-C4 (DRAFT/CONTENT_LOCKED, coordinates not yet supplied)
+    'qst-challenge-blue-signal': 'sha256:c1e524f5325e090e0c4b6d2025b3b73eb6ea4608bd1f42c55d580db5480eaeac', // WHALE
+    'qst-challenge-what-survived': 'sha256:22c71fc75f2ccec3be35306272851ffc48e0587cabced42e87880a9fdcb3c0be', // BLUE WHALE
+    'qst-challenge-the-lost-page': 'sha256:557e111d453d6b864d4aeb1c3f801b1f440f711a8d0ebd1cd5f6e373161a056c', // WHALE-CAT-GINGERBREAD-WOLF
   },
   STEP_TARGET_CODE_HASHES: {
     'step-secret-founder-fragment': 'sha256:be562e8a568bb4e0d791bca32216ff5ab972809bee874b937820e267f1e27106',
@@ -62,6 +80,10 @@ export const CANONICAL_QUEST_PROOF_SECRETS: ServerProofSecretMaps = {
     'f0000001-0000-4000-8000-000000000002': 'sha256:a0075b8e48f2cb31f4d2dc97a9c7326856d300fe0a733099686390f4ae4d632d',
     'step-secret-brass-fragment': 'sha256:3a5272225a330aba73b7dd79c961313b53c7dbb5dd75d6376505ee2bf5d8403c',
     'f0000001-0000-4000-8000-000000000003': 'sha256:3a5272225a330aba73b7dd79c961313b53c7dbb5dd75d6376505ee2bf5d8403c',
+    // Challenge sector — C2 Storybook Witness (three observations)
+    'step-challenge-storybook-cat': 'sha256:15b89a569474240a616f9a94dd045b2711d445dde955b62bf4b8f2a2afaf0f6b', // CAT
+    'step-challenge-storybook-gingerbread': 'sha256:afb6d23fcb0a3ab17ba8ad4968a2f5b9e4ef32b936afe66491ccd8f41ffbd293', // GINGERBREAD MAN
+    'step-challenge-storybook-wolf': 'sha256:7b8f72c65b9fbbf971301567da244175a694378f89f2bb33a7313ce752e9e8bd', // WOLF
   },
   SECRET_CODE_HASHES: {
     'code-founder-2026': 'sha256:67a9464364c6f818e5ee997ee0a2b4ce41132639b4498d2a8ceedf70b0d90834',

@@ -46,7 +46,16 @@ import {
   AuthenticatedPlayerDrawingQualification,
   DrawingLedgerReview,
   DrawProvider,
+  ProofVerificationType,
+  RewardGrantReason,
 } from './types';
+import {
+  computeAwardedBonusesForSubmission,
+  getDrawingEntryBonus,
+  getEffectiveBaseXp,
+  getRaceBonusTiers,
+  getUnlockSummary,
+} from './quest-rewards';
 import {
   SEED_CITY,
   SEED_LOCATIONS,
@@ -79,6 +88,7 @@ import {
   getServerQuestStepTargetCode,
   proofDigest,
   proofMatches,
+  proofMatchesAny,
 } from './quest-proof-secrets';
 
 
@@ -132,6 +142,7 @@ function mapQuestStepFromDB(row: any): QuestStep {
     instructions: row.instructions,
     verificationType: row.verification_type,
     targetCode: row.target_code,
+    acceptedAnswerVariants: row.accepted_answer_variants || undefined,
     locationId: row.location_id,
     location: mapLocationFromDB(row.locations),
     radiusMeters: row.radius_meters,
@@ -181,6 +192,14 @@ export function mapQuestFromDB(row: any): Quest {
     riskReward: row.risk_reward,
     requiredCollectibleId: row.required_collectible_id,
     startingPath: (row.starting_path as QuestPath) || 'family',
+    rewardConfig: row.reward_config || undefined,
+    acceptedAnswerVariants: row.accepted_answer_variants || undefined,
+    remoteCapable: row.remote_capable || undefined,
+    commanderTransmission: row.commander_transmission || undefined,
+    sectorIntroTransmission: row.sector_intro_transmission || undefined,
+    milestoneTransmission: row.milestone_transmission || undefined,
+    completionTransmission: row.completion_transmission || undefined,
+    discoveryTransmission: row.discovery_transmission || undefined,
   };
 }
 
@@ -369,7 +388,7 @@ function verifyAutomatedProof(
   }
 
   if (quest.verificationType === 'passphrase' || quest.verificationType === 'qr') {
-    if (proofMatches(params.submittedContent, quest.targetCode)) {
+    if (proofMatchesAny(params.submittedContent, quest.targetCode, quest.acceptedAnswerVariants)) {
       return verifiedReward(quest.verificationType === 'qr' ? 'QR Emblem Scanned! Quest completed.' : 'Cipher Cracked! Passphrase verified successfully.');
     }
     return fail(quest.verificationType === 'qr' ? 'Invalid QR Code token!' : 'Incorrect passcode frequency! Re-examine the location or plaque.');
@@ -398,7 +417,7 @@ function verifyAutomatedProof(
     if (!step) return fail('Invalid step index for multi-step quest.');
 
     if (step.verificationType === 'passphrase' || step.verificationType === 'qr') {
-      if (!proofMatches(params.submittedContent, step.targetCode)) return fail(`Step ${requestedStepIdx + 1} verification failed.`);
+      if (!proofMatchesAny(params.submittedContent, step.targetCode, step.acceptedAnswerVariants)) return fail(`Step ${requestedStepIdx + 1} verification failed.`);
     } else if (step.verificationType === 'gps' || step.verificationType === 'checkin') {
       const gps = verifyGps(step);
       if (!gps.ok) return fail(gps.message, gps.distance);
@@ -507,8 +526,25 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
       current_claims: q.currentClaims || 0,
       is_secret: q.isSecret || false,
       is_finale_quest: q.isFinaleQuest || false,
+      reward_config: q.rewardConfig || null,
+      accepted_answer_variants: q.acceptedAnswerVariants || null,
+      remote_capable: q.remoteCapable || false,
+      commander_transmission: q.commanderTransmission || null,
+      sector_intro_transmission: q.sectorIntroTransmission || null,
+      milestone_transmission: q.milestoneTransmission || null,
+      completion_transmission: q.completionTransmission || null,
+      discovery_transmission: q.discoveryTransmission || null,
     }));
     await supabase.from('quests').upsert(questRows);
+
+    const collectibleRows = SEED_COLLECTIBLES.map((c) => ({
+      name: c.name,
+      slug: c.slug,
+      description: c.description,
+      badge_symbol: c.badgeSymbol,
+      rarity: c.rarity,
+    }));
+    await supabase.from('collectibles').upsert(collectibleRows, { onConflict: 'slug' });
 
     const stepRows = SEED_QUESTS.flatMap((q) =>
       (q.steps || []).map((step) => ({
@@ -519,6 +555,7 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
         instructions: step.instructions,
         verification_type: step.verificationType,
         target_code: step.targetCode || getServerQuestStepTargetCode(step.id),
+        accepted_answer_variants: step.acceptedAnswerVariants || null,
         location_id: step.locationId,
         radius_meters: step.radiusMeters,
       }))
@@ -612,9 +649,585 @@ export function resolveQRTokenDB(token: string): GeneratedQR | undefined {
 }
 
 // 5. COLLECTIBLES & PLAYER COLLECTIBLES API
+function mapCollectibleFromDB(row: any): Collectible {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    description: row.description,
+    badgeSymbol: row.badge_symbol,
+    rarity: row.rarity,
+  };
+}
+
 export async function getCollectiblesForPlayerDB(playerId: string): Promise<PlayerCollectible[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getCollectiblesForPlayer(playerId);
-  return localEngine.getCollectiblesForPlayer(playerId);
+  const db = supabaseAdmin || supabase;
+  const { data, error } = await db
+    .from('player_collectibles')
+    .select('*, collectibles(*)')
+    .eq('player_id', playerId);
+  if (error || !data) return localEngine.getCollectiblesForPlayer(playerId);
+  return data.map((row: any) => ({
+    id: row.id,
+    playerId: row.player_id,
+    collectibleId: row.collectible_id,
+    earnedAt: row.earned_at,
+    source: row.source,
+    collectible: row.collectibles ? mapCollectibleFromDB(row.collectibles) : undefined,
+  }));
+}
+
+/**
+ * Resolves the seed-catalog string id used in QuestRewardConfig (e.g.
+ * 'col-founder-word') to the collectible's real slug, since Supabase's
+ * collectibles.id is a generated UUID that never matches the seed id.
+ * Falls back to treating the input as a slug already, so real ops content
+ * can set collectibleUnlockIds directly to a slug without going through
+ * the demo catalog.
+ */
+function resolveCollectibleSlug(collectibleIdOrSlug: string): string {
+  const seedMatch = SEED_COLLECTIBLES.find((c) => c.id === collectibleIdOrSlug);
+  return seedMatch ? seedMatch.slug : collectibleIdOrSlug;
+}
+
+/** Idempotent collectible grant — safe to call repeatedly for an already-owned collectible. */
+export async function awardCollectibleDB(
+  playerId: string,
+  collectibleIdOrSlug: string,
+  source: string = 'quest'
+): Promise<Collectible | undefined> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.awardCollectible(playerId, collectibleIdOrSlug, source);
+  }
+  const slug = resolveCollectibleSlug(collectibleIdOrSlug);
+
+  const { data: item } = await supabaseAdmin.from('collectibles').select('*').eq('slug', slug).maybeSingle();
+  if (!item) return localEngine.awardCollectible(playerId, collectibleIdOrSlug, source);
+
+  const { data: existing } = await supabaseAdmin
+    .from('player_collectibles')
+    .select('id')
+    .eq('player_id', playerId)
+    .eq('collectible_id', item.id)
+    .maybeSingle();
+
+  if (!existing) {
+    await supabaseAdmin.from('player_collectibles').insert({
+      player_id: playerId,
+      collectible_id: item.id,
+      source,
+    });
+  }
+
+  return mapCollectibleFromDB(item);
+}
+
+/** Idempotent finale-qualification grant, backed by finale_qualifications' UNIQUE(event_id, player_id). */
+export async function grantFinaleQualificationDB(
+  eventId: string,
+  playerId: string,
+  reason: string,
+  isWildcard: boolean = false
+): Promise<FinaleQualification | undefined> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.grantFinaleQualification(eventId, playerId, reason, isWildcard);
+  }
+
+  const { data: existing } = await supabaseAdmin
+    .from('finale_qualifications')
+    .select('*')
+    .eq('event_id', eventId)
+    .eq('player_id', playerId)
+    .maybeSingle();
+  if (existing) {
+    return {
+      id: existing.id,
+      eventId: existing.event_id,
+      playerId: existing.player_id,
+      qualifiedAt: existing.qualified_at,
+      qualificationReason: existing.qualification_reason,
+      isWildcard: existing.is_wildcard,
+    };
+  }
+
+  const { data: inserted, error } = await supabaseAdmin
+    .from('finale_qualifications')
+    .insert({
+      event_id: eventId,
+      player_id: playerId,
+      qualification_reason: reason,
+      is_wildcard: isWildcard,
+    })
+    .select()
+    .single();
+
+  if (error || !inserted) return localEngine.grantFinaleQualification(eventId, playerId, reason, isWildcard);
+
+  return {
+    id: inserted.id,
+    eventId: inserted.event_id,
+    playerId: inserted.player_id,
+    qualifiedAt: inserted.qualified_at,
+    qualificationReason: inserted.qualification_reason,
+    isWildcard: inserted.is_wildcard,
+  };
+}
+
+/**
+ * Inserts one reward_grants audit row, or returns null if this exact
+ * (submissionId, rewardType, rewardKey) grant already exists — the core
+ * idempotency gate for the shared reward-granting transaction below.
+ */
+async function insertRewardGrantDB(entry: {
+  eventId: string;
+  playerId: string;
+  questId?: string;
+  submissionId?: string;
+  rewardType: RewardGrantReason;
+  rewardKey: string;
+  xpAwarded?: number;
+  drawingEntriesAwarded?: number;
+}): Promise<boolean> {
+  if (!supabaseAdmin) return true;
+  const { error } = await supabaseAdmin.from('reward_grants').insert({
+    event_id: entry.eventId,
+    player_id: entry.playerId,
+    quest_id: entry.questId,
+    submission_id: entry.submissionId,
+    reward_type: entry.rewardType,
+    reward_key: entry.rewardKey,
+    xp_awarded: entry.xpAwarded || 0,
+    drawing_entries_awarded: entry.drawingEntriesAwarded || 0,
+  });
+  if (error) {
+    if (error.code === '23505') return false; // duplicate — already granted
+    throw new Error(`Failed to record reward grant (${entry.rewardType}/${entry.rewardKey}): ${error.message}`);
+  }
+  return true;
+}
+
+const THREE_LOCKS_COLLECTIBLE_IDS = ['col-founder-mark', 'col-founder-code', 'col-founder-word'];
+
+/**
+ * The single reward-granting transaction for a verified/GM-approved quest
+ * completion — called by both submitQuestProofDB and reviewSubmissionDB so
+ * every reward type is applied exactly once, from exactly one place,
+ * regardless of which path verified the submission. Guarded by a
+ * reward_grants QUEST_BASE row keyed on submissionId: a retried/duplicated
+ * call for the same submission is a no-op beyond that first insert.
+ *
+ * score_ledger still receives exactly one combined-points row per quest
+ * completion (base + eligible bonuses + race bonus), preserving today's
+ * leaderboard math and the partial unique index on score_ledger untouched.
+ * reward_grants is the new per-component audit trail.
+ */
+export async function awardQuestRewardsDB(params: {
+  quest: Quest;
+  eventId: string;
+  playerId: string;
+  teamId?: string;
+  submissionId: string;
+  method: ProofVerificationType;
+  usedNfc?: boolean;
+  bonusMultiplier?: number;
+  extraFlatXp?: number;
+  scoreDescription?: string;
+}): Promise<{
+  awardedPoints: number;
+  drawingEntriesAwarded: number;
+  claimPlacement?: number;
+  grantedCollectible?: Collectible;
+  threeLocksFragmentAwarded?: 'mark' | 'code' | 'word';
+  threeLocksOwned?: { mark: boolean; code: boolean; word: boolean };
+  newAchievements: Array<{ id: string; title: string; description: string; icon?: string }>;
+}> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    throw new Error('awardQuestRewardsDB requires Supabase service-role configuration.');
+  }
+  const { quest, eventId, playerId, submissionId, method } = params;
+  const db = supabaseAdmin;
+
+  const multiplier = params.bonusMultiplier ?? 1;
+  const rawBaseXp = getEffectiveBaseXp(quest);
+  const multipliedBaseXp = Math.round(rawBaseXp * multiplier);
+
+  // QUEST_BASE is granted at most once per player+quest, ever (reward_grants'
+  // unique index is player+quest scoped, not submission scoped) — regardless
+  // of how many submissions this quest receives. A remoteCapable quest's
+  // later field/photo submission finds this already granted and simply
+  // skips re-awarding it, while this call still evaluates its own bonuses.
+  const isNewBase = await insertRewardGrantDB({
+    eventId,
+    playerId,
+    questId: quest.id,
+    submissionId,
+    rewardType: 'QUEST_BASE',
+    rewardKey: quest.id,
+    xpAwarded: multipliedBaseXp,
+  });
+
+  // Race placement/hard-mode bonus only ever apply to the completion itself,
+  // never to a later supplemental bonus-only submission.
+  let claimPlacement: number | undefined;
+  if (isNewBase && getRaceBonusTiers(quest).length > 0) {
+    const { data: claimResult, error: claimError } = await db.rpc('claim_quest_placement', { p_quest_id: quest.id });
+    if (claimError) throw new Error(`Failed to determine race placement: ${claimError.message}`);
+    claimPlacement = claimResult as number;
+  }
+  const extraFlatXp = isNewBase ? params.extraFlatXp || 0 : 0;
+
+  const bonuses = computeAwardedBonusesForSubmission(quest, { method, racePlacement: claimPlacement, usedNfc: params.usedNfc });
+
+  const BONUS_REASON: Record<string, RewardGrantReason> = {
+    fieldCheckIn: 'QUEST_FIELD_CHECKIN',
+    nfc: 'QUEST_NFC',
+    photoVideo: 'QUEST_PHOTO_VIDEO',
+  };
+  let newBonusXp = 0;
+  for (const item of bonuses.lineItems) {
+    const granted = await insertRewardGrantDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: BONUS_REASON[item.key],
+      rewardKey: quest.id,
+      xpAwarded: item.xp,
+    });
+    if (granted) newBonusXp += item.xp;
+  }
+
+  let newRaceBonusXp = 0;
+  if (claimPlacement && bonuses.raceBonusXp > 0) {
+    const granted = await insertRewardGrantDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'QUEST_RACE_BONUS',
+      rewardKey: `${quest.id}:${claimPlacement}`,
+      xpAwarded: bonuses.raceBonusXp,
+    });
+    if (granted) newRaceBonusXp = bonuses.raceBonusXp;
+  }
+
+  const totalXp = (isNewBase ? multipliedBaseXp : 0) + newBonusXp + newRaceBonusXp + extraFlatXp;
+
+  if (totalXp > 0) {
+    const scoreInsert = await db.from('score_ledger').insert({
+      event_id: eventId,
+      player_id: playerId,
+      team_id: params.teamId,
+      quest_id: quest.id,
+      submission_id: submissionId,
+      points: totalXp,
+      category: isNewBase ? 'quest_completion' : 'quest_bonus',
+      description: params.scoreDescription || `Completed ${quest.title}`,
+    });
+    const isDuplicateScore = scoreInsert.error?.code === '23505';
+    if (scoreInsert.error && !isDuplicateScore) {
+      throw new Error(`Failed to record score ledger entry: ${scoreInsert.error.message}`);
+    }
+
+    // Only mutate the player's running total when the score_ledger insert
+    // actually landed a new row — a concurrent duplicate base-completion
+    // insert hitting score_ledger's partial unique index must not also
+    // double-add XP to the player's total.
+    if (!isDuplicateScore) {
+      const { data: player, error: playerFetchError } = await db
+        .from('players')
+        .select('total_xp')
+        .eq('id', playerId)
+        .single();
+      if (playerFetchError) throw new Error(`Failed to read player profile: ${playerFetchError.message}`);
+
+      const nextTotalXp = Math.max(0, (player?.total_xp || 0) + totalXp);
+      const { error: playerUpdateError } = await db
+        .from('players')
+        .update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 })
+        .eq('id', playerId);
+      if (playerUpdateError) throw new Error(`Failed to update player XP: ${playerUpdateError.message}`);
+    }
+  }
+
+  let drawingEntriesAwarded = 0;
+  const { data: lockRow } = await db
+    .from('drawing_ledger_locks')
+    .select('is_locked, status')
+    .eq('event_id', eventId)
+    .maybeSingle();
+  const drawingLocked = !!(lockRow && (lockRow.is_locked || ['locked', 'drawn', 'published', 'cancelled'].includes(lockRow.status)));
+  if (!drawingLocked) {
+    const drawingUpsert = await db.from('drawing_entry_ledger').upsert(
+      {
+        event_id: eventId,
+        player_id: playerId,
+        quest_id: quest.id,
+        submission_id: submissionId,
+        entries_count: bonuses.drawingEntries,
+        source_type: 'quest_completion',
+        reason: params.scoreDescription || `Completed quest: ${quest.title}`,
+      },
+      { onConflict: 'event_id,player_id,quest_id' }
+    );
+    if (drawingUpsert.error) throw new Error(`Drawing entry rejected: ${drawingUpsert.error.message}`);
+    drawingEntriesAwarded = bonuses.drawingEntries;
+  }
+
+  const drawingBonus = getDrawingEntryBonus(quest);
+  if (drawingBonus > 0 && !drawingLocked) {
+    await insertRewardGrantDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'QUEST_DRAWING_ENTRY_BONUS',
+      rewardKey: quest.id,
+      drawingEntriesAwarded: drawingBonus,
+    });
+  }
+
+  const unlocks = getUnlockSummary(quest);
+  for (const slug of unlocks.badgeSlugs) {
+    const granted = await insertRewardGrantDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'BADGE_UNLOCK',
+      rewardKey: slug,
+    });
+    if (granted) await awardAchievementDB(playerId, slug, eventId, `Quest reward: ${quest.title}`);
+  }
+
+  let grantedCollectible: Collectible | undefined;
+  let threeLocksFragmentAwarded: 'mark' | 'code' | 'word' | undefined;
+  let threeLocksOwned: { mark: boolean; code: boolean; word: boolean } | undefined;
+  for (const collectibleId of unlocks.collectibleIds) {
+    const granted = await insertRewardGrantDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'COLLECTIBLE_UNLOCK',
+      rewardKey: collectibleId,
+    });
+    if (granted) {
+      const col = await awardCollectibleDB(playerId, collectibleId, `Quest reward: ${quest.title}`);
+      if (col && !grantedCollectible) grantedCollectible = col;
+    }
+  }
+
+  if (unlocks.threeLocksFragment) {
+    const { lock, collectibleId } = unlocks.threeLocksFragment;
+    const granted = await insertRewardGrantDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'THREE_LOCKS_FRAGMENT',
+      rewardKey: collectibleId,
+    });
+    if (granted) {
+      const col = await awardCollectibleDB(playerId, collectibleId, `Founder's Lock: ${lock.toUpperCase()}`);
+      if (col && !grantedCollectible) grantedCollectible = col;
+      threeLocksFragmentAwarded = lock;
+    }
+
+    const owned = await getCollectiblesForPlayerDB(playerId);
+    const ownedSlugs = new Set(owned.map((pc) => pc.collectible?.slug).filter(Boolean));
+    threeLocksOwned = {
+      mark: ownedSlugs.has(resolveCollectibleSlug('col-founder-mark')),
+      code: ownedSlugs.has(resolveCollectibleSlug('col-founder-code')),
+      word: ownedSlugs.has(resolveCollectibleSlug('col-founder-word')),
+    };
+    const hasAllThreeLocks = THREE_LOCKS_COLLECTIBLE_IDS.every((id) => ownedSlugs.has(resolveCollectibleSlug(id)));
+    if (hasAllThreeLocks) {
+      const finaleGranted = await insertRewardGrantDB({
+        eventId,
+        playerId,
+        questId: quest.id,
+        submissionId,
+        rewardType: 'FINALE_PROGRESS',
+        rewardKey: 'three_locks_complete',
+      });
+      if (finaleGranted) {
+        await grantFinaleQualificationDB(eventId, playerId, "Collected all three Founder's Locks: MARK, CODE, WORD");
+      }
+    }
+  }
+
+  for (const secretQuestId of unlocks.secretQuestIds) {
+    await insertRewardGrantDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'SECRET_UNLOCK',
+      rewardKey: secretQuestId,
+    });
+  }
+
+  if (unlocks.countsTowardFinale) {
+    const granted = await insertRewardGrantDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'FINALE_PROGRESS',
+      rewardKey: quest.id,
+    });
+    if (granted) {
+      await grantFinaleQualificationDB(eventId, playerId, `Completed qualifying quest: ${quest.title}`);
+    }
+  }
+
+  let newAchievements: Array<{ id: string; title: string; description: string; icon?: string }> = [];
+  try {
+    const newlyAwarded = await evaluatePlayerAchievementsDB(playerId, eventId);
+    if (newlyAwarded && newlyAwarded.length > 0) {
+      newAchievements = newlyAwarded.map((ach) => ({
+        id: ach.achievementId || ach.id,
+        title: ach.achievement?.name || ach.achievementSlug || 'Achievement Unlocked',
+        description: ach.achievement?.description || '',
+        icon: ach.achievement?.badgeSymbol || '🏆',
+      }));
+    }
+  } catch {
+    // Fallback — do not fail the whole grant transaction over achievement evaluation.
+  }
+
+  return {
+    awardedPoints: totalXp,
+    drawingEntriesAwarded,
+    claimPlacement,
+    grantedCollectible,
+    threeLocksFragmentAwarded,
+    threeLocksOwned,
+    newAchievements,
+  };
+}
+
+/**
+ * Handles a follow-up field/photo submission against a quest that's already
+ * been completed remotely, when the quest opts in via `remoteCapable`. Never
+ * re-verifies or re-awards the base completion (awardQuestRewardsDB's
+ * per-player-per-quest reward_grants gating already guarantees that) — this
+ * only grants whatever field bonus the new proof type newly qualifies for.
+ */
+async function submitSupplementalFieldProofDB(
+  trustedParams: SubmitProofParams,
+  quest: Quest,
+  existingSub: any
+): Promise<SubmitProofResult> {
+  if (!supabaseAdmin) {
+    return failedSubmissionResult(trustedParams, 'Server-authoritative reward verification requires Supabase service-role configuration.');
+  }
+
+  const isFieldCheckIn = trustedParams.proofType === 'checkin' || trustedParams.proofType === 'gps';
+  const isPhotoVideo = trustedParams.proofType === 'photo' || trustedParams.proofType === 'video';
+
+  if (isFieldCheckIn) {
+    const targetLat = quest.location?.latitude;
+    const targetLon = quest.location?.longitude;
+    const radius = quest.radiusMeters || quest.location?.radiusMeters || 100;
+    if (targetLat === undefined || targetLon === undefined) {
+      return failedSubmissionResult(trustedParams, 'Authoritative quest location is missing; Game Master review is required.');
+    }
+    if (trustedParams.userLat === undefined || trustedParams.userLon === undefined) {
+      return failedSubmissionResult(trustedParams, 'GPS location verification required. Please enable location services.');
+    }
+    const distance = haversineMeters(trustedParams.userLat, trustedParams.userLon, targetLat, targetLon);
+    if (distance > radius) {
+      return failedSubmissionResult(trustedParams, `Too far from target location. You are ${distance} m away.`);
+    }
+
+    const { data: dbSub, error: subError } = await supabaseAdmin
+      .from('quest_submissions')
+      .insert({
+        quest_id: trustedParams.questId,
+        player_id: trustedParams.playerId,
+        event_id: trustedParams.eventId,
+        proof_type: trustedParams.proofType,
+        status: 'verified',
+        awarded_points: 0,
+        drawing_entries_awarded: 0,
+        user_lat: trustedParams.userLat,
+        user_lon: trustedParams.userLon,
+        distance_from_location: distance,
+        reviewed_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+    if (subError || !dbSub) {
+      throw new Error(subError?.message || 'Failed to persist field bonus submission.');
+    }
+
+    try {
+      const grant = await awardQuestRewardsDB({
+        quest,
+        eventId: trustedParams.eventId,
+        playerId: trustedParams.playerId,
+        submissionId: dbSub.id,
+        method: trustedParams.proofType,
+      });
+      return {
+        success: true,
+        submission: mapSubmissionFromDB({ ...dbSub, awarded_points: grant.awardedPoints, drawing_entries_awarded: grant.drawingEntriesAwarded }),
+        message:
+          grant.awardedPoints > 0
+            ? `Field bonus confirmed! +${grant.awardedPoints} XP.`
+            : 'Field visit logged — no new field bonus configured for this quest.',
+        awardedPoints: grant.awardedPoints,
+        drawingEntriesAwarded: grant.drawingEntriesAwarded,
+        newAchievements: grant.newAchievements,
+        threeLocksFragmentAwarded: grant.threeLocksFragmentAwarded,
+        threeLocksOwned: grant.threeLocksOwned,
+      };
+    } catch (grantErr: any) {
+      await supabaseAdmin.from('reward_grants').delete().eq('submission_id', dbSub.id);
+      await supabaseAdmin.from('drawing_entry_ledger').delete().eq('submission_id', dbSub.id);
+      await supabaseAdmin.from('score_ledger').delete().eq('submission_id', dbSub.id);
+      await supabaseAdmin.from('quest_submissions').delete().eq('id', dbSub.id);
+      throw new Error(grantErr?.message || 'Field bonus reward grant failed.');
+    }
+  }
+
+  if (isPhotoVideo) {
+    if (!trustedParams.proofUrl && !trustedParams.submittedContent) {
+      return failedSubmissionResult(trustedParams, 'Proof details are required before Game Master review.');
+    }
+
+    const { data: dbSub, error: subError } = await supabaseAdmin
+      .from('quest_submissions')
+      .insert({
+        quest_id: trustedParams.questId,
+        player_id: trustedParams.playerId,
+        event_id: trustedParams.eventId,
+        proof_type: trustedParams.proofType,
+        submitted_content: trustedParams.submittedContent,
+        proof_url: trustedParams.proofUrl,
+        status: 'pending',
+        awarded_points: 0,
+        drawing_entries_awarded: 0,
+      })
+      .select()
+      .single();
+    if (subError || !dbSub) {
+      throw new Error(subError?.message || 'Failed to persist field bonus submission.');
+    }
+
+    return {
+      success: true,
+      submission: mapSubmissionFromDB(dbSub),
+      message: 'Field photo submitted for Game Master review.',
+      awardedPoints: 0,
+      drawingEntriesAwarded: 0,
+    };
+  }
+
+  return failedSubmissionResult(trustedParams, 'Unsupported field bonus submission type for this quest.');
 }
 
 // 5b. ACHIEVEMENTS DB
@@ -1138,6 +1751,17 @@ export async function submitQuestProofDB(
     const existingSub = existingVerifiedSub || existingSubmissions?.[0];
     if (existingSub) {
       if (existingSub.status === 'verified') {
+        if (
+          quest.remoteCapable &&
+          trustedParams.proofType &&
+          trustedParams.proofType !== existingSub.proof_type &&
+          (trustedParams.proofType === 'checkin' ||
+            trustedParams.proofType === 'gps' ||
+            trustedParams.proofType === 'photo' ||
+            trustedParams.proofType === 'video')
+        ) {
+          return submitSupplementalFieldProofDB(trustedParams, quest, existingSub);
+        }
         return {
           success: false,
           submission: mapSubmissionFromDB(existingSub),
@@ -1241,6 +1865,8 @@ export async function submitQuestProofDB(
       rewardXp?: number;
       rewardEntries?: number;
     }> | undefined = undefined;
+    let threeLocksFragmentAwarded: 'mark' | 'code' | 'word' | undefined;
+    let threeLocksOwned: { mark: boolean; code: boolean; word: boolean } | undefined;
 
     if (verification.status === 'verified') {
       try {
@@ -1250,91 +1876,38 @@ export async function submitQuestProofDB(
         // Fallback
       }
 
-      const scoreInsert = await supabaseAdmin.from('score_ledger').insert({
-        event_id: trustedParams.eventId,
-        player_id: trustedPlayerId,
-        quest_id: trustedParams.questId,
-        submission_id: dbSub.id,
-        points: verification.awardedPoints,
-        category: 'quest_completion',
-        description: `Completed ${quest.title}`,
-      });
-
-      const isDuplicateScore = scoreInsert.error?.code === '23505';
-      if (scoreInsert.error && !isDuplicateScore) {
-        // Cleanup on score failure
-        await supabaseAdmin.from('quest_submissions').delete().eq('id', dbSub.id);
-        throw new Error(scoreInsert.error.message);
-      }
-
-      const drawingUpsert = await supabaseAdmin.from('drawing_entry_ledger').upsert(
-        {
-          event_id: trustedParams.eventId,
-          player_id: trustedPlayerId,
-          quest_id: trustedParams.questId,
-          submission_id: dbSub.id,
-          entries_count: verification.drawingEntriesAwarded,
-          source_type: 'quest_completion',
-          reason: `Completed quest: ${quest.title}`,
-        },
-        { onConflict: 'event_id,player_id,quest_id' }
-      );
-      if (drawingUpsert.error) {
-        // Transactional rollback on failed drawing ledger upsert (e.g. database lock trigger)
-        // Player total_xp has not been mutated yet, ensuring total_xp never diverges
+      try {
+        const grant = await awardQuestRewardsDB({
+          quest,
+          eventId: trustedParams.eventId,
+          playerId: trustedPlayerId,
+          submissionId: dbSub.id,
+          method: trustedParams.proofType,
+          usedNfc: trustedParams.usedNfc,
+        });
+        awardedPoints = grant.awardedPoints;
+        drawingEntriesAwarded = grant.drawingEntriesAwarded;
+        if (grant.newAchievements.length > 0) newAchievements = grant.newAchievements;
+        threeLocksFragmentAwarded = grant.threeLocksFragmentAwarded;
+        threeLocksOwned = grant.threeLocksOwned;
+      } catch (grantErr: any) {
+        // Reward granting failed partway through — unwind every row keyed to
+        // this submission (score/drawing/audit ledger + the submission
+        // itself) so a retry starts genuinely clean under a fresh submission
+        // id. Collectible/badge/finale grants already committed before the
+        // failure are left in place: they're keyed by player, not
+        // submission, and are themselves idempotent, so a retry safely
+        // no-ops on them rather than duplicating.
+        await supabaseAdmin.from('reward_grants').delete().eq('submission_id', dbSub.id);
+        await supabaseAdmin.from('drawing_entry_ledger').delete().eq('submission_id', dbSub.id);
         await supabaseAdmin.from('score_ledger').delete().eq('submission_id', dbSub.id);
         await supabaseAdmin.from('quest_submissions').delete().eq('id', dbSub.id);
-        throw new Error(`Drawing entry rejected: ${drawingUpsert.error.message}`);
-      }
-      drawingEntriesAwarded = verification.drawingEntriesAwarded;
-
-      if (!isDuplicateScore) {
-        awardedPoints = verification.awardedPoints;
-        const { data: player, error: playerFetchError } = await supabaseAdmin
-          .from('players')
-          .select('total_xp')
-          .eq('id', trustedPlayerId)
-          .single();
-
-        if (playerFetchError) {
-          await supabaseAdmin.from('drawing_entry_ledger').delete().eq('submission_id', dbSub.id);
-          await supabaseAdmin.from('score_ledger').delete().eq('submission_id', dbSub.id);
-          await supabaseAdmin.from('quest_submissions').delete().eq('id', dbSub.id);
-          throw new Error(`Failed to read player profile: ${playerFetchError.message}`);
-        }
-
-        const nextTotalXp = Math.max(0, (player?.total_xp || 0) + awardedPoints);
-        const { error: playerUpdateError } = await supabaseAdmin
-          .from('players')
-          .update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 })
-          .eq('id', trustedPlayerId);
-
-        if (playerUpdateError) {
-          await supabaseAdmin.from('drawing_entry_ledger').delete().eq('submission_id', dbSub.id);
-          await supabaseAdmin.from('score_ledger').delete().eq('submission_id', dbSub.id);
-          await supabaseAdmin.from('quest_submissions').delete().eq('id', dbSub.id);
-          throw new Error(`Failed to update player XP: ${playerUpdateError.message}`);
-        }
+        throw new Error(grantErr?.message || 'Reward grant transaction failed.');
       }
 
       try {
         const newLeaderboard = await getLeaderboardDB(trustedParams.eventId);
         newRank = newLeaderboard.find((e) => e.playerId === trustedPlayerId)?.rank;
-      } catch {
-        // Fallback
-      }
-
-      // Evaluate achievements
-      try {
-        const newlyAwarded = await evaluatePlayerAchievementsDB(trustedPlayerId, trustedParams.eventId);
-        if (newlyAwarded && newlyAwarded.length > 0) {
-          newAchievements = newlyAwarded.map((ach) => ({
-            id: ach.achievementId || ach.id,
-            title: ach.achievement?.name || ach.achievementSlug || 'Achievement Unlocked',
-            description: ach.achievement?.description || '',
-            icon: ach.achievement?.badgeSymbol || '🏆',
-          }));
-        }
       } catch {
         // Fallback
       }
@@ -1357,6 +1930,8 @@ export async function submitQuestProofDB(
       oldRank,
       newRank,
       newAchievements,
+      threeLocksFragmentAwarded,
+      threeLocksOwned,
     };
   } catch (err: any) {
     console.error('submitQuestProofDB error:', err);
@@ -1634,36 +2209,51 @@ export async function reviewSubmissionDB(
   }
 
   if (newStatus === 'verified') {
-    const quest = Array.isArray(sub.quest) ? sub.quest[0] : sub.quest;
-    const xp = quest ? (quest.xp_reward || quest.point_value) : 100;
-    const entries = quest ? (quest.drawing_entry_reward ?? 1) : 1;
+    const rawQuest = Array.isArray(sub.quest) ? sub.quest[0] : sub.quest;
 
-    await supabaseAdmin.from('score_ledger').upsert(
-      {
-        event_id: sub.event_id,
-        player_id: sub.player_id,
-        team_id: sub.team_id,
-        quest_id: sub.quest_id,
-        submission_id: sub.id,
-        points: xp,
-        category: quest ? quest.category : 'admin_approved',
-        description: `Media submission approved for ${quest ? quest.title : 'Quest'}`,
-      },
-      { onConflict: 'event_id,player_id,quest_id' }
-    );
-
-    await supabaseAdmin.from('drawing_entry_ledger').upsert(
-      {
-        event_id: sub.event_id,
-        player_id: sub.player_id,
-        quest_id: sub.quest_id,
-        submission_id: sub.id,
-        entries_count: entries,
-        source_type: 'quest_completion',
-        reason: `Media submission approved for ${quest ? quest.title : 'Quest'}`,
-      },
-      { onConflict: 'event_id,player_id,quest_id' }
-    );
+    try {
+      if (rawQuest) {
+        const quest = mapQuestFromDB(rawQuest);
+        const grant = await awardQuestRewardsDB({
+          quest,
+          eventId: sub.event_id,
+          playerId: sub.player_id,
+          teamId: sub.team_id,
+          submissionId: sub.id,
+          method: sub.proof_type,
+          scoreDescription: `Media submission approved for ${quest.title}`,
+        });
+        updatedSub.awarded_points = grant.awardedPoints;
+        updatedSub.drawing_entries_awarded = grant.drawingEntriesAwarded;
+      } else {
+        // Defensive fallback for an orphaned submission whose quest no longer exists.
+        await supabaseAdmin.from('score_ledger').insert({
+          event_id: sub.event_id,
+          player_id: sub.player_id,
+          team_id: sub.team_id,
+          quest_id: sub.quest_id,
+          submission_id: sub.id,
+          points: 100,
+          category: 'admin_approved',
+          description: 'Media submission approved for Quest',
+        });
+        updatedSub.awarded_points = 100;
+        updatedSub.drawing_entries_awarded = 1;
+      }
+    } catch (grantErr: any) {
+      // Reward granting failed after status was already flipped to
+      // 'verified' — unwind everything keyed to this submission and revert
+      // the status so a GM retry can cleanly re-run the whole transaction,
+      // rather than leaving a "verified" submission with no rewards.
+      await supabaseAdmin.from('reward_grants').delete().eq('submission_id', sub.id);
+      await supabaseAdmin.from('drawing_entry_ledger').delete().eq('submission_id', sub.id);
+      await supabaseAdmin.from('score_ledger').delete().eq('submission_id', sub.id);
+      await supabaseAdmin
+        .from('quest_submissions')
+        .update({ status: sub.status, reviewed_at: sub.reviewed_at, feedback: sub.feedback, reviewer_notes: sub.reviewer_notes })
+        .eq('id', sub.id);
+      throw new Error(grantErr?.message || 'Reward grant transaction failed.');
+    }
   }
 
   return mapSubmissionFromDB(updatedSub);

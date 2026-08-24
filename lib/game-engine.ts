@@ -55,7 +55,15 @@ import {
   FinalQuestTrailStep,
   FinalQuestTicketRange,
   FinalQuestDrawReceipt,
+  RewardGrant,
+  RewardGrantReason,
 } from './types';
+import {
+  computeAwardedBonusesForSubmission,
+  getDrawingEntryBonus,
+  getEffectiveBaseXp,
+  getUnlockSummary,
+} from './quest-rewards';
 import {
   SEED_CITY,
   SEED_LOCATIONS,
@@ -102,13 +110,14 @@ const STORAGE_KEYS = {
   PRIZE_DRAWS: 'canton_quests_prize_draw_records',
   GENERATED_QRS: 'canton_quests_generated_qrs',
   LOCATIONS: 'canton_quests_locations',
+  REWARD_GRANTS: 'canton_quests_reward_grants',
 };
 
 const inMemoryStore = new Map<string, any>();
 
 const MAX_TRUSTED_GPS_ACCURACY_METERS = 100;
 
-import { getServerProofSecretMaps, proofDigest, proofMatches } from './quest-proof-secrets';
+import { getServerProofSecretMaps, proofDigest, proofMatches, proofMatchesAny } from './quest-proof-secrets';
 
 function mergeServerQuestTargetCodes(quests: Quest[]): Quest[] {
   const maps = getServerProofSecretMaps();
@@ -1608,9 +1617,18 @@ function getLatestQuestProgressSubmission(
   playerId: string,
   questId: string
 ): QuestSubmission | undefined {
-  return submissions
-    .filter((s) => s.playerId === playerId && s.questId === questId)
-    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0];
+  // submissions is in insertion order (oldest first). Tie-break equal
+  // submittedAt timestamps (millisecond resolution — collides easily under
+  // fast successive multi-step submissions) by preferring the
+  // later-inserted entry, so "latest" never resolves to a stale step.
+  let latest: QuestSubmission | undefined;
+  for (const s of submissions) {
+    if (s.playerId !== playerId || s.questId !== questId) continue;
+    if (!latest || new Date(s.submittedAt).getTime() >= new Date(latest.submittedAt).getTime()) {
+      latest = s;
+    }
+  }
+  return latest;
 }
 
 function buildRejectedSubmission(
@@ -1712,7 +1730,9 @@ function verifyStepProof(
   distanceMeters?: number;
 } {
   if (step.verificationType === 'passphrase' || step.verificationType === 'qr') {
-    if (proofMatches(params.submittedContent, step.targetCode)) {
+    const serverSecrets = getServerProofSecretMaps();
+    const stepTargetCode = step.targetCode || serverSecrets.STEP_TARGET_CODE_HASHES?.[step.id];
+    if (proofMatchesAny(params.submittedContent, stepTargetCode, step.acceptedAnswerVariants)) {
       return { status: 'verified', message: `Step ${step.stepOrder} verified.` };
     }
     return { status: 'rejected', message: `Step ${step.stepOrder} verification failed. Incorrect answer or unverified proof.` };
@@ -1815,6 +1835,14 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
 
   if (existingSub) {
     if (existingSub.status === 'verified') {
+      if (
+        quest.remoteCapable &&
+        params.proofType &&
+        params.proofType !== existingSub.proofType &&
+        (params.proofType === 'checkin' || params.proofType === 'gps' || params.proofType === 'photo' || params.proofType === 'video')
+      ) {
+        return submitSupplementalFieldProof(params, quest, existingSub);
+      }
       return {
         success: false,
         submission: existingSub,
@@ -1910,7 +1938,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   } else if (quest.verificationType === 'passphrase') {
     const serverSecrets = getServerProofSecretMaps();
     const targetCode = quest.targetCode || serverSecrets.QUEST_TARGET_CODE_HASHES[quest.id] || (quest.slug ? serverSecrets.QUEST_TARGET_CODE_HASHES[quest.slug] : undefined);
-    if (proofMatches(params.submittedContent, targetCode)) {
+    if (proofMatchesAny(params.submittedContent, targetCode, quest.acceptedAnswerVariants)) {
       isAutoVerified = true;
       validationMessage = 'Cipher Cracked! Passphrase verified successfully.';
     } else {
@@ -2099,6 +2127,8 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   let awardedPoints = 0;
   let drawingEntriesAwarded = 0;
   let grantedCol: Collectible | undefined = undefined;
+  let threeLocksFragmentAwardedResult: 'mark' | 'code' | 'word' | undefined;
+  let threeLocksOwnedResult: { mark: boolean; code: boolean; word: boolean } | undefined;
   let oldRank: number | undefined = undefined;
   let newRank: number | undefined = undefined;
   let newAchievements: Array<{
@@ -2114,80 +2144,44 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     const oldLeaderboard = getLeaderboardForEvent(params.eventId);
     oldRank = oldLeaderboard.find((e) => e.playerId === params.playerId)?.rank;
 
-    let basePoints = quest.xpReward || quest.pointValue;
-
     const multiplier = getActiveBonusMultiplier(params.eventId, quest.category);
-    basePoints = Math.round(basePoints * multiplier);
+    const extraFlatXp = params.isHardModeOptIn && quest.riskReward ? quest.riskReward.hardModeBonus : 0;
 
-    if (quest.raceRewards && claimPlacement) {
-      const raceBonus = quest.raceRewards.find((r) => r.place === claimPlacement);
+    const grant = applyQuestRewardGrants(quest, newSubmission.id, params.eventId, params.playerId, params.proofType, {
+      usedNfc: params.usedNfc,
+      bonusMultiplier: multiplier,
+      extraFlatXp,
+      claimPlacement,
+      scoreDescription: `Completed ${quest.title}${multiplier > 1.0 ? ` (${multiplier}x Bonus)` : ''}`,
+    });
+
+    if (grant.claimPlacement && quest.raceRewards) {
+      const raceBonus = quest.raceRewards.find((r) => r.place === grant.claimPlacement);
       if (raceBonus) {
-        basePoints += raceBonus.bonusPoints;
-        validationMessage += ` 🥇 Placement Bonus #${claimPlacement}: +${raceBonus.bonusPoints} XP!`;
+        validationMessage += ` 🥇 Placement Bonus #${grant.claimPlacement}: +${raceBonus.bonusPoints} XP!`;
       }
     }
-
-    if (params.isHardModeOptIn && quest.riskReward) {
-      basePoints += quest.riskReward.hardModeBonus;
-      validationMessage += ` ⚡ Hard Mode Victory: +${quest.riskReward.hardModeBonus} XP!`;
+    if (extraFlatXp > 0) {
+      validationMessage += ` ⚡ Hard Mode Victory: +${extraFlatXp} XP!`;
     }
 
-    awardedPoints = basePoints;
-    drawingEntriesAwarded = drawingEntriesCount;
+    awardedPoints = grant.awardedPoints;
+    drawingEntriesAwarded = grant.drawingEntriesAwarded;
+    grantedCol = grant.grantedCollectible;
+    threeLocksFragmentAwardedResult = grant.threeLocksFragmentAwarded;
+    threeLocksOwnedResult = grant.threeLocksOwned;
+    newSubmission.awardedPoints = awardedPoints;
+    newSubmission.drawingEntriesAwarded = drawingEntriesAwarded;
+    setStoredItem(STORAGE_KEYS.SUBMISSIONS, updatedSubmissions);
 
-    // 1. Award Persistent XP
-    recordScoreLedger({
-      eventId: params.eventId,
-      playerId: params.playerId,
-      questId: params.questId,
-      submissionId: newSubmission.id,
-      points: awardedPoints,
-      category: quest.category,
-      description: `Completed ${quest.title}${multiplier > 1.0 ? ` (${multiplier}x Bonus)` : ''}`,
-    });
+    if (grant.newAchievements.length > 0) {
+      newAchievements = grant.newAchievements;
+    }
 
     const newLeaderboard = getLeaderboardForEvent(params.eventId);
     newRank = newLeaderboard.find((e) => e.playerId === params.playerId)?.rank;
 
-    // 2. Award Event-Scoped Drawing Entries (Only if ledger is open)
-    if (isDrawingLedgerLocked(params.eventId)) {
-      drawingEntriesAwarded = 0;
-      newSubmission.drawingEntriesAwarded = 0;
-    } else {
-      awardDrawingEntries({
-        eventId: params.eventId,
-        playerId: params.playerId,
-        questId: params.questId,
-        submissionId: newSubmission.id,
-        entriesCount: drawingEntriesAwarded,
-        sourceType: 'quest_completion',
-        reason: `Completed quest: ${quest.title}`,
-      });
-    }
-
     incrementCrowdObjective(params.eventId, 1);
-
-    if (quest.id === 'qst-centennial-discovery') {
-      grantedCol = awardCollectible(params.playerId, 'col-founder-token', 'Centennial Beacon Quest');
-      awardCollectible(params.playerId, 'col-founder-mark', 'Family Path — The Mark');
-    }
-    if (quest.id === 'qst-onesto-brass-motto') {
-      awardCollectible(params.playerId, 'col-founder-code', 'Challenge Path — The Code');
-    }
-    if (quest.id === 'qst-watchers-silent-court') {
-      awardCollectible(params.playerId, 'col-founder-word', 'Secret Archive — The Word');
-    }
-
-    // Evaluate dynamic path and district achievements
-    const newlyAwarded = evaluatePlayerAchievements(params.playerId, params.eventId);
-    if (newlyAwarded && newlyAwarded.length > 0) {
-      newAchievements = newlyAwarded.map((ach) => ({
-        id: ach.achievementId || ach.id,
-        title: ach.achievement?.name || ach.achievementSlug || 'Achievement Unlocked',
-        description: ach.achievement?.description || '',
-        icon: ach.achievement?.badgeSymbol || '🏆',
-      }));
-    }
 
     const player = getAllPlayers().find((p) => p.id === params.playerId);
     logActivity({
@@ -2209,6 +2203,8 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     isQuestFullyCompleted: isAutoVerified,
     claimPlacement,
     collectibleAwarded: grantedCol,
+    threeLocksFragmentAwarded: threeLocksFragmentAwardedResult,
+    threeLocksOwned: threeLocksOwnedResult,
     flags: reviewFlags,
     oldRank,
     newRank,
@@ -2252,6 +2248,438 @@ export function recordScoreLedger(entryData: Omit<ScoreLedgerEntry, 'id' | 'awar
   }
 
   return newEntry;
+}
+
+// -----------------------------------------------------------------------------
+// Reward Grant Ledger — per-component audit trail + idempotency gate for the
+// reusable QuestRewardConfig template (lib/quest-rewards.ts). One row per
+// distinct reward a submission produces; the (submissionId, rewardType,
+// rewardKey) triple is the uniqueness key, mirroring the Supabase
+// reward_grants table's unique index.
+// -----------------------------------------------------------------------------
+
+/** Inserts a reward grant row, or returns null if this exact grant already exists (duplicate/retry). */
+export function recordRewardGrant(entry: {
+  eventId: string;
+  playerId: string;
+  questId?: string;
+  submissionId?: string;
+  rewardType: RewardGrantReason;
+  rewardKey: string;
+  xpAwarded?: number;
+  drawingEntriesAwarded?: number;
+}): RewardGrant | null {
+  initializeGameEngine();
+  const grants = getStoredItem<RewardGrant[]>(STORAGE_KEYS.REWARD_GRANTS, []);
+
+  // Scoped by player+quest (not submission): the same specific reward must
+  // never be granted twice to the same player for the same quest, even
+  // across multiple submissions — this is what lets a remoteCapable quest's
+  // later field/photo submission grant a genuinely new bonus component
+  // without ever being able to re-grant a component already paid out.
+  const existing = entry.questId
+    ? grants.find(
+        (g) =>
+          g.playerId === entry.playerId &&
+          g.questId === entry.questId &&
+          g.rewardType === entry.rewardType &&
+          g.rewardKey === entry.rewardKey
+      )
+    : entry.submissionId
+    ? grants.find(
+        (g) =>
+          g.submissionId === entry.submissionId &&
+          g.rewardType === entry.rewardType &&
+          g.rewardKey === entry.rewardKey
+      )
+    : undefined;
+  if (existing) return null;
+
+  const newGrant: RewardGrant = {
+    id: `rg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    eventId: entry.eventId,
+    playerId: entry.playerId,
+    questId: entry.questId,
+    submissionId: entry.submissionId,
+    rewardType: entry.rewardType,
+    rewardKey: entry.rewardKey,
+    xpAwarded: entry.xpAwarded || 0,
+    drawingEntriesAwarded: entry.drawingEntriesAwarded || 0,
+    createdAt: new Date().toISOString(),
+  };
+  setStoredItem(STORAGE_KEYS.REWARD_GRANTS, [...grants, newGrant]);
+  return newGrant;
+}
+
+const THREE_LOCKS_COLLECTIBLE_IDS = ['col-founder-mark', 'col-founder-code', 'col-founder-word'];
+
+/**
+ * The single reward-granting transaction for a verified/approved quest
+ * completion — used by both the automated path (submitQuestProof) and the
+ * GM manual-review path (reviewSubmission) so every reward type is applied
+ * exactly once, from exactly one place, regardless of which path verified
+ * the submission. Every reward component (QUEST_BASE, each bonus, race
+ * tier, badge, collectible, ...) is individually gated by player+quest in
+ * recordRewardGrant, so calling this again for the same quest — whether a
+ * retried submission or a remoteCapable quest's later field/photo
+ * submission — only ever grants what genuinely hasn't been granted yet.
+ */
+function applyQuestRewardGrants(
+  quest: Quest,
+  submissionId: string,
+  eventId: string,
+  playerId: string,
+  method: ProofVerificationType,
+  options: {
+    usedNfc?: boolean;
+    /** Applied only to the base XP portion, matching prior bonus-window behavior. */
+    bonusMultiplier?: number;
+    /** Additive flat XP outside the reward template (e.g. hard-mode opt-in victory bonus). */
+    extraFlatXp?: number;
+    /**
+     * The claim ordinal for this completion, if the caller already computed
+     * one (submitQuestProof always tracks this for claim_limit/"claimed_out"
+     * state, independent of whether the quest defines race bonus tiers).
+     * Fed into the race-bonus tier lookup; not computed here.
+     */
+    claimPlacement?: number;
+    scoreDescription?: string;
+  } = {}
+): {
+  awardedPoints: number;
+  drawingEntriesAwarded: number;
+  claimPlacement?: number;
+  grantedCollectible?: Collectible;
+  threeLocksFragmentAwarded?: 'mark' | 'code' | 'word';
+  threeLocksOwned?: { mark: boolean; code: boolean; word: boolean };
+  newAchievements: Array<{
+    id: string;
+    title: string;
+    description: string;
+    icon?: string;
+  }>;
+} {
+  const multiplier = options.bonusMultiplier ?? 1;
+  const rawBaseXp = getEffectiveBaseXp(quest);
+  const multipliedBaseXp = Math.round(rawBaseXp * multiplier);
+
+  // QUEST_BASE is granted at most once per player+quest, ever — regardless
+  // of how many submissions this quest receives. A remoteCapable quest's
+  // later field/photo submission will find this already granted and simply
+  // skip re-awarding it, while still evaluating this call's bonuses below.
+  const baseGrant = recordRewardGrant({
+    eventId,
+    playerId,
+    questId: quest.id,
+    submissionId,
+    rewardType: 'QUEST_BASE',
+    rewardKey: quest.id,
+    xpAwarded: multipliedBaseXp,
+  });
+  const isNewBase = Boolean(baseGrant);
+
+  // Race placement/hard-mode bonus only ever apply to the completion itself,
+  // never to a later supplemental bonus-only submission.
+  const claimPlacement = isNewBase ? options.claimPlacement : undefined;
+  const extraFlatXp = isNewBase ? options.extraFlatXp || 0 : 0;
+
+  const bonuses = computeAwardedBonusesForSubmission(quest, { method, racePlacement: claimPlacement, usedNfc: options.usedNfc });
+
+  const BONUS_REASON: Record<string, RewardGrantReason> = {
+    fieldCheckIn: 'QUEST_FIELD_CHECKIN',
+    nfc: 'QUEST_NFC',
+    photoVideo: 'QUEST_PHOTO_VIDEO',
+  };
+  let newBonusXp = 0;
+  for (const item of bonuses.lineItems) {
+    const granted = recordRewardGrant({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: BONUS_REASON[item.key],
+      rewardKey: quest.id,
+      xpAwarded: item.xp,
+    });
+    if (granted) newBonusXp += item.xp;
+  }
+
+  let newRaceBonusXp = 0;
+  if (claimPlacement && bonuses.raceBonusXp > 0) {
+    const granted = recordRewardGrant({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'QUEST_RACE_BONUS',
+      rewardKey: `${quest.id}:${claimPlacement}`,
+      xpAwarded: bonuses.raceBonusXp,
+    });
+    if (granted) newRaceBonusXp = bonuses.raceBonusXp;
+  }
+
+  const totalXp = (isNewBase ? multipliedBaseXp : 0) + newBonusXp + newRaceBonusXp + extraFlatXp;
+
+  if (totalXp > 0) {
+    recordScoreLedger({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      points: totalXp,
+      category: isNewBase ? quest.category : 'quest_bonus',
+      description: options.scoreDescription || `Completed ${quest.title}`,
+    });
+  }
+
+  // Drawing entries are a flat total (base + configured bonus), not
+  // incremental — re-upserting the same value on a supplemental submission
+  // is a harmless no-op, exactly like re-running the same upsert twice.
+  let drawingEntriesAwarded = 0;
+  if (!isDrawingLedgerLocked(eventId)) {
+    awardDrawingEntries({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      entriesCount: bonuses.drawingEntries,
+      sourceType: 'quest_completion',
+      reason: `Completed quest: ${quest.title}`,
+    });
+    drawingEntriesAwarded = bonuses.drawingEntries;
+  }
+
+  const drawingBonus = getDrawingEntryBonus(quest);
+  if (drawingBonus > 0) {
+    recordRewardGrant({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'QUEST_DRAWING_ENTRY_BONUS',
+      rewardKey: quest.id,
+      drawingEntriesAwarded: drawingBonus,
+    });
+  }
+
+  const unlocks = getUnlockSummary(quest);
+  for (const slug of unlocks.badgeSlugs) {
+    const granted = recordRewardGrant({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'BADGE_UNLOCK',
+      rewardKey: slug,
+    });
+    if (granted) awardAchievement(playerId, slug, eventId, `Quest reward: ${quest.title}`);
+  }
+
+  let grantedCollectible: Collectible | undefined;
+  let threeLocksFragmentAwarded: 'mark' | 'code' | 'word' | undefined;
+  let threeLocksOwned: { mark: boolean; code: boolean; word: boolean } | undefined;
+  for (const collectibleId of unlocks.collectibleIds) {
+    const granted = recordRewardGrant({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'COLLECTIBLE_UNLOCK',
+      rewardKey: collectibleId,
+    });
+    if (granted) {
+      const col = awardCollectible(playerId, collectibleId, `Quest reward: ${quest.title}`);
+      if (col && !grantedCollectible) grantedCollectible = col;
+    }
+  }
+
+  if (unlocks.threeLocksFragment) {
+    const { lock, collectibleId } = unlocks.threeLocksFragment;
+    const granted = recordRewardGrant({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'THREE_LOCKS_FRAGMENT',
+      rewardKey: collectibleId,
+    });
+    if (granted) {
+      const col = awardCollectible(playerId, collectibleId, `Founder's Lock: ${lock.toUpperCase()}`);
+      if (col && !grantedCollectible) grantedCollectible = col;
+      threeLocksFragmentAwarded = lock;
+    }
+
+    const ownedIds = new Set(getCollectiblesForPlayer(playerId).map((pc) => pc.collectibleId));
+    threeLocksOwned = {
+      mark: ownedIds.has('col-founder-mark'),
+      code: ownedIds.has('col-founder-code'),
+      word: ownedIds.has('col-founder-word'),
+    };
+    const hasAllThreeLocks = THREE_LOCKS_COLLECTIBLE_IDS.every((id) => ownedIds.has(id));
+    if (hasAllThreeLocks) {
+      const finaleGranted = recordRewardGrant({
+        eventId,
+        playerId,
+        questId: quest.id,
+        submissionId,
+        rewardType: 'FINALE_PROGRESS',
+        rewardKey: 'three_locks_complete',
+      });
+      if (finaleGranted) {
+        grantFinaleQualification(eventId, playerId, "Collected all three Founder's Locks: MARK, CODE, WORD");
+      }
+    }
+  }
+
+  for (const secretQuestId of unlocks.secretQuestIds) {
+    recordRewardGrant({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'SECRET_UNLOCK',
+      rewardKey: secretQuestId,
+    });
+  }
+
+  if (unlocks.countsTowardFinale) {
+    const granted = recordRewardGrant({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'FINALE_PROGRESS',
+      rewardKey: quest.id,
+    });
+    if (granted) {
+      grantFinaleQualification(eventId, playerId, `Completed qualifying quest: ${quest.title}`);
+    }
+  }
+
+  const newlyAwarded = evaluatePlayerAchievements(playerId, eventId);
+  const newAchievements = (newlyAwarded || []).map((ach) => ({
+    id: ach.achievementId || ach.id,
+    title: ach.achievement?.name || ach.achievementSlug || 'Achievement Unlocked',
+    description: ach.achievement?.description || '',
+    icon: ach.achievement?.badgeSymbol || '🏆',
+  }));
+
+  return {
+    awardedPoints: totalXp,
+    drawingEntriesAwarded,
+    claimPlacement,
+    grantedCollectible,
+    threeLocksFragmentAwarded,
+    threeLocksOwned,
+    newAchievements,
+  };
+}
+
+/**
+ * Handles a follow-up field/photo submission against a quest that's already
+ * been completed remotely, when the quest opts in via `remoteCapable`. Never
+ * re-verifies or re-awards the base completion (applyQuestRewardGrants's
+ * per-player-per-quest gating already guarantees that) — this only grants
+ * whatever field bonus the new proof type newly qualifies for.
+ */
+function submitSupplementalFieldProof(
+  params: SubmitProofParams,
+  quest: Quest,
+  existingSub: QuestSubmission
+): SubmitProofResult {
+  const isFieldCheckIn = params.proofType === 'checkin' || params.proofType === 'gps';
+  const isPhotoVideo = params.proofType === 'photo' || params.proofType === 'video';
+
+  if (isFieldCheckIn) {
+    const locationResult = validateLocationProof(params, quest);
+    if (!locationResult.ok) {
+      return {
+        success: false,
+        submission: locationResult.submission,
+        message: locationResult.message,
+        awardedPoints: 0,
+        drawingEntriesAwarded: 0,
+      };
+    }
+
+    const newSubmission: QuestSubmission = {
+      id: `sub-${Date.now()}`,
+      questId: params.questId,
+      playerId: params.playerId,
+      eventId: params.eventId,
+      proofType: params.proofType,
+      status: 'verified',
+      awardedPoints: 0,
+      drawingEntriesAwarded: 0,
+      submittedAt: new Date().toISOString(),
+      reviewedAt: new Date().toISOString(),
+      userLat: params.userLat,
+      userLon: params.userLon,
+      distanceFromLocation: locationResult.distanceMeters,
+    };
+    const grant = applyQuestRewardGrants(quest, newSubmission.id, params.eventId, params.playerId, params.proofType, {});
+    newSubmission.awardedPoints = grant.awardedPoints;
+    newSubmission.drawingEntriesAwarded = grant.drawingEntriesAwarded;
+    setStoredItem(STORAGE_KEYS.SUBMISSIONS, [...getAllSubmissions(), newSubmission]);
+
+    return {
+      success: true,
+      submission: newSubmission,
+      message:
+        grant.awardedPoints > 0
+          ? `Field bonus confirmed! +${grant.awardedPoints} XP.`
+          : 'Field visit logged — no new field bonus configured for this quest.',
+      awardedPoints: grant.awardedPoints,
+      drawingEntriesAwarded: grant.drawingEntriesAwarded,
+      newAchievements: grant.newAchievements,
+      threeLocksFragmentAwarded: grant.threeLocksFragmentAwarded,
+      threeLocksOwned: grant.threeLocksOwned,
+    };
+  }
+
+  if (isPhotoVideo) {
+    if (!params.proofUrl && !params.submittedContent) {
+      return {
+        success: false,
+        submission: buildRejectedSubmission(params, 'Proof details are required before Game Master review.'),
+        message: 'Proof details are required before Game Master review.',
+        awardedPoints: 0,
+        drawingEntriesAwarded: 0,
+      };
+    }
+
+    const newSubmission: QuestSubmission = {
+      id: `sub-${Date.now()}`,
+      questId: params.questId,
+      playerId: params.playerId,
+      eventId: params.eventId,
+      proofType: params.proofType,
+      submittedContent: params.submittedContent,
+      proofUrl: params.proofUrl,
+      status: 'pending',
+      awardedPoints: 0,
+      drawingEntriesAwarded: 0,
+      submittedAt: new Date().toISOString(),
+    };
+    const allSubs = getAllSubmissions();
+    setStoredItem(STORAGE_KEYS.SUBMISSIONS, [...allSubs, newSubmission]);
+
+    return {
+      success: true,
+      submission: newSubmission,
+      message: 'Field photo submitted for Game Master review.',
+      awardedPoints: 0,
+      drawingEntriesAwarded: 0,
+    };
+  }
+
+  return {
+    success: false,
+    submission: existingSub,
+    message: 'Unsupported field bonus submission type for this quest.',
+    awardedPoints: 0,
+    drawingEntriesAwarded: 0,
+  };
 }
 
 // -----------------------------------------------------------------------------
@@ -3413,9 +3841,9 @@ export function getAuthenticatedPlayerDrawingQualification(
 }
 
 export function getPublicQuestView(quest: Quest): PublicQuestView {
-  const { targetCode, gmNotes, ...safeQuest } = quest;
+  const { targetCode, gmNotes, acceptedAnswerVariants, ...safeQuest } = quest;
   if (safeQuest.steps) {
-    safeQuest.steps = safeQuest.steps.map(({ targetCode: _targetCode, ...stepRest }) => stepRest);
+    safeQuest.steps = safeQuest.steps.map(({ targetCode: _targetCode, acceptedAnswerVariants: _variants, ...stepRest }) => stepRest);
   }
   return safeQuest;
 }
@@ -3546,34 +3974,40 @@ export function reviewSubmission(
       return sub;
     }
 
-    const xp = quest ? (quest.xpReward || quest.pointValue) : 100;
-    const entries = quest ? (quest.drawingEntryReward ?? 1) : 1;
+    if (!quest) {
+      // Defensive fallback for an orphaned submission whose quest no longer exists.
+      sub.awardedPoints = 100;
+      sub.drawingEntriesAwarded = 1;
+      recordScoreLedger({
+        eventId: sub.eventId,
+        playerId: sub.playerId,
+        questId: sub.questId,
+        submissionId: sub.id,
+        points: sub.awardedPoints,
+        category: 'admin_approved',
+        description: 'Media submission approved for Quest',
+      });
+      awardDrawingEntries({
+        eventId: sub.eventId,
+        playerId: sub.playerId,
+        questId: sub.questId,
+        submissionId: sub.id,
+        entriesCount: sub.drawingEntriesAwarded,
+        sourceType: 'quest_completion',
+        reason: 'Media submission approved for Quest',
+      });
+      setStoredItem(STORAGE_KEYS.SUBMISSIONS, submissions);
+      return sub;
+    }
 
-    sub.awardedPoints = xp;
-    sub.drawingEntriesAwarded = entries;
-
-    recordScoreLedger({
-      eventId: sub.eventId,
-      playerId: sub.playerId,
-      questId: sub.questId,
-      submissionId: sub.id,
-      points: sub.awardedPoints,
-      category: quest ? quest.category : 'admin_approved',
-      description: `Media submission approved for ${quest ? quest.title : 'Quest'}`,
+    const grant = applyQuestRewardGrants(quest, sub.id, sub.eventId, sub.playerId, sub.proofType, {
+      scoreDescription: `Media submission approved for ${quest.title}`,
     });
 
-    awardDrawingEntries({
-      eventId: sub.eventId,
-      playerId: sub.playerId,
-      questId: sub.questId,
-      submissionId: sub.id,
-      entriesCount: entries,
-      sourceType: 'quest_completion',
-      reason: `Media submission approved for ${quest ? quest.title : 'Quest'}`,
-    });
+    sub.awardedPoints = grant.awardedPoints;
+    sub.drawingEntriesAwarded = grant.drawingEntriesAwarded;
 
     setStoredItem(STORAGE_KEYS.SUBMISSIONS, submissions);
-    evaluatePlayerAchievements(sub.playerId, sub.eventId);
     return sub;
   }
 

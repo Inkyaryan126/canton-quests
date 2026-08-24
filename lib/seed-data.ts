@@ -581,6 +581,12 @@ export const SEED_QUESTS: Quest[] = [
     requireLocationVerification: true,
     safetyNotes: 'Use public sidewalks and plaza areas. Do not enter closed event setups, stages, or restricted maintenance areas.',
     gmNotes: 'Field verify plaza access on launch weekend and place opening signage where it does not obstruct pedestrian flow.',
+    // First of the Founder's Three Locks quests — see qst-onesto-brass-motto
+    // (THE CODE) and qst-watchers-silent-court (THE WORD) for the other two.
+    rewardConfig: {
+      collectibleUnlockIds: ['col-founder-token', 'col-founder-mark'],
+      threeLocksFragment: { lock: 'mark', collectibleId: 'col-founder-mark' },
+    },
   },
   {
     id: 'qst-mckinley-cipher',
@@ -733,6 +739,20 @@ export const SEED_QUESTS: Quest[] = [
     requireLocationVerification: true,
     safetyNotes: 'No running into traffic or cutting through restricted areas. The drop is optional and should be paused if the plaza is crowded or closed.',
     gmNotes: 'Use live controls to adjust the active window based on weather and field conditions.',
+    // Demo of the reusable reward template (lib/quest-rewards.ts): a flash
+    // quest with a race bonus for early arrivals plus optional NFC/photo
+    // bonus paths on top of the required GPS check-in.
+    rewardConfig: {
+      baseXp: 225,
+      nfcBonusXp: 15,
+      photoVideoBonusXp: 20,
+      raceBonus: [
+        { place: 1, bonusPoints: 100 },
+        { place: 2, bonusPoints: 50 },
+        { place: 3, bonusPoints: 25 },
+      ],
+      countsTowardFinale: true,
+    },
   },
   {
     id: 'qst-onesto-brass-motto',
@@ -757,6 +777,12 @@ export const SEED_QUESTS: Quest[] = [
     createdAt: '2026-08-01T00:00:00Z',
     safetyNotes: 'Public sidewalk view only. Do not enter private residential or lobby areas unless invited by posted public access.',
     gmNotes: 'Reconfirm visible clue target and public viewing boundary before launch.',
+    // Second of the Founder's Three Locks quests — see qst-centennial-discovery
+    // (THE MARK) and qst-watchers-silent-court (THE WORD) for the other two.
+    rewardConfig: {
+      collectibleUnlockIds: ['col-founder-code'],
+      threeLocksFragment: { lock: 'code', collectibleId: 'col-founder-code' },
+    },
   },
   {
     id: 'qst-hof-legend-qr',
@@ -932,7 +958,14 @@ export const SEED_QUESTS: Quest[] = [
     safetyNotes:
       'Daylight only. Confirm cemetery hours. Stay on paved or gravel paths. No touching, climbing, rubbing, or disturbing grave markers.',
     gmNotes:
-      'MUST complete site walk: (1) confirm Miller monument and inscription, (2) confirm Black monument and symbol, (3) confirm Meyer monument and letter/initial. Set server passphrase hashes. Completing this quest awards col-founder-word (THE WORD) — game-engine collectible grant must be wired before launch.',
+      'MUST complete site walk: (1) confirm Miller monument and inscription, (2) confirm Black monument and symbol, (3) confirm Meyer monument and letter/initial. Set server passphrase hashes. rewardConfig below defines the col-founder-word (THE WORD) grant, issued automatically on verified completion.',
+    // Third of the Founder's Three Locks quests — see qst-centennial-discovery
+    // (THE MARK) and qst-onesto-brass-motto (THE CODE) for the other two.
+    rewardConfig: {
+      collectibleUnlockIds: ['col-founder-word'],
+      threeLocksFragment: { lock: 'word', collectibleId: 'col-founder-word' },
+      countsTowardFinale: true,
+    },
   },
   // Secret Path — West Lawn Archive: Chapter 4 Bonus
   {
@@ -1197,6 +1230,257 @@ export const SEED_QUESTS: Quest[] = [
     radiusMeters: 60,
     safetyNotes: 'Open public park. Daylight hours only. Respect any seasonal closures or maintenance areas.',
     gmNotes: 'MUST confirm on site before launch: (1) visit the mural wall and verify exact detail + single-word answer, (2) set server passphrase hash, (3) confirm park is accessible on event weekend, (4) confirm seasonal operating status.',
+  },
+  // ---------------------------------------------------------------------------
+  // Challenge Sector — "THE STORYBOOK SECTOR" (C1-C4)
+  // Narrative theme: "Forgotten doesn't mean finished." Mother Goose Land /
+  // 9th Street area — open to the public but weathered/run-down compared
+  // with what it once was. Tone: preservation, memory, visibility,
+  // potential, recovery. Players never repair, paint, touch, climb, or
+  // alter the site.
+  //
+  // STATUS: DRAFT — coordinates for this specific chain and final owner
+  // verification are not yet supplied. `status: 'draft'` keeps every one of
+  // these hidden from players (see calculateQuestState in game-engine.ts)
+  // until an owner supplies real coordinates and flips status to 'active'.
+  // `location` is deliberately left undefined (locationId only) rather than
+  // reusing loc-mother-goose-land's existing lat/lon — those coordinates
+  // were set for a different, already-live quest (qst-goose-land-cipher)
+  // and were not confirmed for this chain; do not assume they apply here.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'qst-challenge-blue-signal',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-mother-goose-land',
+    location: undefined,
+    title: 'The Blue Signal',
+    slug: 'challenge-blue-signal',
+    description: "Forgotten doesn't mean finished. One painted whale survived long enough for you to notice it.",
+    instructions:
+      'The Mother Goose Land mural wall still carries a large blue creature from the old storybook scenes. What large blue creature appears on the mural? Answer from memory or from the field — this one can be solved remotely.',
+    pointValue: 150,
+    xpReward: 150,
+    drawingEntryReward: 1,
+    difficulty: 'easy',
+    category: 'observation',
+    startingPath: 'challenge',
+    verificationType: 'passphrase',
+    acceptedAnswerVariants: [
+      'sha256:22c71fc75f2ccec3be35306272851ffc48e0587cabced42e87880a9fdcb3c0be', // BLUE WHALE
+      'sha256:6a688edef29d0df679ceee752d6b4741b653a45520feaabe9dbbe7b50f26a49c', // A WHALE
+    ],
+    proofRequirement: 'Enter the large blue creature that appears on the mural (e.g. "whale").',
+    isFlash: false,
+    status: 'draft',
+    sortOrder: 18,
+    createdAt: '2026-08-24T00:00:00Z',
+    radiusMeters: 60,
+    remoteCapable: true,
+    rewardConfig: {
+      baseXp: 150,
+      fieldCheckInBonusXp: 75,
+      photoVideoBonusXp: 50,
+    },
+    sectorIntroTransmission: {
+      type: 'VIDEO',
+      message:
+        "Challenge operative, this sector isn't polished and it isn't pristine. It was built for wonder, and pieces of that story are still standing. Your job isn't to judge what's faded. Your job is to recover what remains.",
+      mediaKey: 'commander/challenge-sector-intro.mp4',
+      fallbackType: 'PHOTO_MESSAGE',
+    },
+    // Suggested Commander video script (production reference only, not shown
+    // to players — the transmission's `message` above is the actual copy
+    // used until the real video/photo asset is produced):
+    // "Challenge operative. Take a look around. This place was built for
+    // wonder. Time hit it hard, but it didn't erase it. The characters are
+    // still here. The stories are still on these walls. Somebody just has
+    // to pay attention again. Recover what remains. Make the forgotten
+    // visible."
+    commanderTransmission: {
+      type: 'PHOTO_MESSAGE',
+      message: "Good. Start with what refuses to disappear. One painted whale survived long enough for you to notice it.",
+      mediaKey: 'commander/challenge-c1-blue-signal.jpg',
+    },
+    safetyNotes:
+      'Remain in public-access areas. Nothing in these missions requires climbing, crossing fences, entering restricted structures, touching the mural, altering the site, or entering traffic.',
+    gmNotes:
+      "DRAFT/CONTENT_LOCKED — coordinates for Mother Goose Land / 9th Street not yet supplied for this chain; do not activate until coordinates and final owner verification are confirmed. Completion headline: SIGNAL IDENTIFIED. Completion message: \"The story is faded. The signal isn't.\" Unlocks C2 (qst-challenge-storybook-witness) on completion.",
+  },
+  {
+    id: 'qst-challenge-storybook-witness',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-mother-goose-land',
+    location: undefined,
+    title: 'Storybook Witness',
+    slug: 'challenge-storybook-witness',
+    description: 'Three fragments recovered from a wall most people pass without seeing.',
+    instructions:
+      'Return to the Mother Goose Land mural wall. Three separate storybook details are waiting to be named, in sequence. Each can be answered remotely or from the field.',
+    pointValue: 200,
+    xpReward: 200,
+    drawingEntryReward: 1,
+    difficulty: 'medium',
+    category: 'observation',
+    startingPath: 'challenge',
+    verificationType: 'multi_step',
+    proofRequirement: 'Answer all three observation prompts, in sequence.',
+    isFlash: false,
+    status: 'draft',
+    sortOrder: 19,
+    createdAt: '2026-08-24T00:00:00Z',
+    radiusMeters: 60,
+    remoteCapable: true,
+    prerequisiteQuestId: 'qst-challenge-blue-signal',
+    unlockConditionType: 'prerequisite',
+    steps: [
+      {
+        id: 'step-challenge-storybook-cat',
+        questId: 'qst-challenge-storybook-witness',
+        stepOrder: 1,
+        title: 'The Investigator',
+        instructions: 'Which character is dressed like an investigator?',
+        verificationType: 'passphrase',
+        acceptedAnswerVariants: [
+          'sha256:af77342b0797f13a314ea730bb27471c14e327cd77f7280453850f2eae695763', // DETECTIVE CAT
+          'sha256:4dbfbad0e12ac681b3f858e39abb96f0df3165cd0c4ee8479179d0fa34b36786', // CAT DETECTIVE
+        ],
+      },
+      {
+        id: 'step-challenge-storybook-gingerbread',
+        questId: 'qst-challenge-storybook-witness',
+        stepOrder: 2,
+        title: 'The Sweet Character',
+        instructions: 'What sweet storybook character appears near the pumpkins?',
+        verificationType: 'passphrase',
+        acceptedAnswerVariants: [
+          'sha256:f2923498f1758f7be933884f67205c806a56bc03ae8c61dc4328f699ad703cea', // GINGERBREAD
+          'sha256:2f06ab7e9e52d0829b54c63946e271948658e192c6a4d4ecf5ad8aea5976c86e', // GINGERBREAD PERSON
+        ],
+      },
+      {
+        id: 'step-challenge-storybook-wolf',
+        questId: 'qst-challenge-storybook-witness',
+        stepOrder: 3,
+        title: 'The Hunter',
+        instructions: 'What animal appears to be chasing one of the pigs?',
+        verificationType: 'passphrase',
+        acceptedAnswerVariants: [
+          'sha256:5553573c3a34e91b53c7106d5bad7cd1f39ca129743ab4fdf46e1367213a70c8', // A WOLF
+        ],
+      },
+    ],
+    rewardConfig: {
+      baseXp: 200,
+      fieldCheckInBonusXp: 100,
+    },
+    commanderTransmission: {
+      type: 'PHOTO_MESSAGE',
+      message: "That's the difference between passing a place and seeing it. The wall still has stories left.",
+      mediaKey: 'commander/challenge-c2-storybook-witness.jpg',
+    },
+    safetyNotes:
+      'Remain in public-access areas. Nothing in these missions requires climbing, crossing fences, entering restricted structures, touching the mural, altering the site, or entering traffic.',
+    gmNotes:
+      'DRAFT/CONTENT_LOCKED — coordinates not yet supplied; do not activate until field-verified. Completion headline: WITNESSES CONFIRMED. Completion message: "Three fragments recovered from a wall most people pass without seeing." Prerequisite: C1. Unlocks C3 (qst-challenge-what-survived) on completion.',
+  },
+  {
+    id: 'qst-challenge-what-survived',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-mother-goose-land',
+    location: undefined,
+    title: 'What Survived',
+    slug: 'challenge-what-survived',
+    description: "You didn't restore the wall. You did something that comes first: you noticed it.",
+    instructions:
+      'Which of these characters is clearly visible on the surviving mural — Blue whale, Dragon, Spaceship, or Race car? Answer remotely, or visit in person to also log a field check-in and a preservation photo.',
+    pointValue: 175,
+    xpReward: 175,
+    drawingEntryReward: 1,
+    difficulty: 'medium',
+    category: 'observation',
+    startingPath: 'challenge',
+    verificationType: 'passphrase',
+    // No variant answers beyond the canonical form — this is a closed
+    // multiple-choice prompt (Blue whale / Dragon / Spaceship / Race car);
+    // no rendered multiple-choice UI exists yet, so it's presented as a
+    // free-text prompt naming the correct choice.
+    proofRequirement: 'Enter the correct character (choices: Blue whale, Dragon, Spaceship, Race car).',
+    isFlash: false,
+    status: 'draft',
+    sortOrder: 20,
+    createdAt: '2026-08-24T00:00:00Z',
+    radiusMeters: 60,
+    remoteCapable: true,
+    prerequisiteQuestId: 'qst-challenge-storybook-witness',
+    unlockConditionType: 'prerequisite',
+    rewardConfig: {
+      baseXp: 175,
+      fieldCheckInBonusXp: 125,
+      photoVideoBonusXp: 75,
+      nfcBonusXp: 50,
+    },
+    commanderTransmission: {
+      type: 'PHOTO_MESSAGE',
+      message:
+        'A place does not have to be perfect to matter. Somebody has to see what is worth keeping before anybody decides it is worth saving.',
+      mediaKey: 'commander/challenge-c3-what-survived.jpg',
+    },
+    safetyNotes:
+      'Remain in public-access areas. Nothing in these missions requires climbing, crossing fences, entering restricted structures, touching the mural, altering the site, or entering traffic. Field photo must be taken during the event — no reused or found images.',
+    gmNotes:
+      'DRAFT/CONTENT_LOCKED — coordinates not yet supplied; do not activate until field-verified. Photo instruction: "Take a photograph of any surviving mural character you believe deserves preservation. The image must be taken during the event." NFC bonus (+50 XP) is tied to logical cache key C-CACHE-01 ("Storybook Cache") — see the NFC cache note near SEED_COLLECTIBLES; no physical cache placement or coordinates exist yet, and the NFC scan-tag architecture itself is not implemented in this codebase (only the configured XP bonus amount exists), so this bonus is not claimable until both are built. Completion headline: ARCHIVE UPDATED. Completion message: "You didn\'t restore the wall. You did something that comes first: you noticed it." Prerequisite: C2. Unlocks C4 (qst-challenge-the-lost-page) on completion.',
+  },
+  {
+    id: 'qst-challenge-the-lost-page',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-mother-goose-land',
+    location: undefined,
+    title: 'The Lost Page',
+    slug: 'challenge-the-lost-page',
+    description: 'The forgotten story produced something the Founder needed.',
+    instructions:
+      'Find the largest creature swimming through the story. Find the investigator watching the wall. Find the character made to be eaten. Find the hunter chasing the frightened story. Enter all four, in order, separated by hyphens: WHALE-CAT-GINGERBREAD-WOLF.',
+    pointValue: 300,
+    xpReward: 300,
+    drawingEntryReward: 1,
+    difficulty: 'hard',
+    category: 'puzzle',
+    startingPath: 'challenge',
+    verificationType: 'passphrase',
+    proofRequirement: 'Enter the full normalized sequence, e.g. "WHALE-CAT-GINGERBREAD-WOLF".',
+    isFlash: false,
+    status: 'draft',
+    sortOrder: 21,
+    createdAt: '2026-08-24T00:00:00Z',
+    radiusMeters: 60,
+    remoteCapable: true,
+    // Transitively equivalent to requiring C1 + C2 + C3: C3 already requires
+    // C2, which already requires C1, so gating on C3 alone enforces the full
+    // chain via the existing single-prerequisite mechanism (no multi-
+    // prerequisite schema support exists, and none is needed here).
+    prerequisiteQuestId: 'qst-challenge-what-survived',
+    unlockConditionType: 'prerequisite',
+    rewardConfig: {
+      baseXp: 300,
+      fieldCheckInBonusXp: 150,
+      collectibleUnlockIds: ['col-founder-code'],
+      threeLocksFragment: { lock: 'code', collectibleId: 'col-founder-code' },
+      countsTowardFinale: true,
+      // STORYBOOK_SURVIVOR badge intentionally omitted — see gmNotes: no
+      // 'storybook-survivor' (or similarly-slugged) achievement exists in
+      // SEED_ACHIEVEMENTS/the achievements catalog, and inventing one here
+      // would create an unsafe reference badgeUnlockSlugs can't resolve.
+    },
+    commanderTransmission: {
+      type: 'VIDEO',
+      message: "That's not just another answer. You recovered CODE. One of three locks is now in your hands.",
+      mediaKey: 'commander/challenge-code-recovered.mp4',
+      fallbackType: 'PHOTO_MESSAGE',
+    },
+    safetyNotes:
+      'Remain in public-access areas. Nothing in these missions requires climbing, crossing fences, entering restricted structures, touching the mural, altering the site, or entering traffic.',
+    gmNotes:
+      "DRAFT/CONTENT_LOCKED — coordinates not yet supplied; do not activate until field-verified. Badge STORYBOOK_SURVIVOR requested but does not exist in the achievements catalog (SEED_ACHIEVEMENTS) — reported as missing rather than invented; add it there first if it should be granted. Completion headline: LOCK FRAGMENT RECOVERED. Completion message: \"The forgotten story produced something the Founder needed.\" Prerequisites: C1, C2, C3 (enforced transitively via C3's own prerequisite chain). Grants THREE LOCKS FRAGMENT: CODE -> col-founder-code (existing catalog entry, not a new collectible).",
   },
   // Finale Quest
   {

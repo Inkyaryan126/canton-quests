@@ -4486,6 +4486,15 @@ code, pre, .font-mono {
   }
 }
 
+/* Commander Transmission media (components/commander/CommanderMedia.tsx) */
+.cq-commander-media-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.9;
+  display: block;
+}
+
 /* Game Moment Overlays & Modals */
 .cq-moment-overlay {
   position: fixed;

@@ -6,7 +6,7 @@
  * Achievements, Flash Drops, Chain Finishes, Finale Qualification).
  */
 
-import { StartingPath } from './types';
+import { StartingPath, QuestCommanderTransmission } from './types';
 
 export type GameMomentType =
   | 'city-scan'
@@ -16,7 +16,15 @@ export type GameMomentType =
   | 'achievement'
   | 'flash-drop'
   | 'chain-complete'
-  | 'finale-qualified';
+  | 'finale-qualified'
+  | 'three-locks-fragment'
+  | 'three-locks-complete'
+  | 'commander-transmission'
+  | 'reward-token'
+  | 'unlock'
+  | 'field-event'
+  | 'leaderboard-milestone'
+  | 'major-cinematic';
 
 export type RankTier = 'normal' | 'top10' | 'top3' | 'first';
 
@@ -114,6 +122,125 @@ export interface FinaleQualifiedMoment extends BaseGameMoment {
   isLocked?: boolean;
 }
 
+/**
+ * A reusable cinematic reveal for any Founder's Three Locks fragment (MARK,
+ * CODE, or WORD) — not specific to any one fragment. Triggered whenever a
+ * quest's rewardConfig.threeLocksFragment is newly granted.
+ */
+export interface ThreeLocksFragmentMoment extends BaseGameMoment {
+  type: 'three-locks-fragment';
+  fragment: 'mark' | 'code' | 'word';
+  headline: string;
+  primaryText: string;
+  secondaryText?: string;
+  pathColor?: string;
+  /** Which of the three fragments this player owns after this grant. */
+  locksOwned: { mark: boolean; code: boolean; word: boolean };
+}
+
+/**
+ * The bigger cinematic reveal shown once a player owns all three Founder's
+ * Locks fragments (MARK + CODE + WORD) — distinct from (and typically
+ * queued right after) the individual ThreeLocksFragmentMoment for the
+ * fragment that completed the set.
+ */
+export interface ThreeLocksCompleteMoment extends BaseGameMoment {
+  type: 'three-locks-complete';
+  headline: string;
+  primaryText: string;
+  secondaryText?: string;
+  pathColor?: string;
+}
+
+/**
+ * A reusable full-screen Commander broadcast. Wraps an existing
+ * QuestCommanderTransmission (see lib/types.ts) with the trigger context
+ * that caused it to fire — the same transmission data can be shown as an
+ * inline briefing card (components/CommanderTransmission.tsx) or as this
+ * cinematic overlay; nothing about the transmission's own shape changes
+ * between the two.
+ */
+export type CommanderTransmissionTrigger =
+  | 'sector_intro'
+  | 'quest_intro'
+  | 'quest_milestone'
+  | 'quest_completion'
+  | 'hidden_quest_discovery'
+  | 'nfc_cache_discovery'
+  | 'gm_announcement'
+  | 'three_locks_fragment'
+  | 'finale_qualified'
+  | 'finale_opening'
+  | 'leaderboard_milestone';
+
+export interface CommanderTransmissionMoment extends BaseGameMoment {
+  type: 'commander-transmission';
+  trigger: CommanderTransmissionTrigger;
+  transmission: QuestCommanderTransmission;
+  /** A stable key identifying *what* this transmission is about (e.g. a quest id), used for viewed-state tracking. Omit for transmissions that should always show (e.g. gm_announcement). */
+  viewedStateKey?: string;
+  onContinue?: () => void;
+}
+
+/**
+ * Shared optional fields for the "reward" moment families (REWARD/TOKEN,
+ * UNLOCK, FIELD EVENT, PROGRESSION, MAJOR CINEMATIC) so a new reward type
+ * never needs its own bespoke prop list — see lib/quest-rewards.ts and
+ * SubmitProofResult (lib/types.ts) for where the underlying server-awarded
+ * values these fields display come from. The UI only ever displays what the
+ * server already granted; it never computes or invents a reward amount.
+ */
+export interface RewardMomentBase extends BaseGameMoment {
+  headline: string;
+  primaryText?: string;
+  secondaryText?: string;
+  /** Server-awarded XP for this specific event. Never display an amount the server didn't actually grant. */
+  xpAmount?: number;
+  /** Server-awarded drawing/prize entries for this specific event. */
+  entryCount?: number;
+  /** Placeholder key for reward artwork (collectible art, cache icon, etc.) — no binary asset required to exist yet. */
+  artworkKey?: string;
+  /** Placeholder key for an accompanying Commander photo, if this reward pairs with a short Commander reaction. */
+  commanderImageKey?: string;
+  pathColor?: string;
+  rarity?: 'common' | 'rare' | 'legendary';
+  /** A CQSoundKey/CQSoundEvent string — resolved by the rendering component; unknown/missing keys no-op safely. */
+  soundKey?: string;
+  cta?: string;
+  /** Generic progress indicator, e.g. { current: 2, total: 3, label: 'Three Locks' } or a cache index. */
+  progress?: { current: number; total: number; label?: string };
+  /** An optional Commander transmission to queue immediately after this reward moment is dismissed. */
+  optionalCommanderFollowup?: QuestCommanderTransmission;
+}
+
+export type RewardTokenKind = 'xp' | 'entry-token' | 'race-bonus';
+export interface RewardTokenMoment extends RewardMomentBase {
+  type: 'reward-token';
+  kind: RewardTokenKind;
+}
+
+export type UnlockKind = 'collectible' | 'secret';
+export interface UnlockMoment extends RewardMomentBase {
+  type: 'unlock';
+  kind: UnlockKind;
+}
+
+export type FieldEventKind = 'field-confirmed' | 'nfc-cache';
+export interface FieldEventMoment extends RewardMomentBase {
+  type: 'field-event';
+  kind: FieldEventKind;
+}
+
+export interface LeaderboardMilestoneMoment extends RewardMomentBase {
+  type: 'leaderboard-milestone';
+}
+
+export type MajorCinematicKind = 'prize-win' | 'city-legend';
+export interface MajorCinematicMoment extends RewardMomentBase {
+  type: 'major-cinematic';
+  kind: MajorCinematicKind;
+}
+
 export type GameMoment =
   | CityScanMoment
   | PathLockMoment
@@ -122,7 +249,15 @@ export type GameMoment =
   | AchievementMoment
   | FlashDropMoment
   | ChainCompleteMoment
-  | FinaleQualifiedMoment;
+  | FinaleQualifiedMoment
+  | ThreeLocksFragmentMoment
+  | ThreeLocksCompleteMoment
+  | CommanderTransmissionMoment
+  | RewardTokenMoment
+  | UnlockMoment
+  | FieldEventMoment
+  | LeaderboardMilestoneMoment
+  | MajorCinematicMoment;
 
 export interface GameEffectsState {
   currentMoment: GameMoment | null;
@@ -322,18 +457,34 @@ class GameMomentManager {
     switch (type) {
       case 'finale-qualified':
         return 100;
+      case 'major-cinematic':
+        return 99;
+      case 'three-locks-complete':
+        return 96;
+      case 'three-locks-fragment':
+        return 95;
       case 'rank-up':
         return 90;
+      case 'unlock':
+        return 86;
       case 'achievement':
         return 85;
+      case 'reward-token':
+        return 83;
       case 'quest-complete':
         return 80;
       case 'path-lock':
         return 75;
+      case 'field-event':
+        return 73;
       case 'chain-complete':
         return 70;
+      case 'leaderboard-milestone':
+        return 68;
       case 'flash-drop':
         return 65;
+      case 'commander-transmission':
+        return 60;
       case 'city-scan':
         return 50;
       default:
@@ -361,6 +512,26 @@ class GameMomentManager {
         return isReduced ? 2400 : 3600;
       case 'finale-qualified':
         return isReduced ? 3000 : 4500;
+      case 'major-cinematic':
+        return isReduced ? 3000 : 4500;
+      case 'three-locks-complete':
+        return isReduced ? 3000 : 4500;
+      case 'three-locks-fragment':
+        return isReduced ? 2800 : 4200;
+      case 'unlock':
+        return isReduced ? 2200 : 3200;
+      case 'reward-token':
+        return isReduced ? 2000 : 3000;
+      case 'field-event':
+        return isReduced ? 2000 : 3000;
+      case 'leaderboard-milestone':
+        return isReduced ? 2000 : 3000;
+      case 'commander-transmission':
+        // Player-paced (reads a message / watches a poster+video), not a
+        // fire-and-forget celebration — give it a long default so it never
+        // feels rushed; skippable transmissions still let the player
+        // dismiss immediately via the CTA.
+        return isReduced ? 4000 : 8000;
       default:
         return 2000;
     }
@@ -585,4 +756,32 @@ export function triggerQuestRewardSequence(params: {
   }
 
   return gameMomentManager.triggerSequence(moments);
+}
+
+/**
+ * Triggers any reward-family moment (RewardTokenMoment, UnlockMoment,
+ * FieldEventMoment, LeaderboardMilestoneMoment, MajorCinematicMoment,
+ * ThreeLocksFragmentMoment/ThreeLocksCompleteMoment, FinaleQualifiedMoment)
+ * and — generically, for every one of them — auto-queues its
+ * `optionalCommanderFollowup` transmission (if set) once the moment is
+ * dismissed. Prefer this over `showGameMoment` directly whenever a moment
+ * might carry a follow-up; it's a no-op passthrough otherwise.
+ */
+export function triggerRewardMoment(moment: GameMoment, options?: GameMomentOptions): string {
+  const followup = 'optionalCommanderFollowup' in moment ? moment.optionalCommanderFollowup : undefined;
+  if (!followup) return showGameMoment(moment, options);
+
+  const originalOnFinished = moment.onFinished;
+  const withFollowup: GameMoment = {
+    ...moment,
+    onFinished: () => {
+      originalOnFinished?.();
+      showGameMoment({
+        type: 'commander-transmission',
+        trigger: 'quest_completion',
+        transmission: followup,
+      });
+    },
+  };
+  return showGameMoment(withFollowup, options);
 }

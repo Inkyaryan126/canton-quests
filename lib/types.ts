@@ -317,13 +317,15 @@ export interface QuestStep {
   instructions: string;
   verificationType: ProofVerificationType;
   targetCode?: string;
+  /** Extra accepted text-answer synonyms for this step, checked alongside targetCode. */
+  acceptedAnswerVariants?: string[];
   locationId?: string;
   location?: LocationInfo;
   radiusMeters?: number;
 }
 
-export type PublicQuestStep = Omit<QuestStep, 'targetCode'>;
-export type PublicQuestView = Omit<Quest, 'targetCode' | 'gmNotes' | 'steps'> & {
+export type PublicQuestStep = Omit<QuestStep, 'targetCode' | 'acceptedAnswerVariants'>;
+export type PublicQuestView = Omit<Quest, 'targetCode' | 'gmNotes' | 'steps' | 'acceptedAnswerVariants'> & {
   steps?: PublicQuestStep[];
 };
 
@@ -366,12 +368,145 @@ export interface Quest {
   currentClaims?: number;
   isSecret?: boolean;
   isFinaleQuest?: boolean;
-  raceRewards?: { place: number; bonusPoints: number }[];
+  raceRewards?: QuestRaceBonusTier[];
   hints?: { id: string; hintText: string; costPoints: number }[];
   riskReward?: { hardModeBonus: number; failurePenalty: number };
   requiredCollectibleId?: string;
   qrCodeIdentifier?: string;
   startingPath?: QuestPath;
+
+  // Structured, reusable reward template. Optional — quests without one
+  // fall back to the flat pointValue/xpReward/raceRewards fields above.
+  // See lib/quest-rewards.ts for the resolver that reads this.
+  rewardConfig?: QuestRewardConfig;
+
+  /** Extra accepted text-answer synonyms, checked alongside targetCode. Case/whitespace-insensitive. */
+  acceptedAnswerVariants?: string[];
+
+  /**
+   * Marks a quest whose primary completion can happen via a non-location
+   * verification type (e.g. passphrase) AND that also defines field-only
+   * rewardConfig bonuses (fieldCheckInBonusXp/photoVideoBonusXp/nfcBonusXp)
+   * meant to be collected later, in person, as separate follow-up
+   * submissions. When true, a later submission with a different proofType
+   * is allowed even after the quest is already verified — it grants only
+   * the newly-eligible bonus, never re-grants the base completion. Every
+   * other quest keeps today's one-submission-then-locked behavior.
+   */
+  remoteCapable?: boolean;
+
+  /** A one-time sector-introduction Commander transmission, carried on the first quest of a sector. */
+  sectorIntroTransmission?: QuestCommanderTransmission;
+  /** Shown when a player first opens this quest (the "quest intro" trigger). */
+  commanderTransmission?: QuestCommanderTransmission;
+  /** Optional mid-quest milestone/checkpoint transmission (e.g. after a multi_step's first step). */
+  milestoneTransmission?: QuestCommanderTransmission;
+  /** Shown once the quest is verified complete, alongside/after the reward moment. */
+  completionTransmission?: QuestCommanderTransmission;
+  /** Shown the moment a hidden/secret quest first becomes visible to a player. */
+  discoveryTransmission?: QuestCommanderTransmission;
+}
+
+/**
+ * A reusable, generic "Commander transmission" — narrative framing shown
+ * before/after a quest, sector, or any other game moment (GM live
+ * announcements, finale beats, milestones). The actual media file is
+ * referenced only by a configurable key; no binary media is created or
+ * required by this type. Every field beyond `type`/`message` is optional so
+ * existing transmissions (Challenge sector) keep working unchanged.
+ */
+export interface QuestCommanderTransmission {
+  /** Default is PHOTO_MESSAGE — reserve VIDEO for genuinely important moments. */
+  type: 'VIDEO' | 'PHOTO_MESSAGE';
+  /** Body copy, rendered as the Commander's quoted message. */
+  message: string;
+  /** Short eyebrow/title shown above the message (e.g. "SIGNAL IDENTIFIED"). Defaults to a generic "INCOMING TRANSMISSION" label when unset. */
+  headline?: string;
+  /** Configurable placeholder key for the video/photo asset — not a real file path yet. */
+  mediaKey?: string;
+  /** Poster/thumbnail key shown before a VIDEO plays or if it fails to load. */
+  posterKey?: string;
+  /** What to render if the primary `type`'s media isn't available yet (e.g. VIDEO with a PHOTO_MESSAGE fallback). */
+  fallbackType?: 'PHOTO_MESSAGE';
+  /** Text shown in place of the message if a VIDEO fails to load and no PHOTO_MESSAGE fallback is configured. */
+  fallbackMessage?: string;
+  /** CTA button label. Defaults to "CONTINUE". */
+  cta?: string;
+  /** If true, the player can re-open this transmission after first viewing (see lib/transmission-viewed-state.ts). Defaults to true for most triggers. */
+  replayable?: boolean;
+  /** If false, the CTA/skip control is hidden and the transmission must play/be read in full (rare — use sparingly). Defaults to true. */
+  skippable?: boolean;
+}
+
+export interface QuestRaceBonusTier {
+  place: number;
+  bonusPoints: number;
+}
+
+/**
+ * A quest's full reward template: a base completion reward plus any number
+ * of optional bonus paths and unlocks. Every field is optional so a quest
+ * can populate only the pieces that apply to it — the resolver in
+ * lib/quest-rewards.ts fills gaps from the quest's legacy flat fields
+ * (pointValue/xpReward/raceRewards) where this config leaves them unset.
+ */
+export interface QuestRewardConfig {
+  /** Base XP for completing the quest's primary verification step. */
+  baseXp?: number;
+  /** Extra XP for a GPS-verified physical check-in, beyond the base reward. */
+  fieldCheckInBonusXp?: number;
+  /** Extra XP for scanning/tapping an NFC field cache tied to this quest. */
+  nfcBonusXp?: number;
+  /** Extra XP for submitting photo or video proof beyond what's required. */
+  photoVideoBonusXp?: number;
+  /** Placement-based bonus XP for early finishers (race/flash quests). */
+  raceBonus?: QuestRaceBonusTier[];
+  /** Extra drawing-ledger entries beyond the quest's normal drawingEntryReward. */
+  drawingEntryBonus?: number;
+  /** Achievement slugs granted when this quest is completed. */
+  badgeUnlockSlugs?: string[];
+  /** Collectible ids granted when this quest is completed. */
+  collectibleUnlockIds?: string[];
+  /** Quest ids that become available once this quest is completed. */
+  secretQuestUnlockIds?: string[];
+  /** The Founder's Three Locks fragment this quest awards, if any. */
+  threeLocksFragment?: { lock: 'mark' | 'code' | 'word'; collectibleId: string };
+  /** Whether completing this quest counts toward finale qualification. */
+  countsTowardFinale?: boolean;
+}
+
+/**
+ * The reason a single reward-grant ledger row exists. One row is written
+ * per distinct component of a quest's reward (base XP, each eligible
+ * bonus, race tier, badge, collectible, etc.) so every award is auditable
+ * and individually idempotent — see lib/quest-rewards.ts and the
+ * award-granting functions in lib/game-engine.ts / lib/supabase-db.ts.
+ */
+export type RewardGrantReason =
+  | 'QUEST_BASE'
+  | 'QUEST_FIELD_CHECKIN'
+  | 'QUEST_NFC'
+  | 'QUEST_PHOTO_VIDEO'
+  | 'QUEST_RACE_BONUS'
+  | 'QUEST_DRAWING_ENTRY_BONUS'
+  | 'BADGE_UNLOCK'
+  | 'COLLECTIBLE_UNLOCK'
+  | 'SECRET_UNLOCK'
+  | 'THREE_LOCKS_FRAGMENT'
+  | 'FINALE_PROGRESS';
+
+export interface RewardGrant {
+  id: string;
+  eventId: string;
+  playerId: string;
+  questId?: string;
+  submissionId?: string;
+  rewardType: RewardGrantReason;
+  /** What was granted within rewardType — a quest id, badge slug, collectible id, etc. */
+  rewardKey: string;
+  xpAwarded: number;
+  drawingEntriesAwarded: number;
+  createdAt: string;
 }
 
 export interface QuestSubmission {
@@ -648,6 +783,8 @@ export interface SubmitProofParams {
   userAccuracyMeters?: number;
   isHardModeOptIn?: boolean;
   stepIndex?: number;
+  /** Whether an NFC tag scan was part of this specific submission. No UI currently sets this. */
+  usedNfc?: boolean;
 }
 
 export interface SubmitProofResult {
@@ -673,6 +810,9 @@ export interface SubmitProofResult {
     rewardXp?: number;
     rewardEntries?: number;
   }>;
+  /** Which Three Locks fragment (if any) this submission newly granted, and full current ownership. */
+  threeLocksFragmentAwarded?: 'mark' | 'code' | 'word';
+  threeLocksOwned?: { mark: boolean; code: boolean; word: boolean };
 }
 
 export interface LiveAnnouncement {

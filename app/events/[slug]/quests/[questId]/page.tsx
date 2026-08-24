@@ -8,10 +8,14 @@ import LocationVerifier from '@/components/LocationVerifier';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
 import MobileStartBar from '@/components/MobileStartBar';
 import CinematicFooter from '@/components/CinematicFooter';
+import QuestRewardBreakdown from '@/components/QuestRewardBreakdown';
+import CommanderTransmission from '@/components/CommanderTransmission';
 import { QuestEvent, Player, QuestSubmission, SubmitProofResult, PublicQuestView, PlayerEventProgress } from '@/lib/types';
 import { cleanQuestTitle, cqImages, getQuestImage, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
-import { triggerQuestRewardSequence, showGameMoment } from '@/lib/game-effects';
+import { triggerQuestRewardSequence, triggerGameMomentSequence, showGameMoment } from '@/lib/game-effects';
+import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
 import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
+import { getQuestRewardSummary } from '@/lib/quest-rewards';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -125,6 +129,37 @@ export default function QuestDetailPage({
     };
   }, [eventSlug, questId]);
 
+  // Auto-show the sector intro (once per player) or, failing that, this
+  // quest's own intro transmission — never both, and never a repeat once
+  // already viewed (see lib/transmission-viewed-state.ts). A small "Replay
+  // Transmission" control on the persistent briefing card below lets the
+  // player re-open it deliberately afterward.
+  useEffect(() => {
+    if (!quest || !player) return;
+
+    if (quest.sectorIntroTransmission && shouldAutoShowTransmission('sector_intro', quest.id, player.id)) {
+      showGameMoment({
+        type: 'commander-transmission',
+        trigger: 'sector_intro',
+        transmission: quest.sectorIntroTransmission,
+        viewedStateKey: quest.id,
+        onContinue: () => markTransmissionViewed('sector_intro', quest.id, player.id),
+      });
+      return;
+    }
+
+    if (quest.commanderTransmission && shouldAutoShowTransmission('quest_intro', quest.id, player.id)) {
+      showGameMoment({
+        type: 'commander-transmission',
+        trigger: 'quest_intro',
+        transmission: quest.commanderTransmission,
+        viewedStateKey: quest.id,
+        onContinue: () => markTransmissionViewed('quest_intro', quest.id, player.id),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quest?.id, player?.id]);
+
   if (!quest || !event || !player) {
     if (isKnownCantonLaunchSlug(eventSlug) || isPreLaunchEvent(event, eventSlug)) {
       return (
@@ -210,6 +245,7 @@ export default function QuestDetailPage({
 
   const currentStepIdx = Math.max(0, existingSubmission?.completedStepOrder || submissionResult?.currentStepCompleted || 0);
   const directionsUrl = getDirectionsUrl(quest);
+  const rewardSummary = getQuestRewardSummary(quest);
 
   const handleLocationVerified = (lat: number, lon: number, proximityOk: boolean, accuracyMeters?: number) => {
     setUserLat(lat);
@@ -292,7 +328,69 @@ export default function QuestDetailPage({
             unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,
             unlockedQuestUrl: nextInChain ? `/events/${eventSlug}/quests/${nextInChain.id}` : undefined,
           });
+
+          if (result.threeLocksFragmentAwarded && result.threeLocksOwned) {
+            const fragment = result.threeLocksFragmentAwarded;
+            const FRAGMENT_THEME: Record<'mark' | 'code' | 'word', { primaryText: string; secondaryText: string; pathColor: string }> = {
+              mark: { primaryText: 'MARK', secondaryText: 'FOUNDER LOCK RECOVERED', pathColor: 'amber' },
+              code: { primaryText: 'CODE', secondaryText: 'FOUNDER LOCK RECOVERED', pathColor: 'crimson' },
+              word: { primaryText: 'WORD', secondaryText: 'FOUNDER LOCK RECOVERED', pathColor: 'violet' },
+            };
+            const { mark, code, word } = result.threeLocksOwned;
+            const allThreeOwned = mark && code && word;
+
+            const lockMoments: Parameters<typeof triggerGameMomentSequence>[0] = [
+              {
+                type: 'three-locks-fragment',
+                fragment,
+                headline: 'LOCK FRAGMENT RECOVERED',
+                locksOwned: result.threeLocksOwned,
+                ...FRAGMENT_THEME[fragment],
+              },
+            ];
+            if (allThreeOwned) {
+              lockMoments.push({
+                type: 'three-locks-complete',
+                headline: "FOUNDER'S CIPHER COMPLETE",
+                primaryText: 'THREE LOCKS COMPLETE',
+                secondaryText: 'MARK · CODE · WORD — all three fragments recovered.',
+                pathColor: 'amber',
+              });
+            }
+            triggerGameMomentSequence(lockMoments);
+          } else if (result.collectibleAwarded) {
+            // A plain rewardConfig.collectibleUnlockIds grant, not part of the
+            // Three Locks flow (already covered above when it is).
+            showGameMoment({
+              type: 'unlock',
+              kind: 'collectible',
+              headline: 'ITEM RECOVERED',
+              primaryText: result.collectibleAwarded.name,
+              secondaryText: result.collectibleAwarded.description,
+              rarity: result.collectibleAwarded.rarity,
+            });
+          }
         }
+      } else if (result.success && result.awardedPoints > 0) {
+        // A successful submission that did NOT fully (re-)complete the
+        // quest is a remoteCapable field/photo bonus on an already-verified
+        // quest — show the field-confirmation moment for exactly the XP the
+        // server actually granted this call, never a computed/assumed amount.
+        showGameMoment({
+          type: 'field-event',
+          kind: 'field-confirmed',
+          headline: 'FIELD PRESENCE CONFIRMED',
+          secondaryText: 'Remote intelligence got you this far. Boots on the ground pay better.',
+          xpAmount: result.awardedPoints,
+        });
+      }
+
+      if (result.success && quest.completionTransmission && result.isQuestFullyCompleted) {
+        showGameMoment({
+          type: 'commander-transmission',
+          trigger: 'quest_completion',
+          transmission: quest.completionTransmission,
+        });
       }
     } catch (err: any) {
       console.error(err);
@@ -389,10 +487,52 @@ export default function QuestDetailPage({
             </div>
             <div className="bg-[#090b0c] p-4">
               <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Rewards</span>
-              <strong className="block text-amber-300 font-mono mt-1">+{quest.pointValue} XP • +{quest.drawingEntryReward || 1} Entries</strong>
-              <p className="text-xs text-gray-400 mt-1">Verify proof below to issue rewards.</p>
+              <QuestRewardBreakdown quest={quest} compact className="mt-1" />
+              <p className="text-xs text-gray-400 mt-1.5">Verify proof below to issue rewards.</p>
             </div>
           </div>
+
+          {rewardSummary.hasBonusContent && (
+            <div className="p-4 sm:p-5 border-t border-amber-500/24">
+              <QuestRewardBreakdown quest={quest} />
+            </div>
+          )}
+
+          {quest.sectorIntroTransmission && (
+            <div className="p-4 sm:p-5 border-t border-amber-500/24">
+              <CommanderTransmission
+                transmission={quest.sectorIntroTransmission}
+                onReplay={
+                  quest.sectorIntroTransmission.replayable !== false
+                    ? () =>
+                        showGameMoment({
+                          type: 'commander-transmission',
+                          trigger: 'sector_intro',
+                          transmission: quest.sectorIntroTransmission!,
+                        })
+                    : undefined
+                }
+              />
+            </div>
+          )}
+
+          {quest.commanderTransmission && (
+            <div className="p-4 sm:p-5 border-t border-amber-500/24">
+              <CommanderTransmission
+                transmission={quest.commanderTransmission}
+                onReplay={
+                  quest.commanderTransmission.replayable !== false
+                    ? () =>
+                        showGameMoment({
+                          type: 'commander-transmission',
+                          trigger: 'quest_intro',
+                          transmission: quest.commanderTransmission!,
+                        })
+                    : undefined
+                }
+              />
+            </div>
+          )}
 
           {(quest.location?.accessNotes || quest.location?.openingHours || quest.safetyNotes) && (
             <div className="p-4 bg-cyan-950/25 border-t border-cyan-500/25 text-xs text-cyan-200 font-mono space-y-2">
