@@ -10,6 +10,7 @@ import MobileStartBar from '@/components/MobileStartBar';
 import PageHeader from '@/components/PageHeader';
 import { LeaderboardEntry, Player, QuestEvent } from '@/lib/types';
 import { cqImages, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
+import PlayerAvatar from "@/components/PlayerAvatar";
 
 function getClientPlayer(): Player {
   const stored = window.localStorage.getItem('canton_quests_current_player');
@@ -134,7 +135,16 @@ export default function LeaderboardPage() {
                     {entry.rank === 1 ? <Crown size={20} /> : <Medal size={20} />}
                     #{entry.rank}
                   </span>
-                  <div>{entry.avatarUrl || '⚡'}</div>
+                  <div>
+                    <PlayerAvatar
+                      avatarUrl={entry.avatarUrl}
+                      cropZoom={entry.profileImageCropZoom}
+                      cropX={entry.profileImageCropX}
+                      cropY={entry.profileImageCropY}
+                      size={64}
+                      fallback="⚡"
+                    />
+                  </div>
                   <h2>{entry.displayName}</h2>
                   <strong>{entry.totalPoints} XP</strong>
                   <p>{entry.questsCompletedCount} missions verified</p>
@@ -157,7 +167,16 @@ export default function LeaderboardPage() {
                   return (
                     <article className={isCurrent ? 'is-current' : ''} key={entry.playerId}>
                       <div className="cq-rank-number">#{entry.rank}</div>
-                      <div className="cq-rank-avatar">{entry.avatarUrl || '⚡'}</div>
+                      <PlayerAvatar
+                        avatarUrl={entry.avatarUrl}
+                        cropZoom={entry.profileImageCropZoom}
+                        cropX={entry.profileImageCropX}
+                        cropY={entry.profileImageCropY}
+                        size={46}
+                        fallback="⚡"
+                        className="cq-rank-avatar"
+                        style={{ fontSize: '1.4rem' }}
+                      />
                       <div className="cq-rank-name">
                         <h3>
                           {entry.displayName}
