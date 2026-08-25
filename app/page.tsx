@@ -19,6 +19,7 @@ import {
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
+import PlayerAvatar from '@/components/PlayerAvatar';
 import ThreePathSelector from '@/components/ThreePathSelector';
 import { Player, PublicQuestView, QuestEvent } from '@/lib/types';
 import {
@@ -125,8 +126,17 @@ export default function HomePage() {
             <div className="cq-section-shell">
               <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-amber-950/40 via-stone-900/90 to-stone-950/90 border-2 border-amber-500/40 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-stone-950 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-lg shrink-0">
-                    {currentPlayer.avatarUrl || '⚡'}
+                  <div className="w-16 h-16 rounded-2xl bg-stone-950 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-lg shrink-0 overflow-hidden">
+                    <PlayerAvatar
+                      avatarUrl={currentPlayer.avatarUrl}
+                      cropZoom={currentPlayer.profileImageCropZoom}
+                      cropX={currentPlayer.profileImageCropX}
+                      cropY={currentPlayer.profileImageCropY}
+                      size={64}
+                      style={{ borderRadius: '1rem' }}
+                      fallback="⚡"
+                      ariaLabel={`${currentPlayer.displayName || 'Player'} avatar`}
+                    />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
