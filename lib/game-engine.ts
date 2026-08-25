@@ -60,7 +60,6 @@ import {
 } from './types';
 import {
   computeAwardedBonusesForSubmission,
-  getDrawingEntryBonus,
   getEffectiveBaseXp,
   getUnlockSummary,
 } from './quest-rewards';
@@ -2432,34 +2431,56 @@ function applyQuestRewardGrants(
     });
   }
 
-  // Drawing entries are a flat total (base + configured bonus), not
-  // incremental — re-upserting the same value on a supplemental submission
-  // is a harmless no-op, exactly like re-running the same upsert twice.
-  let drawingEntriesAwarded = 0;
-  if (!isDrawingLedgerLocked(eventId)) {
-    awardDrawingEntries({
-      eventId,
-      playerId,
-      questId: quest.id,
-      submissionId,
-      entriesCount: bonuses.drawingEntries,
-      sourceType: 'quest_completion',
-      reason: `Completed quest: ${quest.title}`,
-    });
-    drawingEntriesAwarded = bonuses.drawingEntries;
+  // Entry Tokens (drawing entries): the base completion entry is due
+  // exactly once (on the base grant), and each configured bonus source
+  // (a quest-level drawingEntryBonus, or an NFC-cache-specific
+  // nfcCacheEntryBonus when this submission actually used NFC) is its own
+  // independently-gated grant — so a supplemental field/photo/NFC
+  // submission never re-claims the base entry, and using NFC on one call
+  // doesn't block a differently-sourced bonus from landing on another.
+  // XP-only bonuses (field check-in, photo/video, race) never produce an
+  // entry — computeAwardedBonusesForSubmission already enforces that.
+  let newEntriesThisCall = 0;
+  if (isNewBase) {
+    newEntriesThisCall += bonuses.baseDrawingEntries;
   }
-
-  const drawingBonus = getDrawingEntryBonus(quest);
-  if (drawingBonus > 0) {
-    recordRewardGrant({
+  if (bonuses.drawingEntryBonusAmount > 0) {
+    const granted = recordRewardGrant({
       eventId,
       playerId,
       questId: quest.id,
       submissionId,
       rewardType: 'QUEST_DRAWING_ENTRY_BONUS',
       rewardKey: quest.id,
-      drawingEntriesAwarded: drawingBonus,
+      drawingEntriesAwarded: bonuses.drawingEntryBonusAmount,
     });
+    if (granted) newEntriesThisCall += bonuses.drawingEntryBonusAmount;
+  }
+  if (bonuses.nfcCacheEntryBonusAmount > 0) {
+    const granted = recordRewardGrant({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'QUEST_DRAWING_ENTRY_BONUS',
+      rewardKey: `${quest.id}:nfc_cache`,
+      drawingEntriesAwarded: bonuses.nfcCacheEntryBonusAmount,
+    });
+    if (granted) newEntriesThisCall += bonuses.nfcCacheEntryBonusAmount;
+  }
+
+  let drawingEntriesAwarded = 0;
+  if (newEntriesThisCall > 0 && !isDrawingLedgerLocked(eventId)) {
+    incrementQuestDrawingEntries({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      addEntries: newEntriesThisCall,
+      sourceType: 'quest_completion',
+      reason: `Completed quest: ${quest.title}`,
+    });
+    drawingEntriesAwarded = newEntriesThisCall;
   }
 
   const unlocks = getUnlockSummary(quest);
@@ -2617,7 +2638,9 @@ function submitSupplementalFieldProof(
       userLon: params.userLon,
       distanceFromLocation: locationResult.distanceMeters,
     };
-    const grant = applyQuestRewardGrants(quest, newSubmission.id, params.eventId, params.playerId, params.proofType, {});
+    const grant = applyQuestRewardGrants(quest, newSubmission.id, params.eventId, params.playerId, params.proofType, {
+      usedNfc: params.usedNfc,
+    });
     newSubmission.awardedPoints = grant.awardedPoints;
     newSubmission.drawingEntriesAwarded = grant.drawingEntriesAwarded;
     setStoredItem(STORAGE_KEYS.SUBMISSIONS, [...getAllSubmissions(), newSubmission]);
@@ -2755,6 +2778,59 @@ export function awardDrawingEntries(entryData: {
     createdAt: new Date().toISOString(),
   };
 
+  setStoredItem(STORAGE_KEYS.DRAWING_LEDGER, [...ledger, newEntry]);
+  return newEntry;
+}
+
+/**
+ * Adds `addEntries` new Entry Tokens to this player+quest's single ledger
+ * row (creating it if absent), returning the row's new total. Used by
+ * applyQuestRewardGrants, where `addEntries` is always an amount that
+ * reward_grants has just confirmed is genuinely new — so this is always a
+ * true increment, never a recompute-and-possibly-shrink.
+ */
+function incrementQuestDrawingEntries(entryData: {
+  eventId: string;
+  playerId: string;
+  questId: string;
+  submissionId?: string;
+  addEntries: number;
+  sourceType?: string;
+  reason?: string;
+}): DrawingEntryLedgerEntry {
+  initializeGameEngine();
+  if (isDrawingLedgerLocked(entryData.eventId)) {
+    throw new Error(`Drawing ledger for event ${entryData.eventId} is locked. New drawing entries cannot be awarded.`);
+  }
+
+  const ledger = getStoredItem<DrawingEntryLedgerEntry[]>(STORAGE_KEYS.DRAWING_LEDGER, []);
+  const existingIndex = ledger.findIndex(
+    (e) => e.eventId === entryData.eventId && e.playerId === entryData.playerId && e.questId === entryData.questId
+  );
+
+  if (existingIndex !== -1) {
+    const updated: DrawingEntryLedgerEntry = {
+      ...ledger[existingIndex],
+      entriesCount: ledger[existingIndex].entriesCount + entryData.addEntries,
+      submissionId: entryData.submissionId ?? ledger[existingIndex].submissionId,
+      reason: entryData.reason || ledger[existingIndex].reason,
+    };
+    ledger[existingIndex] = updated;
+    setStoredItem(STORAGE_KEYS.DRAWING_LEDGER, ledger);
+    return updated;
+  }
+
+  const newEntry: DrawingEntryLedgerEntry = {
+    eventId: entryData.eventId,
+    playerId: entryData.playerId,
+    questId: entryData.questId,
+    submissionId: entryData.submissionId,
+    entriesCount: entryData.addEntries,
+    sourceType: entryData.sourceType || 'quest_completion',
+    reason: entryData.reason || 'Quest completion drawing reward',
+    id: `dw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    createdAt: new Date().toISOString(),
+  };
   setStoredItem(STORAGE_KEYS.DRAWING_LEDGER, [...ledger, newEntry]);
   return newEntry;
 }

@@ -320,6 +320,19 @@ export default function QuestDetailPage({
             chainTitle: isMultiStepChain ? `${quest.title} Sequence` : quest.title,
           });
 
+          // The dedicated Entry Token cinematic — only ever fired when the
+          // server confirms a genuinely new entry was granted this call
+          // (never inferred from XP, never shown on a retry/duplicate).
+          if (result.drawingEntriesAwarded && result.drawingEntriesAwarded > 0) {
+            showGameMoment({
+              type: 'reward-token',
+              kind: 'entry-token',
+              headline: quest.title,
+              secondaryText: 'Locked into the official prize drawing.',
+              entryCount: result.drawingEntriesAwarded,
+            });
+          }
+
           setFeedback({
             type: 'quest_completed',
             title: isActualChainComplete ? `CHAIN COMPLETED!` : `QUEST SOLVED!`,
@@ -371,18 +384,32 @@ export default function QuestDetailPage({
             });
           }
         }
-      } else if (result.success && result.awardedPoints > 0) {
+      } else if (result.success && (result.awardedPoints > 0 || (result.drawingEntriesAwarded ?? 0) > 0)) {
         // A successful submission that did NOT fully (re-)complete the
-        // quest is a remoteCapable field/photo bonus on an already-verified
-        // quest — show the field-confirmation moment for exactly the XP the
-        // server actually granted this call, never a computed/assumed amount.
-        showGameMoment({
-          type: 'field-event',
-          kind: 'field-confirmed',
-          headline: 'FIELD PRESENCE CONFIRMED',
-          secondaryText: 'Remote intelligence got you this far. Boots on the ground pay better.',
-          xpAmount: result.awardedPoints,
-        });
+        // quest is a remoteCapable field/photo/NFC bonus on an
+        // already-verified quest. Show XP and Entry Token as separate
+        // moments, each only for exactly what the server granted this
+        // call — a pure-XP bonus never implies an entry, and a
+        // configured entry bonus (drawingEntryBonus / an NFC cache's
+        // entry bonus) is never folded into the XP figure.
+        if (result.awardedPoints > 0) {
+          showGameMoment({
+            type: 'field-event',
+            kind: 'field-confirmed',
+            headline: 'FIELD PRESENCE CONFIRMED',
+            secondaryText: 'Remote intelligence got you this far. Boots on the ground pay better.',
+            xpAmount: result.awardedPoints,
+          });
+        }
+        if ((result.drawingEntriesAwarded ?? 0) > 0) {
+          showGameMoment({
+            type: 'reward-token',
+            kind: 'entry-token',
+            headline: quest.title,
+            secondaryText: 'Locked into the official prize drawing.',
+            entryCount: result.drawingEntriesAwarded,
+          });
+        }
       }
 
       if (result.success && quest.completionTransmission && result.isQuestFullyCompleted) {

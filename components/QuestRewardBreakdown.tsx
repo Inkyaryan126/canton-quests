@@ -17,17 +17,40 @@ const BONUS_ICONS: Record<QuestBonusKey, typeof Radio> = {
   photoVideo: Camera,
 };
 
+const BONUS_ROW_LABELS: Record<QuestBonusKey, string> = {
+  fieldCheckIn: 'FIELD BONUS',
+  nfc: 'NFC CACHE',
+  photoVideo: 'PHOTO/VIDEO BONUS',
+};
+
 const LOCK_LABELS: Record<'mark' | 'code' | 'word', string> = {
   mark: 'THE MARK',
   code: 'THE CODE',
   word: 'THE WORD',
 };
 
+/** +N ENTRY / +N ENTRIES — Entry Tokens are always their own figure, never folded into an XP number. */
+function EntryTokenBadge({ count, small = false }: { count: number; small?: boolean }) {
+  if (count <= 0) return null;
+  return (
+    <span className={`inline-flex items-center gap-1 font-mono font-bold text-purple-300 ${small ? 'text-[10px]' : 'text-xs'}`}>
+      <Ticket size={small ? 10 : 12} className="shrink-0" />
+      +{count} ENTRY{count > 1 ? 'S' : ''} TOKEN{count > 1 ? 'S' : ''}
+    </span>
+  );
+}
+
 /**
  * Renders a quest's reward template — base XP, any bonus paths it defines,
  * race placement tiers, and unlocks. Reads entirely from
  * lib/quest-rewards.ts, so it renders correctly for any quest regardless
  * of which reward fields that quest happens to populate.
+ *
+ * XP and Entry Tokens are always shown as distinct figures — a bonus row
+ * never implies an entry unless that specific bonus is configured to grant
+ * one (rewardConfig.drawingEntryBonus, or an NFC cache's
+ * nfcCacheEntryBonus), matching the server's own granting rules exactly
+ * (see computeAwardedBonusesForSubmission in lib/quest-rewards.ts).
  */
 export default function QuestRewardBreakdown({ quest, compact = false, className = '' }: QuestRewardBreakdownProps) {
   const summary = getQuestRewardSummary(quest);
@@ -37,21 +60,28 @@ export default function QuestRewardBreakdown({ quest, compact = false, className
       <div className={className}>
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className="font-display font-black text-amber-300 text-lg">+{summary.baseXp} XP</span>
-          <span className="text-[11px] font-mono text-purple-300">
-            +{summary.drawingEntries + summary.drawingEntryBonus} Entries
-          </span>
+          <EntryTokenBadge count={summary.drawingEntries} small />
         </div>
         {summary.bonuses.length > 0 && (
           <ul className="mt-1.5 space-y-0.5">
             {summary.bonuses.map((bonus) => {
               const Icon = BONUS_ICONS[bonus.key];
+              const bonusEntries = bonus.key === 'nfc' ? summary.nfcCacheEntryBonus : 0;
               return (
-                <li key={bonus.key} className="flex items-center gap-1.5 text-[11px] font-mono text-cyan-300">
+                <li key={bonus.key} className="flex items-center gap-1.5 text-[11px] font-mono text-cyan-300 flex-wrap">
                   <Icon size={11} className="shrink-0" />
                   <span>+{bonus.xp} XP {bonus.label}</span>
+                  <EntryTokenBadge count={bonusEntries} small />
                 </li>
               );
             })}
+            {summary.drawingEntryBonus > 0 && (
+              <li className="flex items-center gap-1.5 text-[11px] font-mono flex-wrap">
+                <Ticket size={11} className="shrink-0 text-purple-400" />
+                <span className="text-purple-300">Bonus Entry</span>
+                <EntryTokenBadge count={summary.drawingEntryBonus} small />
+              </li>
+            )}
           </ul>
         )}
         {summary.hasBonusContent && (
@@ -74,30 +104,37 @@ export default function QuestRewardBreakdown({ quest, compact = false, className
         )}
       </div>
 
-      {/* XP ladder */}
+      {/* Base completion — XP and its Entry Token, shown as two distinct figures */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-sm">
           <span className="flex items-center gap-2 text-white font-bold">
             <Zap size={14} className="text-amber-400" />
             Base Completion
           </span>
-          <span className="font-mono font-bold text-amber-300">+{summary.baseXp} XP</span>
+          <span className="flex items-center gap-3">
+            <span className="font-mono font-bold text-amber-300">+{summary.baseXp} XP</span>
+            <EntryTokenBadge count={summary.drawingEntries} />
+          </span>
         </div>
         {summary.bonuses.map((bonus) => {
           const Icon = BONUS_ICONS[bonus.key];
+          const bonusEntries = bonus.key === 'nfc' ? summary.nfcCacheEntryBonus : 0;
           return (
             <div key={bonus.key} className="flex items-center justify-between text-xs pl-1">
-              <span className="flex items-center gap-2 text-stone-300">
+              <span className="flex items-center gap-2 text-stone-300 uppercase font-bold tracking-wide">
                 <Icon size={13} className="text-cyan-400" />
-                {bonus.label}
+                {BONUS_ROW_LABELS[bonus.key]}
               </span>
-              <span className="font-mono font-bold text-cyan-300">+{bonus.xp} XP</span>
+              <span className="flex items-center gap-3">
+                <span className="font-mono font-bold text-cyan-300">+{bonus.xp} XP</span>
+                <EntryTokenBadge count={bonusEntries} small />
+              </span>
             </div>
           );
         })}
       </div>
 
-      {/* Race placement tiers */}
+      {/* Race placement tiers — XP only, never an entry */}
       {summary.raceBonus.length > 0 && (
         <div className="pt-3 border-t border-stone-800 space-y-1.5">
           <span className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider text-red-300 font-bold">
@@ -113,19 +150,16 @@ export default function QuestRewardBreakdown({ quest, compact = false, className
         </div>
       )}
 
-      {/* Drawing entries */}
-      <div className="pt-3 border-t border-stone-800 flex items-center justify-between text-xs">
-        <span className="flex items-center gap-2 text-stone-300">
-          <Ticket size={13} className="text-purple-400" />
-          Drawing Entries
-        </span>
-        <span className="font-mono font-bold text-purple-300">
-          +{summary.drawingEntries + summary.drawingEntryBonus}
-          {summary.drawingEntryBonus > 0 && (
-            <span className="text-stone-500"> ({summary.drawingEntries} base + {summary.drawingEntryBonus} bonus)</span>
-          )}
-        </span>
-      </div>
+      {/* Explicit configured bonus Entry Token — separate from the base entry above */}
+      {summary.drawingEntryBonus > 0 && (
+        <div className="pt-3 border-t border-stone-800 flex items-center justify-between text-xs">
+          <span className="flex items-center gap-2 text-stone-300 uppercase font-bold tracking-wide">
+            <Ticket size={13} className="text-purple-400" />
+            Bonus Entry
+          </span>
+          <EntryTokenBadge count={summary.drawingEntryBonus} />
+        </div>
+      )}
 
       {/* Unlocks */}
       {(summary.unlocks.badgeSlugs.length > 0 ||

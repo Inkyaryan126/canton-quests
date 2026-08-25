@@ -39,6 +39,8 @@ export interface QuestRewardSummary {
   raceBonus: QuestRaceBonusTier[];
   drawingEntries: number;
   drawingEntryBonus: number;
+  /** Extra Entry Token(s) from a specially-configured NFC cache (0 for standard caches) — shown as its own line, never folded into drawingEntryBonus. */
+  nfcCacheEntryBonus: number;
   maxXp: number;
   unlocks: QuestUnlockSummary;
   hasBonusContent: boolean;
@@ -86,9 +88,19 @@ export function getRaceBonusTiers(quest: Quest): QuestRaceBonusTier[] {
   return [...tiers].sort((a, b) => a.place - b.place);
 }
 
-/** Extra drawing entries beyond the quest's normal drawingEntryReward. */
+/** Extra drawing entries beyond the quest's normal drawingEntryReward — awarded on completion regardless of method. */
 export function getDrawingEntryBonus(quest: Quest): number {
   return config(quest).drawingEntryBonus ?? 0;
+}
+
+/**
+ * Extra drawing entries from a specially-configured NFC cache — 0 for every
+ * standard cache. Only applies when the submission actually used NFC (see
+ * computeAwardedBonusesForSubmission); reading this alone does not mean the
+ * entry was granted.
+ */
+export function getNfcCacheEntryBonus(quest: Quest): number {
+  return config(quest).nfcCacheEntryBonus ?? 0;
 }
 
 /** Every unlock a completed quest can grant — badges, collectibles, etc. */
@@ -126,12 +138,14 @@ export function getQuestRewardSummary(quest: Quest): QuestRewardSummary {
     raceBonus,
     drawingEntries: getEffectiveDrawingEntries(quest),
     drawingEntryBonus: getDrawingEntryBonus(quest),
+    nfcCacheEntryBonus: getNfcCacheEntryBonus(quest),
     maxXp: getMaxPossibleXp(quest),
     unlocks,
     hasBonusContent:
       bonuses.length > 0 ||
       raceBonus.length > 0 ||
       getDrawingEntryBonus(quest) > 0 ||
+      getNfcCacheEntryBonus(quest) > 0 ||
       unlocks.badgeSlugs.length > 0 ||
       unlocks.collectibleIds.length > 0 ||
       unlocks.secretQuestIds.length > 0 ||
@@ -154,14 +168,32 @@ export interface QuestAwardedBonuses {
   lineItems: QuestBonusLineItem[];
   raceBonusXp: number;
   totalXp: number;
+  /**
+   * Full drawing-entry total applicable in this context (base + every
+   * bonus that applies here) — kept for callers that only want "how many
+   * entries should this quest be worth right now". Reward-granting code
+   * should prefer the three fields below instead, since a completion and a
+   * later bonus-only submission must never both claim the base entry.
+   */
   drawingEntries: number;
+  /** The quest's base completion entry (default 1) — due exactly once, on first verified completion. */
+  baseDrawingEntries: number;
+  /** rewardConfig.drawingEntryBonus — due once, unconditionally, whenever it's configured (not gated by method). */
+  drawingEntryBonusAmount: number;
+  /** rewardConfig.nfcCacheEntryBonus — due once, only when this specific submission's context.usedNfc is true. */
+  nfcCacheEntryBonusAmount: number;
 }
 
 /**
  * Given a real submission's context, resolves exactly which of this
- * quest's configured bonuses actually apply — the piece a scoring
- * integration would call to compute what to actually award. Not currently
- * wired into the live submission path (see file header).
+ * quest's configured bonuses actually apply — the piece the scoring
+ * transaction (lib/game-engine.ts's applyQuestRewardGrants,
+ * lib/supabase-db.ts's awardQuestRewardsDB) calls to compute what to
+ * actually award. XP bonuses (field check-in, NFC, photo/video, race) never
+ * influence drawing entries — only baseDrawingEntries,
+ * drawingEntryBonusAmount, and nfcCacheEntryBonusAmount do, and each is
+ * granted at most once per player per quest regardless of how many
+ * submissions arrive (see the reward_grants gating in the callers above).
  */
 export function computeAwardedBonusesForSubmission(
   quest: Quest,
@@ -189,11 +221,18 @@ export function computeAwardedBonusesForSubmission(
   const bonusXp = lineItems.reduce((sum, item) => sum + item.xp, 0);
   const baseXp = getEffectiveBaseXp(quest);
 
+  const baseDrawingEntries = getEffectiveDrawingEntries(quest);
+  const drawingEntryBonusAmount = getDrawingEntryBonus(quest);
+  const nfcCacheEntryBonusAmount = context.usedNfc ? getNfcCacheEntryBonus(quest) : 0;
+
   return {
     bonusXp,
     lineItems,
     raceBonusXp,
     totalXp: baseXp + bonusXp + raceBonusXp,
-    drawingEntries: getEffectiveDrawingEntries(quest) + getDrawingEntryBonus(quest),
+    drawingEntries: baseDrawingEntries + drawingEntryBonusAmount + nfcCacheEntryBonusAmount,
+    baseDrawingEntries,
+    drawingEntryBonusAmount,
+    nfcCacheEntryBonusAmount,
   };
 }

@@ -51,7 +51,6 @@ import {
 } from './types';
 import {
   computeAwardedBonusesForSubmission,
-  getDrawingEntryBonus,
   getEffectiveBaseXp,
   getRaceBonusTiers,
   getUnlockSummary,
@@ -951,41 +950,62 @@ export async function awardQuestRewardsDB(params: {
     }
   }
 
-  let drawingEntriesAwarded = 0;
   const { data: lockRow } = await db
     .from('drawing_ledger_locks')
     .select('is_locked, status')
     .eq('event_id', eventId)
     .maybeSingle();
   const drawingLocked = !!(lockRow && (lockRow.is_locked || ['locked', 'drawn', 'published', 'cancelled'].includes(lockRow.status)));
-  if (!drawingLocked) {
-    const drawingUpsert = await db.from('drawing_entry_ledger').upsert(
-      {
-        event_id: eventId,
-        player_id: playerId,
-        quest_id: quest.id,
-        submission_id: submissionId,
-        entries_count: bonuses.drawingEntries,
-        source_type: 'quest_completion',
-        reason: params.scoreDescription || `Completed quest: ${quest.title}`,
-      },
-      { onConflict: 'event_id,player_id,quest_id' }
-    );
-    if (drawingUpsert.error) throw new Error(`Drawing entry rejected: ${drawingUpsert.error.message}`);
-    drawingEntriesAwarded = bonuses.drawingEntries;
-  }
 
-  const drawingBonus = getDrawingEntryBonus(quest);
-  if (drawingBonus > 0 && !drawingLocked) {
-    await insertRewardGrantDB({
+  // Entry Tokens: the base completion entry is due exactly once (the base
+  // grant), and each configured bonus source (rewardConfig.drawingEntryBonus,
+  // unconditional; an NFC cache's nfcCacheEntryBonus, only when this
+  // submission's usedNfc is true) is independently gated — so a
+  // supplemental field/photo/NFC submission never re-claims the base
+  // entry, and using NFC on one call doesn't block a differently-sourced
+  // bonus from landing on another. XP-only bonuses never produce an entry.
+  let newEntriesThisCall = 0;
+  if (isNewBase) {
+    newEntriesThisCall += bonuses.baseDrawingEntries;
+  }
+  if (bonuses.drawingEntryBonusAmount > 0) {
+    const granted = await insertRewardGrantDB({
       eventId,
       playerId,
       questId: quest.id,
       submissionId,
       rewardType: 'QUEST_DRAWING_ENTRY_BONUS',
       rewardKey: quest.id,
-      drawingEntriesAwarded: drawingBonus,
+      drawingEntriesAwarded: bonuses.drawingEntryBonusAmount,
     });
+    if (granted) newEntriesThisCall += bonuses.drawingEntryBonusAmount;
+  }
+  if (bonuses.nfcCacheEntryBonusAmount > 0) {
+    const granted = await insertRewardGrantDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'QUEST_DRAWING_ENTRY_BONUS',
+      rewardKey: `${quest.id}:nfc_cache`,
+      drawingEntriesAwarded: bonuses.nfcCacheEntryBonusAmount,
+    });
+    if (granted) newEntriesThisCall += bonuses.nfcCacheEntryBonusAmount;
+  }
+
+  let drawingEntriesAwarded = 0;
+  if (newEntriesThisCall > 0 && !drawingLocked) {
+    const { error: incrementError } = await db.rpc('increment_drawing_entries', {
+      p_event_id: eventId,
+      p_player_id: playerId,
+      p_quest_id: quest.id,
+      p_add_entries: newEntriesThisCall,
+      p_submission_id: submissionId,
+      p_source_type: 'quest_completion',
+      p_reason: params.scoreDescription || `Completed quest: ${quest.title}`,
+    });
+    if (incrementError) throw new Error(`Drawing entry rejected: ${incrementError.message}`);
+    drawingEntriesAwarded = newEntriesThisCall;
   }
 
   const unlocks = getUnlockSummary(quest);
@@ -1171,6 +1191,7 @@ async function submitSupplementalFieldProofDB(
         playerId: trustedParams.playerId,
         submissionId: dbSub.id,
         method: trustedParams.proofType,
+        usedNfc: trustedParams.usedNfc,
       });
       return {
         success: true,

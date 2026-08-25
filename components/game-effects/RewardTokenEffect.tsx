@@ -29,6 +29,9 @@ export default function RewardTokenEffect({ moment, onDismiss, reducedMotion = f
   const config = KIND_CONFIG[moment.kind];
   const Icon = config.icon;
   const color = moment.pathColor && /^#/.test(moment.pathColor) ? moment.pathColor : config.color;
+  const pillLabel =
+    moment.kind === 'entry-token' && (moment.entryCount ?? 0) > 1 ? 'ENTRY TOKENS RECEIVED' : config.label;
+  const entryLabel = (moment.entryCount ?? 0) > 1 ? 'ENTRIES' : 'ENTRY';
 
   useEffect(() => {
     cqSoundManager.play(config.sound);
@@ -56,7 +59,7 @@ export default function RewardTokenEffect({ moment, onDismiss, reducedMotion = f
 
         <div className="space-y-1">
           <span className="inline-block text-[10px] font-mono font-black uppercase tracking-widest px-3 py-1 rounded-full border" style={{ borderColor: color, color, backgroundColor: `${color}18` }}>
-            {config.label}
+            {pillLabel}
           </span>
           <h2 className="text-2xl sm:text-3xl font-black font-display text-white tracking-tight">{moment.headline}</h2>
           {moment.secondaryText && <p className="text-xs text-stone-300 font-mono">{moment.secondaryText}</p>}
@@ -72,7 +75,7 @@ export default function RewardTokenEffect({ moment, onDismiss, reducedMotion = f
             )}
             {moment.entryCount !== undefined && (
               <div>
-                <span className="text-[10px] font-mono text-stone-400 uppercase block">Entries</span>
+                <span className="text-[10px] font-mono text-stone-400 uppercase block">{entryLabel}</span>
                 <span className="font-display font-black text-3xl" style={{ color }}>+{moment.entryCount}</span>
               </div>
             )}

@@ -457,11 +457,26 @@ export interface QuestRewardConfig {
   fieldCheckInBonusXp?: number;
   /** Extra XP for scanning/tapping an NFC field cache tied to this quest. */
   nfcBonusXp?: number;
+  /**
+   * Extra Entry Token(s) for scanning/tapping an NFC field cache — separate
+   * from nfcBonusXp's XP. Standard NFC caches leave this unset (0): NFC is
+   * XP/collectible/unlock only by default. Only specific, explicitly
+   * configured caches (e.g. a rare "Founder Cache") set this to grant an
+   * additional Entry Token. Gated identically to nfcBonusXp — only applies
+   * when the submission context reports usedNfc.
+   */
+  nfcCacheEntryBonus?: number;
   /** Extra XP for submitting photo or video proof beyond what's required. */
   photoVideoBonusXp?: number;
   /** Placement-based bonus XP for early finishers (race/flash quests). */
   raceBonus?: QuestRaceBonusTier[];
-  /** Extra drawing-ledger entries beyond the quest's normal drawingEntryReward. */
+  /**
+   * Extra Entry Token(s) beyond the quest's normal completion entry —
+   * awarded unconditionally on quest completion (not gated by method).
+   * Reserved for individual special/hidden quests and GM events that
+   * explicitly configure additional entries; do not set this to make XP
+   * bonuses grant entries — they never should (see lib/quest-rewards.ts).
+   */
   drawingEntryBonus?: number;
   /** Achievement slugs granted when this quest is completed. */
   badgeUnlockSlugs?: string[];
@@ -792,6 +807,13 @@ export interface SubmitProofResult {
   submission: QuestSubmission;
   message: string;
   awardedPoints: number;
+  /**
+   * Entry Tokens newly granted by exactly this submission — not the
+   * quest's running total. 0 (or undefined) on a call that granted no new
+   * entry (a retry, or a pure-XP field/photo/NFC bonus with no
+   * drawingEntryBonus/nfcCacheEntryBonus configured). The Entry Token
+   * cinematic must only ever fire when this is > 0.
+   */
   drawingEntriesAwarded?: number;
   currentStepCompleted?: number;
   nextStepUnlocked?: QuestStep;

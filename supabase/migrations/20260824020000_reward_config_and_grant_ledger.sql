@@ -87,3 +87,40 @@ BEGIN
   RETURN v_claims;
 END;
 $$;
+
+-- 4. Atomic Entry Token increment. Entry Tokens (drawing_entry_ledger rows)
+-- are keyed one-per-(event,player,quest); a quest can earn its base entry
+-- on one submission and, later, an independently-configured bonus entry
+-- (rewardConfig.drawingEntryBonus or an NFC cache's entryBonus) on another.
+-- This adds p_add_entries to whatever is already there instead of
+-- overwriting it, so a later bonus can never clobber an earlier grant —
+-- callers must only invoke this with an amount reward_grants has already
+-- confirmed is genuinely new.
+CREATE OR REPLACE FUNCTION public.increment_drawing_entries(
+  p_event_id UUID,
+  p_player_id UUID,
+  p_quest_id UUID,
+  p_add_entries INTEGER,
+  p_submission_id UUID,
+  p_source_type TEXT,
+  p_reason TEXT
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_total INTEGER;
+BEGIN
+  INSERT INTO public.drawing_entry_ledger (event_id, player_id, quest_id, submission_id, entries_count, source_type, reason)
+  VALUES (p_event_id, p_player_id, p_quest_id, p_submission_id, p_add_entries, p_source_type, p_reason)
+  ON CONFLICT (event_id, player_id, quest_id) DO UPDATE SET
+    entries_count = public.drawing_entry_ledger.entries_count + p_add_entries,
+    submission_id = EXCLUDED.submission_id,
+    reason = EXCLUDED.reason
+  RETURNING entries_count INTO v_total;
+
+  RETURN v_total;
+END;
+$$;
