@@ -91,7 +91,13 @@ export async function GET(request: Request) {
         prizeEntries: countPrizeEntries(drawingEntries),
       },
       stats: {
-        totalXp: progress.totalPoints,
+        // The authoritative lifetime XP total (players.total_xp), not
+        // progress.totalPoints — that field is a per-event sum derived from
+        // *quest-submission* score-ledger rows only, so it silently omits
+        // any non-quest reward (e.g. the profile-completion +100) that has
+        // no associated submission. See lib/game-engine.ts getPlayerProgress
+        // / lib/supabase-db.ts getPlayerProgressDB.
+        totalXp: player.totalXp,
         cityRank: getPlayerCityRank(player.id, leaderboard),
         completedQuests: progress.completedCount,
         prizeEntries: countPrizeEntries(drawingEntries),

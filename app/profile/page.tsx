@@ -377,7 +377,7 @@ export default function ProfilePage() {
                 cityRank={data.stats.cityRank}
                 memberSinceDate={data.player.createdAt ? formatDate(data.player.createdAt).toUpperCase() : 'AUG 2026'}
                 playerCode={data.player.id ? `CQ-${data.player.id.slice(-4).toUpperCase()}` : 'CQ-2026'}
-                playerLevelText={`LEVEL ${Math.max(1, Math.floor((data.stats.totalXp || 0) / 500) + 1)} // ${data.startingDistrict.label}`}
+                playerLevelText={`LEVEL ${Math.max(1, data.player.level || 1)} // ${data.startingDistrict.label}`}
                 clearanceLevelText="VOL. 1 OPERATIVE"
                 featuredBadges={featuredBadges}
               />

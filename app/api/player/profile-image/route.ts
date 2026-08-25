@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
-import { evaluateAndGrantProfileCompletionRewardDB, upsertPlayerDB } from '@/lib/supabase-db';
+import { evaluateAndGrantProfileCompletionRewardDB, getPlayerByIdDB, upsertPlayerDB } from '@/lib/supabase-db';
 import { CUSTOM_AVATAR_KEY, getAvatarPresetPath, PLAYER_AVATAR_PRESETS } from '@/lib/player-command-center';
 
 export const dynamic = 'force-dynamic';
@@ -79,12 +79,10 @@ export async function POST(request: Request) {
     });
 
     const profileCompletionResult = await evaluateAndGrantProfileCompletionRewardDB(player.id);
+    // Re-read the authoritative row rather than hand-computing totalXp/level
+    // client-side — the grant above already persisted both.
     const finalPlayer = profileCompletionResult.newlyGranted
-      ? {
-          ...updated,
-          totalXp: updated.totalXp + profileCompletionResult.xpAwarded,
-          level: Math.floor((updated.totalXp + profileCompletionResult.xpAwarded) / 250) + 1,
-        }
+      ? (await getPlayerByIdDB(player.id)) || updated
       : updated;
 
     return NextResponse.json({
@@ -132,12 +130,10 @@ export async function DELETE(request: Request) {
     });
 
     const profileCompletionResult = await evaluateAndGrantProfileCompletionRewardDB(player.id);
+    // Re-read the authoritative row rather than hand-computing totalXp/level
+    // client-side — the grant above already persisted both.
     const finalPlayer = profileCompletionResult.newlyGranted
-      ? {
-          ...updated,
-          totalXp: updated.totalXp + profileCompletionResult.xpAwarded,
-          level: Math.floor((updated.totalXp + profileCompletionResult.xpAwarded) / 250) + 1,
-        }
+      ? (await getPlayerByIdDB(player.id)) || updated
       : updated;
 
     return NextResponse.json({

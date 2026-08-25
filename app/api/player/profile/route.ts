@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
-import { evaluateAndGrantProfileCompletionRewardDB, getAchievementsForPlayerDB, upsertPlayerDB } from '@/lib/supabase-db';
+import {
+  evaluateAndGrantProfileCompletionRewardDB,
+  getAchievementsForPlayerDB,
+  getPlayerByIdDB,
+  upsertPlayerDB,
+} from '@/lib/supabase-db';
 import {
   CUSTOM_AVATAR_KEY,
   PLAYER_AVATAR_PRESETS,
@@ -112,12 +117,11 @@ export async function POST(request: Request) {
     });
 
     const profileCompletionResult = await evaluateAndGrantProfileCompletionRewardDB(player.id);
+    // Re-read the authoritative row rather than hand-computing totalXp/level
+    // client-side — the grant above already persisted both, and a
+    // freshly-added score-ledger row could double-count if summed here.
     const finalPlayer = profileCompletionResult.newlyGranted
-      ? {
-          ...updated,
-          totalXp: updated.totalXp + profileCompletionResult.xpAwarded,
-          level: Math.floor((updated.totalXp + profileCompletionResult.xpAwarded) / 250) + 1,
-        }
+      ? (await getPlayerByIdDB(player.id)) || updated
       : updated;
 
     return NextResponse.json({
