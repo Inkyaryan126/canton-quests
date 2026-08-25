@@ -3684,6 +3684,50 @@ code, pre, .font-mono {
   margin-top: 4px;
 }
 
+.cq-identity-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.06);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: #d6d3d1;
+}
+
+.cq-identity-status.is-complete {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.08);
+  color: #6ee7b7;
+}
+
+.cq-identity-status-title {
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #f59e0b;
+  margin-right: 2px;
+}
+
+.cq-identity-status-item {
+  color: #d6d3d1;
+}
+
+.cq-identity-status em {
+  font-style: normal;
+  margin-left: auto;
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.cq-identity-status.is-complete em {
+  color: #6ee7b7;
+}
+
 .cq-command-quest-grid,
 .cq-badge-grid,
 .cq-settings-grid,

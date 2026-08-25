@@ -31,8 +31,12 @@ import {
   CUSTOM_AVATAR_KEY,
   PLAYER_AVATAR_PRESETS,
   PLAYER_CARD_BADGE_SLOT_COUNT,
+  STARTING_DISTRICTS,
   getAvatarPresetPath,
+  hasValidAvatar,
+  hasValidStartingPath,
 } from '@/lib/player-command-center';
+import { showGameMoment } from '@/lib/game-effects';
 
 type BadgeCatalogItem = Achievement & {
   iconPath: string;
@@ -85,6 +89,26 @@ function formatDate(value?: string) {
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
+}
+
+/**
+ * The Player Identity onboarding cinematic — only ever fired when the
+ * server confirms a genuinely new grant (payload.profileCompletionReward),
+ * never inferred client-side from the form state.
+ */
+function announceProfileCompletion(payload: { profileCompletionReward?: boolean; profileCompletionXp?: number; player?: Player }) {
+  if (!payload.profileCompletionReward) return;
+  const path = payload.player?.selectedStartingPath;
+  showGameMoment({
+    type: 'reward-token',
+    kind: 'xp',
+    headline: 'IDENTITY CONFIRMED',
+    primaryText: 'PLAYER PROFILE ACTIVE',
+    secondaryText: 'You are officially on the board.',
+    xpAmount: payload.profileCompletionXp || 100,
+    pathColor: path ? STARTING_DISTRICTS[path].color : undefined,
+    cta: 'ENTER COMMAND CENTER',
+  });
 }
 
 function QuestList({ title, quests }: { title: string; quests: Quest[] }) {
@@ -221,6 +245,7 @@ export default function ProfilePage() {
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Profile save failed.');
       setMessage({ type: 'success', text: 'Command Center profile saved.' });
+      announceProfileCompletion(payload);
       await loadCommandCenter();
     } catch (error) {
       setMessage({ type: 'error', text: getErrorMessage(error, 'Profile save failed.') });
@@ -253,6 +278,7 @@ export default function ProfilePage() {
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Upload failed.');
       setMessage({ type: 'success', text: 'Custom photo uploaded and selected. Adjust crop below, then Save Command Center.' });
+      announceProfileCompletion(payload);
       await loadCommandCenter();
       URL.revokeObjectURL(localPreviewUrl);
       setPendingPreviewUrl(null);
@@ -277,6 +303,7 @@ export default function ProfilePage() {
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Remove failed.');
       setMessage({ type: 'success', text: 'Custom player image removed.' });
+      announceProfileCompletion(payload);
       await loadCommandCenter();
     } catch (error) {
       setMessage({ type: 'error', text: getErrorMessage(error, 'Remove failed.') });
@@ -505,6 +532,31 @@ export default function ProfilePage() {
                 <h2 id="settings-heading">Profile Settings</h2>
                 <Lock size={18} />
               </div>
+
+              {(() => {
+                const pathDone = hasValidStartingPath(data.player);
+                const avatarDone = hasValidAvatar(data.player);
+                const identityComplete = pathDone && avatarDone;
+                return (
+                  <div className={`cq-identity-status${identityComplete ? ' is-complete' : ''}`}>
+                    {identityComplete ? (
+                      <>
+                        <CheckCircle2 size={15} />
+                        <span>PLAYER IDENTITY COMPLETE</span>
+                        <em>+100 XP CLAIMED</em>
+                      </>
+                    ) : (
+                      <>
+                        <span className="cq-identity-status-title">PLAYER IDENTITY</span>
+                        <span className="cq-identity-status-item">{pathDone ? '✓' : '○'} Choose your district</span>
+                        <span className="cq-identity-status-item">{avatarDone ? '✓' : '○'} Select your player image</span>
+                        <em>Complete your identity <strong>+100 XP</strong></em>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="cq-settings-grid">
                 <label>
                   <span>Callsign</span>

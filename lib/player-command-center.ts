@@ -86,6 +86,31 @@ export function resolveAvatarUrl(player: Pick<Player, 'id' | 'avatarPresetKey' |
   return getAvatarPresetPath(player.avatarPresetKey);
 }
 
+export const VALID_STARTING_PATHS: readonly StartingPath[] = ['family', 'challenge', 'secret'];
+
+export function hasValidStartingPath(player: Pick<Player, 'selectedStartingPath'>): boolean {
+  return VALID_STARTING_PATHS.includes(player.selectedStartingPath as StartingPath);
+}
+
+/** True for a valid numbered preset, or a custom avatar that has an actual uploaded image behind it. */
+export function hasValidAvatar(player: Pick<Player, 'avatarPresetKey' | 'profileImagePath'>): boolean {
+  if (player.avatarPresetKey === CUSTOM_AVATAR_KEY) {
+    return Boolean(player.profileImagePath);
+  }
+  return PLAYER_AVATAR_PRESETS.includes(player.avatarPresetKey as (typeof PLAYER_AVATAR_PRESETS)[number]);
+}
+
+/**
+ * The minimum player identity setup: a valid starting district AND a valid
+ * avatar (preset or uploaded custom). This — not account creation alone —
+ * is what unlocks the one-time Player Identity onboarding reward.
+ */
+export function isProfileIdentityComplete(
+  player: Pick<Player, 'selectedStartingPath' | 'avatarPresetKey' | 'profileImagePath'>
+): boolean {
+  return hasValidStartingPath(player) && hasValidAvatar(player);
+}
+
 export function sanitizeFeaturedBadges(
   requested: unknown,
   earned: PlayerAchievement[],

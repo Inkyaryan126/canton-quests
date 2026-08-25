@@ -82,6 +82,7 @@ import {
 import { checkProximity, formatDistance } from './geo';
 import { evaluateProofIntegrity } from './proof-integrity';
 import { sanitizeTextContent } from './spectator-engine';
+import { isProfileIdentityComplete } from './player-command-center';
 
 const STORAGE_KEYS = {
   CURRENT_PLAYER: 'canton_quests_current_player',
@@ -1505,6 +1506,47 @@ export function updatePlayerProfile(playerId: string, updates: Partial<Player>):
   return updated;
 }
 
+export const PROFILE_COMPLETION_XP = 100;
+
+/**
+ * The one-time Player Identity onboarding reward: +100 XP, no Entry Token,
+ * awarded exactly once per player the first time both a valid starting
+ * path AND a valid avatar (preset or custom-with-upload) are true
+ * simultaneously. Call this after any profile mutation capable of
+ * satisfying either requirement (path change, avatar preset selection,
+ * custom photo upload/delete) — it always re-evaluates the player's
+ * current authoritative state and is a safe no-op if already granted or
+ * not yet qualified. Never awards a drawing entry.
+ */
+export function evaluateAndGrantProfileCompletionReward(playerId: string): { newlyGranted: boolean; xpAwarded: number } {
+  initializeGameEngine();
+  const player = getAllPlayers().find((p) => p.id === playerId);
+  if (!player || !isProfileIdentityComplete(player)) {
+    return { newlyGranted: false, xpAwarded: 0 };
+  }
+
+  const granted = recordRewardGrant({
+    eventId: SEED_EVENT.id,
+    playerId,
+    rewardType: 'PROFILE_COMPLETION',
+    rewardKey: 'profile_identity_complete',
+    xpAwarded: PROFILE_COMPLETION_XP,
+  });
+  if (!granted) {
+    return { newlyGranted: false, xpAwarded: 0 };
+  }
+
+  recordScoreLedger({
+    eventId: SEED_EVENT.id,
+    playerId,
+    points: PROFILE_COMPLETION_XP,
+    category: 'profile_completion',
+    description: 'Player identity complete — starting district + avatar selected',
+  });
+
+  return { newlyGranted: true, xpAwarded: PROFILE_COMPLETION_XP };
+}
+
 export function getEvents(): QuestEvent[] {
   initializeGameEngine();
   return getStoredItem<QuestEvent[]>(STORAGE_KEYS.EVENTS, [SEED_EVENT]);
@@ -2276,6 +2318,9 @@ export function recordRewardGrant(entry: {
   // across multiple submissions — this is what lets a remoteCapable quest's
   // later field/photo submission grant a genuinely new bonus component
   // without ever being able to re-grant a component already paid out.
+  // A questless grant (e.g. a one-time account-level reward like profile
+  // completion) has neither a quest nor a submission — dedupe those purely
+  // by player+type+key so it can still only ever be granted once ever.
   const existing = entry.questId
     ? grants.find(
         (g) =>
@@ -2291,7 +2336,14 @@ export function recordRewardGrant(entry: {
           g.rewardType === entry.rewardType &&
           g.rewardKey === entry.rewardKey
       )
-    : undefined;
+    : grants.find(
+        (g) =>
+          !g.questId &&
+          !g.submissionId &&
+          g.playerId === entry.playerId &&
+          g.rewardType === entry.rewardType &&
+          g.rewardKey === entry.rewardKey
+      );
   if (existing) return null;
 
   const newGrant: RewardGrant = {

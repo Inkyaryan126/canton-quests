@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
-import { getAchievementsForPlayerDB, upsertPlayerDB } from '@/lib/supabase-db';
-import { CUSTOM_AVATAR_KEY, PLAYER_AVATAR_PRESETS, resolveAvatarUrl, validateFeaturedBadges } from '@/lib/player-command-center';
+import { evaluateAndGrantProfileCompletionRewardDB, getAchievementsForPlayerDB, upsertPlayerDB } from '@/lib/supabase-db';
+import {
+  CUSTOM_AVATAR_KEY,
+  PLAYER_AVATAR_PRESETS,
+  VALID_STARTING_PATHS,
+  resolveAvatarUrl,
+  validateFeaturedBadges,
+} from '@/lib/player-command-center';
 import { StartingPath } from '@/lib/types';
 
-const STARTING_PATHS = new Set<StartingPath>(['family', 'challenge', 'secret']);
+const STARTING_PATHS = new Set<StartingPath>(VALID_STARTING_PATHS);
 
 function cleanString(value: unknown, max: number) {
   if (value === undefined) return undefined;
@@ -105,10 +111,21 @@ export async function POST(request: Request) {
       isMinor: body.isMinor !== undefined ? Boolean(body.isMinor) : player.isMinor,
     });
 
+    const profileCompletionResult = await evaluateAndGrantProfileCompletionRewardDB(player.id);
+    const finalPlayer = profileCompletionResult.newlyGranted
+      ? {
+          ...updated,
+          totalXp: updated.totalXp + profileCompletionResult.xpAwarded,
+          level: Math.floor((updated.totalXp + profileCompletionResult.xpAwarded) / 250) + 1,
+        }
+      : updated;
+
     return NextResponse.json({
       success: true,
-      player: updated,
+      player: finalPlayer,
       message: 'Profile updated successfully.',
+      profileCompletionReward: profileCompletionResult.newlyGranted,
+      profileCompletionXp: profileCompletionResult.xpAwarded,
     });
   } catch (error: any) {
     return NextResponse.json(

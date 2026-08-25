@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
-import { upsertPlayerDB } from '@/lib/supabase-db';
+import { evaluateAndGrantProfileCompletionRewardDB, upsertPlayerDB } from '@/lib/supabase-db';
 import { CUSTOM_AVATAR_KEY, getAvatarPresetPath, PLAYER_AVATAR_PRESETS } from '@/lib/player-command-center';
 
 export const dynamic = 'force-dynamic';
@@ -78,7 +78,21 @@ export async function POST(request: Request) {
       displayName: player.displayName,
     });
 
-    return NextResponse.json({ success: true, player: updated });
+    const profileCompletionResult = await evaluateAndGrantProfileCompletionRewardDB(player.id);
+    const finalPlayer = profileCompletionResult.newlyGranted
+      ? {
+          ...updated,
+          totalXp: updated.totalXp + profileCompletionResult.xpAwarded,
+          level: Math.floor((updated.totalXp + profileCompletionResult.xpAwarded) / 250) + 1,
+        }
+      : updated;
+
+    return NextResponse.json({
+      success: true,
+      player: finalPlayer,
+      profileCompletionReward: profileCompletionResult.newlyGranted,
+      profileCompletionXp: profileCompletionResult.xpAwarded,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to upload profile image.';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
@@ -116,7 +130,22 @@ export async function DELETE(request: Request) {
       avatarPresetKey: fallbackPresetKey,
       avatarUrl: getAvatarPresetPath(fallbackPresetKey),
     });
-    return NextResponse.json({ success: true, player: updated });
+
+    const profileCompletionResult = await evaluateAndGrantProfileCompletionRewardDB(player.id);
+    const finalPlayer = profileCompletionResult.newlyGranted
+      ? {
+          ...updated,
+          totalXp: updated.totalXp + profileCompletionResult.xpAwarded,
+          level: Math.floor((updated.totalXp + profileCompletionResult.xpAwarded) / 250) + 1,
+        }
+      : updated;
+
+    return NextResponse.json({
+      success: true,
+      player: finalPlayer,
+      profileCompletionReward: profileCompletionResult.newlyGranted,
+      profileCompletionXp: profileCompletionResult.xpAwarded,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to remove profile image.';
     return NextResponse.json({ success: false, error: message }, { status: 500 });

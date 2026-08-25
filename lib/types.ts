@@ -508,7 +508,8 @@ export type RewardGrantReason =
   | 'COLLECTIBLE_UNLOCK'
   | 'SECRET_UNLOCK'
   | 'THREE_LOCKS_FRAGMENT'
-  | 'FINALE_PROGRESS';
+  | 'FINALE_PROGRESS'
+  | 'PROFILE_COMPLETION';
 
 export interface RewardGrant {
   id: string;

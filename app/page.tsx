@@ -33,6 +33,7 @@ import {
   rarityClassName,
 } from '@/lib/marketing-assets';
 import { Play, Gift, HelpCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { isProfileIdentityComplete } from '@/lib/player-command-center';
 
 function getStoredPlayer(): Player | null {
   if (typeof window === 'undefined') return null;
@@ -117,7 +118,9 @@ export default function HomePage() {
 
       <main className="cq-page-main pt-4">
         {/* AUTHENTICATED AGENT HERO BANNER */}
-        {currentPlayer && (
+        {currentPlayer && (() => {
+          const identityComplete = isProfileIdentityComplete(currentPlayer);
+          return (
           <section className="cq-section pt-2 pb-6" aria-label="Authenticated player welcome">
             <div className="cq-section-shell">
               <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-amber-950/40 via-stone-900/90 to-stone-950/90 border-2 border-amber-500/40 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
@@ -132,16 +135,31 @@ export default function HomePage() {
                         ACTIVE AGENT LOGGED IN
                       </span>
                     </div>
-                    <h2 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-                      WELCOME BACK, {currentPlayer.displayName}
-                    </h2>
-                    <div className="flex items-center gap-3 text-xs font-mono text-stone-300 mt-1">
-                      <span className="text-amber-400 font-bold">{currentPlayer.totalXp || 0} XP</span>
-                      <span>•</span>
-                      <span className="capitalize">{currentPlayer.selectedStartingPath || 'Family'} Path</span>
-                      <span>•</span>
-                      <span>Level {currentPlayer.level || 1}</span>
-                    </div>
+                    {identityComplete ? (
+                      <>
+                        <h2 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                          WELCOME BACK, {currentPlayer.displayName}
+                        </h2>
+                        <div className="flex items-center gap-3 text-xs font-mono text-stone-300 mt-1">
+                          <span className="text-amber-400 font-bold">{currentPlayer.totalXp || 0} XP</span>
+                          <span>•</span>
+                          <span className="capitalize">{currentPlayer.selectedStartingPath || 'Family'} Path</span>
+                          <span>•</span>
+                          <span>Level {currentPlayer.level || 1}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <h2 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                          COMPLETE YOUR PLAYER IDENTITY
+                        </h2>
+                        <div className="flex items-center gap-3 text-xs font-mono text-stone-300 mt-1">
+                          <span>Choose your district + image</span>
+                          <span>•</span>
+                          <span className="text-amber-400 font-bold">Earn +100 XP</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -150,7 +168,7 @@ export default function HomePage() {
                     href="/profile"
                     className="cq-gold-button flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-6"
                   >
-                    <span>ENTER COMMAND CENTER</span>
+                    <span>{identityComplete ? 'ENTER COMMAND CENTER' : 'COMPLETE IDENTITY'}</span>
                     <ArrowRight size={15} />
                   </Link>
                   <Link
@@ -164,7 +182,8 @@ export default function HomePage() {
               </div>
             </div>
           </section>
-        )}
+          );
+        })()}
 
         {/* PROMOTIONAL BRIEFING TRANSMISSION & VIDEO PLAYER */}
         <section className="cq-section bg-stone-950/70 border-b border-stone-800/80 py-16" aria-labelledby="briefing-section-heading">

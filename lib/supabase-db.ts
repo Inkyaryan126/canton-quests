@@ -89,6 +89,7 @@ import {
   proofMatches,
   proofMatchesAny,
 } from './quest-proof-secrets';
+import { isProfileIdentityComplete } from './player-command-center';
 
 
 function mapLocationFromDB(row: any): LocationInfo | undefined {
@@ -804,6 +805,83 @@ async function insertRewardGrantDB(entry: {
     throw new Error(`Failed to record reward grant (${entry.rewardType}/${entry.rewardKey}): ${error.message}`);
   }
   return true;
+}
+
+/**
+ * The one-time Player Identity onboarding reward: +100 XP, no Entry Token,
+ * no drawing_entry_ledger write. Call this after any profile mutation
+ * capable of satisfying either requirement (starting path change, avatar
+ * preset selection, custom photo upload/delete) — it always re-loads the
+ * player's current authoritative row and is a safe no-op if the player
+ * isn't (yet, or any longer relevantly) qualified, or if this exact grant
+ * (player_id + PROFILE_COMPLETION + profile_identity_complete) already
+ * exists. Idempotency is enforced by reward_grants' partial unique index
+ * on quest_id IS NULL rows (see migration
+ * 20260825000000_profile_completion_reward.sql) — a duplicate insert from
+ * a race between two concurrent qualifying requests hits Postgres error
+ * 23505 and this returns newlyGranted: false, never double-awarding XP.
+ */
+export async function evaluateAndGrantProfileCompletionRewardDB(
+  playerId: string
+): Promise<{ newlyGranted: boolean; xpAwarded: number }> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.evaluateAndGrantProfileCompletionReward(playerId);
+  }
+  const db = supabaseAdmin;
+
+  const { data: playerRow, error: playerError } = await db
+    .from('players')
+    .select('id, selected_starting_path, avatar_preset_key, profile_image_path')
+    .eq('id', playerId)
+    .maybeSingle();
+  if (playerError || !playerRow) return { newlyGranted: false, xpAwarded: 0 };
+
+  const qualifies = isProfileIdentityComplete({
+    selectedStartingPath: playerRow.selected_starting_path || undefined,
+    avatarPresetKey: playerRow.avatar_preset_key || undefined,
+    profileImagePath: playerRow.profile_image_path || undefined,
+  });
+  if (!qualifies) return { newlyGranted: false, xpAwarded: 0 };
+
+  const event = await getEventBySlugDB(SEED_EVENT.slug);
+  if (!event) return { newlyGranted: false, xpAwarded: 0 };
+
+  const xpAwarded = 100;
+  const isNewGrant = await insertRewardGrantDB({
+    eventId: event.id,
+    playerId,
+    rewardType: 'PROFILE_COMPLETION',
+    rewardKey: 'profile_identity_complete',
+    xpAwarded,
+  });
+  if (!isNewGrant) return { newlyGranted: false, xpAwarded: 0 };
+
+  const scoreInsert = await db.from('score_ledger').insert({
+    event_id: event.id,
+    player_id: playerId,
+    points: xpAwarded,
+    category: 'profile_completion',
+    description: 'Player identity complete — starting district + avatar selected',
+  });
+  if (scoreInsert.error) {
+    throw new Error(`Failed to record profile completion score ledger entry: ${scoreInsert.error.message}`);
+  }
+
+  const { data: currentPlayer, error: fetchError } = await db
+    .from('players')
+    .select('total_xp')
+    .eq('id', playerId)
+    .single();
+  if (fetchError) throw new Error(`Failed to read player profile: ${fetchError.message}`);
+
+  const nextTotalXp = Math.max(0, (currentPlayer?.total_xp || 0) + xpAwarded);
+  const { error: updateError } = await db
+    .from('players')
+    .update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 })
+    .eq('id', playerId);
+  if (updateError) throw new Error(`Failed to update player XP: ${updateError.message}`);
+
+  return { newlyGranted: true, xpAwarded };
 }
 
 const THREE_LOCKS_COLLECTIBLE_IDS = ['col-founder-mark', 'col-founder-code', 'col-founder-word'];
