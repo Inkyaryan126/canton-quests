@@ -49,9 +49,6 @@ export default function CinematicFooter() {
       </div>
 
       <div className="relative max-w-6xl mx-auto mt-3 flex flex-wrap items-center justify-center gap-4 text-[11px] font-mono text-stone-500">
-        <Link href="/rules" className="hover:text-amber-400 transition-colors">
-          Official Rules
-        </Link>
         <Link href="/privacy" className="hover:text-amber-400 transition-colors">
           Privacy
         </Link>

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { AlertOctagon, AlertTriangle, ArrowRight, BookOpen, Map, Moon, Radar, RefreshCw, Shield, Trophy, Zap } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import CinematicNav from '@/components/CinematicNav';
 import AudienceVoteCard from '@/components/spectator/AudienceVoteCard';
 import HostBroadcastCard from '@/components/spectator/HostBroadcastCard';
@@ -24,7 +25,13 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 const VOTES_LOCAL_STORAGE_KEY = 'canton_spectator_voted_options';
 
-export default function WatchPage() {
+function WatchPageContent() {
+  const searchParams = useSearchParams();
+  // When present (e.g. from /events/{slug}/watch), scopes the watch page's
+  // event identity display to that specific Operation instead of whichever
+  // event happens to come first in /api/game/events.
+  const requestedEventSlug = searchParams.get('eventSlug');
+
   // Data state
   const [events, setEvents] = useState<PublicAudienceEvent[]>([]);
   const [optionsMap, setOptionsMap] = useState<Record<string, PublicAudienceEventOption[]>>({});
@@ -147,7 +154,9 @@ export default function WatchPage() {
       if (mainEventRes) {
         const mainEventData = await mainEventRes.json().catch(() => null);
         if (mainEventData?.events && mainEventData.events.length > 0) {
-          const eventItem = mainEventData.events[0];
+          const eventItem =
+            (requestedEventSlug && mainEventData.events.find((e: { slug?: string }) => e.slug === requestedEventSlug)) ||
+            mainEventData.events[0];
           if (eventItem.title) setActiveEventTitle(eventItem.title);
           if (eventItem.slug) setEventHref(`/events/${eventItem.slug}`);
           const status = eventItem.status;
@@ -165,7 +174,7 @@ export default function WatchPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [requestedEventSlug]);
 
   // Initial fetch and 5s polling interval
   useEffect(() => {
@@ -377,7 +386,7 @@ export default function WatchPage() {
                 Canton Quests airwaves activate during live weekend events and pop-up flash missions. Browse available missions, check the leaderboards, or review the rulebook to prepare for the next drop.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                <Link href="/quests" className="cq-gold-button text-xs py-2.5 px-4 font-mono font-bold inline-flex items-center gap-1.5">
+                <Link href="/events/canton-weekend-1/quests" className="cq-gold-button text-xs py-2.5 px-4 font-mono font-bold inline-flex items-center gap-1.5">
                   <Map size={13} aria-hidden="true" />
                   EXPLORE MISSIONS
                   <ArrowRight size={13} aria-hidden="true" />
@@ -481,7 +490,7 @@ export default function WatchPage() {
               <Zap size={12} className="text-emerald-400 shrink-0" aria-hidden="true" />
               Back in the field. Your agent profile is linked.
             </span>
-            <Link href="/quests" className="btn btn-primary text-[11px] py-1 px-3 font-bold inline-flex items-center gap-1.5">
+            <Link href="/events/canton-weekend-1/quests" className="btn btn-primary text-[11px] py-1 px-3 font-bold inline-flex items-center gap-1.5">
               PLAY NOW
               <ArrowRight size={11} aria-hidden="true" />
             </Link>
@@ -537,7 +546,7 @@ export default function WatchPage() {
               </div>
 
               <Link
-                href="/quests"
+                href="/events/canton-weekend-1/quests"
                 className="btn btn-primary text-xs py-2 px-4 font-mono font-bold flex items-center gap-2 hover:scale-[1.02] transition-transform whitespace-nowrap"
               >
                 RETURN TO GAME
@@ -574,5 +583,13 @@ export default function WatchPage() {
         onSessionUpdate={handleSessionUpdate}
       />
     </div>
+  );
+}
+
+export default function WatchPage() {
+  return (
+    <Suspense fallback={null}>
+      <WatchPageContent />
+    </Suspense>
   );
 }

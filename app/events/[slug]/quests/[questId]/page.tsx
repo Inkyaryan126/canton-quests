@@ -164,7 +164,7 @@ export default function QuestDetailPage({
     if (isKnownCantonLaunchSlug(eventSlug) || isPreLaunchEvent(event, eventSlug)) {
       return (
         <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
-          <Header />
+          <Header eventSlug={params.slug} />
           <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-12 flex flex-col justify-center text-center">
             <div className="relative overflow-hidden p-8 sm:p-12 rounded-3xl border border-amber-500/40 bg-stone-900/90 shadow-2xl space-y-4">
               <Image
@@ -196,7 +196,7 @@ export default function QuestDetailPage({
                     RETURN TO CITY HUB →
                   </Link>
                   <Link
-                    href="/quests"
+                    href={`/events/${params.slug}/quests`}
                     className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
                   >
                     🗺️ VIEW QUEST BOARD
@@ -212,7 +212,7 @@ export default function QuestDetailPage({
 
     return (
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
-        <Header />
+        <Header eventSlug={params.slug} />
         <main className="flex-1 max-w-lg mx-auto w-full px-4 py-16 flex flex-col justify-center items-center text-center">
           <div className="p-8 rounded-3xl border border-stone-800 bg-stone-900/80 shadow-2xl w-full space-y-4">
             <div className="text-4xl">🔍</div>
@@ -428,7 +428,7 @@ export default function QuestDetailPage({
 
   return (
     <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
-      <Header />
+      <Header eventSlug={params.slug} />
 
       <main className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-6">
         <Link

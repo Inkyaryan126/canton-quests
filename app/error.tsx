@@ -31,7 +31,7 @@ export default function Error({
           TRY AGAIN
         </button>
         <Link
-          href="/quests"
+          href="/events/canton-weekend-1/quests"
           className="cq-gold-button font-display font-extrabold text-sm py-2.5 px-5"
         >
           QUEST BOARD

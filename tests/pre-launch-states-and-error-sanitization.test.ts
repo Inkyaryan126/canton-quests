@@ -168,7 +168,7 @@ describe('Pre-Launch States & Error Sanitization Suite', () => {
         'utf8'
       );
 
-      expect(eventHubPage).toContain('FounderCipherPreLaunch');
+      expect(eventHubPage).toContain('FounderCipherShell');
       expect(eventHubPage).toContain('isKnownCantonLaunchSlug');
 
       expect(questDetailPage).toContain('MISSION GRID OFFLINE');

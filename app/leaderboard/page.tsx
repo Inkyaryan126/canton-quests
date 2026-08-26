@@ -81,7 +81,7 @@ function LeaderboardContent() {
                   START QUEST
                   <Zap size={14} aria-hidden="true" />
                 </Link>
-                <Link href="/quests" className="cq-dark-button cq-btn-sm">
+                <Link href="/events/canton-weekend-1/quests" className="cq-dark-button cq-btn-sm">
                   BROWSE QUESTS
                 </Link>
               </div>
@@ -150,8 +150,8 @@ function LeaderboardContent() {
                     Live individual agent rankings and XP scoring will stream here in real time as players verify field missions across Canton.
                   </p>
                   <div className="pt-3">
-                    <Link href="/#choose-path" className="cq-gold-button inline-flex">
-                      CHOOSE STARTING PATH
+                    <Link href="/events/canton-weekend-1" className="cq-gold-button inline-flex">
+                      ENTER FOUNDER&apos;S CIPHER
                       <Zap size={16} />
                     </Link>
                   </div>

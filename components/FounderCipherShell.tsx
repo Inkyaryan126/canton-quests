@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowRight,
-  Compass,
   Gift,
   HelpCircle,
   KeyRound,
@@ -15,10 +14,12 @@ import {
   ShieldCheck,
   Trophy,
   Zap,
+  Compass,
 } from 'lucide-react';
 import { Player, QuestEvent } from '@/lib/types';
 import { cqImages, destinationCards, formatEventWindow } from '@/lib/marketing-assets';
 import { PATH_OPTIONS } from '@/components/ThreePathSelector';
+import { OperationLifecycleStage } from '@/lib/launch-status';
 
 const founderCipherSteps = [
   {
@@ -49,19 +50,30 @@ interface CountdownInfo {
   subtext: string;
 }
 
-interface FounderCipherPreLaunchProps {
+interface FounderCipherShellProps {
   event: QuestEvent | null;
   authenticatedPlayer: Player | null;
+  stage: OperationLifecycleStage;
   countdown: CountdownInfo;
+  /** Live gates/dashboard content — rendered under the status widget for 'active'/'finale'/'ended' stages. */
+  children?: ReactNode;
 }
 
-export default function FounderCipherPreLaunch({ event, authenticatedPlayer, countdown }: FounderCipherPreLaunchProps) {
+const STAGE_BADGE: Record<OperationLifecycleStage, { label: string; dotClass: string }> = {
+  upcoming: { label: 'MISSION GRID OFFLINE — OPERATION INCOMING', dotClass: 'bg-amber-400' },
+  active: { label: 'MISSION GRID LIVE — OPERATION ACTIVE', dotClass: 'bg-emerald-400' },
+  finale: { label: 'FINAL HOURS — OPERATION CLOSING', dotClass: 'bg-red-500' },
+  ended: { label: 'OPERATION COMPLETE — RESULTS ARCHIVED', dotClass: 'bg-stone-400' },
+};
+
+export default function FounderCipherShell({ event, authenticatedPlayer, stage, countdown, children }: FounderCipherShellProps) {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const eventWindow = event ? formatEventWindow(event) : 'September 11 – 14, 2026';
+  const badge = STAGE_BADGE[stage];
 
   return (
     <div className="space-y-16 sm:space-y-20 pb-4">
-      {/* HERO */}
+      {/* PERSISTENT HERO — EVENT IDENTITY, ALWAYS SHOWN */}
       <section className="relative overflow-hidden rounded-3xl border border-amber-500/30 shadow-2xl">
         <Image
           src={cqImages.heroCityBeam}
@@ -74,8 +86,8 @@ export default function FounderCipherPreLaunch({ event, authenticatedPlayer, cou
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/30" />
         <div className="relative z-10 p-6 sm:p-12 space-y-5 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span>MISSION GRID OFFLINE — OPERATION INCOMING</span>
+            <span className={`w-2 h-2 rounded-full ${badge.dotClass} animate-pulse`} />
+            <span>{badge.label}</span>
           </div>
           <h1 className="font-display font-black text-3xl sm:text-5xl text-white uppercase tracking-tight leading-[0.95]">
             Canton Quests: Volume 1
@@ -87,50 +99,77 @@ export default function FounderCipherPreLaunch({ event, authenticatedPlayer, cou
             Canton — Family, Challenge, or Secret — on one citywide leaderboard. {eventWindow}.
           </p>
 
-          <div className="flex flex-wrap items-center gap-4 pt-1 text-xs font-mono text-stone-300">
-            <div className="rounded-xl bg-black/50 border border-amber-500/30 px-4 py-2">
-              <span className="block text-[10px] uppercase tracking-widest text-amber-400 font-bold">{countdown.label}</span>
-              <span className="block text-lg font-display font-extrabold text-white">{countdown.value}</span>
-            </div>
-            <span className="text-stone-400">{countdown.subtext}</span>
-          </div>
+          {/* STAGE-SPECIFIC STATUS WIDGET */}
+          {stage === 'upcoming' ? (
+            <>
+              <div className="flex flex-wrap items-center gap-4 pt-1 text-xs font-mono text-stone-300">
+                <div className="rounded-xl bg-black/50 border border-amber-500/30 px-4 py-2">
+                  <span className="block text-[10px] uppercase tracking-widest text-amber-400 font-bold">{countdown.label}</span>
+                  <span className="block text-lg font-display font-extrabold text-white">{countdown.value}</span>
+                </div>
+                <span className="text-stone-400">{countdown.subtext}</span>
+              </div>
 
-          <div className="pt-2 flex flex-wrap items-center gap-3">
-            {authenticatedPlayer ? (
-              <>
-                <span className="text-xs font-mono text-emerald-300">
-                  Signed in as {authenticatedPlayer.displayName} — you&apos;re already entered. The Mission Grid unlocks at launch.
+              <div className="pt-2 flex flex-wrap items-center gap-3">
+                {authenticatedPlayer ? (
+                  <>
+                    <span className="text-xs font-mono text-emerald-300">
+                      Signed in as {authenticatedPlayer.displayName} — you&apos;re already entered. The Mission Grid
+                      unlocks at launch.
+                    </span>
+                    <Link href="/profile" className="cq-gold-button inline-flex items-center gap-2 text-xs font-mono py-3 px-6">
+                      VIEW PLAYER FILE
+                      <ArrowRight size={15} />
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/register?next=%2Fevents%2Fcanton-weekend-1"
+                      className="cq-gold-button inline-flex items-center gap-2 text-xs font-mono py-3 px-6"
+                    >
+                      CREATE PLAYER IDENTITY
+                      <ArrowRight size={15} />
+                    </Link>
+                    <Link
+                      href="/login?next=%2Fevents%2Fcanton-weekend-1"
+                      className="cq-dark-button inline-flex items-center gap-2 text-xs font-mono py-3 px-5"
+                    >
+                      ACCESS COMMAND CENTER
+                    </Link>
+                  </>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="pt-1 flex flex-wrap items-center gap-3 text-xs font-mono">
+              {stage === 'active' && (
+                <span className="inline-flex items-center gap-1.5 text-emerald-300">
+                  <Zap size={14} />
+                  The Mission Grid is live — scroll down for your Missions, Map, and Scores.
                 </span>
-                <Link
-                  href="/profile"
-                  className="cq-gold-button inline-flex items-center gap-2 text-xs font-mono py-3 px-6"
-                >
-                  VIEW PLAYER FILE
-                  <ArrowRight size={15} />
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/register?next=%2Fevents%2Fcanton-weekend-1"
-                  className="cq-gold-button inline-flex items-center gap-2 text-xs font-mono py-3 px-6"
-                >
-                  CREATE PLAYER IDENTITY
-                  <ArrowRight size={15} />
-                </Link>
-                <Link
-                  href="/login?next=%2Fevents%2Fcanton-weekend-1"
-                  className="cq-dark-button inline-flex items-center gap-2 text-xs font-mono py-3 px-5"
-                >
-                  ACCESS COMMAND CENTER
-                </Link>
-              </>
-            )}
-          </div>
+              )}
+              {stage === 'finale' && (
+                <span className="inline-flex items-center gap-1.5 text-red-300">
+                  <Zap size={14} />
+                  Final hours — last chance to climb the board before the drawing locks.
+                </span>
+              )}
+              {stage === 'ended' && (
+                <span className="inline-flex items-center gap-1.5 text-stone-300">
+                  <Trophy size={14} />
+                  The Founder&apos;s Cipher has concluded — results are archived below.
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
-      {/* FOUR STEPS — FOUNDER'S CIPHER TUTORIAL */}
+      {/* STATE-SPECIFIC GATES/DASHBOARD SLOT */}
+      {children}
+
+      {/* PERSISTENT — FOUR STEPS */}
       <section aria-labelledby="cipher-steps-heading">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <span className="cq-kicker">HOW THE FOUNDER&apos;S CIPHER WORKS</span>
@@ -151,7 +190,7 @@ export default function FounderCipherPreLaunch({ event, authenticatedPlayer, cou
         </div>
       </section>
 
-      {/* THREE PATHS TEASER */}
+      {/* PERSISTENT — THREE PATHS */}
       <section aria-labelledby="cipher-paths-heading">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <span className="cq-kicker">THREE DOORS. ONE CITY.</span>
@@ -160,7 +199,6 @@ export default function FounderCipherPreLaunch({ event, authenticatedPlayer, cou
           </h2>
           <p className="text-sm text-stone-400 font-body mt-2">
             Your starting path gives you your first mission and identity — every quest in Canton stays open to you.
-            You&apos;ll choose your door when the Operation opens.
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -186,7 +224,7 @@ export default function FounderCipherPreLaunch({ event, authenticatedPlayer, cou
         </div>
       </section>
 
-      {/* REAL CANTON LOCATIONS */}
+      {/* PERSISTENT — REAL CANTON LOCATIONS */}
       <section aria-labelledby="cipher-destinations-heading">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <span className="cq-kicker">THE CITY IS THE GAME BOARD</span>
@@ -208,7 +246,7 @@ export default function FounderCipherPreLaunch({ event, authenticatedPlayer, cou
         </div>
       </section>
 
-      {/* COMMANDER BRIEFING */}
+      {/* PERSISTENT — COMMANDER BRIEFING */}
       <section aria-labelledby="cipher-briefing-heading" className="bg-stone-950/70 border-y border-stone-800/80 -mx-4 sm:-mx-6 px-4 sm:px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center max-w-5xl mx-auto">
           <div className="lg:col-span-5 space-y-4 text-left">
@@ -232,7 +270,7 @@ export default function FounderCipherPreLaunch({ event, authenticatedPlayer, cou
                 <Play size={16} className="fill-black" />
                 <span>{isVideoPlaying ? 'PLAYING BRIEFING' : 'PLAY FULL BRIEFING'}</span>
               </button>
-              <Link href="/how-it-works" className="cq-dark-button text-xs font-mono">
+              <Link href={`/events/canton-weekend-1/rules`} className="cq-dark-button text-xs font-mono">
                 READ FIELD RULES
               </Link>
             </div>
@@ -286,7 +324,7 @@ export default function FounderCipherPreLaunch({ event, authenticatedPlayer, cou
         </div>
       </section>
 
-      {/* $500 PRIZE PRESENTATION */}
+      {/* PERSISTENT — $500 PRIZE PRESENTATION */}
       <section aria-labelledby="cipher-prize-heading">
         <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-stone-950 p-8 sm:p-12 shadow-2xl">
           <Image
@@ -356,38 +394,39 @@ export default function FounderCipherPreLaunch({ event, authenticatedPlayer, cou
         </div>
       </section>
 
-      {/* CLOSING CTA */}
-      <section className="text-center max-w-xl mx-auto space-y-4">
-        <h2 className="font-display font-black text-xl sm:text-2xl text-white uppercase tracking-tight">
-          Get Ready For September 11
-        </h2>
-        <p className="text-sm text-stone-400 font-body">
-          Explore the site, create your Player Identity, and get ready — the Mission Grid comes online at launch.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            href="/how-it-works"
-            className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
-          >
-            <HelpCircle size={15} />
-            HOW IT WORKS
-          </Link>
-          <Link
-            href="/leaderboard?operation=canton-weekend-1"
-            className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
-          >
-            <Trophy size={15} />
-            PRE-SEASON LEADERBOARD
-          </Link>
-          <Link
-            href="/"
-            className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
-          >
-            <KeyRound size={15} />
-            RETURN TO COMMAND CENTER
-          </Link>
-        </div>
-      </section>
+      {stage === 'upcoming' && (
+        <section className="text-center max-w-xl mx-auto space-y-4">
+          <h2 className="font-display font-black text-xl sm:text-2xl text-white uppercase tracking-tight">
+            Get Ready For September 11
+          </h2>
+          <p className="text-sm text-stone-400 font-body">
+            Explore the site, create your Player Identity, and get ready — the Mission Grid comes online at launch.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/events/canton-weekend-1/rules"
+              className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+            >
+              <HelpCircle size={15} />
+              HOW IT WORKS
+            </Link>
+            <Link
+              href="/events/canton-weekend-1/leaderboard"
+              className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+            >
+              <Trophy size={15} />
+              PRE-SEASON LEADERBOARD
+            </Link>
+            <Link
+              href="/"
+              className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+            >
+              <KeyRound size={15} />
+              RETURN TO COMMAND CENTER
+            </Link>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -36,7 +36,7 @@ const CONTEXT_NAV_LINKS: Record<CinematicNavContext, NavLink[]> = {
     { href: '/how-it-works', label: 'HOW IT WORKS' },
   ],
   'main-operation': [
-    { href: '/quests', label: 'MISSION BOARD' },
+    { href: '/events/canton-weekend-1/quests', label: 'MISSION BOARD' },
     { href: '/leaderboard?operation=canton-weekend-1', label: 'RANKINGS' },
     { href: '/roster', label: 'PLAYER ROSTER' },
     { href: '/how-it-works', label: 'HOW IT WORKS' },

@@ -92,7 +92,7 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-body selection:bg-amber-500 selection:text-stone-950">
-        <Header />
+        <Header eventSlug={params.slug} />
         <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-16 text-center">
           <div className="bg-stone-900/60 border border-stone-800 rounded-2xl p-12 text-center my-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent mb-4"></div>
@@ -107,7 +107,7 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
   if (isPreLaunch || (!data && isKnownCantonLaunchSlug(params.slug))) {
     return (
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-body selection:bg-amber-500 selection:text-stone-950">
-        <Header />
+        <Header eventSlug={params.slug} />
 
         <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8 sm:py-12">
           <div className="mb-6 flex items-center justify-between">
@@ -216,7 +216,7 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
   if (isSystemUnavailable || !data) {
     return (
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-body selection:bg-amber-500 selection:text-stone-950">
-        <Header />
+        <Header eventSlug={params.slug} />
 
         <main className="flex-1 max-w-lg mx-auto w-full px-4 py-16 flex flex-col justify-center items-center text-center">
           <div className="p-8 sm:p-10 rounded-3xl border border-stone-800 bg-stone-900/90 shadow-2xl w-full space-y-4">
@@ -252,7 +252,7 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
-      <Header />
+      <Header eventSlug={params.slug} />
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8">
         <div className="mb-6 flex items-center justify-between">

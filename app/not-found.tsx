@@ -13,7 +13,7 @@ export default function NotFound() {
         The coordinate or mission you are looking for does not exist on the active Canton grid.
       </p>
       <Link
-        href="/quests"
+        href="/events/canton-weekend-1/quests"
         className="cq-gold-button font-display font-extrabold text-sm py-3 px-6"
       >
         RETURN TO QUEST BOARD

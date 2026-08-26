@@ -3,13 +3,23 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
+import { Compass, Gift, LogOut, Map, Trophy } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
 import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
-export default function Header() {
+interface HeaderProps {
+  /**
+   * When set, this is the Operation's own in-game nav bar — it shows quick
+   * links to that Operation's Mission Board / Map / Leaderboard / Drawing,
+   * scoped to /events/{eventSlug}/... Omit for chrome shared outside any
+   * single Operation.
+   */
+  eventSlug?: string;
+}
+
+export default function Header({ eventSlug }: HeaderProps) {
   const router = useRouter();
   const [player, setPlayer] = useState<Player | null>(null);
 
@@ -149,6 +159,28 @@ export default function Header() {
           )}
         </div>
       </div>
+
+      {eventSlug && (
+        <nav className="cq-header-operation-links" aria-label="Operation navigation">
+          <Link href={`/events/${eventSlug}`}>
+            <Compass size={13} aria-hidden="true" />
+            Operation Home
+          </Link>
+          <Link href={`/events/${eventSlug}/quests`}>Mission Board</Link>
+          <Link href={`/events/${eventSlug}/map`}>
+            <Map size={13} aria-hidden="true" />
+            Map
+          </Link>
+          <Link href={`/events/${eventSlug}/leaderboard`}>
+            <Trophy size={13} aria-hidden="true" />
+            Leaderboard
+          </Link>
+          <Link href={`/events/${eventSlug}/drawing`}>
+            <Gift size={13} aria-hidden="true" />
+            Drawing
+          </Link>
+        </nav>
+      )}
     </header>
   );
 }

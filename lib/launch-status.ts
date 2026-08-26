@@ -91,3 +91,38 @@ export function isPreLaunchEvent(
 
   return false;
 }
+
+export type OperationLifecycleStage = 'upcoming' | 'active' | 'finale' | 'ended';
+
+/**
+ * Classifies an Operation into a coarse presentation stage — upcoming,
+ * active, finale, or ended — so the public event page can keep showing an
+ * intentional, polished state throughout the Operation's whole lifecycle
+ * instead of only before launch.
+ *
+ * Prefers the game-master-controlled `currentPhase` (already wired through
+ * the admin live-control panel) when present, since it's the most accurate
+ * signal; falls back to `status`/timing when phase data isn't available.
+ */
+export function getOperationLifecycleStage(
+  event?: QuestEvent | null,
+  slug?: string | null,
+  currentTime?: Date | string | number
+): OperationLifecycleStage {
+  if (isPreLaunchEvent(event, slug, currentTime)) return 'upcoming';
+  if (!event) return 'upcoming';
+
+  if (event.currentPhase === 'finale') return 'finale';
+  if (event.currentPhase === 'ended') return 'ended';
+
+  if (event.status === 'ended') return 'ended';
+
+  if (event.endTime) {
+    const now = currentTime ? new Date(currentTime).getTime() : Date.now();
+    if (now >= new Date(event.endTime).getTime()) return 'ended';
+  }
+
+  if (event.currentPhase === 'final_hours') return 'finale';
+
+  return 'active';
+}

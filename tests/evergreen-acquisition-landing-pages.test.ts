@@ -81,7 +81,7 @@ describe('Canton Quests QR Campaign Landing Pages & Attribution Verification', (
     expect(html).toContain('ALL-AGES CITY ADVENTURE');
     expect(html).toContain('ROLES FOR PARENTS, KIDS &amp; FRIENDS');
     expect(html).toContain('cq-fair-family');
-    expect(html).toContain('href="/quests"');
+    expect(html).toContain('href="/events/canton-weekend-1/quests"');
   });
 
   it('2. /start/challenge renders properly with primary headline and ACCEPT THE CHALLENGE CTA', () => {
@@ -96,7 +96,7 @@ describe('Canton Quests QR Campaign Landing Pages & Attribution Verification', (
     expect(html).toContain('THE TACTICAL SCORING MATRIX');
     expect(html).toContain('COMPETITIVE INTEGRITY GUARANTEE');
     expect(html).toContain('cq-fair-challenge');
-    expect(html).toContain('href="/quests"');
+    expect(html).toContain('href="/events/canton-weekend-1/quests"');
     expect(html).not.toContain('15 mph');
     expect(html).not.toContain('Moving faster than 15 mph programmatically locks');
   });
@@ -113,12 +113,12 @@ describe('Canton Quests QR Campaign Landing Pages & Attribution Verification', (
     expect(html).toContain('ENTER THE QUEST');
     expect(html).toContain('THE UNLISTED CANTON DOSSIERS');
     expect(html).toContain('cq-fair-secret');
-    expect(html).toContain('href="/quests"');
+    expect(html).toContain('href="/events/canton-weekend-1/quests"');
   });
 
-  it('4. all landing page CTAs point to legitimate playable routes (/quests) with zero dead ends', () => {
-    expect(ACQUISITION_ENTRY_HREF).toBe('/quests');
-    expect(existsSync(join(process.cwd(), 'app/quests/page.tsx'))).toBe(true);
+  it('4. all landing page CTAs point to legitimate playable routes (/events/canton-weekend-1/quests) with zero dead ends', () => {
+    expect(ACQUISITION_ENTRY_HREF).toBe('/events/canton-weekend-1/quests');
+    expect(existsSync(join(process.cwd(), 'app/events/[slug]/quests/page.tsx'))).toBe(true);
 
     const familyHtml = renderToStaticMarkup(React.createElement(FamilyLanding));
     const challengeHtml = renderToStaticMarkup(React.createElement(ChallengeLanding));

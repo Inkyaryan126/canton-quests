@@ -79,7 +79,7 @@ export default function EventsPage() {
               <span className="cq-kicker">QUESTS</span>
               <h2>START HERE</h2>
             </div>
-            <Link href="/quests" className="cq-view-all-button">
+            <Link href="/events/canton-weekend-1/quests" className="cq-view-all-button">
               BROWSE QUESTS
               <ArrowRight size={16} aria-hidden="true" />
             </Link>

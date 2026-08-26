@@ -1,6 +1,6 @@
 import { cqImages } from './marketing-assets';
 
-export const ACQUISITION_ENTRY_HREF = '/quests';
+export const ACQUISITION_ENTRY_HREF = '/events/canton-weekend-1/quests';
 
 export const ACQUISITION_LANDING_DESTINATION_PRESETS = [
   { label: 'Family', path: '/start/family' },

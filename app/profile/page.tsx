@@ -317,7 +317,7 @@ export default function ProfilePage() {
             <h1>{data?.player.displayName || 'Canton Agent'}</h1>
           </div>
           <div className="cq-command-actions">
-            <Link href="/quests" className="cq-command-primary-link">
+            <Link href="/events/canton-weekend-1/quests" className="cq-command-primary-link">
               <Compass size={18} />
               <span>All Quests</span>
             </Link>
