@@ -1,39 +1,26 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowRight,
-  ChevronDown,
   Compass,
   Crown,
-  Flag,
   MapPin,
+  Play,
   Radio,
   ShieldCheck,
-  Sparkles,
   Trophy,
-  Zap,
+  Users,
 } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import OperationCard from '@/components/OperationCard';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { Player, PublicQuestView, QuestEvent } from '@/lib/types';
-import {
-  cleanQuestTitle,
-  cqImages,
-  destinationCards,
-  getActiveEvent,
-  getQuestDuration,
-  getQuestImage,
-  getQuestRarity,
-  questCategoryLabels,
-  rarityClassName,
-} from '@/lib/marketing-assets';
-import { Play, Gift, HelpCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Player, PublicRosterEntry, QuestEvent } from '@/lib/types';
+import { cqImages, getActiveEvent } from '@/lib/marketing-assets';
 import { isProfileIdentityComplete } from '@/lib/player-command-center';
 
 function getStoredPlayer(): Player | null {
@@ -54,34 +41,59 @@ function isOperationLive(event: QuestEvent): boolean {
   return new Date(event.startTime).getTime() <= Date.now();
 }
 
-const featureBlocks = [
+// The short, platform-level join loop — applies to every Operation, not
+// just the Sept 11 Main Operation's quest mechanics.
+const joinSteps = [
   {
-    title: 'PICK',
-    text: 'Choose a quest from the live board.',
+    title: 'IDENTITY',
+    text: 'Create your permanent Player Identity — free, good for every Operation.',
     Icon: Compass,
   },
   {
-    title: 'GO',
-    text: 'Solve it remotely, or go find it in Canton.',
+    title: 'OPERATION',
+    text: 'Choose an Active or Incoming Operation to enter.',
     Icon: MapPin,
   },
   {
-    title: 'PROVE',
-    text: 'Scan, check in, solve, or submit proof.',
+    title: 'OBJECTIVE',
+    text: 'Complete real-world objectives — scan, solve, submit proof.',
     Icon: ShieldCheck,
   },
   {
-    title: 'SCORE',
-    text: 'Earn XP and climb the leaderboard.',
+    title: 'COMPETE',
+    text: 'Earn points, climb the leaderboard, win real prizes.',
     Icon: Trophy,
+  },
+];
+
+const platformPillars = [
+  {
+    title: 'REAL PLACES',
+    text: 'Every mission plays out at an actual Canton landmark — not a screen.',
+    Icon: MapPin,
+  },
+  {
+    title: 'REAL CHALLENGES',
+    text: 'Ciphers, sprints, scavenger hunts, and verified proof — no busywork.',
+    Icon: ShieldCheck,
+  },
+  {
+    title: 'REAL PRIZES',
+    text: 'Cash prizes and leaderboard glory, across every Operation.',
+    Icon: Trophy,
+  },
+  {
+    title: 'ONE IDENTITY',
+    text: 'Create it once. It carries across every Operation Canton Quests ever runs.',
+    Icon: Users,
   },
 ];
 
 export default function HomePage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
-  const [quests, setQuests] = useState<PublicQuestView[]>([]);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [roster, setRoster] = useState<PublicRosterEntry[]>([]);
 
   useEffect(() => {
     // 1. Check client local storage display cache
@@ -98,19 +110,19 @@ export default function HomePage() {
       })
       .catch(() => {});
 
-    // 3. Load active event & quests
+    // 3. Load every Operation (live + incoming) for the Operations grid
     fetch('/api/game/events')
       .then((res) => res.json())
       .then((data: { events?: QuestEvent[] }) => {
-        const loadedEvents = data.events || [];
-        const active = getActiveEvent(loadedEvents);
-        setEvents(loadedEvents);
-        if (!active) return;
-        return fetch(`/api/game/events/${active.slug}`);
+        setEvents(data.events || []);
       })
-      .then((res) => res?.json())
-      .then((data: { quests?: PublicQuestView[] } | undefined) => {
-        setQuests(data?.quests || []);
+      .catch(() => {});
+
+    // 4. A small preview of the permanent Player Roster
+    fetch('/api/game/roster')
+      .then((res) => res.json())
+      .then((data: { roster?: PublicRosterEntry[] }) => {
+        setRoster(data.roster || []);
       })
       .catch(() => {});
   }, []);
@@ -119,13 +131,14 @@ export default function HomePage() {
   const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events/canton-weekend-1';
   const liveOperations = events.filter(isOperationLive);
   const incomingOperations = events.filter((e) => !isOperationLive(e));
+  const rosterPreview = roster.slice(0, 6);
 
   return (
     <div className="cq-home-shell">
       <CinematicNav eventHref={eventHref} context="global" />
 
       <main className="cq-page-main pt-4">
-        {/* LOGGED-OUT PLAYER ACCESS AREA */}
+        {/* A. HERO — PLAYER IDENTITY ACCESS */}
         {!currentPlayer && (
           <section className="cq-section pt-2 pb-6" aria-label="Player access">
             <div className="cq-section-shell">
@@ -134,11 +147,12 @@ export default function HomePage() {
                   <span className="text-xs font-mono font-bold uppercase text-cyan-400 tracking-wider">
                     Welcome to the Canton Quests Command Center
                   </span>
-                  <h2 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight mt-1">
+                  <h1 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight mt-1">
                     One Identity. Every Operation.
-                  </h2>
+                  </h1>
                   <p className="text-xs sm:text-sm text-stone-300 font-body mt-1 max-w-xl">
-                    Create your permanent Player Identity once — no starting path required — and enter any Operation, live or incoming.
+                    Canton Quests is a real-world adventure game — the city is the game board. Create your permanent
+                    Player Identity once — no starting path required — and enter any Operation, live or incoming.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
@@ -189,9 +203,9 @@ export default function HomePage() {
                     </div>
                     {identityComplete ? (
                       <>
-                        <h2 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                        <h1 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
                           WELCOME BACK, {currentPlayer.displayName}
-                        </h2>
+                        </h1>
                         <div className="flex items-center gap-3 text-xs font-mono text-stone-300 mt-1">
                           <span className="text-amber-400 font-bold">{currentPlayer.totalXp || 0} XP</span>
                           <span>•</span>
@@ -200,9 +214,9 @@ export default function HomePage() {
                       </>
                     ) : (
                       <>
-                        <h2 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                        <h1 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
                           COMPLETE YOUR PLAYER IDENTITY
-                        </h2>
+                        </h1>
                         <div className="flex items-center gap-3 text-xs font-mono text-stone-300 mt-1">
                           <span>Add a player image</span>
                           <span>•</span>
@@ -221,13 +235,13 @@ export default function HomePage() {
                     <span>{identityComplete ? 'VIEW PLAYER FILE' : 'COMPLETE IDENTITY'}</span>
                     <ArrowRight size={15} />
                   </Link>
-                  <Link
-                    href="/quests"
+                  <a
+                    href="#operations"
                     className="cq-dark-button flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-5"
                   >
                     <Compass size={15} />
-                    <span>BROWSE QUESTS</span>
-                  </Link>
+                    <span>BROWSE OPERATIONS</span>
+                  </a>
                 </div>
               </div>
             </div>
@@ -235,116 +249,7 @@ export default function HomePage() {
           );
         })()}
 
-        {/* PROMOTIONAL BRIEFING TRANSMISSION & VIDEO PLAYER */}
-        <section className="cq-section bg-stone-950/70 border-b border-stone-800/80 py-16" aria-labelledby="briefing-section-heading">
-          <div className="cq-section-shell">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-5 space-y-4 text-left">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
-                  <Radio size={14} className="text-amber-400 animate-pulse" />
-                  <span>GAME MASTER TRANSMISSION</span>
-                </div>
-                <h2 id="briefing-section-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-                  Official Mission Briefing
-                </h2>
-                <p className="text-sm text-stone-300 font-body leading-relaxed">
-                  Watch the official Game Commander transmission for Canton Quests Volume 1. Learn how real-world landmarks,
-                  street ciphers, and QR nodes connect across downtown Canton.
-                </p>
-                <div className="pt-2 flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsVideoPlaying(true)}
-                    className="cq-gold-button inline-flex items-center gap-2 cursor-pointer"
-                  >
-                    <Play size={16} className="fill-black" />
-                    <span>{isVideoPlaying ? 'PLAYING BRIEFING' : 'PLAY FULL BRIEFING'}</span>
-                  </button>
-                  <Link href="/how-it-works" className="cq-dark-button text-xs font-mono">
-                    READ FIELD RULES
-                  </Link>
-                </div>
-              </div>
-
-              <div className="lg:col-span-7">
-                <div className="relative aspect-video rounded-2xl overflow-hidden border border-amber-500/30 shadow-2xl bg-black">
-                  {isVideoPlaying ? (
-                    <video
-                      src={cqImages.promoVideo}
-                      poster={cqImages.promoVideoPoster}
-                      controls
-                      autoPlay
-                      playsInline
-                      className="w-full h-full object-cover"
-                    >
-                      Your browser does not support high-definition video playback.
-                    </video>
-                  ) : (
-                    <div
-                      onClick={() => setIsVideoPlaying(true)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setIsVideoPlaying(true)}
-                      className="relative w-full h-full cursor-pointer group"
-                    >
-                      <Image
-                        src={cqImages.promoVideoPoster}
-                        alt="Game Commander Mission Briefing"
-                        fill
-                        sizes="(max-width: 1024px) 100vw, 60vw"
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                      
-                      {/* Play Button Reticle */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-16 h-16 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-amber-400 transition-all">
-                          <Play size={26} className="fill-black ml-1" />
-                        </div>
-                      </div>
-
-                      {/* Video HUD Overlay */}
-                      <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[11px] font-mono text-stone-300 pointer-events-none">
-                        <span className="flex items-center gap-1.5 text-amber-300 font-bold">
-                          <Radio size={12} className="text-red-500 animate-pulse" />
-                          TRANSMISSION LOADED • CLICK TO PLAY
-                        </span>
-                        <span>2:17 • 1080P HD</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SHORT HOW IT WORKS (PICK, GO, PROVE, SCORE) & THREE DOORS PATH SELECTOR */}
-        <section className="cq-section cq-pillars-section" aria-labelledby="how-it-works-pillars-heading">
-          <div className="cq-section-shell space-y-12">
-            <div className="text-center max-w-2xl mx-auto mb-4">
-              <span className="cq-kicker">GAMEPLAY LOOP</span>
-              <h2 id="how-it-works-pillars-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-                Four Steps to Conquer Canton
-              </h2>
-            </div>
-
-            <div className="cq-pillars">
-              {featureBlocks.map(({ title, text, Icon }) => (
-                <article className="cq-pillar-card" key={title}>
-                  <span className="cq-pillar-icon">
-                    <Icon size={28} aria-hidden="true" />
-                  </span>
-                  <h2>{title}</h2>
-                  <p>{text}</p>
-                </article>
-              ))}
-            </div>
-
-          </div>
-        </section>
-
-        {/* ACTIVE & INCOMING OPERATIONS */}
+        {/* B. OPERATIONS — THE PRIMARY HOMEPAGE FOCUS */}
         <section id="operations" className="cq-section cq-pillars-section scroll-mt-24" aria-labelledby="operations-heading">
           <div className="cq-section-shell space-y-10">
             <div className="text-center max-w-2xl mx-auto mb-2">
@@ -387,106 +292,193 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* SELECTED REAL CANTON LOCATIONS / GAME WORLD */}
-        <section className="cq-section cq-destinations-section" aria-labelledby="destinations-heading">
-          <div className="cq-section-shell">
-            <div className="cq-section-heading">
-              <div>
-                <span className="cq-kicker">THE CITY IS THE GAME BOARD</span>
-                <h2 id="destinations-heading">REAL PLACES. REAL MISSIONS.</h2>
-              </div>
-              <a href="#operations" className="cq-view-all-button">
-                VIEW OPERATIONS
-                <ArrowRight size={16} aria-hidden="true" />
-              </a>
+        {/* C. WHAT IS CANTON QUESTS? */}
+        <section className="cq-section cq-pillars-section" aria-labelledby="what-is-cq-heading">
+          <div className="cq-section-shell space-y-12">
+            <div className="text-center max-w-2xl mx-auto mb-4">
+              <span className="cq-kicker">THE PLATFORM</span>
+              <h2 id="what-is-cq-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                What Is Canton Quests?
+              </h2>
+              <p className="text-sm text-stone-400 font-body mt-2">
+                A real-world adventure game layered over Canton, Ohio. One Player Identity, multiple Operations,
+                real stakes.
+              </p>
             </div>
 
-            <div className="cq-destination-grid">
-              {destinationCards.map((card) => (
-                <article className="cq-destination-card" key={card.title}>
-                  <Image src={card.image} alt={card.title} fill sizes="(max-width: 820px) 100vw, 25vw" />
-                  <div>
-                    <span>{card.label}</span>
-                    <h3>{card.title}</h3>
-                    <p>{card.copy}</p>
-                  </div>
+            <div className="cq-pillars">
+              {platformPillars.map(({ title, text, Icon }) => (
+                <article className="cq-pillar-card" key={title}>
+                  <span className="cq-pillar-icon">
+                    <Icon size={28} aria-hidden="true" />
+                  </span>
+                  <h2>{title}</h2>
+                  <p>{text}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        {/* PRIZE VAULT & TRANSPARENT DRAWING SECTION */}
-        <section className="cq-section py-16" aria-labelledby="prize-vault-heading">
+        {/* D. HOW IT WORKS — SHORT JOIN LOOP */}
+        <section className="cq-section cq-pillars-section" aria-labelledby="how-it-works-heading">
+          <div className="cq-section-shell space-y-12">
+            <div className="text-center max-w-2xl mx-auto mb-4">
+              <span className="cq-kicker">HOW IT WORKS</span>
+              <h2 id="how-it-works-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                Four Steps. Every Operation.
+              </h2>
+            </div>
+
+            <div className="cq-pillars">
+              {joinSteps.map(({ title, text, Icon }) => (
+                <article className="cq-pillar-card" key={title}>
+                  <span className="cq-pillar-icon">
+                    <Icon size={28} aria-hidden="true" />
+                  </span>
+                  <h2>{title}</h2>
+                  <p>{text}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="text-center">
+              <Link href="/how-it-works" className="cq-dark-button text-xs font-mono inline-flex items-center gap-2">
+                READ THE FULL RULES
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* E. WHAT'S HAPPENING NOW — LATEST TRANSMISSION (PROMOTIONAL BRIEFING TRANSMISSION) */}
+        <section className="cq-section bg-stone-950/70 border-y border-stone-800/80 py-14" aria-labelledby="briefing-section-heading">
           <div className="cq-section-shell">
-            <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-stone-950 p-8 sm:p-12 shadow-2xl">
-              <Image
-                src={cqImages.prizeVault}
-                alt=""
-                fill
-                sizes="(max-width: 1024px) 100vw, 1200px"
-                className="object-cover opacity-20 pointer-events-none"
-              />
-              <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                <div className="lg:col-span-7 space-y-4">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
-                    <Gift size={14} className="text-amber-400" />
-                    <span>SEPT. 11 MAIN OPERATION · EVERY QUEST = ONE DRAWING ENTRY</span>
-                  </div>
-                  <h2 id="prize-vault-heading" className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight">
-                    $500 Prize Pool
-                  </h2>
-                  <p className="text-sm text-stone-300 font-body leading-relaxed">
-                    Signing up is free and doesn&apos;t require an entry. Every verified completed mission earns <strong>+1 drawing entry</strong> into the cash drawings. Leaderboard prizes go to the top 2 XP scorers — no drawing entries required.
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs font-mono">
-                    <div className="p-3 rounded-xl bg-stone-900/80 border border-stone-800">
-                      <span className="text-amber-400 font-bold block text-[11px] uppercase mb-1.5">COMPETE FOR</span>
-                      <div className="space-y-1 text-stone-300">
-                        <div>🥇 Leaderboard Champion — <strong className="text-white">$200</strong></div>
-                        <div>🥈 Leaderboard Runner-Up — <strong className="text-white">$100</strong></div>
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-stone-900/80 border border-stone-800">
-                      <span className="text-amber-400 font-bold block text-[11px] uppercase mb-1.5">CASH DRAWINGS</span>
-                      <div className="space-y-1 text-stone-300">
-                        <div>🎟 $100 Cash Drawing</div>
-                        <div>🎟 $50 Cash Drawing</div>
-                        <div>🎟 $50 Cash Drawing</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <Link
-                      href="/events/canton-weekend-1/drawing"
-                      className="cq-gold-button inline-flex items-center gap-2 text-xs font-mono"
-                    >
-                      <span>VIEW LIVE PRIZE LEDGER</span>
-                      <ArrowRight size={14} />
-                    </Link>
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-5 space-y-4 text-left">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
+                  <Radio size={14} className="text-amber-400 animate-pulse" />
+                  <span>WHAT&apos;S HAPPENING NOW</span>
                 </div>
+                <h2 id="briefing-section-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                  Latest Transmission
+                </h2>
+                <p className="text-sm text-stone-300 font-body leading-relaxed">
+                  The latest briefing from the Game Commander on what&apos;s active, what&apos;s next, and how it
+                  all connects across downtown Canton.
+                </p>
+                <div className="pt-2 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsVideoPlaying(true)}
+                    className="cq-gold-button inline-flex items-center gap-2 cursor-pointer"
+                  >
+                    <Play size={16} className="fill-black" />
+                    <span>{isVideoPlaying ? 'PLAYING BRIEFING' : 'PLAY BRIEFING'}</span>
+                  </button>
+                  <a href="#operations" className="cq-dark-button text-xs font-mono">
+                    VIEW OPERATIONS
+                  </a>
+                </div>
+              </div>
 
-                <div className="lg:col-span-5 p-6 rounded-2xl bg-stone-900/90 border border-stone-800 text-xs font-mono space-y-3">
-                  <div className="flex items-center gap-2 text-amber-300 font-bold uppercase text-[11px]">
-                    <HelpCircle size={15} />
-                    <span>YOUR XP SCORE</span>
-                  </div>
-                  <p className="text-stone-300 leading-relaxed">
-                    <strong>XP means Experience Points.</strong> You earn XP when verified quests are completed. XP is your score in Canton Quests. The more XP you earn, the higher you climb on the citywide leaderboard.
-                  </p>
-                  <div className="pt-2 border-t border-stone-800 text-[11px] text-stone-400">
-                    XP determines leaderboard position. Drawing entries give chances at the $200 in random cash drawings. One entry = one chance.
-                  </div>
+              <div className="lg:col-span-7">
+                <div className="relative aspect-video rounded-2xl overflow-hidden border border-amber-500/30 shadow-2xl bg-black">
+                  {isVideoPlaying ? (
+                    <video
+                      src={cqImages.promoVideo}
+                      poster={cqImages.promoVideoPoster}
+                      controls
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover"
+                    >
+                      Your browser does not support high-definition video playback.
+                    </video>
+                  ) : (
+                    <div
+                      onClick={() => setIsVideoPlaying(true)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setIsVideoPlaying(true)}
+                      className="relative w-full h-full cursor-pointer group"
+                    >
+                      <Image
+                        src={cqImages.promoVideoPoster}
+                        alt="Game Commander Mission Briefing"
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 60vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-amber-400 transition-all">
+                          <Play size={26} className="fill-black ml-1" />
+                        </div>
+                      </div>
+
+                      <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[11px] font-mono text-stone-300 pointer-events-none">
+                        <span className="flex items-center gap-1.5 text-amber-300 font-bold">
+                          <Radio size={12} className="text-red-500 animate-pulse" />
+                          TRANSMISSION LOADED • CLICK TO PLAY
+                        </span>
+                        <span>2:17 • 1080P HD</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ONE STRONG FINAL CTA */}
+        {/* F. PLAYER COMMUNITY / ROSTER PREVIEW */}
+        {rosterPreview.length > 0 && (
+          <section className="cq-section py-14" aria-labelledby="roster-preview-heading">
+            <div className="cq-section-shell">
+              <div className="p-6 sm:p-8 rounded-3xl bg-stone-950/90 border border-stone-800 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex -space-x-3">
+                    {rosterPreview.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="w-10 h-10 rounded-full border-2 border-stone-950 bg-stone-900 overflow-hidden shrink-0"
+                        title={entry.displayName}
+                      >
+                        <PlayerAvatar
+                          avatarUrl={entry.avatarUrl}
+                          cropZoom={entry.profileImageCropZoom}
+                          cropX={entry.profileImageCropX}
+                          cropY={entry.profileImageCropY}
+                          size={40}
+                          ariaLabel={`${entry.displayName} avatar`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Users size={14} className="text-cyan-400" aria-hidden="true" />
+                      <span id="roster-preview-heading" className="text-xs font-mono font-bold uppercase text-cyan-400 tracking-wider">
+                        {roster.length} Registered {roster.length === 1 ? 'Agent' : 'Agents'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-white font-body">
+                      A growing roster of permanent Canton Quests identities — across every Operation.
+                    </p>
+                  </div>
+                </div>
+                <Link href="/roster" className="cq-dark-button inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-5 w-full sm:w-auto">
+                  VIEW PLAYER ROSTER
+                  <ArrowRight size={14} aria-hidden="true" />
+                </Link>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* G. FINAL CTA */}
         <section className="cq-live-cta" aria-labelledby="final-cta-heading">
           <div className="cq-live-cta-art" aria-hidden="true">
             <Image
@@ -500,14 +492,20 @@ export default function HomePage() {
             <span className="cq-kicker">CANTON QUESTS</span>
             <h2 id="final-cta-heading">THE CITY IS WAITING.</h2>
             <p>
-              One permanent Player Identity gets you into every Operation. Enter the Fair QR Hunt now,
-              or get ready for the Sept 11 Main Operation and its three-path competition.
+              One permanent Player Identity gets you into every Operation Canton Quests ever runs.
             </p>
             <div className="cq-live-buttons">
-              <a href="#operations" className="cq-gold-button">
-                VIEW OPERATIONS
-                <ArrowRight size={17} aria-hidden="true" />
-              </a>
+              {!currentPlayer ? (
+                <Link href="/register" className="cq-gold-button">
+                  CREATE PLAYER IDENTITY
+                  <ArrowRight size={17} aria-hidden="true" />
+                </Link>
+              ) : (
+                <a href="#operations" className="cq-gold-button">
+                  VIEW OPERATIONS
+                  <ArrowRight size={17} aria-hidden="true" />
+                </a>
+              )}
               <Link href="/leaderboard" className="cq-dark-button">
                 VIEW RANKINGS
                 <Crown size={17} aria-hidden="true" />
