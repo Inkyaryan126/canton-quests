@@ -192,6 +192,33 @@ export const SEED_EVENT: QuestEvent = {
   mapCenterLon: -81.3748,
   themeColor: '#f5b942',
   createdAt: '2026-08-01T00:00:00Z',
+  requiresPath: true,
+};
+
+// The Fair QR Hunt — a real, independent Operation. Path-free: a scan-based
+// scavenger hunt for the county fair, distinct from the Sept 11 Main
+// Operation's three-path experience. Its own event_id keeps its scoring,
+// leaderboard, and participation completely separate from Volume 1.
+export const SEED_FAIR_EVENT: QuestEvent = {
+  id: 'evt-canton-fair-qr-hunt',
+  cityId: SEED_CITY.id,
+  title: 'Canton Quests: Fair QR Hunt',
+  slug: 'fair-qr-hunt',
+  description:
+    'A path-free QR scavenger hunt across the fairgrounds. Scan every unique QR marker you can find for points toward the $100 Fair QR Hunt prize — no starting path required.',
+  status: 'active',
+  currentPhase: 'day_1',
+  isPaused: false,
+  startTime: '2026-08-20T00:00:00Z',
+  endTime: '2026-09-05T22:00:00Z',
+  basicInstructions:
+    '1. Explore the fairgrounds and find the QR markers.\n2. Scan each one — every unique marker counts once per player.\n3. Track your live rank on the Fair QR Hunt leaderboard.',
+  safetyNotes: 'Stay in public fairground areas, follow posted event staff instructions, and use marked walkways.',
+  mapCenterLat: 40.7989,
+  mapCenterLon: -81.3748,
+  themeColor: '#22d3ee',
+  createdAt: '2026-08-15T00:00:00Z',
+  requiresPath: false,
 };
 
 // Demo Players with Path & Attribution Metadata

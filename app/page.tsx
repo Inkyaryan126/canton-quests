@@ -19,8 +19,8 @@ import {
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
+import OperationCard from '@/components/OperationCard';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import ThreePathSelector from '@/components/ThreePathSelector';
 import { Player, PublicQuestView, QuestEvent } from '@/lib/types';
 import {
   cleanQuestTitle,
@@ -47,6 +47,11 @@ function getStoredPlayer(): Player | null {
     }
   }
   return null;
+}
+
+function isOperationLive(event: QuestEvent): boolean {
+  if (!event.startTime) return true;
+  return new Date(event.startTime).getTime() <= Date.now();
 }
 
 const featureBlocks = [
@@ -112,12 +117,50 @@ export default function HomePage() {
 
   const activeEvent = getActiveEvent(events);
   const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events/canton-weekend-1';
+  const liveOperations = events.filter(isOperationLive);
+  const incomingOperations = events.filter((e) => !isOperationLive(e));
 
   return (
     <div className="cq-home-shell">
       <CinematicNav eventHref={eventHref} />
 
       <main className="cq-page-main pt-4">
+        {/* LOGGED-OUT PLAYER ACCESS AREA */}
+        {!currentPlayer && (
+          <section className="cq-section pt-2 pb-6" aria-label="Player access">
+            <div className="cq-section-shell">
+              <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-stone-950 via-stone-900/90 to-cyan-950/30 border-2 border-cyan-500/30 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div>
+                  <span className="text-xs font-mono font-bold uppercase text-cyan-400 tracking-wider">
+                    Welcome to the Canton Quests Command Center
+                  </span>
+                  <h2 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight mt-1">
+                    One Identity. Every Operation.
+                  </h2>
+                  <p className="text-xs sm:text-sm text-stone-300 font-body mt-1 max-w-xl">
+                    Create your permanent Player Identity once — no starting path required — and enter any Operation, live or incoming.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  <Link
+                    href="/register"
+                    className="cq-gold-button flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-6"
+                  >
+                    CREATE PLAYER IDENTITY
+                    <ArrowRight size={15} />
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="cq-dark-button flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-5"
+                  >
+                    ACCESS COMMAND CENTER
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* AUTHENTICATED AGENT HERO BANNER */}
         {currentPlayer && (() => {
           const identityComplete = isProfileIdentityComplete(currentPlayer);
@@ -151,8 +194,12 @@ export default function HomePage() {
                         </h2>
                         <div className="flex items-center gap-3 text-xs font-mono text-stone-300 mt-1">
                           <span className="text-amber-400 font-bold">{currentPlayer.totalXp || 0} XP</span>
-                          <span>•</span>
-                          <span className="capitalize">{currentPlayer.selectedStartingPath || 'Family'} Path</span>
+                          {currentPlayer.selectedStartingPath && (
+                            <>
+                              <span>•</span>
+                              <span className="capitalize">{currentPlayer.selectedStartingPath} Path</span>
+                            </>
+                          )}
                           <span>•</span>
                           <span>Level {currentPlayer.level || 1}</span>
                         </div>
@@ -163,7 +210,7 @@ export default function HomePage() {
                           COMPLETE YOUR PLAYER IDENTITY
                         </h2>
                         <div className="flex items-center gap-3 text-xs font-mono text-stone-300 mt-1">
-                          <span>Choose your district + image</span>
+                          <span>Add a player image</span>
                           <span>•</span>
                           <span className="text-amber-400 font-bold">Earn +100 XP</span>
                         </div>
@@ -177,7 +224,7 @@ export default function HomePage() {
                     href="/profile"
                     className="cq-gold-button flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-6"
                   >
-                    <span>{identityComplete ? 'ENTER COMMAND CENTER' : 'COMPLETE IDENTITY'}</span>
+                    <span>{identityComplete ? 'VIEW PLAYER FILE' : 'COMPLETE IDENTITY'}</span>
                     <ArrowRight size={15} />
                   </Link>
                   <Link
@@ -300,20 +347,49 @@ export default function HomePage() {
               ))}
             </div>
 
-            {/* CHOOSE YOUR STARTING PATH */}
-            <ThreePathSelector
-              currentPath={currentPlayer?.selectedStartingPath || null}
-              onSelectPath={(path) => {
-                if (currentPlayer) {
-                  const updated = { ...currentPlayer, selectedStartingPath: path };
-                  setCurrentPlayerState(updated);
-                  if (typeof window !== 'undefined') {
-                    window.localStorage.setItem('canton_quests_current_player', JSON.stringify(updated));
-                  }
-                }
-              }}
-              eventSlug={activeEvent?.slug || 'canton-weekend-1'}
-            />
+          </div>
+        </section>
+
+        {/* ACTIVE & INCOMING OPERATIONS */}
+        <section id="operations" className="cq-section cq-pillars-section scroll-mt-24" aria-labelledby="operations-heading">
+          <div className="cq-section-shell space-y-10">
+            <div className="text-center max-w-2xl mx-auto mb-2">
+              <span className="cq-kicker">CANTON QUESTS OPERATIONS</span>
+              <h2 id="operations-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                Choose Your Operation
+              </h2>
+              <p className="text-sm text-stone-400 font-body mt-2">
+                One permanent Player Identity. Every Operation has its own scoring, prizes, and rules — no path is required just to browse.
+              </p>
+            </div>
+
+            {liveOperations.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-emerald-400">Active Operations</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {liveOperations.map((event) => (
+                    <OperationCard key={event.id} event={event} status="LIVE" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {incomingOperations.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-amber-400">Incoming Operations</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {incomingOperations.map((event) => (
+                    <OperationCard key={event.id} event={event} status="INCOMING" />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
@@ -325,8 +401,8 @@ export default function HomePage() {
                 <span className="cq-kicker">THE CITY IS THE GAME BOARD</span>
                 <h2 id="destinations-heading">REAL PLACES. REAL MISSIONS.</h2>
               </div>
-              <a href="#choose-path" className="cq-view-all-button">
-                CHOOSE PATH
+              <a href="#operations" className="cq-view-all-button">
+                VIEW OPERATIONS
                 <ArrowRight size={16} aria-hidden="true" />
               </a>
             </div>
@@ -361,7 +437,7 @@ export default function HomePage() {
                 <div className="lg:col-span-7 space-y-4">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
                     <Gift size={14} className="text-amber-400" />
-                    <span>EVERY QUEST = ONE DRAWING ENTRY</span>
+                    <span>SEPT. 11 MAIN OPERATION · EVERY QUEST = ONE DRAWING ENTRY</span>
                   </div>
                   <h2 id="prize-vault-heading" className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight">
                     $500 Prize Pool
@@ -427,19 +503,19 @@ export default function HomePage() {
             />
           </div>
           <div className="cq-live-cta-copy">
-            <span className="cq-kicker">CANTON QUESTS VOLUME 1</span>
+            <span className="cq-kicker">CANTON QUESTS</span>
             <h2 id="final-cta-heading">THE CITY IS WAITING.</h2>
             <p>
-              Kickoff begins September 11, 2026. Choose your starting path, set your callsign,
-              and get ready to explore downtown Canton on one citywide leaderboard.
+              One permanent Player Identity gets you into every Operation. Enter the Fair QR Hunt now,
+              or get ready for the Sept 11 Main Operation and its three-path competition.
             </p>
             <div className="cq-live-buttons">
-              <a href="#choose-path" className="cq-gold-button">
-                CHOOSE YOUR PATH
+              <a href="#operations" className="cq-gold-button">
+                VIEW OPERATIONS
                 <ArrowRight size={17} aria-hidden="true" />
               </a>
               <Link href="/leaderboard" className="cq-dark-button">
-                VIEW LEADERBOARD
+                VIEW RANKINGS
                 <Crown size={17} aria-hidden="true" />
               </Link>
             </div>
@@ -448,7 +524,7 @@ export default function HomePage() {
       </main>
 
       <CinematicFooter />
-      <MobileStartBar href="#choose-path" />
+      <MobileStartBar href="#operations" />
     </div>
   );
 }

@@ -81,11 +81,12 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
       </Link>
 
       <div className="cq-nav-links">
-        <Link href="/quests">QUESTS</Link>
-        <Link href="/leaderboard">LEADERBOARD</Link>
+        <Link href="/quests">MISSION BOARD</Link>
+        <Link href="/leaderboard">RANKINGS</Link>
+        <Link href="/roster">PLAYER ROSTER</Link>
         {player ? (
           <Link href="/profile" className="cq-gold-text font-bold">
-            COMMAND CENTER
+            PLAYER FILE
           </Link>
         ) : null}
         <Link href="/how-it-works">HOW IT WORKS</Link>

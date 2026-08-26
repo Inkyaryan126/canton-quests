@@ -107,7 +107,7 @@ function announceProfileCompletion(payload: { profileCompletionReward?: boolean;
     secondaryText: 'You are officially on the board.',
     xpAmount: payload.profileCompletionXp || 100,
     pathColor: path ? STARTING_DISTRICTS[path].color : undefined,
-    cta: 'ENTER COMMAND CENTER',
+    cta: 'VIEW PLAYER FILE',
   });
 }
 
@@ -173,7 +173,7 @@ export default function ProfilePage() {
     try {
       const response = await fetch('/api/player/command-center', { headers: authHeaders() });
       const payload = await response.json();
-      if (!response.ok || !payload.success) throw new Error(payload.error || 'Command Center unavailable.');
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Player File unavailable.');
       const nextData = payload as CommandCenterData & { success: true };
       setData(nextData);
       setDisplayName(nextData.player.displayName || '');
@@ -244,7 +244,7 @@ export default function ProfilePage() {
       });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Profile save failed.');
-      setMessage({ type: 'success', text: 'Command Center profile saved.' });
+      setMessage({ type: 'success', text: 'Player File saved.' });
       announceProfileCompletion(payload);
       await loadCommandCenter();
     } catch (error) {
@@ -277,7 +277,7 @@ export default function ProfilePage() {
       });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Upload failed.');
-      setMessage({ type: 'success', text: 'Custom photo uploaded and selected. Adjust crop below, then Save Command Center.' });
+      setMessage({ type: 'success', text: 'Custom photo uploaded and selected. Adjust crop below, then Save Player File.' });
       announceProfileCompletion(payload);
       await loadCommandCenter();
       URL.revokeObjectURL(localPreviewUrl);
@@ -326,7 +326,7 @@ export default function ProfilePage() {
       <main className="cq-command-shell">
         <div className="cq-command-hero">
           <div>
-            <p className="cq-command-eyebrow">Authenticated Player Command Center</p>
+            <p className="cq-command-eyebrow">Permanent Player Identity</p>
             <h1>{data?.player.displayName || 'Canton Agent'}</h1>
           </div>
           <div className="cq-command-actions">
@@ -695,14 +695,14 @@ export default function ProfilePage() {
                     </div>
                   )}
                   {isCustomSelected && (
-                    <p className="cq-avatar-active-note">Custom photo selected — your active avatar. Save Command Center to apply it everywhere.</p>
+                    <p className="cq-avatar-active-note">Custom photo selected — your active avatar. Save Player File to apply it everywhere.</p>
                   )}
                 </div>
               </div>
 
               <button type="submit" disabled={saving} className="cq-save-command">
                 <Save size={18} />
-                <span>{saving ? 'Saving...' : 'Save Command Center'}</span>
+                <span>{saving ? 'Saving...' : 'Save Player File'}</span>
               </button>
             </section>
           </form>

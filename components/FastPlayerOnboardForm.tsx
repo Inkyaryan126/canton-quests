@@ -8,7 +8,13 @@ import { StartingPath } from '@/lib/types';
 import { showGameMoment } from '@/lib/game-effects';
 
 interface FastPlayerOnboardFormProps {
-  startingPath: StartingPath;
+  /**
+   * Optional — Canton Quests permanent account creation never requires a
+   * path. Only set this when the form is embedded in an Operation-specific
+   * flow that already collected a path (e.g. the Sept 11 Main Operation's
+   * ThreePathSelector door confirmation).
+   */
+  startingPath?: StartingPath;
   acquisitionSource: string;
   buttonLabel?: string;
   redirectTo?: string;
@@ -129,13 +135,16 @@ export default function FastPlayerOnboardForm({
         }
       };
 
-      showGameMoment({
-        type: 'path-lock',
-        path: startingPath,
-        onFinished: navigateNext,
-      });
-
-      fallbackTimer = setTimeout(navigateNext, 3500);
+      if (startingPath) {
+        showGameMoment({
+          type: 'path-lock',
+          path: startingPath,
+          onFinished: navigateNext,
+        });
+        fallbackTimer = setTimeout(navigateNext, 3500);
+      } else {
+        navigateNext();
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to create account. Please try again.');
     } finally {
@@ -253,7 +262,7 @@ export default function FastPlayerOnboardForm({
           </span>
         </div>
         <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-stone-800 text-stone-300 border border-stone-700">
-          {pathTitles[startingPath]}
+          {startingPath ? pathTitles[startingPath] : 'Create Player Identity'}
         </span>
       </div>
 
@@ -432,7 +441,7 @@ export default function FastPlayerOnboardForm({
               <ShieldCheck size={13} />
               Verified Player Security
             </span>
-            <span>Path: {startingPath.toUpperCase()}</span>
+            {startingPath && <span>Path: {startingPath.toUpperCase()}</span>}
           </div>
 
           <button
@@ -451,7 +460,7 @@ export default function FastPlayerOnboardForm({
               </span>
             ) : (
               <>
-                <span>{buttonLabel || `JOIN ON ${startingPath.toUpperCase()}`}</span>
+                <span>{buttonLabel || (startingPath ? `JOIN ON ${startingPath.toUpperCase()}` : 'CREATE PLAYER IDENTITY')}</span>
                 <ArrowRight size={18} />
               </>
             )}

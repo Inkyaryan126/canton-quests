@@ -178,6 +178,15 @@ export interface QuestEvent {
   mapCenterLon?: number;
   themeColor?: string;
   createdAt: string;
+  /**
+   * Whether entering this Operation requires the player to choose a
+   * Family/Challenge/Secret path before reaching gameplay. Path is an
+   * Operation-specific attribute, not a global account requirement — most
+   * Operations (e.g. the Fair QR Hunt) leave this false. Defaults to false
+   * when absent so older/local data without the column still behaves
+   * path-free rather than unexpectedly gating.
+   */
+  requiresPath?: boolean;
 }
 
 export interface EventReadiness {
@@ -785,6 +794,39 @@ export interface PlayerEventProgress {
   availableCount: number;
   rank: number;
   isQualifiedForFinale?: boolean;
+}
+
+/**
+ * Public-safe Player Roster entry — every registered permanent player
+ * identity, regardless of Operation score. Deliberately excludes email,
+ * userId, and any other private/auth field; never gated on having scored
+ * any points.
+ */
+export interface PublicRosterEntry {
+  id: string;
+  displayName: string;
+  /** Pre-resolved via resolveAvatarUrl server-side — never the raw storage path. */
+  avatarUrl: string;
+  profileImageCropZoom?: number;
+  profileImageCropX?: number;
+  profileImageCropY?: number;
+  selectedStartingPath?: StartingPath;
+  level: number;
+  createdAt: string;
+}
+
+/**
+ * A player's participation record for one Operation (event_players).
+ * Separate from PermanentPlayer identity — this is where an Operation-
+ * specific path (when that Operation uses one) lives, not on the player
+ * account itself.
+ */
+export interface EventParticipation {
+  id: string;
+  eventId: string;
+  playerId: string;
+  path?: StartingPath | null;
+  registeredAt: string;
 }
 
 export interface SubmitProofParams {

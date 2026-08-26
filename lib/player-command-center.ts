@@ -101,14 +101,30 @@ export function hasValidAvatar(player: Pick<Player, 'avatarPresetKey' | 'profile
 }
 
 /**
- * The minimum player identity setup: a valid starting district AND a valid
- * avatar (preset or uploaded custom). This — not account creation alone —
- * is what unlocks the one-time Player Identity onboarding reward.
+ * The minimum PERMANENT player identity setup: a valid avatar (preset or
+ * uploaded custom). This — not account creation alone — is what unlocks the
+ * one-time, account-level Player Identity onboarding reward.
+ *
+ * A starting path is deliberately NOT required here. Path is an
+ * Operation-specific gameplay attribute (see event_players.path /
+ * lib/supabase-db.ts getOrCreateEventParticipationDB) that belongs to
+ * whichever specific Operation uses one (today, the Sept 11 Main
+ * Operation) — a player's permanent account identity should not be gated
+ * on a choice that only makes sense inside one Operation. Requiring path
+ * here was the pre-reorg behavior (hasValidStartingPath(player) &&
+ * hasValidAvatar(player)); it was relaxed as part of the Command
+ * Center/Operations reorganization. See
+ * supabase/migrations/20260826072300_operation_scoped_path_and_fair_hunt.sql
+ * for the one-time, zero-XP grandfather backfill this relaxation required
+ * (mirroring the identical precedent in
+ * 20260825000000_profile_completion_reward.sql) so relaxing the rule never
+ * retroactively pays out +100 XP to an already-existing account — only
+ * genuinely new completions from this point forward earn the live reward.
  */
 export function isProfileIdentityComplete(
-  player: Pick<Player, 'selectedStartingPath' | 'avatarPresetKey' | 'profileImagePath'>
+  player: Pick<Player, 'avatarPresetKey' | 'profileImagePath'>
 ): boolean {
-  return hasValidStartingPath(player) && hasValidAvatar(player);
+  return hasValidAvatar(player);
 }
 
 export function sanitizeFeaturedBadges(

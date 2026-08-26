@@ -19,11 +19,14 @@ import {
   PlayerEventProgress,
   PlayerCollectible,
   NPCCharacter,
+  EventParticipation,
+  StartingPath,
 } from '@/lib/types';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
 import { cleanQuestTitle, cqImages, formatEventWindow } from '@/lib/marketing-assets';
 import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
 import { showGameMoment } from '@/lib/game-effects';
+import ThreePathSelector from '@/components/ThreePathSelector';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -114,6 +117,61 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
 
   // Feedback Modal State
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+
+  // Operation Entry State — the permanent, authenticated player (never the
+  // localStorage display-cache fallback) and their Operation participation
+  // (event_players) record, per the Command Center reorganization.
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authenticatedPlayer, setAuthenticatedPlayer] = useState<Player | null>(null);
+  const [participation, setParticipation] = useState<EventParticipation | null>(null);
+  const [entering, setEntering] = useState(false);
+  const [enterError, setEnterError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data: { isAuthenticated?: boolean; player?: Player }) => {
+        setAuthenticatedPlayer(data.isAuthenticated && data.player ? data.player : null);
+      })
+      .catch(() => setAuthenticatedPlayer(null))
+      .finally(() => setAuthChecked(true));
+  }, []);
+
+  const enterOperation = useCallback(
+    async (path?: StartingPath) => {
+      setEntering(true);
+      setEnterError(null);
+      try {
+        const res = await fetch(`/api/game/operations/${eventSlug}/enter`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(path ? { path } : {}),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setEnterError(data.error || 'Unable to enter this Operation.');
+          return;
+        }
+        setParticipation(data.participation);
+      } catch {
+        setEnterError('Unable to enter this Operation. Check your connection and try again.');
+      } finally {
+        setEntering(false);
+      }
+    },
+    [eventSlug]
+  );
+
+  // Once the player's real authenticated identity is confirmed, silently
+  // find-or-create their participation record for this Operation —
+  // idempotent (never a duplicate event_players row), so a returning
+  // participant never has to click through this again.
+  useEffect(() => {
+    if (authChecked && authenticatedPlayer && !participation && !entering) {
+      enterOperation();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authChecked, authenticatedPlayer]);
 
   const refreshData = useCallback(() => {
     const player = getClientPlayer();
@@ -324,9 +382,97 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
     );
   }
 
+  // GATE 1 — not a permanent, authenticated player yet. Preserve this
+  // Operation as the intended return destination through Access Command
+  // Center / Create Player Identity, exactly as the approved auth-return
+  // architecture requires.
+  if (authChecked && !authenticatedPlayer) {
+    const nextParam = encodeURIComponent(`/events/${eventSlug}`);
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
+        <Header />
+        <main className="flex-1 max-w-lg mx-auto w-full px-4 py-16 flex flex-col justify-center items-center text-center">
+          <div className="relative overflow-hidden rounded-3xl border border-amber-500/40 bg-stone-900/90 shadow-2xl p-8 sm:p-10 w-full space-y-4">
+            <Image
+              src={cqImages.questBoardBg}
+              alt=""
+              fill
+              sizes="(max-width: 1024px) 100vw, 600px"
+              className="object-cover opacity-15 pointer-events-none"
+            />
+            <div className="relative z-10 space-y-4">
+              <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Operation Access Required</span>
+              <h1 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                {event.title}
+              </h1>
+              <p className="text-sm text-stone-300 leading-relaxed font-body">
+                {event.description || 'One permanent Canton Quests Player Identity gets you into every Operation.'}
+              </p>
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Link
+                  href={`/register?next=${nextParam}`}
+                  className="cq-gold-button w-full sm:w-auto text-xs py-3 px-6 font-mono font-bold inline-flex items-center justify-center gap-2"
+                >
+                  CREATE PLAYER IDENTITY
+                </Link>
+                <Link
+                  href={`/login?next=${nextParam}`}
+                  className="cq-dark-button w-full sm:w-auto text-xs py-3 px-6 font-mono font-bold inline-flex items-center justify-center gap-2"
+                >
+                  ACCESS COMMAND CENTER
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
+        <CinematicFooter />
+      </div>
+    );
+  }
+
+  // GATE 2 — authenticated, but their Operation participation record hasn't
+  // resolved yet (idempotent find-or-create in flight).
+  if (authChecked && authenticatedPlayer && !participation) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent mb-4" />
+        <p className="text-xs text-amber-300 tracking-wider uppercase">Entering Operation...</p>
+        {enterError && (
+          <div className="mt-4 text-center space-y-3">
+            <p className="text-xs text-red-400">{enterError}</p>
+            <button type="button" onClick={() => enterOperation()} className="cq-gold-button text-xs py-2 px-5">
+              RETRY
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // GATE 3 — this Operation uses Family/Challenge/Secret and this player
+  // hasn't chosen one for it yet. A returning participant with a path
+  // already on their event_players record skips straight past this.
+  if (event.requiresPath && participation && !participation.path) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
+        <Header />
+        <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-12">
+          <ThreePathSelector
+            eventSlug={eventSlug}
+            confirmOnly
+            confirmPending={entering}
+            confirmError={enterError}
+            onConfirm={(path) => enterOperation(path)}
+          />
+        </main>
+        <CinematicFooter />
+      </div>
+    );
+  }
+
   const activeFlashQuests = quests.filter((q) => q.isFlash && q.status === 'active');
   const activeNpc = npcs[0];
-  const playerChosenPath = currentPlayer?.selectedStartingPath || 'family';
+  const playerChosenPath = participation?.path || currentPlayer?.selectedStartingPath || 'family';
   const pathQuests = quests.filter(
     (q) => q.startingPath === playerChosenPath && q.status === 'active' && !progress?.completedQuestIds.includes(q.id)
   );

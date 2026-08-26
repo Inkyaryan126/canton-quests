@@ -4,9 +4,13 @@
  * Verifies the one-time "Player Identity" onboarding reward
  * (evaluateAndGrantProfileCompletionReward in lib/game-engine.ts):
  *   - account signup alone never grants XP
- *   - the reward only fires once BOTH a valid starting path AND a valid
- *     avatar (preset or uploaded custom) are true, regardless of the order
- *     those two conditions are satisfied in
+ *   - the reward fires once a valid avatar (preset or uploaded custom) is
+ *     set — a starting path is NOT required (Command Center / Operations
+ *     reorganization, supabase/migrations/20260826072300_...sql): path is
+ *     now an Operation-specific attribute (event_players.path), not a
+ *     permanent-account requirement, so it was deliberately removed from
+ *     this gate. Setting a path alongside the avatar remains harmless and
+ *     still qualifies, since only the avatar is actually checked.
  *   - it is a strict one-time grant: later changes, retries, concurrent
  *     requests, and refresh/logout/login never grant it again
  *   - it never creates an Entry Token or a drawing_entry_ledger record
@@ -52,14 +56,19 @@ describe('Profile Completion Incentive', () => {
     expect(getPlayerById(player.id)?.totalXp).toBe(0);
   });
 
-  it('3. avatar only gives 0 XP', () => {
+  it('3. avatar alone gives +100 XP once — no path required for permanent identity completion', () => {
     const player = newPlayer('avatar-only');
     updatePlayerProfile(player.id, { avatarPresetKey: '3' });
 
-    const result = evaluateAndGrantProfileCompletionReward(player.id);
-    expect(result.newlyGranted).toBe(false);
-    expect(result.xpAwarded).toBe(0);
-    expect(getPlayerById(player.id)?.totalXp).toBe(0);
+    const first = evaluateAndGrantProfileCompletionReward(player.id);
+    expect(first.newlyGranted).toBe(true);
+    expect(first.xpAwarded).toBe(100);
+    expect(getPlayerById(player.id)?.totalXp).toBe(100);
+    expect(getPlayerById(player.id)?.selectedStartingPath).toBeUndefined();
+
+    const second = evaluateAndGrantProfileCompletionReward(player.id);
+    expect(second.newlyGranted).toBe(false);
+    expect(getPlayerById(player.id)?.totalXp).toBe(100);
   });
 
   it('4. path + preset avatar gives +100 XP once', () => {
@@ -103,18 +112,20 @@ describe('Profile Completion Incentive', () => {
     expect(getPlayerById(player.id)?.totalXp).toBe(0);
   });
 
-  it('6. avatar first then path works', () => {
+  it('6. setting a path after already qualifying via avatar gives 0 extra XP (already granted)', () => {
     const player = newPlayer('avatar-then-path');
     updatePlayerProfile(player.id, { avatarPresetKey: '5' });
-    expect(evaluateAndGrantProfileCompletionReward(player.id).newlyGranted).toBe(false);
+    // Avatar alone already qualifies under the relaxed rule.
+    expect(evaluateAndGrantProfileCompletionReward(player.id).newlyGranted).toBe(true);
+    expect(getPlayerById(player.id)?.totalXp).toBe(100);
 
     updatePlayerProfile(player.id, { selectedStartingPath: 'family' });
     const result = evaluateAndGrantProfileCompletionReward(player.id);
-    expect(result.newlyGranted).toBe(true);
+    expect(result.newlyGranted).toBe(false);
     expect(getPlayerById(player.id)?.totalXp).toBe(100);
   });
 
-  it('7. path first then avatar works', () => {
+  it('7. path alone (no avatar) still gives 0 XP — avatar remains required', () => {
     const player = newPlayer('path-then-avatar');
     updatePlayerProfile(player.id, { selectedStartingPath: 'challenge' });
     expect(evaluateAndGrantProfileCompletionReward(player.id).newlyGranted).toBe(false);

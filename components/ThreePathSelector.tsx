@@ -21,6 +21,20 @@ interface ThreePathSelectorProps {
   currentPath?: StartingPath | null;
   onSelectPath?: (path: StartingPath) => void;
   eventSlug?: string;
+  /** Overrides the default `/events/${eventSlug}` destination after signup — e.g. to preserve an intended Operation entry point. */
+  redirectTo?: string;
+  /**
+   * When true, door selection does NOT show the account-creation form —
+   * instead shows a lightweight "confirm & continue" action that calls
+   * `onConfirm`. Use this for an already-logged-in player choosing their
+   * path for an Operation that requires one (e.g. the Sept 11 Main
+   * Operation) — they already have a permanent account, so re-showing
+   * signup would be wrong.
+   */
+  confirmOnly?: boolean;
+  onConfirm?: (path: StartingPath) => void | Promise<void>;
+  confirmPending?: boolean;
+  confirmError?: string | null;
 }
 
 interface PathOption {
@@ -134,6 +148,11 @@ export default function ThreePathSelector({
   currentPath = null,
   onSelectPath,
   eventSlug = 'canton-weekend-1',
+  redirectTo,
+  confirmOnly = false,
+  onConfirm,
+  confirmPending = false,
+  confirmError = null,
 }: ThreePathSelectorProps) {
   const [selectedPath, setSelectedPath] = useState<StartingPath | null>(currentPath || null);
   const confirmationRef = useRef<HTMLDivElement>(null);
@@ -309,14 +328,33 @@ export default function ThreePathSelector({
             </button>
           </div>
 
-          {/* Fast Callsign / Email Onboarding */}
-          <FastPlayerOnboardForm
-            startingPath={selectedPath}
-            acquisitionSource="main_site_path_selector"
-            redirectTo={`/events/${eventSlug}`}
-            themeAccent={activeOption.color}
-            buttonLabel={`START ON ${activeOption.title}`}
-          />
+          {confirmOnly ? (
+            <div className="cq-door-confirm-only">
+              {confirmError && (
+                <p style={{ color: '#f87171', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', marginBottom: '0.5rem' }}>
+                  {confirmError}
+                </p>
+              )}
+              <button
+                type="button"
+                disabled={confirmPending}
+                onClick={() => onConfirm?.(selectedPath)}
+                className="cq-gold-button"
+                style={{ width: '100%', marginTop: '0.5rem', opacity: confirmPending ? 0.6 : 1 }}
+              >
+                {confirmPending ? 'CONFIRMING...' : `CONFIRM ${activeOption.title} & CONTINUE`}
+              </button>
+            </div>
+          ) : (
+            /* Fast Callsign / Email Onboarding */
+            <FastPlayerOnboardForm
+              startingPath={selectedPath}
+              acquisitionSource="main_site_path_selector"
+              redirectTo={redirectTo || `/events/${eventSlug}`}
+              themeAccent={activeOption.color}
+              buttonLabel={`START ON ${activeOption.title}`}
+            />
+          )}
         </div>
       ) : (
         /* Prompt for unselected state */

@@ -12,6 +12,7 @@ import {
   ScoreLedgerEntry,
   LeaderboardEntry,
   PlayerEventProgress,
+  EventParticipation,
   SubmitProofParams,
   SubmitProofResult,
   EventActivityItem,
@@ -42,6 +43,7 @@ import {
   PrizeDrawRecord,
   PublicPlayerDrawingEntry,
   PublicPrizeDrawResult,
+  PublicRosterEntry,
   PublicDrawingPageData,
   AuthenticatedPlayerDrawingQualification,
   DrawingLedgerReview,
@@ -89,7 +91,7 @@ import {
   proofMatches,
   proofMatchesAny,
 } from './quest-proof-secrets';
-import { isProfileIdentityComplete } from './player-command-center';
+import { isProfileIdentityComplete, resolveAvatarUrl } from './player-command-center';
 
 
 function mapLocationFromDB(row: any): LocationInfo | undefined {
@@ -260,6 +262,7 @@ function mapEventFromDB(row: any): QuestEvent {
     mapCenterLon: row.map_center_lon,
     themeColor: row.theme_color,
     createdAt: row.created_at,
+    requiresPath: row.requires_path || false,
   };
 }
 
@@ -574,7 +577,12 @@ export async function seedDatabaseDB(): Promise<{ success: boolean; message: str
 // 2. EVENT FACTORY API
 export async function getEventsDB(): Promise<QuestEvent[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getEvents();
-  const { data, error } = await supabase.from('events').select('*').order('created_at', { ascending: false });
+  // Ascending (oldest first) so the flagship Sept 11 Main Operation — the
+  // earliest-created event — reliably sorts first and remains
+  // getActiveEvent()'s pick whenever more than one Operation has
+  // status='active' simultaneously (e.g. once the Fair QR Hunt is live
+  // alongside it), matching local/offline seed ordering.
+  const { data, error } = await supabase.from('events').select('*').order('created_at', { ascending: true });
   if (error || !data || data.length === 0) return localEngine.getEvents();
   return data.map(mapEventFromDB);
 }
@@ -584,6 +592,87 @@ export async function getEventBySlugDB(slug: string): Promise<QuestEvent | undef
   const { data, error } = await supabase.from('events').select('*').eq('slug', slug).single();
   if (error || !data) return localEngine.getEventBySlug(slug);
   return mapEventFromDB(data);
+}
+
+function mapEventParticipationFromDB(row: any): EventParticipation {
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    playerId: row.player_id,
+    path: row.path || null,
+    registeredAt: row.registered_at,
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Operation Participation (event_players) — the canonical "this player
+// entered this Operation" record, per the approved Command Center
+// architecture. Distinct from the player's permanent identity (players
+// table) and from a global path (players.selected_starting_path, kept as
+// legacy data) — path here is scoped to exactly one Operation.
+// -----------------------------------------------------------------------------
+
+export async function getEventParticipationDB(eventId: string, playerId: string): Promise<EventParticipation | undefined> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getEventParticipation(eventId, playerId);
+  const db = supabaseAdmin || supabase;
+  const { data, error } = await db
+    .from('event_players')
+    .select('*')
+    .eq('event_id', eventId)
+    .eq('player_id', playerId)
+    .maybeSingle();
+  if (error || !data) return undefined;
+  return mapEventParticipationFromDB(data);
+}
+
+/**
+ * Finds or creates the (event_id, player_id) participation record.
+ * Relies on event_players' real UNIQUE(event_id, player_id) constraint via
+ * upsert-with-ignoreDuplicates, so a duplicate-entry race can never create a
+ * second row — the loser of the race simply re-reads the winner's row. An
+ * existing non-null path is never overwritten; a supplied path only fills a
+ * previously-empty one (a player choosing their path after already
+ * entering the Operation).
+ */
+export async function getOrCreateEventParticipationDB(
+  eventId: string,
+  playerId: string,
+  path?: StartingPath | null
+): Promise<EventParticipation> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.getOrCreateEventParticipation(eventId, playerId, path);
+  }
+  const db = supabaseAdmin;
+
+  const existing = await getEventParticipationDB(eventId, playerId);
+  if (existing) {
+    if (path && !existing.path) {
+      const { data, error } = await db
+        .from('event_players')
+        .update({ path })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (!error && data) return mapEventParticipationFromDB(data);
+    }
+    return existing;
+  }
+
+  const { data, error } = await db
+    .from('event_players')
+    .upsert(
+      { event_id: eventId, player_id: playerId, path: path || null },
+      { onConflict: 'event_id,player_id', ignoreDuplicates: false }
+    )
+    .select()
+    .single();
+  if (error || !data) {
+    // Lost a create race against a concurrent request — read back the winner's row.
+    const winner = await getEventParticipationDB(eventId, playerId);
+    if (winner) return winner;
+    throw new Error(`Failed to create Operation participation: ${error?.message}`);
+  }
+  return mapEventParticipationFromDB(data);
 }
 
 export async function createEventWizardDB(eventData: Omit<QuestEvent, 'id' | 'createdAt'>): Promise<QuestEvent> {
@@ -837,7 +926,6 @@ export async function evaluateAndGrantProfileCompletionRewardDB(
   if (playerError || !playerRow) return { newlyGranted: false, xpAwarded: 0 };
 
   const qualifies = isProfileIdentityComplete({
-    selectedStartingPath: playerRow.selected_starting_path || undefined,
     avatarPresetKey: playerRow.avatar_preset_key || undefined,
     profileImagePath: playerRow.profile_image_path || undefined,
   });
@@ -2036,6 +2124,61 @@ export async function submitQuestProofDB(
     console.error('submitQuestProofDB error:', err);
     return failedSubmissionResult(params, err.message || 'Server-authoritative submission failed.');
   }
+}
+
+/**
+ * Public Player Roster — every registered permanent player identity,
+ * regardless of any Operation's score (never gated on having earned any
+ * points). Distinct from an Operation leaderboard. Selects only public-safe
+ * columns directly (never selects email/user_id at all, rather than
+ * fetching-then-stripping) and resolves each avatar server-side so a raw
+ * storage path is never sent to the client.
+ */
+export async function getPlayerRosterDB(search?: string): Promise<PublicRosterEntry[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    const needle = search?.trim().toLowerCase();
+    return localEngine
+      .getAllPlayers()
+      .filter((p) => !needle || p.displayName.toLowerCase().includes(needle))
+      .map((p) => ({
+        id: p.id,
+        displayName: p.displayName,
+        avatarUrl: resolveAvatarUrl(p),
+        profileImageCropZoom: p.profileImageCropZoom,
+        profileImageCropX: p.profileImageCropX,
+        profileImageCropY: p.profileImageCropY,
+        selectedStartingPath: p.selectedStartingPath,
+        level: p.level,
+        createdAt: p.createdAt,
+      }));
+  }
+
+  const db = supabaseAdmin || supabase;
+  let query = db
+    .from('players')
+    .select(
+      'id, display_name, avatar_preset_key, profile_image_path, profile_image_crop_zoom, profile_image_crop_x, profile_image_crop_y, selected_starting_path, level, created_at'
+    )
+    .order('created_at', { ascending: true });
+
+  if (search && search.trim()) {
+    query = query.ilike('display_name', `%${search.trim()}%`);
+  }
+
+  const { data, error } = await query;
+  if (error || !data) return [];
+
+  return data.map((row: any) => ({
+    id: row.id,
+    displayName: row.display_name,
+    avatarUrl: resolveAvatarUrl({ id: row.id, avatarPresetKey: row.avatar_preset_key, profileImagePath: row.profile_image_path }),
+    profileImageCropZoom: row.profile_image_crop_zoom,
+    profileImageCropX: row.profile_image_crop_x,
+    profileImageCropY: row.profile_image_crop_y,
+    selectedStartingPath: row.selected_starting_path || undefined,
+    level: row.level,
+    createdAt: row.created_at,
+  }));
 }
 
 export async function getLeaderboardDB(eventId: string): Promise<LeaderboardEntry[]> {

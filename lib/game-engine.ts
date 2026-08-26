@@ -14,6 +14,7 @@ import {
   PublicQuestView,
   LeaderboardEntry,
   PlayerEventProgress,
+  EventParticipation,
   ProofVerificationType,
   QuestState,
   SubmitProofParams,
@@ -67,6 +68,7 @@ import {
   SEED_CITY,
   SEED_LOCATIONS,
   SEED_EVENT,
+  SEED_FAIR_EVENT,
   SEED_QUESTS,
   SEED_DEMO_PLAYERS,
   SEED_COLLECTIBLES,
@@ -111,6 +113,7 @@ const STORAGE_KEYS = {
   GENERATED_QRS: 'canton_quests_generated_qrs',
   LOCATIONS: 'canton_quests_locations',
   REWARD_GRANTS: 'canton_quests_reward_grants',
+  EVENT_PLAYERS: 'canton_quests_event_players',
 };
 
 const inMemoryStore = new Map<string, any>();
@@ -174,7 +177,10 @@ function setStoredItem<T>(key: string, value: T): void {
 // Ensure default seed data is initialized in storage
 export function initializeGameEngine(): void {
   if (getStoredItem<QuestEvent[]>(STORAGE_KEYS.EVENTS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.EVENTS, [JSON.parse(JSON.stringify(SEED_EVENT))]);
+    setStoredItem(STORAGE_KEYS.EVENTS, [
+      JSON.parse(JSON.stringify(SEED_EVENT)),
+      JSON.parse(JSON.stringify(SEED_FAIR_EVENT)),
+    ]);
   }
   if (getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, []).length === 0) {
     setStoredItem(STORAGE_KEYS.QUESTS, mergeServerQuestTargetCodes(JSON.parse(JSON.stringify(SEED_QUESTS))));
@@ -1509,14 +1515,16 @@ export function updatePlayerProfile(playerId: string, updates: Partial<Player>):
 export const PROFILE_COMPLETION_XP = 100;
 
 /**
- * The one-time Player Identity onboarding reward: +100 XP, no Entry Token,
- * awarded exactly once per player the first time both a valid starting
- * path AND a valid avatar (preset or custom-with-upload) are true
- * simultaneously. Call this after any profile mutation capable of
- * satisfying either requirement (path change, avatar preset selection,
- * custom photo upload/delete) — it always re-evaluates the player's
- * current authoritative state and is a safe no-op if already granted or
- * not yet qualified. Never awards a drawing entry.
+ * The one-time, account-level Player Identity onboarding reward: +100 XP,
+ * no Entry Token, awarded exactly once per player the first time they have
+ * a valid avatar (preset or custom-with-upload). Path is deliberately not
+ * part of this check — it's an Operation-specific attribute, not a
+ * permanent-identity requirement (see isProfileIdentityComplete in
+ * lib/player-command-center.ts). Call this after any profile mutation
+ * capable of satisfying the requirement (avatar preset selection, custom
+ * photo upload) — it always re-evaluates the player's current authoritative
+ * state and is a safe no-op if already granted or not yet qualified. Never
+ * awards a drawing entry.
  */
 export function evaluateAndGrantProfileCompletionReward(playerId: string): { newlyGranted: boolean; xpAwarded: number } {
   initializeGameEngine();
@@ -1555,6 +1563,52 @@ export function getEvents(): QuestEvent[] {
 export function getEventBySlug(slug: string): QuestEvent | undefined {
   const events = getEvents();
   return events.find((e) => e.slug === slug);
+}
+
+// -----------------------------------------------------------------------------
+// Operation Participation (event_players) — local/offline engine
+// -----------------------------------------------------------------------------
+
+export function getEventParticipation(eventId: string, playerId: string): EventParticipation | undefined {
+  initializeGameEngine();
+  const rows = getStoredItem<EventParticipation[]>(STORAGE_KEYS.EVENT_PLAYERS, []);
+  return rows.find((r) => r.eventId === eventId && r.playerId === playerId);
+}
+
+/**
+ * Finds or creates the (event_id, player_id) participation record — the
+ * canonical "this player entered this Operation" fact. Never creates a
+ * second row for the same player+event (mirrors event_players' real
+ * UNIQUE(event_id, player_id) constraint). If a path is supplied and the
+ * existing record has none yet, it's filled in (a player choosing their
+ * path after already entering); an existing non-null path is never
+ * overwritten by a later call.
+ */
+export function getOrCreateEventParticipation(
+  eventId: string,
+  playerId: string,
+  path?: StartingPath | null
+): EventParticipation {
+  initializeGameEngine();
+  const rows = getStoredItem<EventParticipation[]>(STORAGE_KEYS.EVENT_PLAYERS, []);
+  const existing = rows.find((r) => r.eventId === eventId && r.playerId === playerId);
+  if (existing) {
+    if (path && !existing.path) {
+      existing.path = path;
+      setStoredItem(STORAGE_KEYS.EVENT_PLAYERS, rows);
+    }
+    return existing;
+  }
+
+  const created: EventParticipation = {
+    id: `evp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    eventId,
+    playerId,
+    path: path || null,
+    registeredAt: new Date().toISOString(),
+  };
+  setStoredItem(STORAGE_KEYS.EVENT_PLAYERS, [...rows, created]);
+  return created;
 }
 
 export function createEvent(eventData: Omit<QuestEvent, 'id' | 'createdAt'>): QuestEvent {
