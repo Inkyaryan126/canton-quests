@@ -11,6 +11,7 @@ import CantonMapWrapper from '@/components/CantonMapWrapper';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
 import MobileStartBar from '@/components/MobileStartBar';
 import CinematicFooter from '@/components/CinematicFooter';
+import FounderCipherPreLaunch from '@/components/FounderCipherPreLaunch';
 import {
   QuestEvent,
   PublicQuestView,
@@ -24,7 +25,7 @@ import {
 } from '@/lib/types';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
 import { cleanQuestTitle, cqImages, formatEventWindow } from '@/lib/marketing-assets';
-import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
+import { CANONICAL_LAUNCH_DATE_ISO, isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
 import { showGameMoment } from '@/lib/game-effects';
 import ThreePathSelector from '@/components/ThreePathSelector';
 
@@ -360,52 +361,12 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
       return (
         <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
           <Header />
-          <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8 sm:py-16 flex flex-col justify-center">
-            <div className="relative overflow-hidden rounded-3xl border border-amber-500/40 bg-stone-900/90 shadow-2xl p-6 sm:p-12 text-center">
-              <Image
-                src={cqImages.questBoardBg}
-                alt=""
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 900px"
-                className="object-cover opacity-20 pointer-events-none"
-              />
-              <div className="relative z-10 space-y-4 max-w-xl mx-auto">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-mono font-bold uppercase tracking-wider">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  <span>MISSION GRID OFFLINE</span>
-                </div>
-
-                <h1 className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight">
-                  CANTON QUESTS ACTIVATES SEPTEMBER 11, 2026
-                </h1>
-
-                <p className="text-sm sm:text-base text-stone-300 leading-relaxed font-body">
-                  The citywide quest system will come online at launch. Until then, explore the site, choose your path, and get ready for the competition.
-                </p>
-
-                <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <Link
-                    href="/"
-                    className="cq-gold-button w-full sm:w-auto text-xs py-3 px-6 font-mono font-bold inline-flex items-center justify-center gap-2"
-                  >
-                    RETURN TO CITY HUB →
-                  </Link>
-                  <Link
-                    href="/how-it-works"
-                    className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
-                  >
-                    📖 HOW IT WORKS
-                  </Link>
-                  <Link
-                    href="/leaderboard"
-                    className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
-                  >
-                    🏆 PRE-SEASON LEADERBOARD
-                  </Link>
-                </div>
-              </div>
-            </div>
+          <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12">
+            <FounderCipherPreLaunch
+              event={event}
+              authenticatedPlayer={authenticatedPlayer}
+              countdown={getEventCountdown(event || ({ startTime: CANONICAL_LAUNCH_DATE_ISO } as QuestEvent))}
+            />
           </main>
           <CinematicFooter />
         </div>

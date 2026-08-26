@@ -168,8 +168,7 @@ describe('Pre-Launch States & Error Sanitization Suite', () => {
         'utf8'
       );
 
-      expect(eventHubPage).toContain('MISSION GRID OFFLINE');
-      expect(eventHubPage).toContain('CANTON QUESTS ACTIVATES SEPTEMBER 11, 2026');
+      expect(eventHubPage).toContain('FounderCipherPreLaunch');
       expect(eventHubPage).toContain('isKnownCantonLaunchSlug');
 
       expect(questDetailPage).toContain('MISSION GRID OFFLINE');
