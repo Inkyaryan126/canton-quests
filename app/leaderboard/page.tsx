@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Crown, Medal, Radio, Trophy, Zap } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
@@ -26,10 +27,14 @@ function getClientPlayer(): Player {
   };
 }
 
-export default function LeaderboardPage() {
+function LeaderboardContent() {
+  const searchParams = useSearchParams();
+  const operationSlug = searchParams.get('operation') || searchParams.get('eventSlug');
+
   const [events, setEvents] = useState<QuestEvent[]>([]);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<QuestEvent | null>(null);
 
   useEffect(() => {
     setCurrentPlayer(getClientPlayer());
@@ -37,18 +42,21 @@ export default function LeaderboardPage() {
       .then((res) => res.json())
       .then((data: { events?: QuestEvent[] }) => {
         const loadedEvents = data.events || [];
-        const active = getActiveEvent(loadedEvents);
         setEvents(loadedEvents);
-        if (!active) return;
-        return fetch(`/api/game/events/${active.slug}`);
+        const target = operationSlug
+          ? loadedEvents.find((e) => e.slug === operationSlug)
+          : getActiveEvent(loadedEvents);
+        setSelectedEvent(target || null);
+        if (!target) return;
+        return fetch(`/api/game/events/${target.slug}`);
       })
       .then((res) => res?.json())
       .then((data: { leaderboard?: LeaderboardEntry[] } | undefined) => {
         setEntries(data?.leaderboard || []);
       });
-  }, []);
+  }, [operationSlug]);
 
-  const activeEvent = getActiveEvent(events);
+  const activeEvent = selectedEvent || getActiveEvent(events);
   const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events';
   const topThree = entries.slice(0, 3);
 
@@ -200,5 +208,13 @@ export default function LeaderboardPage() {
       <CinematicFooter />
       <MobileStartBar href={eventHref} />
     </div>
+  );
+}
+
+export default function LeaderboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <LeaderboardContent />
+    </Suspense>
   );
 }

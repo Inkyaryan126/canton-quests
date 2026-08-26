@@ -117,11 +117,23 @@ describe('Volume 1 launch readiness seed data', () => {
     expect(detailPage).toContain('Open Map Directions');
   });
 
-  it('QR gateway can submit active field QR passcodes instead of only matching quest slugs', () => {
+  // Rewritten alongside the Fair QR Hunt build (see
+  // supabase/migrations/20260826140000_fair_qr_hunt_core_and_bonus_quests.sql):
+  // the QR gateway now resolves a scan purely by its server-side
+  // target_code (GET /api/qr/claim's getQuestByTargetCodeDB), across any
+  // event including Volume 1's existing QR quests, rather than client-side
+  // guessing against a fetched quest list. It also gates on the canonical
+  // auth session (unlike the prior localStorage-only player) and still
+  // opportunistically forwards GPS for the small set of quests that
+  // require it (Quest.requireQrAndLocation, e.g. hof-trail-emblem).
+  it('QR gateway resolves scans server-side by target_code, gates on canonical auth, and still forwards GPS for location-required QR quests', () => {
     const qrPage = repoFile('app/qr/[code]/page.tsx');
+    const claimRoute = repoFile('app/api/qr/claim/route.ts');
 
-    expect(qrPage).toContain('candidateQrQuests');
-    expect(qrPage).toContain("q.verificationType === 'qr'");
-    expect(qrPage).toContain('userAccuracyMeters');
+    expect(claimRoute).toContain('getQuestByTargetCodeDB');
+    expect(claimRoute).toContain('resolveAuthenticatedPlayer');
+    expect(claimRoute).toContain('userAccuracyMeters');
+    expect(qrPage).toContain('/api/auth/me');
+    expect(qrPage).toContain('navigator.geolocation');
   });
 });

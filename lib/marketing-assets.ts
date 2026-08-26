@@ -165,6 +165,8 @@ export const questCategoryLabels: Record<Quest['category'], string> = {
   trivia: 'Trivia',
   secret: 'Hidden Mission',
   finale: 'Finale',
+  fair_core: 'Fair Core Signal',
+  fair_bonus: 'Fair Daily Bonus',
 };
 
 export const rarityClassName: Record<string, string> = {

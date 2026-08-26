@@ -154,6 +154,45 @@ export function getQuestRewardSummary(quest: Quest): QuestRewardSummary {
   };
 }
 
+export type QuestAvailability =
+  | { ok: true }
+  | { ok: false; reason: 'inactive' | 'not_yet_active' | 'expired'; message: string };
+
+/**
+ * Whether a quest can be claimed right now: it must be active, and — if it
+ * declares a startsAt/expiresAt window (e.g. a Fair QR Hunt daily bonus) —
+ * the current time must fall inside it. Quests with no window fields are
+ * always available once active, so this is a no-op for existing quests that
+ * never set startsAt/expiresAt. Shared by both the Supabase submission path
+ * (lib/supabase-db.ts submitQuestProofDB) and the local/offline fallback
+ * engine (lib/game-engine.ts submitQuestProof) so neither can diverge on
+ * this rule.
+ */
+export function getQuestAvailability(quest: Quest, now: Date = new Date()): QuestAvailability {
+  // Elsewhere in this app, quest.status ('active'/'inactive'/'draft') is
+  // purely a browse/display flag — several existing, intentionally-seeded
+  // quests (draft content pending launch, or an admin-hidden one like
+  // qst-arcade-high-score-video) are still directly submittable by design,
+  // and existing tests pin exactly that. The Fair QR Hunt is the one place
+  // 'inactive' is meant to be an actual submission gate (the admin
+  // activate/deactivate control at app/admin/fair-qr/page.tsx), so this
+  // only enforces status for Fair quests. The startsAt/expiresAt window
+  // check below is safe to apply universally — no non-Fair quest sets
+  // those fields.
+  const isFairQuest = quest.category === 'fair_core' || quest.category === 'fair_bonus';
+  if (isFairQuest && quest.status === 'inactive') {
+    return { ok: false, reason: 'inactive', message: 'This mission is not currently active.' };
+  }
+  const nowMs = now.getTime();
+  if (quest.startsAt && new Date(quest.startsAt).getTime() > nowMs) {
+    return { ok: false, reason: 'not_yet_active', message: 'This mission is not open yet.' };
+  }
+  if (quest.expiresAt && new Date(quest.expiresAt).getTime() <= nowMs) {
+    return { ok: false, reason: 'expired', message: 'This mission window has closed.' };
+  }
+  return { ok: true };
+}
+
 export interface QuestSubmissionRewardContext {
   /** How the player actually completed/verified the quest. */
   method: ProofVerificationType;

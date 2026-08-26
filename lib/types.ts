@@ -26,7 +26,9 @@ export type QuestCategory =
   | 'flash'
   | 'trivia'
   | 'secret'
-  | 'finale';
+  | 'finale'
+  | 'fair_core'
+  | 'fair_bonus';
 
 export type ProofVerificationType =
   | 'checkin'

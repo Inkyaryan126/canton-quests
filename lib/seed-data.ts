@@ -16,6 +16,7 @@ import {
   BonusWindow,
   Prize,
 } from './types';
+import { CORE_QR_POINTS, DAILY_BONUS_POINTS, FAIR_BONUS_DATES, fairBonusQuestSlug, fairCoreQuestSlug } from './fair-hunt';
 
 export const SEED_CITY: City = {
   id: 'city-canton-oh',
@@ -209,8 +210,13 @@ export const SEED_FAIR_EVENT: QuestEvent = {
   status: 'active',
   currentPhase: 'day_1',
   isPaused: false,
-  startTime: '2026-08-20T00:00:00Z',
-  endTime: '2026-09-05T22:00:00Z',
+  // Sept 1, 12:00 AM America/New_York -> Sept 7, 11:59:59 PM America/New_York.
+  // America/New_York is a fixed UTC-4 (EDT) offset for all of September
+  // 2026 (DST doesn't end until early November), so these are safe fixed
+  // UTC instants — mirrors the fair-qr-hunt event row seeded in
+  // supabase/migrations/20260826072300_operation_scoped_path_and_fair_hunt.sql.
+  startTime: '2026-09-01T04:00:00Z',
+  endTime: '2026-09-08T03:59:59Z',
   basicInstructions:
     '1. Explore the fairgrounds and find the QR markers.\n2. Scan each one — every unique marker counts once per player.\n3. Track your live rank on the Fair QR Hunt leaderboard.',
   safetyNotes: 'Stay in public fairground areas, follow posted event staff instructions, and use marked walkways.',
@@ -1536,4 +1542,87 @@ export const SEED_QUESTS: Quest[] = [
     safetyNotes: 'Finale prompt must never require rushing, trespassing, unsafe driving, or nighttime cemetery access.',
     gmNotes: 'Keep inactive until finale operations are staffed. Confirm drawing ledger status before awarding final entries.',
   },
+];
+
+// Fair QR Hunt — 20 permanent core QRs + 7 one-day-only daily bonus QRs.
+// Public target_code values mirror the ones seeded in production
+// (supabase/migrations/20260826140000_fair_qr_hunt_core_and_bonus_quests.sql)
+// so local/offline testing exercises the same real codes. starts_at/
+// expires_at are fixed UTC instants — America/New_York is a constant UTC-4
+// (EDT) offset for all of September 2026, so no DST math is needed; see
+// FAIR_TIMEZONE / getFairDateKey in lib/fair-hunt.ts for the timezone-aware
+// "what day is today" logic actually used at display/verification time.
+const FAIR_CORE_CODES = [
+  'FAIR-C01-E8Y6', 'FAIR-C02-V8TZ', 'FAIR-C03-98HH', 'FAIR-C04-B625', 'FAIR-C05-Q96H',
+  'FAIR-C06-7Z96', 'FAIR-C07-RT8Y', 'FAIR-C08-BFVN', 'FAIR-C09-7VJ4', 'FAIR-C10-DH9S',
+  'FAIR-C11-SY4H', 'FAIR-C12-YY3V', 'FAIR-C13-E4H8', 'FAIR-C14-FC59', 'FAIR-C15-YF59',
+  'FAIR-C16-DVXZ', 'FAIR-C17-4QTZ', 'FAIR-C18-Y373', 'FAIR-C19-UNYD', 'FAIR-C20-6X4J',
+];
+const FAIR_BONUS_CODES = [
+  'FAIR-B0901-FSP5', 'FAIR-B0902-UK33', 'FAIR-B0903-HERN', 'FAIR-B0904-PFVX',
+  'FAIR-B0905-V47W', 'FAIR-B0906-UG5W', 'FAIR-B0907-87AA',
+];
+const FAIR_WINDOW_START = '2026-09-01T04:00:00Z';
+const FAIR_WINDOW_END = '2026-09-08T03:59:59Z';
+
+export const SEED_FAIR_QUESTS: Quest[] = [
+  ...Array.from({ length: 20 }, (_, i) => {
+    const n = i + 1;
+    const quest: Quest = {
+      id: `qst-${fairCoreQuestSlug(n)}`,
+      eventId: SEED_FAIR_EVENT.id,
+      title: `Signal ${String(n).padStart(2, '0')}`,
+      slug: fairCoreQuestSlug(n),
+      description: 'A permanent Canton Quests QR marker hidden somewhere across the fairgrounds.',
+      instructions: 'Find the physical QR card and scan it with your phone camera to claim this signal.',
+      pointValue: CORE_QR_POINTS,
+      xpReward: CORE_QR_POINTS,
+      drawingEntryReward: 0,
+      difficulty: 'easy',
+      category: 'fair_core',
+      verificationType: 'qr',
+      targetCode: FAIR_CORE_CODES[i],
+      proofRequirement: 'Scan the physical QR marker.',
+      isFlash: false,
+      startsAt: FAIR_WINDOW_START,
+      expiresAt: FAIR_WINDOW_END,
+      status: 'active',
+      sortOrder: n,
+      createdAt: '2026-08-26T00:00:00Z',
+      gmNotes: 'Placement TBD.',
+      safetyNotes: 'Stay in public fairground areas and use marked walkways.',
+    };
+    return quest;
+  }),
+  ...FAIR_BONUS_DATES.map((dateKey, i) => {
+    const [, month, day] = dateKey.split('-');
+    const dayStart = `2026-09-${day}T04:00:00Z`;
+    const nextDay = String(Number(day) + 1).padStart(2, '0');
+    const dayEnd = i === FAIR_BONUS_DATES.length - 1 ? FAIR_WINDOW_END : `2026-09-${nextDay}T03:59:59Z`;
+    const quest: Quest = {
+      id: `qst-${fairBonusQuestSlug(dateKey)}`,
+      eventId: SEED_FAIR_EVENT.id,
+      title: `Daily Bonus — Sept ${Number(day)}`,
+      slug: fairBonusQuestSlug(dateKey),
+      description: 'A one-day-only bonus QR marker, live for a single Fair calendar day.',
+      instructions: "Find today's bonus QR card and scan it before the day ends — it will not be here tomorrow.",
+      pointValue: DAILY_BONUS_POINTS,
+      xpReward: DAILY_BONUS_POINTS,
+      drawingEntryReward: 0,
+      difficulty: 'medium',
+      category: 'fair_bonus',
+      verificationType: 'qr',
+      targetCode: FAIR_BONUS_CODES[i],
+      proofRequirement: 'Scan the physical QR marker.',
+      isFlash: true,
+      startsAt: dayStart,
+      expiresAt: dayEnd,
+      status: 'active',
+      sortOrder: 20 + i + 1,
+      createdAt: '2026-08-26T00:00:00Z',
+      gmNotes: 'Placement TBD.',
+      safetyNotes: 'Stay in public fairground areas and use marked walkways.',
+    };
+    return quest;
+  }),
 ];

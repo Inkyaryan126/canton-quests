@@ -62,6 +62,7 @@ import {
 import {
   computeAwardedBonusesForSubmission,
   getEffectiveBaseXp,
+  getQuestAvailability,
   getUnlockSummary,
 } from './quest-rewards';
 import {
@@ -69,6 +70,7 @@ import {
   SEED_LOCATIONS,
   SEED_EVENT,
   SEED_FAIR_EVENT,
+  SEED_FAIR_QUESTS,
   SEED_QUESTS,
   SEED_DEMO_PLAYERS,
   SEED_COLLECTIBLES,
@@ -183,7 +185,10 @@ export function initializeGameEngine(): void {
     ]);
   }
   if (getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, []).length === 0) {
-    setStoredItem(STORAGE_KEYS.QUESTS, mergeServerQuestTargetCodes(JSON.parse(JSON.stringify(SEED_QUESTS))));
+    setStoredItem(
+      STORAGE_KEYS.QUESTS,
+      mergeServerQuestTargetCodes(JSON.parse(JSON.stringify([...SEED_QUESTS, ...SEED_FAIR_QUESTS])))
+    );
   }
   if (getStoredItem<LocationInfo[]>(STORAGE_KEYS.LOCATIONS, []).length === 0) {
     setStoredItem(STORAGE_KEYS.LOCATIONS, JSON.parse(JSON.stringify(SEED_LOCATIONS)));
@@ -1645,6 +1650,19 @@ export function getQuestBySlug(slug: string): Quest | undefined {
   return quests.find((q) => q.slug === slug);
 }
 
+/**
+ * Resolves a quest purely by its scan-only target_code (the value encoded
+ * in a physical QR graphic) — never by slug/id, which are never printed
+ * anywhere. Used by /api/qr/claim so a scanned code alone (no client-
+ * supplied questId or eventId) can find the exact quest it belongs to,
+ * whichever event owns it.
+ */
+export function getQuestByTargetCode(code: string): Quest | undefined {
+  initializeGameEngine();
+  const quests = getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, SEED_QUESTS);
+  return quests.find((q) => q.verificationType === 'qr' && q.targetCode === code);
+}
+
 export function createQuest(questData: Omit<Quest, 'id' | 'createdAt'>): Quest {
   const quests = getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, SEED_QUESTS);
   const newQuest: Quest = {
@@ -1895,6 +1913,25 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   const quest = getQuestById(params.questId);
   if (!quest) {
     throw new Error('Quest not found');
+  }
+
+  const availability = getQuestAvailability(quest);
+  if (!availability.ok) {
+    return {
+      success: false,
+      submission: {
+        id: `sub-unavailable-${Date.now()}`,
+        questId: params.questId,
+        playerId: params.playerId,
+        eventId: params.eventId,
+        proofType: params.proofType,
+        status: 'rejected',
+        awardedPoints: 0,
+        submittedAt: new Date().toISOString(),
+      },
+      message: availability.message,
+      awardedPoints: 0,
+    };
   }
 
   // Evaluate Proof Integrity & Automated Review Flags

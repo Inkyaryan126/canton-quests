@@ -54,6 +54,7 @@ import {
 import {
   computeAwardedBonusesForSubmission,
   getEffectiveBaseXp,
+  getQuestAvailability,
   getRaceBonusTiers,
   getUnlockSummary,
 } from './quest-rewards';
@@ -381,6 +382,11 @@ function verifyAutomatedProof(
     isQuestFullyCompleted: true,
     distanceFromLocation,
   });
+
+  const availability = getQuestAvailability(quest);
+  if (!availability.ok) {
+    return fail(availability.message);
+  }
 
   if (quest.verificationType === 'checkin' || quest.verificationType === 'gps' || quest.requireLocationVerification) {
     const gps = verifyGps();
@@ -1690,7 +1696,17 @@ export async function getAllDistrictsContentSummaryDB(
 // 6. QUESTS & LOCATIONS API
 export async function getQuestsForEventDB(eventId: string): Promise<Quest[]> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getQuestsForEvent(eventId);
-  const { data, error } = await supabase
+  // Reads through supabaseAdmin (service role) — the quests table's RLS is
+  // admin-only (see supabase/migrations/20260825130000_narrow_public_quest_steps_view.sql,
+  // which documents the public_quests/public_quest_steps views that exist
+  // specifically because the base tables aren't anon-readable). The plain
+  // anon `supabase` client used here previously returned zero rows for
+  // every event, silently falling through to the (stale, offline-only)
+  // local engine fixture data in production. Safe to read the full row
+  // (including target_code/gm_notes) through admin here — every caller
+  // sanitizes via getPublicQuestView before this ever reaches a client.
+  const db = supabaseAdmin || supabase;
+  const { data, error } = await db
     .from('quests')
     .select('*, locations(*)')
     .eq('event_id', eventId)
@@ -1707,6 +1723,48 @@ export async function getQuestByIdDB(questId: string): Promise<Quest | undefined
     .select('*, locations(*), quest_steps(*, locations(*))')
     .eq('id', questId)
     .single();
+  if (error || !data) return undefined;
+  return mapQuestFromDB(data);
+}
+
+/**
+ * Updates a quest's `status` (active/inactive/draft) in production —
+ * currently the only field the admin surface needs to change post-seed
+ * (e.g. deactivating a Fair QR). Deliberately narrow: it never touches
+ * points, target_code, or the startsAt/expiresAt window, so it can't be
+ * used to accidentally change what a quest is worth or when it's valid.
+ */
+export async function updateQuestDB(questId: string, updates: { status: Quest['status'] }): Promise<Quest | undefined> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.updateQuest(questId, updates);
+  const db = supabaseAdmin || supabase;
+  const { data, error } = await db
+    .from('quests')
+    .update({ status: updates.status })
+    .eq('id', questId)
+    .select('*, locations(*), quest_steps(*, locations(*))')
+    .single();
+  if (error || !data) return undefined;
+  return mapQuestFromDB(data);
+}
+
+/**
+ * Resolves a quest purely by its scan-only target_code (the value encoded
+ * in a physical QR graphic) — never by slug/id, which are never printed
+ * anywhere. Used by /api/qr/claim so a scanned code alone (no client-
+ * supplied questId or eventId) can find the exact quest it belongs to,
+ * whichever event owns it. A quest's target_code is never exposed via any
+ * public API response (see PublicQuestView), so this lookup can only
+ * succeed for someone who actually has the physical code.
+ */
+export async function getQuestByTargetCodeDB(code: string): Promise<Quest | undefined> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getQuestByTargetCode(code);
+  const db = supabaseAdmin || supabase;
+  const { data, error } = await db
+    .from('quests')
+    .select('*, locations(*), quest_steps(*, locations(*))')
+    .eq('verification_type', 'qr')
+    .eq('target_code', code)
+    .maybeSingle();
   if (error || !data) return undefined;
   return mapQuestFromDB(data);
 }
