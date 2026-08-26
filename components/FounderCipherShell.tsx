@@ -20,6 +20,7 @@ import { Player, QuestEvent } from '@/lib/types';
 import { cqImages, destinationCards, formatEventWindow } from '@/lib/marketing-assets';
 import { PATH_OPTIONS } from '@/components/ThreePathSelector';
 import { OperationLifecycleStage } from '@/lib/launch-status';
+import { getFeaturedTransmission } from '@/lib/commander-transmissions';
 
 const founderCipherSteps = [
   {
@@ -70,6 +71,7 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const eventWindow = event ? formatEventWindow(event) : 'September 11 – 14, 2026';
   const badge = STAGE_BADGE[stage];
+  const featuredTransmission = getFeaturedTransmission();
 
   return (
     <div className="space-y-16 sm:space-y-20 pb-4">
@@ -320,6 +322,36 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* COMMANDER ARCHIVE TEASER */}
+        <div className="max-w-5xl mx-auto mt-8 pt-8 border-t border-stone-800/60">
+          <div className="flex flex-col sm:flex-row items-center gap-5 rounded-2xl border border-amber-500/20 bg-black/40 p-4 sm:p-5">
+            <div className="relative w-16 h-28 sm:w-20 sm:h-36 shrink-0 rounded-xl overflow-hidden border border-amber-500/30 bg-black">
+              <Image
+                src={featuredTransmission.posterUrl}
+                alt={featuredTransmission.title}
+                fill
+                sizes="80px"
+                className="object-cover"
+              />
+            </div>
+            <div className="flex-1 text-center sm:text-left space-y-1">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-400">
+                Commander Archive
+              </span>
+              <p className="text-sm text-stone-300 font-body">
+                15 recorded transmissions on file — every briefing the Commander has sent about the Founder&apos;s Cipher.
+              </p>
+            </div>
+            <Link
+              href="/events/canton-weekend-1/transmissions"
+              className="cq-dark-button text-xs font-mono py-3 px-5 inline-flex items-center gap-2 shrink-0"
+            >
+              <Radio size={14} />
+              VIEW TRANSMISSIONS
+            </Link>
           </div>
         </div>
       </section>

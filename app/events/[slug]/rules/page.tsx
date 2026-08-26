@@ -18,8 +18,11 @@ export default function OperationRulesPage({ params }: { params: { slug: string 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
       <Header eventSlug={params.slug} />
-      <main className="flex-1">
-        <div className="max-w-3xl mx-auto px-4 py-16">
+      {/* Centered via flex, not mx-auto — see the mission report: a sitewide
+          `* { margin: 0 }` reset in globals.css is unlayered and beats
+          Tailwind's layered `.mx-auto` regardless of specificity. */}
+      <main className="flex-1 flex justify-center">
+        <div className="w-full max-w-3xl px-4 py-16">
           {isFounderCipher ? (
             <>
               <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Legal — Draft for Review</span>

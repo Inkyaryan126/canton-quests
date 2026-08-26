@@ -74,7 +74,10 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const action = url.searchParams.get('action') || 'feed';
-    const eventId = await resolveSpectatorEventId(url.searchParams.get('eventId'));
+    const eventId = await resolveSpectatorEventId(
+      url.searchParams.get('eventId'),
+      url.searchParams.get('eventSlug')
+    );
 
     if (action === 'options') {
       const audienceEventId = url.searchParams.get('audienceEventId') || '';
@@ -278,7 +281,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const eventId = await resolveSpectatorEventId(body.eventId);
+    const eventId = await resolveSpectatorEventId(body.eventId, body.eventSlug);
     if (!eventId) {
       return NextResponse.json(
         { success: false, error: 'No active event configured' },

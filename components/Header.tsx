@@ -3,11 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Compass, Gift, LogOut, Map, Trophy } from 'lucide-react';
+import { Compass, Gift, LogOut, Map, Radio, Trophy } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
 import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
 
 interface HeaderProps {
   /**
@@ -179,6 +180,12 @@ export default function Header({ eventSlug }: HeaderProps) {
             <Gift size={13} aria-hidden="true" />
             Drawing
           </Link>
+          {isKnownCantonLaunchSlug(eventSlug) && (
+            <Link href={`/events/${eventSlug}/transmissions`}>
+              <Radio size={13} aria-hidden="true" />
+              Transmissions
+            </Link>
+          )}
         </nav>
       )}
     </header>

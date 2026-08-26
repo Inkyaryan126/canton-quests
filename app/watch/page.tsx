@@ -97,13 +97,18 @@ function WatchPageContent() {
   // Fetch spectator data
   const fetchData = useCallback(async () => {
     try {
+      // Scope every spectator feed action to the requested Operation via one
+      // shared query param — resolveSpectatorEventId() on the server resolves
+      // this once and every action below reuses that single resolution, so
+      // Founder's Cipher and the Fair QR Hunt never cross-contaminate feeds.
+      const eventScopeParam = requestedEventSlug ? `&eventSlug=${encodeURIComponent(requestedEventSlug)}` : '';
       const [eventsRes, broadcastsRes, feedRes, settingsRes, districtsRes, statsRes, mainEventRes] = await Promise.all([
-        fetch('/api/game/spectator?action=events'),
-        fetch('/api/game/spectator?action=broadcasts'),
-        fetch('/api/game/spectator?action=feed'),
-        fetch('/api/game/spectator?action=settings'),
-        fetch('/api/game/spectator?action=districts'),
-        fetch('/api/game/spectator?action=stats'),
+        fetch(`/api/game/spectator?action=events${eventScopeParam}`),
+        fetch(`/api/game/spectator?action=broadcasts${eventScopeParam}`),
+        fetch(`/api/game/spectator?action=feed${eventScopeParam}`),
+        fetch(`/api/game/spectator?action=settings${eventScopeParam}`),
+        fetch(`/api/game/spectator?action=districts${eventScopeParam}`),
+        fetch(`/api/game/spectator?action=stats${eventScopeParam}`),
         fetch('/api/game/events').catch(() => null),
       ]);
 
@@ -228,6 +233,7 @@ function WatchPageContent() {
           // server resolves the canonical event via
           // resolveSpectatorEventId(), never trust a placeholder string here.
           eventId: activeEvent.eventId || undefined,
+          eventSlug: requestedEventSlug || undefined,
         }),
       });
 

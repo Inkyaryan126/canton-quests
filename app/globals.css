@@ -36,6 +36,21 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * Tailwind's utility classes (including .mx-auto) compile into
+ * `@layer utilities`. This file's own rules are unlayered, and per the CSS
+ * Cascade Layers spec, unlayered normal-priority declarations beat ANY
+ * layered declaration regardless of specificity — so the plain `* { margin:
+ * 0 }` reset two rules above silently overrides every `.mx-auto` on the
+ * site (any max-w-* + mx-auto container renders flush-left instead of
+ * centered on viewports wider than its max-width). `!important` reverses
+ * that precedence back in .mx-auto's favor without touching the reset
+ * itself, which many components still rely on for margin-free defaults.
+ */
+.mx-auto {
+  margin-inline: auto !important;
+}
+
 html, body {
   background-color: var(--bg-obsidian);
   color: var(--text-primary);

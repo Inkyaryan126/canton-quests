@@ -1092,14 +1092,33 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * requests to 500 instead of loading.
  *
  * A caller-supplied id that already looks like a real UUID is trusted as-is.
- * Anything else — missing, or the legacy "default-event" placeholder — is
- * resolved against the stable Volume 1 event slug instead of ever being
- * passed through to a UUID column. Returns null (not a fabricated id) when
- * no event can be resolved, so callers can return an honest empty state.
+ *
+ * When `requestedEventSlug` is supplied (e.g. /watch?eventSlug=fair-qr-hunt),
+ * it is the single authoritative Operation-scoping signal — every spectator
+ * feed action shares this one resolution, so passing it once here correctly
+ * scopes all of them. An unknown slug resolves to null (an honest "no such
+ * Operation" empty state) and never silently falls back to another
+ * Operation's data.
+ *
+ * With no id and no slug at all, this falls back to the stable Volume 1
+ * event — the documented default for spectator/live-admin surfaces that
+ * don't carry Operation context (e.g. the bare admin live-control panel).
+ * Returns null (not a fabricated id) when no event can be resolved, so
+ * callers can return an honest empty state.
  */
-export async function resolveSpectatorEventId(requestedEventId: string | null | undefined): Promise<string | null> {
+export async function resolveSpectatorEventId(
+  requestedEventId?: string | null,
+  requestedEventSlug?: string | null
+): Promise<string | null> {
   if (requestedEventId && UUID_RE.test(requestedEventId)) return requestedEventId;
+
   const { getEventBySlugDB } = await import('./supabase-db');
+
+  if (requestedEventSlug) {
+    const event = await getEventBySlugDB(requestedEventSlug);
+    return event?.id || null;
+  }
+
   const { SEED_EVENT } = await import('./seed-data');
   const event = await getEventBySlugDB(SEED_EVENT.slug);
   return event?.id || null;
