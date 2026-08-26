@@ -20,7 +20,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function RulesPage() {
   return (
     <div className="cq-home-shell">
-      <CinematicNav eventHref="/events/canton-weekend-1" />
+      <CinematicNav eventHref="/events/canton-weekend-1" context="global" />
       <main className="cq-page-main">
         <div className="max-w-3xl mx-auto px-4 py-16">
           <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Legal — Draft for Review</span>

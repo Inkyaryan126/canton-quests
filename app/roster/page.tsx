@@ -46,7 +46,7 @@ export default function PlayerRosterPage() {
 
   return (
     <div className="cq-home-shell">
-      <CinematicNav eventHref="/events/canton-weekend-1" />
+      <CinematicNav eventHref="/events/canton-weekend-1" context="global" />
 
       <main className="cq-page-main">
         <section className="cq-page-section" style={{ paddingBottom: '0' }}>
@@ -139,7 +139,7 @@ export default function PlayerRosterPage() {
       </main>
 
       <CinematicFooter />
-      <MobileStartBar href="/events/canton-weekend-1" />
+      <MobileStartBar href="/#operations" />
     </div>
   );
 }

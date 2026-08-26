@@ -29,7 +29,7 @@ export default function SecretLanding() {
 
   return (
     <div className="cq-home-shell cq-fair-shell cq-fair-secret">
-      <CinematicNav eventHref={ACQUISITION_ENTRY_HREF} />
+      <CinematicNav eventHref={ACQUISITION_ENTRY_HREF} context="main-operation" />
 
       <main className="cq-fair-main">
         {/* HERO SECTION */}

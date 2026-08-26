@@ -52,7 +52,7 @@ export default function FairQrHuntDashboard() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
-      <CinematicNav eventHref="/events/fair-qr-hunt" />
+      <CinematicNav eventHref="/events/fair-qr-hunt" context="fair-operation" />
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-8">
         <PageHeader

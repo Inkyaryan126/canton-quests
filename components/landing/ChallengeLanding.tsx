@@ -30,7 +30,7 @@ import { cqImages } from '@/lib/marketing-assets';
 export default function ChallengeLanding() {
   return (
     <div className="cq-home-shell cq-fair-shell cq-fair-challenge">
-      <CinematicNav eventHref={ACQUISITION_ENTRY_HREF} />
+      <CinematicNav eventHref={ACQUISITION_ENTRY_HREF} context="main-operation" />
 
       <main className="cq-fair-main">
         {/* HERO SECTION */}

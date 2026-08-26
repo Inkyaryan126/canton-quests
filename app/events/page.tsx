@@ -26,7 +26,7 @@ export default function EventsPage() {
 
   return (
     <div className="cq-home-shell">
-      <CinematicNav eventHref={eventHref} />
+      <CinematicNav eventHref={eventHref} context="global" />
 
       <main className="cq-page-main">
         <section className="cq-event-hero">

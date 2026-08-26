@@ -77,7 +77,7 @@ export default function HowItWorksPage() {
 
   return (
     <div className="cq-home-shell">
-      <CinematicNav eventHref={eventHref} />
+      <CinematicNav eventHref={eventHref} context="global" />
 
       <main className="cq-page-main">
         <section className="cq-page-hero cq-page-hero-split">
@@ -298,7 +298,7 @@ export default function HowItWorksPage() {
         onClose={() => setIsVideoModalOpen(false)}
       />
       <CinematicFooter />
-      <MobileStartBar href={eventHref} />
+      <MobileStartBar href="/#operations" />
     </div>
   );
 }

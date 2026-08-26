@@ -122,7 +122,7 @@ export default function HomePage() {
 
   return (
     <div className="cq-home-shell">
-      <CinematicNav eventHref={eventHref} />
+      <CinematicNav eventHref={eventHref} context="global" />
 
       <main className="cq-page-main pt-4">
         {/* LOGGED-OUT PLAYER ACCESS AREA */}

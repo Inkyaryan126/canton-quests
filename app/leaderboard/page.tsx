@@ -63,7 +63,10 @@ function LeaderboardContent() {
 
   return (
     <div className="cq-home-shell">
-      <CinematicNav eventHref={eventHref} />
+      <CinematicNav
+        eventHref={eventHref}
+        context={isFairOperation ? 'fair-operation' : 'global'}
+      />
 
       <main className="cq-page-main">
         <section className="cq-page-section" style={{ paddingBottom: '0' }}>
@@ -228,7 +231,7 @@ function LeaderboardContent() {
       </main>
 
       <CinematicFooter />
-      <MobileStartBar href={eventHref} />
+      <MobileStartBar href={isFairOperation ? eventHref : '/#operations'} />
     </div>
   );
 }

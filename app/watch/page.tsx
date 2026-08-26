@@ -281,7 +281,7 @@ export default function WatchPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col font-mono text-xs">
-        <CinematicNav eventHref={eventHref} />
+        <CinematicNav eventHref={eventHref} context="global" />
         <main className="flex-1 max-w-4xl w-full mx-auto p-6 space-y-6 flex flex-col items-center justify-center min-h-[65vh]">
           <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
           <div className="text-center space-y-1">
@@ -298,7 +298,7 @@ export default function WatchPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col font-mono text-xs pb-20" style={{ paddingTop: '68px' }}>
-      <CinematicNav eventHref={eventHref} />
+      <CinematicNav eventHref={eventHref} context="global" />
 
       {/* Watch Mode Banner Header */}
       <div className="bg-[#121824] border-b border-gray-800 py-3 px-4 sticky top-[68px] z-40 backdrop-blur-md">

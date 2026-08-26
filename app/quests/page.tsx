@@ -122,7 +122,7 @@ export default function QuestsPage() {
 
   return (
     <div className="cq-home-shell">
-      <CinematicNav eventHref={eventHref} />
+      <CinematicNav eventHref={eventHref} context="main-operation" />
 
       <main className="cq-page-main">
         <section className="cq-page-hero cq-page-hero-split">

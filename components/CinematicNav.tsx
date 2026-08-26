@@ -10,13 +10,56 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
+type CinematicNavContext = 'global' | 'main-operation' | 'fair-operation';
+
 interface CinematicNavProps {
   eventHref: string;
+  /**
+   * Which layer of the nav this page belongs to. `'global'` (the default) is
+   * the permanent Command Center nav shown on platform-wide pages — it must
+   * never assume the player is inside the Sept 11 Main Operation.
+   * `'main-operation'` and `'fair-operation'` are Operation-specific and may
+   * surface that Operation's own mission board / leaderboard / entry CTA.
+   */
+  context?: CinematicNavContext;
 }
 
-export default function CinematicNav({ eventHref }: CinematicNavProps) {
+interface NavLink {
+  href: string;
+  label: string;
+}
+
+const CONTEXT_NAV_LINKS: Record<CinematicNavContext, NavLink[]> = {
+  global: [
+    { href: '/#operations', label: 'OPERATIONS' },
+    { href: '/roster', label: 'PLAYER ROSTER' },
+    { href: '/how-it-works', label: 'HOW IT WORKS' },
+  ],
+  'main-operation': [
+    { href: '/quests', label: 'MISSION BOARD' },
+    { href: '/leaderboard?operation=canton-weekend-1', label: 'RANKINGS' },
+    { href: '/roster', label: 'PLAYER ROSTER' },
+    { href: '/how-it-works', label: 'HOW IT WORKS' },
+  ],
+  'fair-operation': [
+    { href: '/leaderboard?operation=fair-qr-hunt', label: 'FAIR LEADERBOARD' },
+    { href: '/roster', label: 'PLAYER ROSTER' },
+    { href: '/', label: 'COMMAND CENTER' },
+  ],
+};
+
+const CONTEXT_CTA_LABEL: Record<CinematicNavContext, string> = {
+  global: 'CREATE PLAYER IDENTITY',
+  'main-operation': 'START QUEST',
+  'fair-operation': 'ENTER FAIR HUNT',
+};
+
+export default function CinematicNav({ eventHref, context = 'global' }: CinematicNavProps) {
   const router = useRouter();
   const [player, setPlayer] = useState<Player | null>(null);
+  const navLinks = CONTEXT_NAV_LINKS[context];
+  const ctaHref = context === 'global' ? '/register' : eventHref;
+  const ctaLabel = CONTEXT_CTA_LABEL[context];
 
   useEffect(() => {
     // 1. Instant check from localStorage display cache
@@ -81,15 +124,16 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
       </Link>
 
       <div className="cq-nav-links">
-        <Link href="/quests">MISSION BOARD</Link>
-        <Link href="/leaderboard">RANKINGS</Link>
-        <Link href="/roster">PLAYER ROSTER</Link>
+        {navLinks.map((link) => (
+          <Link key={link.href} href={link.href}>
+            {link.label}
+          </Link>
+        ))}
         {player ? (
           <Link href="/profile" className="cq-gold-text font-bold">
             PLAYER FILE
           </Link>
         ) : null}
-        <Link href="/how-it-works">HOW IT WORKS</Link>
       </div>
 
       <div className="cq-nav-actions">
@@ -138,8 +182,8 @@ export default function CinematicNav({ eventHref }: CinematicNavProps) {
             >
               LOG IN
             </Link>
-            <Link href={eventHref} className="cq-gold-button cq-nav-cta">
-              START QUEST
+            <Link href={ctaHref} className="cq-gold-button cq-nav-cta">
+              {ctaLabel}
               <ArrowRight size={15} aria-hidden="true" />
             </Link>
           </div>

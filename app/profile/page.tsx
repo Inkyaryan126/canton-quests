@@ -309,7 +309,7 @@ export default function ProfilePage() {
 
   return (
     <div className="cq-home-shell">
-      <CinematicNav eventHref="/events/canton-weekend-1" />
+      <CinematicNav eventHref="/events/canton-weekend-1" context="global" />
       <main className="cq-command-shell">
         <div className="cq-command-hero">
           <div>
