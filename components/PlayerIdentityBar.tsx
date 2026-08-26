@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { User, Shield, Compass, Zap, KeyRound, Sparkles, Award } from 'lucide-react';
+import { User } from 'lucide-react';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { Player, StartingPath } from '@/lib/types';
+import { Player } from '@/lib/types';
 
 interface PlayerIdentityBarProps {
   onPlayerChanged?: (player: Player) => void;
@@ -27,7 +27,7 @@ function getStoredPlayer(): Player | null {
   return null;
 }
 
-function saveStoredPlayer(displayName: string, avatarUrl: string, path?: StartingPath): Player {
+function saveStoredPlayer(displayName: string, avatarUrl: string): Player {
   const existing = getStoredPlayer() || {
     id: `plr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     displayName: 'Canton Explorer',
@@ -42,7 +42,6 @@ function saveStoredPlayer(displayName: string, avatarUrl: string, path?: Startin
     ...existing,
     displayName,
     avatarUrl,
-    selectedStartingPath: path || existing.selectedStartingPath,
   };
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(updated));
@@ -50,18 +49,11 @@ function saveStoredPlayer(displayName: string, avatarUrl: string, path?: Startin
   return updated;
 }
 
-const pathBadgeStyles: Record<StartingPath, { label: string; bg: string; text: string; border: string; icon: any }> = {
-  family: { label: 'Arts District', bg: 'bg-amber-500/15', text: 'text-amber-300', border: 'border-amber-500/40', icon: Compass },
-  challenge: { label: 'Mother Goose Land', bg: 'bg-red-500/15', text: 'text-red-300', border: 'border-red-500/40', icon: Zap },
-  secret: { label: 'Monument Park', bg: 'bg-purple-500/15', text: 'text-purple-300', border: 'border-purple-500/40', icon: KeyRound },
-};
-
 export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBarProps) {
   const [player, setPlayer] = useState<Player | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('⚡');
-  const [selectedPath, setSelectedPath] = useState<StartingPath | undefined>(undefined);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -71,14 +63,12 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
           setPlayer(data.player);
           setNameInput(data.player.displayName);
           setSelectedAvatar(data.player.avatarUrl || '⚡');
-          setSelectedPath(data.player.selectedStartingPath);
         } else {
           const current = getStoredPlayer();
           if (current) {
             setPlayer(current);
             setNameInput(current.displayName);
             setSelectedAvatar(current.avatarUrl || '⚡');
-            setSelectedPath(current.selectedStartingPath);
           }
         }
       })
@@ -88,7 +78,6 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
           setPlayer(current);
           setNameInput(current.displayName);
           setSelectedAvatar(current.avatarUrl || '⚡');
-          setSelectedPath(current.selectedStartingPath);
         }
       });
   }, []);
@@ -105,16 +94,15 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
           playerId: player?.id,
           displayName: nameInput.trim(),
           avatarUrl: selectedAvatar,
-          selectedStartingPath: selectedPath,
         }),
       });
       const data = await res.json();
-      const updated = data.player || saveStoredPlayer(nameInput.trim(), selectedAvatar, selectedPath);
+      const updated = data.player || saveStoredPlayer(nameInput.trim(), selectedAvatar);
       setPlayer(updated);
       setIsEditing(false);
       if (onPlayerChanged) onPlayerChanged(updated);
     } catch {
-      const updated = saveStoredPlayer(nameInput.trim(), selectedAvatar, selectedPath);
+      const updated = saveStoredPlayer(nameInput.trim(), selectedAvatar);
       setPlayer(updated);
       setIsEditing(false);
       if (onPlayerChanged) onPlayerChanged(updated);
@@ -122,10 +110,6 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
   };
 
   if (!player) return null;
-
-  const currentPath = player.selectedStartingPath;
-  const pathMeta = currentPath ? pathBadgeStyles[currentPath] : null;
-  const PathIcon = pathMeta?.icon;
 
   return (
     <div className="glass-panel p-3.5 mb-6 rounded-2xl border border-stone-800 bg-stone-950/80 shadow-lg flex flex-wrap items-center justify-between gap-3">
@@ -151,16 +135,6 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
             <span className="font-display font-black text-white text-base tracking-tight">
               {player.displayName}
             </span>
-            {pathMeta && PathIcon ? (
-              <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${pathMeta.bg} ${pathMeta.text} ${pathMeta.border}`}>
-                <PathIcon size={11} />
-                {pathMeta.label}
-              </span>
-            ) : (
-              <Link href="#choose-path" className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border bg-stone-850 text-stone-400 border-stone-700 hover:text-white flex items-center gap-1">
-                <span>Choose Path →</span>
-              </Link>
-            )}
           </div>
 
           <div className="flex items-center gap-3 text-xs text-stone-400 font-mono mt-0.5">
@@ -213,22 +187,6 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
               >
                 ✕
               </button>
-            </div>
-
-            {/* Path Selection */}
-            <div className="flex items-center gap-1.5 pt-1 border-t border-stone-800">
-              {(['family', 'challenge', 'secret'] as StartingPath[]).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setSelectedPath(p)}
-                  className={`text-[10px] font-mono px-2 py-1 rounded border capitalize cursor-pointer ${
-                    selectedPath === p ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold' : 'border-stone-800 text-stone-400'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
             </div>
 
             <div className="flex items-center gap-1 overflow-x-auto pb-1">

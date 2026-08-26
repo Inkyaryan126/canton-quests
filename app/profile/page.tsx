@@ -23,7 +23,7 @@ import {
 import { useRouter } from 'next/navigation';
 import CinematicNav from '@/components/CinematicNav';
 import CinematicFooter from '@/components/CinematicFooter';
-import { Achievement, Player, PlayerAchievement, Quest, StartingPath } from '@/lib/types';
+import { Achievement, Player, PlayerAchievement, Quest } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import PlayerCard from '@/components/PlayerCard';
 import PlayerAvatar from '@/components/PlayerAvatar';
@@ -31,10 +31,8 @@ import {
   CUSTOM_AVATAR_KEY,
   PLAYER_AVATAR_PRESETS,
   PLAYER_CARD_BADGE_SLOT_COUNT,
-  STARTING_DISTRICTS,
   getAvatarPresetPath,
   hasValidAvatar,
-  hasValidStartingPath,
 } from '@/lib/player-command-center';
 import { showGameMoment } from '@/lib/game-effects';
 
@@ -47,7 +45,7 @@ type BadgeCatalogItem = Achievement & {
 type CommandCenterData = {
   eventId: string;
   player: Player & { avatarPresetPath?: string };
-  startingDistrict: { label: string; district: string; color: string };
+  startingDistrict: { label: string; district: string; color: string } | null;
   stats: {
     totalXp: number;
     cityRank: number | null;
@@ -72,12 +70,6 @@ type CommandCenterData = {
   founderKeys?: { mark: boolean; code: boolean; word: boolean };
 };
 
-const pathOptions: Array<{ value: StartingPath; label: string; district: string }> = [
-  { value: 'family', label: 'FAMILY', district: 'Arts District' },
-  { value: 'challenge', label: 'CHALLENGE', district: '9th St Skate Park area' },
-  { value: 'secret', label: 'SECRET', district: 'West Lawn Cemetery / McKinley area' },
-];
-
 function authHeaders(): Record<string, string> {
   return {};
 }
@@ -98,7 +90,6 @@ function getErrorMessage(error: unknown, fallback: string) {
  */
 function announceProfileCompletion(payload: { profileCompletionReward?: boolean; profileCompletionXp?: number; player?: Player }) {
   if (!payload.profileCompletionReward) return;
-  const path = payload.player?.selectedStartingPath;
   showGameMoment({
     type: 'reward-token',
     kind: 'xp',
@@ -106,7 +97,6 @@ function announceProfileCompletion(payload: { profileCompletionReward?: boolean;
     primaryText: 'PLAYER PROFILE ACTIVE',
     secondaryText: 'You are officially on the board.',
     xpAmount: payload.profileCompletionXp || 100,
-    pathColor: path ? STARTING_DISTRICTS[path].color : undefined,
     cta: 'VIEW PLAYER FILE',
   });
 }
@@ -143,7 +133,6 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [avatarPresetKey, setAvatarPresetKey] = useState('1');
-  const [selectedStartingPath, setSelectedStartingPath] = useState<StartingPath>('family');
   const [cropZoom, setCropZoom] = useState(1);
   const [cropX, setCropX] = useState(50);
   const [cropY, setCropY] = useState(50);
@@ -182,7 +171,6 @@ export default function ProfilePage() {
       if (PLAYER_AVATAR_PRESETS.includes(loadedPresetKey as (typeof PLAYER_AVATAR_PRESETS)[number])) {
         setLastNumberedPresetKey(loadedPresetKey);
       }
-      setSelectedStartingPath(nextData.player.selectedStartingPath || 'family');
       setCropZoom(nextData.player.profileImageCropZoom || 1);
       setCropX(nextData.player.profileImageCropX ?? 50);
       setCropY(nextData.player.profileImageCropY ?? 50);
@@ -235,7 +223,6 @@ export default function ProfilePage() {
           playerId: data?.player.id,
           displayName,
           avatarPresetKey,
-          selectedStartingPath,
           profileImageCropZoom: cropZoom,
           profileImageCropX: cropX,
           profileImageCropY: cropY,
@@ -365,8 +352,8 @@ export default function ProfilePage() {
             <section className="cq-player-card-panel" aria-label="Player ID Card preview">
               <PlayerCard
                 displayName={displayName || 'Canton Agent'}
-                startingPathLabel={data.startingDistrict.label}
-                startingDistrictName={data.startingDistrict.district}
+                startingPathLabel={data.startingDistrict?.label || 'UNASSIGNED'}
+                startingDistrictName={data.startingDistrict?.district || 'No Operation path chosen'}
                 avatarImage={avatarImage}
                 cropZoom={cropZoom}
                 cropX={cropX}
@@ -377,7 +364,7 @@ export default function ProfilePage() {
                 cityRank={data.stats.cityRank}
                 memberSinceDate={data.player.createdAt ? formatDate(data.player.createdAt).toUpperCase() : 'AUG 2026'}
                 playerCode={data.player.id ? `CQ-${data.player.id.slice(-4).toUpperCase()}` : 'CQ-2026'}
-                playerLevelText={`LEVEL ${Math.max(1, data.player.level || 1)} // ${data.startingDistrict.label}`}
+                playerLevelText={`LEVEL ${Math.max(1, data.player.level || 1)}${data.startingDistrict ? ` // ${data.startingDistrict.label}` : ''}`}
                 clearanceLevelText="VOL. 1 OPERATIVE"
                 featuredBadges={featuredBadges}
               />
@@ -390,20 +377,30 @@ export default function ProfilePage() {
               </div>
               {nextMove ? (
                 <Link href={`/events/canton-weekend-1/quests/${nextMove.id}`} className="cq-next-move-card">
-                  <span>{nextMove.location?.name || data.startingDistrict.district}</span>
+                  <span>{nextMove.location?.name || data.startingDistrict?.district || 'Canton'}</span>
                   <strong>{nextMove.title}</strong>
                   <em>{nextMove.xpReward || nextMove.pointValue} XP // {nextMove.verificationType}</em>
                 </Link>
               ) : (
                 <p className="cq-empty-state">No open recommendation. The full city board remains available.</p>
               )}
-              <div className="cq-starting-district" style={{ borderColor: data.startingDistrict.color }}>
-                <Map size={18} />
-                <div>
-                  <span>Starting District</span>
-                  <strong>{data.startingDistrict.district}</strong>
+              {data.startingDistrict ? (
+                <div className="cq-starting-district" style={{ borderColor: data.startingDistrict.color }}>
+                  <Map size={18} />
+                  <div>
+                    <span>Starting District (Vol. 1 Main Operation)</span>
+                    <strong>{data.startingDistrict.district}</strong>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <Link href="/events/canton-weekend-1" className="cq-starting-district">
+                  <Map size={18} />
+                  <div>
+                    <span>Starting District</span>
+                    <strong>Enter the Vol. 1 Main Operation to choose a path</strong>
+                  </div>
+                </Link>
+              )}
               <p className="cq-open-city-copy">Your path recommends where to begin. The entire city remains open.</p>
             </section>
 
@@ -534,9 +531,7 @@ export default function ProfilePage() {
               </div>
 
               {(() => {
-                const pathDone = hasValidStartingPath(data.player);
-                const avatarDone = hasValidAvatar(data.player);
-                const identityComplete = pathDone && avatarDone;
+                const identityComplete = hasValidAvatar(data.player);
                 return (
                   <div className={`cq-identity-status${identityComplete ? ' is-complete' : ''}`}>
                     {identityComplete ? (
@@ -548,8 +543,7 @@ export default function ProfilePage() {
                     ) : (
                       <>
                         <span className="cq-identity-status-title">PLAYER IDENTITY</span>
-                        <span className="cq-identity-status-item">{pathDone ? '✓' : '○'} Choose your district</span>
-                        <span className="cq-identity-status-item">{avatarDone ? '✓' : '○'} Select your player image</span>
+                        <span className="cq-identity-status-item">○ Select your player image</span>
                         <em>Complete your identity <strong>+100 XP</strong></em>
                       </>
                     )}
@@ -561,14 +555,6 @@ export default function ProfilePage() {
                 <label>
                   <span>Callsign</span>
                   <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={30} required />
-                </label>
-                <label>
-                  <span>Starting Path</span>
-                  <select value={selectedStartingPath} onChange={(event) => setSelectedStartingPath(event.target.value as StartingPath)}>
-                    {pathOptions.map((path) => (
-                      <option key={path.value} value={path.value}>{path.label} • {path.district}</option>
-                    ))}
-                  </select>
                 </label>
               </div>
 

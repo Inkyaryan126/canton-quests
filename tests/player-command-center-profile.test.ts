@@ -120,13 +120,18 @@ describe('Player Command Center profile rules', () => {
     // ThreePathSelector, PathLockEffect, the landing pages, and
     // lib/game-engine.ts, so lib/player-command-center.ts was aligned to
     // match rather than the other way around.
-    expect(getStartingDistrict('family').district).toBe('Arts District');
-    expect(getStartingDistrict('challenge').district).toBe('Mother Goose Land');
-    expect(getStartingDistrict('secret').district).toBe('Monument Park');
+    expect(getStartingDistrict('family')?.district).toBe('Arts District');
+    expect(getStartingDistrict('challenge')?.district).toBe('Mother Goose Land');
+    expect(getStartingDistrict('secret')?.district).toBe('Monument Park');
+  });
+
+  it('returns no starting district when the player has not chosen a path in this Operation', () => {
+    expect(getStartingDistrict(undefined)).toBeNull();
+    expect(getStartingDistrict(null)).toBeNull();
   });
 
   it('keeps all other districts accessible while surfacing the player starting district first', () => {
-    const recommended = recommendQuests(quests, player, {
+    const recommended = recommendQuests(quests, player.selectedStartingPath, {
       totalPoints: 0,
       completedQuestIds: [],
       pendingSubmissionQuestIds: [],
@@ -140,7 +145,7 @@ describe('Player Command Center profile rules', () => {
   });
 
   it('does not claim proximity when there is no location signal', () => {
-    const recommended = recommendQuests(quests, player, {
+    const recommended = recommendQuests(quests, player.selectedStartingPath, {
       totalPoints: 0,
       completedQuestIds: [],
       pendingSubmissionQuestIds: [],

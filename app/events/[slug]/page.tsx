@@ -526,7 +526,7 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
 
   const activeFlashQuests = quests.filter((q) => q.isFlash && q.status === 'active');
   const activeNpc = npcs[0];
-  const playerChosenPath = participation?.path || currentPlayer?.selectedStartingPath || 'family';
+  const playerChosenPath = participation?.path || undefined;
   const pathQuests = quests.filter(
     (q) => q.startingPath === playerChosenPath && q.status === 'active' && !progress?.completedQuestIds.includes(q.id)
   );

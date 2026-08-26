@@ -105,16 +105,24 @@ function ConfirmEmailContent() {
         }
       };
 
-      // Trigger Celebration Game Moment and navigate upon conclusion
-      showGameMoment({
-        type: 'path-lock',
-        path: data.player?.selectedStartingPath || 'family',
-        title: `${data.player?.displayName || 'Agent'} Activated`,
-        onFinished: navigateNext,
-      });
+      // Trigger Celebration Game Moment and navigate upon conclusion. Path is
+      // Operation-specific now (event_players.path) — a brand-new player has
+      // no path yet at this account-level confirmation step, so the
+      // path-locked cinematic only fires when one is genuinely already set
+      // (e.g. a pre-reorg legacy account). Otherwise just navigate on.
+      if (data.player?.selectedStartingPath) {
+        showGameMoment({
+          type: 'path-lock',
+          path: data.player.selectedStartingPath,
+          title: `${data.player?.displayName || 'Agent'} Activated`,
+          onFinished: navigateNext,
+        });
 
-      // Safe fallback timer in case moment dismissal is delayed or unmounted
-      fallbackTimer = setTimeout(navigateNext, 3500);
+        // Safe fallback timer in case moment dismissal is delayed or unmounted
+        fallbackTimer = setTimeout(navigateNext, 3500);
+      } else {
+        navigateNext();
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Verification link is invalid or has expired.');
       setIsLoading(false);

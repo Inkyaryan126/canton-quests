@@ -4,6 +4,7 @@ import {
   getAchievementsForPlayerDB,
   getCollectiblesForPlayerDB,
   getDrawingEntriesForPlayerDB,
+  getEventParticipationDB,
   getLeaderboardDB,
   getPlayerProgressDB,
   getQuestsForEventDB,
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('eventId') || DEFAULT_EVENT_ID;
 
-    const [quests, progress, leaderboard, achievements, catalog, drawingEntries, playerCollectibles] = await Promise.all([
+    const [quests, progress, leaderboard, achievements, catalog, drawingEntries, playerCollectibles, participation] = await Promise.all([
       getQuestsForEventDB(eventId),
       getPlayerProgressDB(player.id, eventId),
       getLeaderboardDB(eventId),
@@ -60,11 +61,19 @@ export async function GET(request: Request) {
       getAchievementsDB(),
       getDrawingEntriesForPlayerDB(player.id, eventId),
       getCollectiblesForPlayerDB(player.id),
+      getEventParticipationDB(eventId, player.id),
     ]);
+
+    // Path is Operation-specific (event_players.path for THIS eventId), not
+    // the legacy players.selected_starting_path account column — a player
+    // who hasn't chosen a path in this Operation yet has none here, and
+    // must not be defaulted to Family. See
+    // supabase/migrations/20260826072300_operation_scoped_path_and_fair_hunt.sql.
+    const operationPath = participation?.path || undefined;
 
     const completedSet = new Set(progress.completedQuestIds);
     const completedQuests = quests.filter((quest) => completedSet.has(quest.id));
-    const recommendedQuests = recommendQuests(quests, player, progress);
+    const recommendedQuests = recommendQuests(quests, operationPath, progress);
     const featuredSlugs = sanitizeFeaturedBadges(player.featuredBadgeSlugs || player.showcaseBadges || [], achievements);
     const badgeCatalog = catalog.map((achievement) => ({
       ...achievement,
@@ -83,7 +92,7 @@ export async function GET(request: Request) {
         profileImageUrl: await getOwnerImageUrl(player.profileImagePath),
         avatarPresetPath: getAvatarPresetPath(player.avatarPresetKey),
       },
-      startingDistrict: getStartingDistrict(player.selectedStartingPath),
+      startingDistrict: getStartingDistrict(operationPath),
       progress: {
         ...progress,
         totalPoints: progress.totalPoints,
@@ -105,8 +114,8 @@ export async function GET(request: Request) {
       },
       quests: {
         recommended: recommendedQuests.slice(0, 4),
-        startingDistrict: recommendedQuests.filter((quest) => quest.startingPath === (player.selectedStartingPath || 'family')).slice(0, 6),
-        citywide: recommendedQuests.filter((quest) => quest.startingPath !== (player.selectedStartingPath || 'family')).slice(0, 12),
+        startingDistrict: operationPath ? recommendedQuests.filter((quest) => quest.startingPath === operationPath).slice(0, 6) : [],
+        citywide: operationPath ? recommendedQuests.filter((quest) => quest.startingPath !== operationPath).slice(0, 12) : recommendedQuests.slice(0, 12),
         allAvailable: quests.filter((quest) => quest.status === 'active'),
       },
       districtProgress: computeDistrictProgress(quests, progress.completedQuestIds),

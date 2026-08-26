@@ -194,12 +194,6 @@ export default function HomePage() {
                         </h2>
                         <div className="flex items-center gap-3 text-xs font-mono text-stone-300 mt-1">
                           <span className="text-amber-400 font-bold">{currentPlayer.totalXp || 0} XP</span>
-                          {currentPlayer.selectedStartingPath && (
-                            <>
-                              <span>•</span>
-                              <span className="capitalize">{currentPlayer.selectedStartingPath} Path</span>
-                            </>
-                          )}
                           <span>•</span>
                           <span>Level {currentPlayer.level || 1}</span>
                         </div>

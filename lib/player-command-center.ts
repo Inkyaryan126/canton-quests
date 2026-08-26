@@ -64,8 +64,8 @@ export interface RecentFieldActivity {
   occurredAt: string;
 }
 
-export function getStartingDistrict(path?: StartingPath) {
-  return STARTING_DISTRICTS[path || 'family'];
+export function getStartingDistrict(path?: StartingPath | null) {
+  return path ? STARTING_DISTRICTS[path] : null;
 }
 
 export function getAvatarPresetPath(key?: string) {
@@ -192,10 +192,9 @@ export function computeDistrictProgress(quests: Quest[], completedQuestIds: stri
     .filter((row) => row.total > 0);
 }
 
-export function recommendQuests(quests: Quest[], player: Player, progress: PlayerEventProgress): Quest[] {
+export function recommendQuests(quests: Quest[], path: StartingPath | undefined, progress: PlayerEventProgress): Quest[] {
   const completed = new Set(progress.completedQuestIds);
   const pending = new Set(progress.pendingSubmissionQuestIds);
-  const path = player.selectedStartingPath || 'family';
   return quests
     .filter((quest) => quest.status === 'active' && !completed.has(quest.id))
     .sort((a, b) => {
