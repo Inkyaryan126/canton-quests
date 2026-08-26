@@ -4060,7 +4060,7 @@ export function getAuthenticatedPlayerDrawingQualification(
 }
 
 export function getPublicQuestView(quest: Quest): PublicQuestView {
-  const { targetCode, gmNotes, acceptedAnswerVariants, ...safeQuest } = quest;
+  const { targetCode, gmNotes, acceptedAnswerVariants, placementDetails, placedAt, ...safeQuest } = quest;
   if (safeQuest.steps) {
     safeQuest.steps = safeQuest.steps.map(({ targetCode: _targetCode, acceptedAnswerVariants: _variants, ...stepRest }) => stepRest);
   }

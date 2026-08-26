@@ -50,6 +50,7 @@ import {
   DrawProvider,
   ProofVerificationType,
   RewardGrantReason,
+  QuestPlacementDetails,
 } from './types';
 import {
   computeAwardedBonusesForSubmission,
@@ -178,6 +179,8 @@ export function mapQuestFromDB(row: any): Quest {
     createdAt: row.created_at,
     safetyNotes: row.safety_notes,
     gmNotes: row.gm_notes,
+    placementDetails: row.placement_details || undefined,
+    placedAt: row.placed_at || undefined,
     steps: (row.quest_steps || row.steps || [])
       .map(mapQuestStepFromDB)
       .sort((a: QuestStep, b: QuestStep) => a.stepOrder - b.stepOrder),
@@ -1734,12 +1737,37 @@ export async function getQuestByIdDB(questId: string): Promise<Quest | undefined
  * points, target_code, or the startsAt/expiresAt window, so it can't be
  * used to accidentally change what a quest is worth or when it's valid.
  */
-export async function updateQuestDB(questId: string, updates: { status: Quest['status'] }): Promise<Quest | undefined> {
-  if (!isSupabaseConfigured || !supabase) return localEngine.updateQuest(questId, updates);
+export interface AdminQuestUpdate {
+  status?: Quest['status'];
+  gmNotes?: string;
+  placementDetails?: QuestPlacementDetails;
+  /** Pass a value to set placed_at; pass null to clear it (mark unplaced). */
+  placedAt?: string | null;
+}
+
+/**
+ * Updates the small set of fields the admin surface is allowed to touch —
+ * status, the internal placement note, structured placement details, and
+ * the "physically placed" timestamp. Deliberately narrow: it never accepts
+ * points, target_code, or the startsAt/expiresAt window, so it can't be
+ * used to accidentally change what a quest is worth, its scan secret, or
+ * when it's valid (e.g. a daily bonus's scheduled day).
+ */
+export async function updateQuestDB(questId: string, updates: AdminQuestUpdate): Promise<Quest | undefined> {
+  if (!isSupabaseConfigured || !supabase) {
+    return localEngine.updateQuest(questId, { ...updates, placedAt: updates.placedAt ?? undefined });
+  }
   const db = supabaseAdmin || supabase;
+
+  const patch: Record<string, unknown> = {};
+  if (updates.status !== undefined) patch.status = updates.status;
+  if (updates.gmNotes !== undefined) patch.gm_notes = updates.gmNotes;
+  if (updates.placementDetails !== undefined) patch.placement_details = updates.placementDetails;
+  if (updates.placedAt !== undefined) patch.placed_at = updates.placedAt;
+
   const { data, error } = await db
     .from('quests')
-    .update({ status: updates.status })
+    .update(patch)
     .eq('id', questId)
     .select('*, locations(*), quest_steps(*, locations(*))')
     .single();

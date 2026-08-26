@@ -336,9 +336,19 @@ export interface QuestStep {
 }
 
 export type PublicQuestStep = Omit<QuestStep, 'targetCode' | 'acceptedAnswerVariants'>;
-export type PublicQuestView = Omit<Quest, 'targetCode' | 'gmNotes' | 'steps' | 'acceptedAnswerVariants'> & {
+export type PublicQuestView = Omit<
+  Quest,
+  'targetCode' | 'gmNotes' | 'steps' | 'acceptedAnswerVariants' | 'placementDetails' | 'placedAt'
+> & {
   steps?: PublicQuestStep[];
 };
+
+/** Admin-only physical placement notes beyond the short gmNotes field — never included in PublicQuestView. */
+export interface QuestPlacementDetails {
+  description?: string;
+  setupNotes?: string;
+  retrievalNotes?: string;
+}
 
 export interface Quest {
   id: string;
@@ -368,6 +378,11 @@ export interface Quest {
   safetyNotes?: string;
   gmNotes?: string;
   steps?: QuestStep[];
+
+  // Admin-only physical deployment fields (Fair QR Hunt placement workflow) —
+  // always stripped from PublicQuestView, never returned to a player.
+  placementDetails?: QuestPlacementDetails;
+  placedAt?: string;
 
   // Phase 2, 3 & 4 Fields
   radiusMeters?: number;

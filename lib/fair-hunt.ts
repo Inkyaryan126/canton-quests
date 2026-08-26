@@ -17,6 +17,9 @@
 
 import { PublicQuestView, Quest, QuestEvent } from './types';
 
+/** The exact placeholder gm_notes value every Fair quest was seeded with — used to detect "no real placement note written yet" for deployment status. */
+export const PLACEMENT_NOTE_PLACEHOLDER = 'Placement TBD.';
+
 export const FAIR_EVENT_SLUG = 'fair-qr-hunt';
 export const FAIR_TIMEZONE = 'America/New_York';
 
@@ -126,3 +129,28 @@ export function computeFairDashboardProgress(
     maxScore: MAX_FAIR_SCORE,
   };
 }
+
+export type DeploymentStatus = 'placement_tbd' | 'ready_to_print' | 'placed' | 'disabled';
+
+/**
+ * Derived, not stored — a Signal's physical deployment state is computed
+ * from three existing/small fields rather than a dedicated status column:
+ *   disabled       — quest.status === 'inactive' (overrides everything else)
+ *   placed         — placedAt is set (a Commander has confirmed it's out at the Fair)
+ *   ready_to_print — a real gm_notes placement note has been written, but not yet marked placed
+ *   placement_tbd  — no real placement note yet (still the seed placeholder, or empty)
+ */
+export function getDeploymentStatus(quest: Pick<Quest, 'status' | 'gmNotes' | 'placedAt'>): DeploymentStatus {
+  if (quest.status === 'inactive') return 'disabled';
+  if (quest.placedAt) return 'placed';
+  const note = (quest.gmNotes || '').trim();
+  if (note && note !== PLACEMENT_NOTE_PLACEHOLDER) return 'ready_to_print';
+  return 'placement_tbd';
+}
+
+export const DEPLOYMENT_STATUS_LABEL: Record<DeploymentStatus, string> = {
+  placement_tbd: 'PLACEMENT TBD',
+  ready_to_print: 'READY TO PRINT',
+  placed: 'PLACED',
+  disabled: 'DISABLED',
+};

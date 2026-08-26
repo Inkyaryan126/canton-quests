@@ -1,7 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import CinematicNav from '@/components/CinematicNav';
+
+type DeploymentStatus = 'placement_tbd' | 'ready_to_print' | 'placed' | 'disabled';
+
+interface PlacementDetails {
+  description?: string;
+  setupNotes?: string;
+  retrievalNotes?: string;
+}
 
 interface AdminQuestRow {
   id: string;
@@ -14,7 +22,11 @@ interface AdminQuestRow {
   startsAt?: string;
   expiresAt?: string;
   gmNotes?: string;
+  placementDetails?: PlacementDetails | null;
+  placedAt?: string | null;
+  deploymentStatus: DeploymentStatus;
   uniqueClaimCount: number;
+  lastClaimedAt?: string | null;
 }
 
 interface LeaderboardRow {
@@ -25,6 +37,27 @@ interface LeaderboardRow {
   questsCompletedCount: number;
 }
 
+const DEPLOYMENT_BADGE: Record<DeploymentStatus, { label: string; className: string }> = {
+  placement_tbd: { label: 'PLACEMENT TBD', className: 'bg-stone-800 text-stone-400 border-stone-700' },
+  ready_to_print: { label: 'READY TO PRINT', className: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40' },
+  placed: { label: 'PLACED', className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40' },
+  disabled: { label: 'DISABLED', className: 'bg-red-500/15 text-red-300 border-red-500/40' },
+};
+
+function formatTime(iso?: string | null) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+const DEPLOYMENT_SAFETY_REMINDERS = [
+  'Do not obstruct signage, walkways, or emergency/safety equipment.',
+  'Do not place on or near emergency/safety equipment of any kind.',
+  'Avoid damaging surfaces — no nails/screws/permanent adhesive on property that is not ours.',
+  'Do not move or relocate someone else’s property to make room for a card.',
+  'Weather-protect the physical card (lamination/sleeve) — Fair week can be wet.',
+  'Retrieve/remove every card after the Fair ends (Sept 7) — nothing stays behind.',
+];
+
 export default function FairQrAdminPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -34,6 +67,8 @@ export default function FairQrAdminPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyQuestId, setBusyQuestId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -76,26 +111,34 @@ export default function FairQrAdminPage() {
     }
   };
 
-  const toggleStatus = async (quest: AdminQuestRow) => {
-    setBusyQuestId(quest.id);
+  const runAction = async (questId: string, payload: Record<string, unknown>) => {
+    setBusyQuestId(questId);
+    setActionError('');
     try {
-      const nextStatus = quest.status === 'active' ? 'inactive' : 'active';
       const res = await fetch('/api/admin/fair-qr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questId: quest.id, status: nextStatus }),
+        body: JSON.stringify({ questId, ...payload }),
       });
       const data = await res.json();
-      if (data.success) {
-        setQuests((prev) => prev.map((q) => (q.id === quest.id ? { ...q, status: nextStatus } : q)));
+      if (data.success && data.quest) {
+        setQuests((prev) => prev.map((q) => (q.id === questId ? { ...q, ...data.quest } : q)));
+      } else {
+        setActionError(data.error || 'Update failed.');
       }
+    } catch {
+      setActionError('Update failed — network error.');
     } finally {
       setBusyQuestId(null);
     }
   };
 
+  const toggleStatus = (quest: AdminQuestRow) =>
+    runAction(quest.id, { action: 'set_status', status: quest.status === 'active' ? 'inactive' : 'active' });
+
   const core = quests.filter((q) => q.category === 'fair_core');
   const bonus = quests.filter((q) => q.category === 'fair_bonus');
+  const readyCount = quests.filter((q) => q.deploymentStatus !== 'placement_tbd').length;
 
   return (
     <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
@@ -125,8 +168,34 @@ export default function FairQrAdminPage() {
               <p className="text-sm font-mono text-gray-400">Loading Fair QR records...</p>
             ) : (
               <>
-                <QuestTable title="Core QRs (20)" rows={core} onToggle={toggleStatus} busyQuestId={busyQuestId} />
-                <QuestTable title="Daily Bonus QRs (7)" rows={bonus} onToggle={toggleStatus} busyQuestId={busyQuestId} showWindow />
+                {actionError && (
+                  <div className="rounded-lg border border-red-500/40 bg-red-950/30 p-3 text-xs font-mono text-red-300">{actionError}</div>
+                )}
+
+                <div className="text-xs font-mono text-gray-400">
+                  Deployment progress: <span className="text-white font-bold">{readyCount}</span> / {quests.length} Signals have a
+                  real placement note or are already placed.
+                </div>
+
+                <QuestTable
+                  title="Core Signals (20)"
+                  rows={core}
+                  onToggleStatus={toggleStatus}
+                  onRunAction={runAction}
+                  busyQuestId={busyQuestId}
+                  expandedId={expandedId}
+                  setExpandedId={setExpandedId}
+                />
+                <QuestTable
+                  title="Daily Bonus Signals (7)"
+                  rows={bonus}
+                  onToggleStatus={toggleStatus}
+                  onRunAction={runAction}
+                  busyQuestId={busyQuestId}
+                  expandedId={expandedId}
+                  setExpandedId={setExpandedId}
+                  showWindow
+                />
 
                 <section className="space-y-3">
                   <h2 className="text-lg font-extrabold text-white">Fair Leaderboard</h2>
@@ -160,6 +229,15 @@ export default function FairQrAdminPage() {
                     )}
                   </div>
                 </section>
+
+                <section className="glass-panel p-5 border-amber-500/30 space-y-2">
+                  <h2 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">Physical Deployment Safety — Internal Only</h2>
+                  <ul className="text-xs font-mono text-gray-300 space-y-1 list-disc list-inside">
+                    {DEPLOYMENT_SAFETY_REMINDERS.map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                </section>
               </>
             )}
           </>
@@ -172,14 +250,20 @@ export default function FairQrAdminPage() {
 function QuestTable({
   title,
   rows,
-  onToggle,
+  onToggleStatus,
+  onRunAction,
   busyQuestId,
+  expandedId,
+  setExpandedId,
   showWindow,
 }: {
   title: string;
   rows: AdminQuestRow[];
-  onToggle: (quest: AdminQuestRow) => void;
+  onToggleStatus: (quest: AdminQuestRow) => void;
+  onRunAction: (questId: string, payload: Record<string, unknown>) => Promise<void>;
   busyQuestId: string | null;
+  expandedId: string | null;
+  setExpandedId: (id: string | null) => void;
   showWindow?: boolean;
 }) {
   return (
@@ -193,43 +277,160 @@ function QuestTable({
               <th className="py-2 pr-3">Code</th>
               <th className="py-2 pr-3">Points</th>
               {showWindow && <th className="py-2 pr-3">Window (UTC)</th>}
-              <th className="py-2 pr-3">Placement Note</th>
+              <th className="py-2 pr-3">Deployment</th>
               <th className="py-2 pr-3">Claims</th>
+              <th className="py-2 pr-3">Last Claim</th>
               <th className="py-2 pr-3">Status</th>
-              <th className="py-2 pr-3">Action</th>
+              <th className="py-2 pr-3">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((q) => (
-              <tr key={q.id} className="border-b border-stone-900 text-white">
-                <td className="py-2 pr-3">{q.title}</td>
-                <td className="py-2 pr-3 text-cyan-300">{q.targetCode}</td>
-                <td className="py-2 pr-3">{q.pointValue}</td>
-                {showWindow && (
-                  <td className="py-2 pr-3 text-[10px] text-gray-400">
-                    {q.startsAt?.slice(0, 16).replace('T', ' ')} → {q.expiresAt?.slice(0, 16).replace('T', ' ')}
-                  </td>
-                )}
-                <td className="py-2 pr-3 text-gray-400">{q.gmNotes || '—'}</td>
-                <td className="py-2 pr-3">{q.uniqueClaimCount}</td>
-                <td className="py-2 pr-3">
-                  <span className={q.status === 'active' ? 'text-emerald-400' : 'text-stone-500'}>{q.status}</span>
-                </td>
-                <td className="py-2 pr-3">
-                  <button
-                    type="button"
-                    onClick={() => onToggle(q)}
-                    disabled={busyQuestId === q.id}
-                    className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[10px] font-bold disabled:opacity-50"
-                  >
-                    {q.status === 'active' ? 'DEACTIVATE' : 'ACTIVATE'}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {rows.map((q) => {
+              const badge = DEPLOYMENT_BADGE[q.deploymentStatus];
+              const isExpanded = expandedId === q.id;
+              return (
+                <Fragment key={q.id}>
+                  <tr className="border-b border-stone-900 text-white">
+                    <td className="py-2 pr-3">{q.title}</td>
+                    <td className="py-2 pr-3 text-cyan-300">{q.targetCode}</td>
+                    <td className="py-2 pr-3">{q.pointValue}</td>
+                    {showWindow && (
+                      <td className="py-2 pr-3 text-[10px] text-gray-400">
+                        {q.startsAt?.slice(0, 16).replace('T', ' ')} → {q.expiresAt?.slice(0, 16).replace('T', ' ')}
+                      </td>
+                    )}
+                    <td className="py-2 pr-3">
+                      <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${badge.className}`}>{badge.label}</span>
+                    </td>
+                    <td className="py-2 pr-3">{q.uniqueClaimCount}</td>
+                    <td className="py-2 pr-3 text-[10px] text-gray-400">{formatTime(q.lastClaimedAt)}</td>
+                    <td className="py-2 pr-3">
+                      <span className={q.status === 'active' ? 'text-emerald-400' : 'text-stone-500'}>{q.status}</span>
+                    </td>
+                    <td className="py-2 pr-3 space-x-1.5 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(isExpanded ? null : q.id)}
+                        className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[10px] font-bold"
+                      >
+                        {isExpanded ? 'CLOSE' : 'PLACEMENT'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onToggleStatus(q)}
+                        disabled={busyQuestId === q.id}
+                        className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[10px] font-bold disabled:opacity-50"
+                      >
+                        {q.status === 'active' ? 'DEACTIVATE' : 'ACTIVATE'}
+                      </button>
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr className="border-b border-stone-900 bg-stone-950/60">
+                      <td colSpan={showWindow ? 9 : 8} className="py-3 px-3">
+                        <PlacementEditor quest={q} busy={busyQuestId === q.id} onRunAction={onRunAction} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
     </section>
+  );
+}
+
+function PlacementEditor({
+  quest,
+  busy,
+  onRunAction,
+}: {
+  quest: AdminQuestRow;
+  busy: boolean;
+  onRunAction: (questId: string, payload: Record<string, unknown>) => Promise<void>;
+}) {
+  const [gmNotes, setGmNotes] = useState(quest.gmNotes || '');
+  const [description, setDescription] = useState(quest.placementDetails?.description || '');
+  const [setupNotes, setSetupNotes] = useState(quest.placementDetails?.setupNotes || '');
+  const [retrievalNotes, setRetrievalNotes] = useState(quest.placementDetails?.retrievalNotes || '');
+
+  const save = () =>
+    onRunAction(quest.id, {
+      action: 'update_placement',
+      gmNotes,
+      placementDetails: { description, setupNotes, retrievalNotes },
+    });
+
+  return (
+    <div className="space-y-3 max-w-2xl">
+      <label className="block">
+        <span className="block text-[10px] text-gray-400 uppercase mb-1">Internal Placement Note (short)</span>
+        <input
+          value={gmNotes}
+          onChange={(e) => setGmNotes(e.target.value)}
+          className="w-full px-2.5 py-1.5 rounded bg-stone-900 border border-stone-700 text-white text-xs"
+          placeholder="e.g. Funnel cake stand, north post, eye level"
+        />
+      </label>
+      <label className="block">
+        <span className="block text-[10px] text-gray-400 uppercase mb-1">Precise Description (optional)</span>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          className="w-full px-2.5 py-1.5 rounded bg-stone-900 border border-stone-700 text-white text-xs"
+        />
+      </label>
+      <label className="block">
+        <span className="block text-[10px] text-gray-400 uppercase mb-1">Setup Notes (optional)</span>
+        <textarea
+          value={setupNotes}
+          onChange={(e) => setSetupNotes(e.target.value)}
+          rows={2}
+          className="w-full px-2.5 py-1.5 rounded bg-stone-900 border border-stone-700 text-white text-xs"
+        />
+      </label>
+      <label className="block">
+        <span className="block text-[10px] text-gray-400 uppercase mb-1">Retrieval / Removal Notes (optional)</span>
+        <textarea
+          value={retrievalNotes}
+          onChange={(e) => setRetrievalNotes(e.target.value)}
+          rows={2}
+          className="w-full px-2.5 py-1.5 rounded bg-stone-900 border border-stone-700 text-white text-xs"
+        />
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy}
+          className="px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-bold disabled:opacity-50"
+        >
+          SAVE PLACEMENT NOTES
+        </button>
+        {quest.placedAt ? (
+          <button
+            type="button"
+            onClick={() => onRunAction(quest.id, { action: 'mark_unplaced' })}
+            disabled={busy}
+            className="px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 text-[10px] font-bold disabled:opacity-50"
+          >
+            MARK UNPLACED
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onRunAction(quest.id, { action: 'mark_placed' })}
+            disabled={busy}
+            className="px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-[10px] font-bold disabled:opacity-50"
+          >
+            MARK PHYSICALLY PLACED
+          </button>
+        )}
+        {quest.placedAt && <span className="text-[10px] text-gray-500">Placed {formatTime(quest.placedAt)}</span>}
+      </div>
+    </div>
   );
 }
