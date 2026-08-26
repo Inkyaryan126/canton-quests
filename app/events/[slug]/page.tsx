@@ -302,6 +302,60 @@ export default function EventHubPage({ params }: { params: { slug: string } }) {
   }
 
   if (!event || isPreLaunch || isPreLaunchEvent(event, eventSlug)) {
+    // A real, known Operation (e.g. the Fair QR Hunt) that simply hasn't
+    // started yet gets its own honest, event-aware "not started" screen —
+    // never the hardcoded Sept 11 Main Operation copy below, which would
+    // be factually wrong for any other Operation's launch date.
+    if (event && !isKnownCantonLaunchSlug(eventSlug)) {
+      return (
+        <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
+          <Header />
+          <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8 sm:py-16 flex flex-col justify-center">
+            <div className="relative overflow-hidden rounded-3xl border border-cyan-500/40 bg-stone-900/90 shadow-2xl p-6 sm:p-12 text-center">
+              <Image
+                src={cqImages.questBoardBg}
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 900px"
+                className="object-cover opacity-20 pointer-events-none"
+              />
+              <div className="relative z-10 space-y-4 max-w-xl mx-auto">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 text-xs font-mono font-bold uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  <span>OPERATION INCOMING</span>
+                </div>
+
+                <h1 className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight">
+                  {event.title}
+                </h1>
+
+                <p className="text-sm sm:text-base text-stone-300 leading-relaxed font-body">
+                  This Operation opens {formatEventWindow(event)}. Check back then to Enter Operation.
+                </p>
+
+                <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Link
+                    href="/"
+                    className="cq-gold-button w-full sm:w-auto text-xs py-3 px-6 font-mono font-bold inline-flex items-center justify-center gap-2"
+                  >
+                    RETURN TO COMMAND CENTER →
+                  </Link>
+                  <Link
+                    href="/leaderboard"
+                    className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+                  >
+                    🏆 VIEW RANKINGS
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </main>
+          <CinematicFooter />
+        </div>
+      );
+    }
+
     if (isKnownCantonLaunchSlug(eventSlug) || isPreLaunchEvent(event, eventSlug)) {
       return (
         <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
