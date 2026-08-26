@@ -59,6 +59,7 @@ function LeaderboardContent() {
   const activeEvent = selectedEvent || getActiveEvent(events);
   const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events';
   const topThree = entries.slice(0, 3);
+  const isFairOperation = activeEvent?.slug === 'fair-qr-hunt';
 
   return (
     <div className="cq-home-shell">
@@ -114,24 +115,45 @@ function LeaderboardContent() {
                 sizes="(max-width: 768px) 100vw, 800px"
                 className="object-cover opacity-20 pointer-events-none"
               />
-              <div className="relative z-10 space-y-3">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-widest">
-                  <Trophy size={14} className="text-amber-400" />
-                  <span>PRE-SEASON ACTIVE • KICKOFF SEPTEMBER 11</span>
+              {isFairOperation ? (
+                <div className="relative z-10 space-y-3">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 font-mono text-xs font-bold uppercase tracking-widest">
+                    <Trophy size={14} className="text-cyan-400" />
+                    <span>FAIR QR HUNT • SEPT 1 – SEPT 7</span>
+                  </div>
+                  <h2 className="text-3xl font-black font-display text-white uppercase tracking-tight">
+                    No Fair Scores Yet
+                  </h2>
+                  <p className="text-sm text-stone-300 font-body max-w-lg mx-auto leading-relaxed">
+                    Live Fair QR Hunt rankings will stream here as players secure Signals across the fairgrounds — no starting path required.
+                  </p>
+                  <div className="pt-3">
+                    <Link href="/events/fair-qr-hunt" className="cq-gold-button inline-flex">
+                      ENTER THE FAIR QR HUNT
+                      <Zap size={16} />
+                    </Link>
+                  </div>
                 </div>
-                <h2 className="text-3xl font-black font-display text-white uppercase tracking-tight">
-                  Leaderboard Activates September 11
-                </h2>
-                <p className="text-sm text-stone-300 font-body max-w-lg mx-auto leading-relaxed">
-                  Live individual agent rankings and XP scoring will stream here in real time as players verify field missions across Canton.
-                </p>
-                <div className="pt-3">
-                  <Link href="/#choose-path" className="cq-gold-button inline-flex">
-                    CHOOSE STARTING PATH
-                    <Zap size={16} />
-                  </Link>
+              ) : (
+                <div className="relative z-10 space-y-3">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-widest">
+                    <Trophy size={14} className="text-amber-400" />
+                    <span>PRE-SEASON ACTIVE • KICKOFF SEPTEMBER 11</span>
+                  </div>
+                  <h2 className="text-3xl font-black font-display text-white uppercase tracking-tight">
+                    Leaderboard Activates September 11
+                  </h2>
+                  <p className="text-sm text-stone-300 font-body max-w-lg mx-auto leading-relaxed">
+                    Live individual agent rankings and XP scoring will stream here in real time as players verify field missions across Canton.
+                  </p>
+                  <div className="pt-3">
+                    <Link href="/#choose-path" className="cq-gold-button inline-flex">
+                      CHOOSE STARTING PATH
+                      <Zap size={16} />
+                    </Link>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </section>
         ) : (
