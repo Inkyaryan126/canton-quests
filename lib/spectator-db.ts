@@ -758,7 +758,7 @@ export async function getLiveEventTimelineDB(
 }
 
 export async function runAudienceVoteSimulationDB(
-  eventId: string = 'default-event',
+  eventId: string,
   params?: {
     title?: string;
     optionsCount?: number;
@@ -1061,7 +1061,7 @@ export async function toggleSpectatorSystemFreezeDB(
   };
 }
 
-export async function getSpectatorSessionCountDB(eventId: string = 'default-event'): Promise<number> {
+export async function getSpectatorSessionCountDB(eventId: string): Promise<number> {
   if (!supabaseModule.isSupabaseConfigured || !supabaseModule.supabaseAdmin) {
     return localEngine.getSpectatorSessionCount(eventId);
   }
@@ -1076,6 +1076,31 @@ export async function getSpectatorSessionCountDB(eventId: string = 'default-even
   }
 }
 
-export async function getDistrictActivityDB(eventId: string = 'default-event'): Promise<localEngine.DistrictActivity[]> {
+export async function getDistrictActivityDB(eventId: string): Promise<localEngine.DistrictActivity[]> {
   return localEngine.getDistrictActivity(eventId);
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolves the real event id for spectator/live-admin reads and writes.
+ * Callers used to fall back to the placeholder literal string
+ * "default-event" when no eventId was supplied, which Postgres rejects with
+ * `invalid input syntax for type uuid` the moment a Supabase-backed query
+ * does `.eq('event_id', eventId)` against a UUID column (public_game_feed,
+ * audience_events, host_broadcasts, ...) — causing spectator/admin-live GET
+ * requests to 500 instead of loading.
+ *
+ * A caller-supplied id that already looks like a real UUID is trusted as-is.
+ * Anything else — missing, or the legacy "default-event" placeholder — is
+ * resolved against the stable Volume 1 event slug instead of ever being
+ * passed through to a UUID column. Returns null (not a fabricated id) when
+ * no event can be resolved, so callers can return an honest empty state.
+ */
+export async function resolveSpectatorEventId(requestedEventId: string | null | undefined): Promise<string | null> {
+  if (requestedEventId && UUID_RE.test(requestedEventId)) return requestedEventId;
+  const { getEventBySlugDB } = await import('./supabase-db');
+  const { SEED_EVENT } = await import('./seed-data');
+  const event = await getEventBySlugDB(SEED_EVENT.slug);
+  return event?.id || null;
 }

@@ -215,7 +215,10 @@ export default function WatchPage() {
         body: JSON.stringify({
           audienceEventId: activeEvent.id,
           optionId,
-          eventId: activeEvent.eventId || 'default-event',
+          // Omit eventId entirely if we don't have a real one yet — the
+          // server resolves the canonical event via
+          // resolveSpectatorEventId(), never trust a placeholder string here.
+          eventId: activeEvent.eventId || undefined,
         }),
       });
 

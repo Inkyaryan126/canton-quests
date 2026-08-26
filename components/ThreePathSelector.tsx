@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -136,12 +136,36 @@ export default function ThreePathSelector({
   eventSlug = 'canton-weekend-1',
 }: ThreePathSelectorProps) {
   const [selectedPath, setSelectedPath] = useState<StartingPath | null>(currentPath || null);
+  const confirmationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (currentPath) {
       setSelectedPath(currentPath);
     }
   }, [currentPath]);
+
+  // Selecting a door reveals the onboarding form below the (often
+  // full-viewport-tall) doors artwork — without this, players click a door
+  // and never realize there's a form to fill in just below the fold. Scroll
+  // it into view and, once visible, focus its first field so a keyboard/
+  // screen-reader user lands right where they need to type.
+  useEffect(() => {
+    if (!selectedPath || !confirmationRef.current) return;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    confirmationRef.current.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'start',
+    });
+    const focusTimer = window.setTimeout(() => {
+      const firstField = confirmationRef.current?.querySelector<HTMLInputElement>('#onboard-callsign');
+      // Only steal focus if the field is genuinely empty — never yank focus
+      // away from a returning player already mid-typing after a re-render.
+      if (firstField && document.activeElement !== firstField && !firstField.value) {
+        firstField.focus({ preventScroll: true });
+      }
+    }, prefersReducedMotion ? 0 : 450);
+    return () => window.clearTimeout(focusTimer);
+  }, [selectedPath]);
 
   const activeOption = selectedPath ? PATH_OPTIONS.find((p) => p.id === selectedPath) || null : null;
 
@@ -262,7 +286,7 @@ export default function ThreePathSelector({
 
       {/* Path Lock Confirmation & Fast Onboarding Form (Revealed ONLY after explicit path selection) */}
       {selectedPath && activeOption ? (
-        <div className="cq-door-confirmation" style={{ backgroundColor: `${activeOption.color}15`, borderColor: `${activeOption.color}50` }}>
+        <div ref={confirmationRef} className="cq-door-confirmation scroll-mt-20" style={{ backgroundColor: `${activeOption.color}15`, borderColor: `${activeOption.color}50` }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
               <CheckCircle2 size={20} style={{ color: activeOption.color, flexShrink: 0, marginTop: '2px' }} />

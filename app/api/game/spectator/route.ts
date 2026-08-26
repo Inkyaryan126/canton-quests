@@ -20,6 +20,7 @@ import {
   getSpectatorSystemSettingsDB,
   getDistrictActivityDB,
   getSpectatorSessionCountDB,
+  resolveSpectatorEventId,
 } from '@/lib/spectator-db';
 import * as supabaseModule from '@/lib/supabase';
 
@@ -73,17 +74,34 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const action = url.searchParams.get('action') || 'feed';
-    const eventId = url.searchParams.get('eventId') || 'default-event';
-
-    if (action === 'events') {
-      const events = await getAudienceEventsDB(eventId, false);
-      return NextResponse.json({ success: true, events });
-    }
+    const eventId = await resolveSpectatorEventId(url.searchParams.get('eventId'));
 
     if (action === 'options') {
       const audienceEventId = url.searchParams.get('audienceEventId') || '';
       const options = await getAudienceEventOptionsDB(audienceEventId, false);
       return NextResponse.json({ success: true, options });
+    }
+
+    // No event resolvable yet (nothing configured/active) is a legitimate,
+    // successful "nothing live right now" state — never a 500. This is what
+    // lets /watch reach a stable loaded state instead of spinning forever.
+    if (!eventId) {
+      if (action === 'events') return NextResponse.json({ success: true, events: [] });
+      if (action === 'broadcasts') return NextResponse.json({ success: true, broadcasts: [] });
+      if (action === 'settings') {
+        return NextResponse.json({
+          success: true,
+          settings: { eventId: '', isSpectatorSystemDisabled: false, updatedAt: new Date().toISOString() },
+        });
+      }
+      if (action === 'districts') return NextResponse.json({ success: true, districts: [] });
+      if (action === 'stats') return NextResponse.json({ success: true, activeSpectators: 0 });
+      return NextResponse.json({ success: true, feed: [] });
+    }
+
+    if (action === 'events') {
+      const events = await getAudienceEventsDB(eventId, false);
+      return NextResponse.json({ success: true, events });
     }
 
     if (action === 'broadcasts') {
@@ -253,10 +271,17 @@ export async function POST(request: Request) {
 
 
     // 3. Vote Submission (Default POST action)
-    const { audienceEventId, optionId, eventId = 'default-event' } = body;
+    const { audienceEventId, optionId } = body;
     if (!audienceEventId || !optionId) {
       return NextResponse.json(
         { success: false, error: 'Missing audienceEventId or optionId' },
+        { status: 400 }
+      );
+    }
+    const eventId = await resolveSpectatorEventId(body.eventId);
+    if (!eventId) {
+      return NextResponse.json(
+        { success: false, error: 'No active event configured' },
         { status: 400 }
       );
     }

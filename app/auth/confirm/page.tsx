@@ -171,7 +171,18 @@ function ConfirmEmailContent() {
         </div>
       ) : tokenHash ? (
         <form onSubmit={handleConfirm} className="cq-confirm-form">
-          {!isRecovery && (
+          {/*
+            The password-signup flow (type=signup) always collects a callsign
+            at registration — signUpWithPassword persists it into Supabase
+            Auth user_metadata, and the server now honors that value when
+            creating the player record (see resolveOrCreatePlayerForAuthUser
+            in lib/supabase-auth.ts). Re-prompting here would just be a
+            redundant, confusing second callsign question. Only the
+            passwordless magic-link/OTP flow (sendEmailOtp) never collects a
+            callsign anywhere else, so it's the one case this field is
+            actually needed.
+          */}
+          {!isRecovery && type !== 'signup' && (
             <div className="cq-confirm-callsign-box">
               <label htmlFor="confirm-callsign-input" className="cq-confirm-label">
                 Player Callsign (Optional / Can be set later)
@@ -229,7 +240,7 @@ function ConfirmEmailContent() {
       {/* Rules Footer */}
       <div className="cq-confirm-footer">
         <Sparkles size={14} className="text-amber-400 shrink-0" />
-        <span>Every verified player gets 1 individual entry for Sunday night prize drawings.</span>
+        <span>Every verified completed core quest earns a drawing entry toward the cash prize drawings — account creation alone doesn&apos;t.</span>
       </div>
     </div>
   );

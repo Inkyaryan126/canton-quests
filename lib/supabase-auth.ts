@@ -1436,7 +1436,17 @@ export async function resolveOrCreatePlayerForAuthUser(
     : (authUser.user_metadata?.selected_starting_path as StartingPath) || undefined;
 
   const source = params?.acquisitionSource || authUser.user_metadata?.acquisition_source || 'main_site';
-  const cleanName = (params?.displayName || authUser.email?.split('@')[0] || 'Canton Explorer').trim();
+  // The canonical callsign-collection point is registration (signUpWithPassword
+  // persists it into Supabase Auth user_metadata.display_name at signup time).
+  // Prefer that over whatever (optional, often blank) value the confirm-page
+  // callsign field submits, so a player's actually-chosen callsign is never
+  // silently discarded and replaced by their email-address prefix.
+  const cleanName = (
+    params?.displayName ||
+    authUser.user_metadata?.display_name ||
+    authUser.email?.split('@')[0] ||
+    'Canton Explorer'
+  ).trim();
 
   if (isSupabaseConfigured && supabase) {
     const db = supabaseAdmin || supabase;

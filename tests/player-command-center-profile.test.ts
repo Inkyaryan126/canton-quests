@@ -109,10 +109,20 @@ const earned: PlayerAchievement[] = [
 ];
 
 describe('Player Command Center profile rules', () => {
-  it('maps all three starting paths to the required recommended districts', () => {
+  it('maps all three starting paths to the required recommended districts using the canonical public names', () => {
+    // Canonical starting-path district names (launch-readiness Phase 11):
+    // previously this file, app/profile/page.tsx, ThreePathSelector.tsx,
+    // and app/quests/page.tsx each used a different label for the same
+    // Challenge/Secret path ("9th St Skate Park area" / "Challenge District"
+    // vs "Mother Goose Land"; "West Lawn Cemetery / McKinley area" /
+    // "West Lawn Archive" vs "Monument Park"). Mother Goose Land and
+    // Monument Park were the majority-consensus labels already used by
+    // ThreePathSelector, PathLockEffect, the landing pages, and
+    // lib/game-engine.ts, so lib/player-command-center.ts was aligned to
+    // match rather than the other way around.
     expect(getStartingDistrict('family').district).toBe('Arts District');
-    expect(getStartingDistrict('challenge').district).toBe('9th St Skate Park area');
-    expect(getStartingDistrict('secret').district).toBe('West Lawn Cemetery / McKinley area');
+    expect(getStartingDistrict('challenge').district).toBe('Mother Goose Land');
+    expect(getStartingDistrict('secret').district).toBe('Monument Park');
   });
 
   it('keeps all other districts accessible while surfacing the player starting district first', () => {

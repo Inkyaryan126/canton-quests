@@ -33,8 +33,8 @@ const steps = [
     Icon: Compass,
   },
   {
-    title: 'Go there',
-    text: 'Head to the real Canton location.',
+    title: 'Solve or go there',
+    text: 'Some missions solve remotely; visiting Canton unlocks field bonuses and physical caches.',
     Icon: MapPin,
   },
   {
@@ -243,7 +243,7 @@ export default function HowItWorksPage() {
                   $500 in Cash Prizes. Zero secret winners.
                 </p>
                 <p className="text-stone-300 text-sm leading-relaxed max-w-3xl">
-                  Sign up and get <strong>1 free drawing entry</strong>. Every verified completed quest gives you <strong>+1 drawing entry</strong>. Entries feed three separate cash drawings ($100 + $50 + $50 = $200 total). Leaderboard prizes ($200 champion + $100 runner-up) go to the top two XP scorers — no drawing entries needed for those.
+                  Creating an account is free and gives 0 drawing entries. Completing your player identity earns <strong>+100 XP once</strong> (still 0 entries). Every verified completed core quest gives you <strong>+1 drawing entry</strong>. Entries feed three separate cash drawings ($100 + $50 + $50 = $200 total). Leaderboard prizes ($200 champion + $100 runner-up) go to the top two XP scorers — no drawing entries needed for those.
                 </p>
               </div>
 

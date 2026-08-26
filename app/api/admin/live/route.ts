@@ -26,6 +26,7 @@ import {
   getSpectatorSystemSettingsDB,
   getLiveEventTimelineDB,
   runAudienceVoteSimulationDB,
+  resolveSpectatorEventId,
 } from '@/lib/spectator-db';
 import { processAudienceLifecycleCron } from '@/lib/spectator-engine';
 import {
@@ -70,7 +71,27 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const eventId = searchParams.get('eventId') || 'default-event';
+    const eventId = await resolveSpectatorEventId(searchParams.get('eventId'));
+
+    // No resolvable event (e.g. nothing seeded yet) is an intentional, safe
+    // empty read — never substitute a fake/placeholder id into a downstream
+    // query against a UUID event_id column.
+    if (!eventId) {
+      return NextResponse.json({
+        success: true,
+        activeEvent: null,
+        activeOptions: [],
+        upcomingEvents: [],
+        resolvedEvents: [],
+        settings: null,
+        timeline: [],
+        readiness: null,
+        launchGates: null,
+        checklist: null,
+        qrAudit: null,
+        questAudit: null,
+      });
+    }
 
     const events = await getAudienceEventsDB(eventId, true);
     const settings = await getSpectatorSystemSettingsDB(eventId);
@@ -127,7 +148,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing action parameter' }, { status: 400 });
     }
 
-    const eventId = body.eventId || 'default-event';
+    const eventId = await resolveSpectatorEventId(body.eventId);
+
+    // Every admin/live write action mutates state scoped to a real event —
+    // never continue with a fabricated/placeholder id if none can be
+    // resolved. This is a hard stop, not a soft fallback.
+    if (!eventId) {
+      return NextResponse.json(
+        { success: false, error: 'No event could be resolved. Cannot process this admin action.' },
+        { status: 400 }
+      );
+    }
 
     switch (action) {
       case 'toggle_pause': {

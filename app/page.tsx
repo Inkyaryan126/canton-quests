@@ -57,7 +57,7 @@ const featureBlocks = [
   },
   {
     title: 'GO',
-    text: 'Head to the real Canton location.',
+    text: 'Solve it remotely, or go find it in Canton.',
     Icon: MapPin,
   },
   {
@@ -126,15 +126,14 @@ export default function HomePage() {
             <div className="cq-section-shell">
               <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-amber-950/40 via-stone-900/90 to-stone-950/90 border-2 border-amber-500/40 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-stone-950 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-lg shrink-0 overflow-hidden">
+                  <div className="w-16 h-16 rounded-2xl bg-stone-950 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-lg shrink-0">
                     <PlayerAvatar
                       avatarUrl={currentPlayer.avatarUrl}
                       cropZoom={currentPlayer.profileImageCropZoom}
                       cropX={currentPlayer.profileImageCropX}
                       cropY={currentPlayer.profileImageCropY}
-                      size={64}
-                      style={{ borderRadius: '1rem' }}
-                      fallback="⚡"
+                      size={40}
+                      style={{ borderRadius: '0.75rem' }}
                       ariaLabel={`${currentPlayer.displayName || 'Player'} avatar`}
                     />
                   </div>
@@ -368,7 +367,7 @@ export default function HomePage() {
                     $500 Prize Pool
                   </h2>
                   <p className="text-sm text-stone-300 font-body leading-relaxed">
-                    Sign up for <strong>1 free drawing entry</strong>. Every verified completed mission earns <strong>+1 more entry</strong> into the cash drawings. Leaderboard prizes go to the top 2 XP scorers — no drawing entries required.
+                    Signing up is free and doesn&apos;t require an entry. Every verified completed mission earns <strong>+1 drawing entry</strong> into the cash drawings. Leaderboard prizes go to the top 2 XP scorers — no drawing entries required.
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs font-mono">

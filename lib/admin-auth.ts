@@ -1,5 +1,6 @@
 // Canton Quests — Admin Security & Game Master Authorization Layer (Phase 5.1 Spectator Engine)
 
+import { cookies } from 'next/headers';
 import { UserRole } from './types';
 
 export const ADMIN_COOKIE_NAME = 'cg_admin_session';
@@ -51,4 +52,35 @@ export function authorizeGameMasterRequest(headersObj: Record<string, string | s
     adminName: 'Guest',
     role: 'player',
   };
+}
+
+/**
+ * Canonical server-side admin session resolver for API routes — checks both
+ * the x-admin-key/Authorization header (authorizeGameMasterRequest) and the
+ * httpOnly admin session cookie (verifyAdminSecret), matching the pattern
+ * already duplicated inline in app/api/admin/drawing/route.ts and
+ * app/api/admin/live/route.ts. New/updated admin routes should call this
+ * instead of re-implementing the same two checks locally.
+ */
+export function resolveAdminSessionFromRequest(request: Request): AdminSession {
+  const headersObj: Record<string, string> = {};
+  request.headers.forEach((val, key) => {
+    headersObj[key] = val;
+  });
+  const headerSession = authorizeGameMasterRequest(headersObj);
+  if (headerSession.isAdmin) {
+    return headerSession;
+  }
+
+  try {
+    const cookieStore = cookies();
+    const adminCookie = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
+    if (adminCookie && verifyAdminSecret(adminCookie)) {
+      return { isAdmin: true, adminName: 'Game Master', role: 'admin' };
+    }
+  } catch {
+    // Ignore when running outside Next.js request scope (e.g. direct unit-test invocation).
+  }
+
+  return { isAdmin: false, adminName: 'Guest', role: 'player' };
 }

@@ -38,13 +38,13 @@ export const STARTING_DISTRICTS: Record<
   },
   challenge: {
     label: 'CHALLENGE',
-    district: '9th St Skate Park area',
+    district: 'Mother Goose Land',
     color: '#ef4444',
     accentClass: 'cq-path-challenge',
   },
   secret: {
     label: 'SECRET',
-    district: 'West Lawn Cemetery / McKinley area',
+    district: 'Monument Park',
     color: '#a855f7',
     accentClass: 'cq-path-secret',
   },
@@ -158,8 +158,8 @@ export function computeDistrictProgress(quests: Quest[], completedQuestIds: stri
   const completed = new Set(completedQuestIds);
   const labels: Record<QuestPath, string> = {
     family: 'Arts District',
-    challenge: '9th St / Challenge District',
-    secret: 'West Lawn / McKinley',
+    challenge: 'Mother Goose Land',
+    secret: 'Monument Park',
     cross_city: 'Citywide',
   };
   const paths: QuestPath[] = ['family', 'challenge', 'secret', 'cross_city'];
