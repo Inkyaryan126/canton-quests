@@ -1,5 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
 
+/*
+ * Explicit layer order, declared before any layer gets content, so later
+ * `@layer base { ... }` content (below) is inserted into its correct slot
+ * instead of being appended as a new highest-priority layer at first use.
+ * Per the CSS Cascade Layers spec, a layer's priority is fixed by the order
+ * its name is FIRST seen — either via a bare `@layer a, b, c;` statement or
+ * the first block/import that uses it — not by where its content happens to
+ * live in the file. Tailwind's utilities must stay the highest-priority
+ * layer so `base` (our own reset/defaults) never beats a Tailwind class.
+ */
+@layer theme, base, utilities;
+
 /* Tailwind v4 theme + utilities — Preflight excluded; project base reset follows below */
 @import "tailwindcss/theme" layer(theme);
 @import "tailwindcss/utilities" layer(utilities);
@@ -29,45 +41,44 @@
   --font-rajdhani: 'Rajdhani', sans-serif;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  -webkit-tap-highlight-color: transparent;
-}
-
 /*
- * Tailwind's utility classes (including .mx-auto) compile into
- * `@layer utilities`. This file's own rules are unlayered, and per the CSS
- * Cascade Layers spec, unlayered normal-priority declarations beat ANY
- * layered declaration regardless of specificity — so the plain `* { margin:
- * 0 }` reset two rules above silently overrides every `.mx-auto` on the
- * site (any max-w-* + mx-auto container renders flush-left instead of
- * centered on viewports wider than its max-width). `!important` reverses
- * that precedence back in .mx-auto's favor without touching the reset
- * itself, which many components still rely on for margin-free defaults.
+ * Project base reset/defaults, deliberately placed in `@layer base` (see the
+ * explicit `@layer theme, base, utilities;` order above) instead of left
+ * unlayered. An earlier version of this file had this reset unlayered,
+ * which — per the CSS Cascade Layers spec — meant it beat EVERY Tailwind
+ * utility class touching the same properties (margin, padding, font-weight,
+ * letter-spacing) regardless of specificity or source order, sitewide. That
+ * silently zeroed out most authored `p-*`/`m-*`/`px-*`/`py-*`/etc. spacing
+ * and flattened `font-black`/`tracking-*` on headings back to this block's
+ * defaults. Layering it correctly restores normal, expected precedence:
+ * Tailwind utilities win, exactly as authored.
  */
-.mx-auto {
-  margin-inline: auto !important;
-}
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-html, body {
-  background-color: var(--bg-obsidian);
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  font-size: 16px;
-  line-height: 1.5;
-  min-height: 100vh;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
+  html, body {
+    background-color: var(--bg-obsidian);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
 }
 
 code, pre, .font-mono {
