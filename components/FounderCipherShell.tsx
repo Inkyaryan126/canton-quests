@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Player, QuestEvent } from '@/lib/types';
 import { cqImages, destinationCards, formatEventWindow } from '@/lib/marketing-assets';
-import { PATH_OPTIONS } from '@/components/ThreePathSelector';
+import { DOOR_HOTSPOTS } from '@/components/ThreePathSelector';
 import { OperationLifecycleStage } from '@/lib/launch-status';
 import { getFeaturedTransmission } from '@/lib/commander-transmissions';
 
@@ -61,10 +61,10 @@ interface FounderCipherShellProps {
 }
 
 const STAGE_BADGE: Record<OperationLifecycleStage, { label: string; dotClass: string }> = {
-  upcoming: { label: 'MISSION GRID OFFLINE — OPERATION INCOMING', dotClass: 'bg-amber-400' },
-  active: { label: 'MISSION GRID LIVE — OPERATION ACTIVE', dotClass: 'bg-emerald-400' },
-  finale: { label: 'FINAL HOURS — OPERATION CLOSING', dotClass: 'bg-red-500' },
-  ended: { label: 'OPERATION COMPLETE — RESULTS ARCHIVED', dotClass: 'bg-stone-400' },
+  upcoming: { label: 'MISSION GRID OFFLINE — MISSION UPCOMING', dotClass: 'bg-amber-400' },
+  active: { label: 'MISSION GRID LIVE — MISSION ACTIVE', dotClass: 'bg-emerald-400' },
+  finale: { label: 'FINAL HOURS — MISSION CLOSING', dotClass: 'bg-red-500' },
+  ended: { label: 'MISSION COMPLETE — RESULTS ARCHIVED', dotClass: 'bg-stone-400' },
 };
 
 export default function FounderCipherShell({ event, authenticatedPlayer, stage, countdown, children }: FounderCipherShellProps) {
@@ -72,6 +72,11 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
   const eventWindow = event ? formatEventWindow(event) : 'September 11 – 14, 2026';
   const badge = STAGE_BADGE[stage];
   const featuredTransmission = getFeaturedTransmission();
+  // The door preview isn't wired to selection state itself — clicking a
+  // door routes into the real entry flow (register-then-choose, or straight
+  // into the Operation if already signed in) so it drives the existing
+  // path-selection logic instead of duplicating it.
+  const doorHref = authenticatedPlayer ? '/events/canton-weekend-1' : '/register?next=%2Fevents%2Fcanton-weekend-1';
 
   return (
     <div className="space-y-16 sm:space-y-20 pb-4">
@@ -168,97 +173,24 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
         </div>
       </section>
 
-      {/* STATE-SPECIFIC GATES/DASHBOARD SLOT */}
-      {children}
-
-      {/* PERSISTENT — FOUR STEPS */}
-      <section aria-labelledby="cipher-steps-heading">
-        <div className="text-center max-w-2xl mx-auto mb-8">
-          <span className="cq-kicker">HOW THE FOUNDER&apos;S CIPHER WORKS</span>
-          <h2 id="cipher-steps-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-            Four Steps to Conquer Canton
-          </h2>
-        </div>
-        <div className="cq-pillars">
-          {founderCipherSteps.map(({ title, text, Icon }) => (
-            <article className="cq-pillar-card" key={title}>
-              <span className="cq-pillar-icon">
-                <Icon size={28} aria-hidden="true" />
-              </span>
-              <h2>{title}</h2>
-              <p>{text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {/* PERSISTENT — THREE PATHS */}
-      <section aria-labelledby="cipher-paths-heading">
-        <div className="text-center max-w-2xl mx-auto mb-8">
-          <span className="cq-kicker">THREE DOORS. ONE CITY.</span>
-          <h2 id="cipher-paths-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-            Family, Challenge, or Secret
-          </h2>
-          <p className="text-sm text-stone-400 font-body mt-2">
-            Your starting path gives you your first mission and identity — every quest in Canton stays open to you.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {PATH_OPTIONS.map((path) => (
-            <article
-              key={path.id}
-              className="rounded-2xl border p-5 bg-stone-950/80 shadow-xl"
-              style={{ borderColor: `${path.color}50` }}
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <path.icon size={18} style={{ color: path.color }} aria-hidden="true" />
-                <span className="font-display font-black text-sm text-white uppercase tracking-wide">{path.title}</span>
-              </div>
-              <p className="text-xs text-stone-300 font-body leading-relaxed">{path.subtitle}</p>
-              <span
-                className="inline-block mt-3 text-[10px] font-mono font-bold uppercase px-2 py-1 rounded-full"
-                style={{ backgroundColor: `${path.color}20`, color: path.color, border: `1px solid ${path.color}50` }}
-              >
-                {path.badge}
-              </span>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {/* PERSISTENT — REAL CANTON LOCATIONS */}
-      <section aria-labelledby="cipher-destinations-heading">
-        <div className="text-center max-w-2xl mx-auto mb-8">
-          <span className="cq-kicker">THE CITY IS THE GAME BOARD</span>
-          <h2 id="cipher-destinations-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-            Real Places. Real Missions.
-          </h2>
-        </div>
-        <div className="cq-destination-grid">
-          {destinationCards.map((card) => (
-            <article className="cq-destination-card" key={card.title}>
-              <Image src={card.image} alt={card.title} fill sizes="(max-width: 820px) 100vw, 25vw" />
-              <div>
-                <span>{card.label}</span>
-                <h3>{card.title}</h3>
-                <p>{card.copy}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {/* PERSISTENT — COMMANDER BRIEFING */}
+      {/* PERSISTENT — COMMANDER BRIEFING (moved directly under the hero: this
+          is the first thing every player should hear before entering). */}
       <section aria-labelledby="cipher-briefing-heading" className="bg-stone-950/70 border-y border-stone-800/80 -mx-4 sm:-mx-6 px-4 sm:px-6 py-12">
+        <div className="text-center max-w-2xl mx-auto mb-8">
+          <span className="cq-kicker">BEFORE YOU ENTER</span>
+          <h2 id="cipher-briefing-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+            Hear From The Commander
+          </h2>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center max-w-5xl mx-auto">
           <div className="lg:col-span-5 space-y-4 text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
               <Radio size={14} className="text-amber-400 animate-pulse" />
               <span>GAME MASTER TRANSMISSION</span>
             </div>
-            <h2 id="cipher-briefing-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+            <h3 className="font-display font-black text-xl sm:text-2xl text-white uppercase tracking-tight">
               Official Mission Briefing
-            </h2>
+            </h3>
             <p className="text-sm text-stone-300 font-body leading-relaxed">
               Watch the official Game Commander transmission for Canton Quests Volume 1. Learn how real-world
               landmarks, street ciphers, and QR nodes connect across downtown Canton.
@@ -353,6 +285,121 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
               VIEW TRANSMISSIONS
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* STATE-SPECIFIC GATES/DASHBOARD SLOT — current player status and,
+          once the Mission is active, live Mission controls (quest board,
+          map, score). */}
+      {children}
+
+      {/* PERSISTENT — FOUR STEPS */}
+      <section aria-labelledby="cipher-steps-heading">
+        <div className="text-center max-w-2xl mx-auto mb-8">
+          <span className="cq-kicker">HOW THE FOUNDER&apos;S CIPHER WORKS</span>
+          <h2 id="cipher-steps-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+            Four Steps to Conquer Canton
+          </h2>
+        </div>
+        <div className="cq-pillars">
+          {founderCipherSteps.map(({ title, text, Icon }) => (
+            <article className="cq-pillar-card" key={title}>
+              <span className="cq-pillar-icon">
+                <Icon size={28} aria-hidden="true" />
+              </span>
+              <h2>{title}</h2>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* PERSISTENT — THREE DOORS (same artwork/CSS as the functional
+          ThreePathSelector used once a player actually enters and needs to
+          choose — this is the presentational preview; clicking a door
+          routes into that real entry flow rather than duplicating its
+          selection/signup logic here). */}
+      <section id="choose-path" className="cq-three-doors-section scroll-mt-28" aria-labelledby="cipher-paths-heading">
+        <div className="cq-three-doors-intro">
+          <span className="cq-three-doors-eyebrow">THREE DOORS. ONE CITY.</span>
+          <h2 id="cipher-paths-heading" className="cq-three-doors-title">
+            Family, Challenge, or Secret
+          </h2>
+          <p className="cq-three-doors-desc">
+            Your starting path gives you your first mission and identity — every quest in Canton stays open to you.
+          </p>
+        </div>
+
+        <div className="cq-three-doors-frame">
+          <Image
+            src={cqImages.threeDoors}
+            alt="Three starting portal doors: Challenge (Red), Family (Gold), Secret (Purple)"
+            width={1672}
+            height={941}
+            sizes="(max-width: 1024px) 100vw, 1080px"
+            className="cq-three-doors-image"
+          />
+          <div className="cq-three-doors-scrim" />
+          <div className="cq-three-doors-hotspots" role="group" aria-label="Founder's Cipher starting paths">
+            {DOOR_HOTSPOTS.map((door) => (
+              <Link
+                key={door.id}
+                href={doorHref}
+                aria-label={`${door.ariaLabel} — enter the Founder's Cipher to choose`}
+                title={`${door.ariaLabel} (${door.district})`}
+                className={`cq-door-hotspot ${door.className}`}
+              >
+                <div className="cq-door-badge-row">
+                  <span
+                    className="cq-door-tag"
+                    style={{ backgroundColor: `${door.color}25`, borderColor: `${door.color}60`, color: door.color }}
+                  >
+                    {door.tag}
+                  </span>
+                  <div
+                    className="cq-door-icon-box"
+                    style={{ backgroundColor: `${door.color}25`, borderColor: `${door.color}60`, color: door.color }}
+                  >
+                    <door.icon size={14} />
+                  </div>
+                </div>
+                <div className="cq-door-pill-row">
+                  <div
+                    className="cq-door-pill"
+                    style={{ backgroundColor: 'rgba(5, 6, 7, 0.85)', borderColor: `${door.color}60`, color: door.color }}
+                  >
+                    <door.icon size={13} style={{ color: door.color }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                      <span className="cq-door-pill-title">{door.label}</span>
+                      <span className="cq-door-pill-district">{door.district}</span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PERSISTENT — REAL CANTON LOCATIONS */}
+      <section aria-labelledby="cipher-destinations-heading">
+        <div className="text-center max-w-2xl mx-auto mb-8">
+          <span className="cq-kicker">THE CITY IS THE GAME BOARD</span>
+          <h2 id="cipher-destinations-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+            Real Places. Real Missions.
+          </h2>
+        </div>
+        <div className="cq-destination-grid">
+          {destinationCards.map((card) => (
+            <article className="cq-destination-card" key={card.title}>
+              <Image src={card.image} alt={card.title} fill sizes="(max-width: 820px) 100vw, 25vw" />
+              <div>
+                <span>{card.label}</span>
+                <h3>{card.title}</h3>
+                <p>{card.copy}</p>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 

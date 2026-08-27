@@ -21,7 +21,7 @@ export default function TransmissionPlayerPage({ params }: { params: { slug: str
               TRANSMISSION NOT FOUND
             </h1>
             <p className="text-xs sm:text-sm text-stone-400 leading-relaxed">
-              That transmission doesn&apos;t exist in this Operation&apos;s archive.
+              That transmission doesn&apos;t exist in this Mission&apos;s archive.
             </p>
             <div className="pt-2">
               <Link
@@ -121,7 +121,7 @@ export default function TransmissionPlayerPage({ params }: { params: { slug: str
               href={`/events/${params.slug}`}
               className="cq-gold-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
             >
-              RETURN TO OPERATION
+              RETURN TO MISSION
               <ArrowRight size={15} />
             </Link>
           </div>

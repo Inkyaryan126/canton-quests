@@ -27,7 +27,7 @@ export default function CreatePlayerIdentityPanel({
         <h2 className="cq-three-doors-title">Create Your Player Identity</h2>
         <p className="cq-three-doors-desc">
           <ShieldCheck size={14} style={{ display: 'inline', verticalAlign: '-2px', marginRight: '0.35rem' }} aria-hidden="true" />
-          One callsign works across every Canton Quests Operation — no path required to join.
+          One callsign works across every Canton Quests Mission — no path required to join.
         </p>
       </div>
       <FastPlayerOnboardForm redirectTo={redirectTo} acquisitionSource={acquisitionSource} />

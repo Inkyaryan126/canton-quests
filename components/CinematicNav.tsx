@@ -31,7 +31,7 @@ interface NavLink {
 
 const CONTEXT_NAV_LINKS: Record<CinematicNavContext, NavLink[]> = {
   global: [
-    { href: '/#operations', label: 'OPERATIONS' },
+    { href: '/#operations', label: 'MISSIONS' },
     { href: '/roster', label: 'PLAYER ROSTER' },
     { href: '/how-it-works', label: 'HOW IT WORKS' },
   ],
@@ -50,8 +50,22 @@ const CONTEXT_NAV_LINKS: Record<CinematicNavContext, NavLink[]> = {
 
 const CONTEXT_CTA_LABEL: Record<CinematicNavContext, string> = {
   global: 'CREATE PLAYER IDENTITY',
-  'main-operation': 'START QUEST',
+  'main-operation': 'ENTER MISSION',
   'fair-operation': 'ENTER FAIR HUNT',
+};
+
+/**
+ * Watch Live is a Mission-owned experience now that there's more than one
+ * Mission — never a single global "the live event" action. Founder's
+ * Cipher gets its own scoped link; Fair has no meaningful spectator content
+ * yet (no audience_events/broadcasts/districts data), so it stays hidden
+ * rather than showing a button into an empty page; the global platform nav
+ * never shows it at all.
+ */
+const CONTEXT_WATCH_HREF: Record<CinematicNavContext, string | null> = {
+  global: null,
+  'main-operation': '/events/canton-weekend-1/watch',
+  'fair-operation': null,
 };
 
 export default function CinematicNav({ eventHref, context = 'global' }: CinematicNavProps) {
@@ -60,6 +74,7 @@ export default function CinematicNav({ eventHref, context = 'global' }: Cinemati
   const navLinks = CONTEXT_NAV_LINKS[context];
   const ctaHref = context === 'global' ? '/register' : eventHref;
   const ctaLabel = CONTEXT_CTA_LABEL[context];
+  const watchHref = CONTEXT_WATCH_HREF[context];
 
   useEffect(() => {
     // 1. Instant check from localStorage display cache
@@ -138,10 +153,12 @@ export default function CinematicNav({ eventHref, context = 'global' }: Cinemati
 
       <div className="cq-nav-actions">
         <SoundToggleControl compact showLabel={false} className="cq-nav-sound-toggle" />
-        <Link href="/watch" className="cq-watch-link">
-          <span aria-hidden="true" />
-          WATCH LIVE
-        </Link>
+        {watchHref && (
+          <Link href={watchHref} className="cq-watch-link">
+            <span aria-hidden="true" />
+            WATCH LIVE
+          </Link>
+        )}
 
         {player ? (
           <div className="cq-nav-user-cluster">

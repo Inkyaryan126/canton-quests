@@ -41,17 +41,17 @@ function isOperationLive(event: QuestEvent): boolean {
   return new Date(event.startTime).getTime() <= Date.now();
 }
 
-// The short, platform-level join loop — applies to every Operation, not
-// just the Sept 11 Main Operation's quest mechanics.
+// The short, platform-level join loop — applies to every Mission, not
+// just the Sept 11 Founder's Cipher's quest mechanics.
 const joinSteps = [
   {
     title: 'IDENTITY',
-    text: 'Create your permanent Player Identity — free, good for every Operation.',
+    text: 'Create your permanent Player Identity — free, good for every Mission.',
     Icon: Compass,
   },
   {
-    title: 'OPERATION',
-    text: 'Choose an Active or Incoming Operation to enter.',
+    title: 'MISSION',
+    text: 'Choose an Active or Upcoming Mission to enter.',
     Icon: MapPin,
   },
   {
@@ -79,12 +79,12 @@ const platformPillars = [
   },
   {
     title: 'REAL PRIZES',
-    text: 'Cash prizes and leaderboard glory, across every Operation.',
+    text: 'Cash prizes and leaderboard glory, across every Mission.',
     Icon: Trophy,
   },
   {
     title: 'ONE IDENTITY',
-    text: 'Create it once. It carries across every Operation Canton Quests ever runs.',
+    text: 'Create it once. It carries across every Mission Canton Quests ever runs.',
     Icon: Users,
   },
 ];
@@ -110,7 +110,7 @@ export default function HomePage() {
       })
       .catch(() => {});
 
-    // 3. Load every Operation (live + incoming) for the Operations grid
+    // 3. Load every Mission (live + upcoming) for the Missions grid
     fetch('/api/game/events')
       .then((res) => res.json())
       .then((data: { events?: QuestEvent[] }) => {
@@ -148,11 +148,11 @@ export default function HomePage() {
                     Welcome to the Canton Quests Command Center
                   </span>
                   <h1 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight mt-1">
-                    One Identity. Every Operation.
+                    Your City. Your Missions.
                   </h1>
                   <p className="text-xs sm:text-sm text-stone-300 font-body mt-1 max-w-xl">
                     Canton Quests is a real-world adventure game — the city is the game board. Create your permanent
-                    Player Identity once — no starting path required — and enter any Operation, live or incoming.
+                    Player Identity once — no starting path required — and enter any Mission, live or upcoming.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
@@ -240,7 +240,7 @@ export default function HomePage() {
                     className="cq-dark-button flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-5"
                   >
                     <Compass size={15} />
-                    <span>BROWSE OPERATIONS</span>
+                    <span>BROWSE MISSIONS</span>
                   </a>
                 </div>
               </div>
@@ -249,16 +249,16 @@ export default function HomePage() {
           );
         })()}
 
-        {/* B. OPERATIONS — THE PRIMARY HOMEPAGE FOCUS */}
+        {/* B. MISSIONS — THE PRIMARY HOMEPAGE FOCUS */}
         <section id="operations" className="cq-section cq-pillars-section scroll-mt-24" aria-labelledby="operations-heading">
           <div className="cq-section-shell space-y-10">
             <div className="text-center max-w-2xl mx-auto mb-2">
-              <span className="cq-kicker">CANTON QUESTS OPERATIONS</span>
+              <span className="cq-kicker">CANTON QUESTS MISSIONS</span>
               <h2 id="operations-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-                Choose Your Operation
+                Choose Your Mission
               </h2>
               <p className="text-sm text-stone-400 font-body mt-2">
-                One permanent Player Identity. Every Operation has its own scoring, prizes, and rules — no path is required just to browse.
+                One permanent Player Identity. Every Mission has its own scoring, prizes, and rules — no path is required just to browse.
               </p>
             </div>
 
@@ -266,7 +266,7 @@ export default function HomePage() {
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-emerald-400">Active Operations</h3>
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-emerald-400">Active Missions</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   {liveOperations.map((event) => (
@@ -280,7 +280,7 @@ export default function HomePage() {
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <span className="w-2 h-2 rounded-full bg-amber-400" />
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-amber-400">Incoming Operations</h3>
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-amber-400">Upcoming Missions</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   {incomingOperations.map((event) => (
@@ -301,7 +301,7 @@ export default function HomePage() {
                 What Is Canton Quests?
               </h2>
               <p className="text-sm text-stone-400 font-body mt-2">
-                A real-world adventure game layered over Canton, Ohio. One Player Identity, multiple Operations,
+                A real-world adventure game layered over Canton, Ohio. One Player Identity, multiple Missions,
                 real stakes.
               </p>
             </div>
@@ -326,7 +326,7 @@ export default function HomePage() {
             <div className="text-center max-w-2xl mx-auto mb-4">
               <span className="cq-kicker">HOW IT WORKS</span>
               <h2 id="how-it-works-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-                Four Steps. Every Operation.
+                Four Steps. Every Mission.
               </h2>
             </div>
 
@@ -377,7 +377,7 @@ export default function HomePage() {
                     <span>{isVideoPlaying ? 'PLAYING BRIEFING' : 'PLAY BRIEFING'}</span>
                   </button>
                   <a href="#operations" className="cq-dark-button text-xs font-mono">
-                    VIEW OPERATIONS
+                    VIEW MISSIONS
                   </a>
                 </div>
               </div>
@@ -465,7 +465,7 @@ export default function HomePage() {
                       </span>
                     </div>
                     <p className="text-sm text-white font-body">
-                      A growing roster of permanent Canton Quests identities — across every Operation.
+                      A growing roster of permanent Canton Quests identities — across every Mission.
                     </p>
                   </div>
                 </div>
@@ -492,7 +492,7 @@ export default function HomePage() {
             <span className="cq-kicker">CANTON QUESTS</span>
             <h2 id="final-cta-heading">THE CITY IS WAITING.</h2>
             <p>
-              One permanent Player Identity gets you into every Operation Canton Quests ever runs.
+              One permanent Player Identity gets you into every Mission Canton Quests ever runs.
             </p>
             <div className="cq-live-buttons">
               {!currentPlayer ? (
@@ -502,7 +502,7 @@ export default function HomePage() {
                 </Link>
               ) : (
                 <a href="#operations" className="cq-gold-button">
-                  VIEW OPERATIONS
+                  VIEW MISSIONS
                   <ArrowRight size={17} aria-hidden="true" />
                 </a>
               )}

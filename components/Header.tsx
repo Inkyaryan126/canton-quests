@@ -96,13 +96,18 @@ export default function Header({ eventSlug }: HeaderProps) {
 
         <div className="cq-header-actions">
           <SoundToggleControl compact showLabel={false} className="cq-nav-sound-toggle" />
-          <Link
-            href="/watch"
-            className="cq-header-live-btn"
-          >
-            <span className="cq-header-live-dot" />
-            📺 WATCH LIVE
-          </Link>
+          {/* Watch Live is a Mission-owned experience — only shown here for
+              Founder's Cipher, which is the only Mission with real
+              spectator content right now. */}
+          {isKnownCantonLaunchSlug(eventSlug) && (
+            <Link
+              href={`/events/${eventSlug}/watch`}
+              className="cq-header-live-btn"
+            >
+              <span className="cq-header-live-dot" />
+              📺 WATCH LIVE
+            </Link>
+          )}
           {player ? (
             <div className="cq-nav-user-cluster">
               <Link
@@ -162,10 +167,10 @@ export default function Header({ eventSlug }: HeaderProps) {
       </div>
 
       {eventSlug && (
-        <nav className="cq-header-operation-links" aria-label="Operation navigation">
+        <nav className="cq-header-operation-links" aria-label="Mission navigation">
           <Link href={`/events/${eventSlug}`}>
             <Compass size={13} aria-hidden="true" />
-            Operation Home
+            Mission Home
           </Link>
           <Link href={`/events/${eventSlug}/quests`}>Mission Board</Link>
           <Link href={`/events/${eventSlug}/map`}>

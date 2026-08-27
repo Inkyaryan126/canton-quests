@@ -353,7 +353,7 @@ export default function ProfilePage() {
               <PlayerCard
                 displayName={displayName || 'Canton Agent'}
                 startingPathLabel={data.startingDistrict?.label || 'UNASSIGNED'}
-                startingDistrictName={data.startingDistrict?.district || 'No Operation path chosen'}
+                startingDistrictName={data.startingDistrict?.district || 'No Mission path chosen'}
                 avatarImage={avatarImage}
                 cropZoom={cropZoom}
                 cropX={cropX}
@@ -388,7 +388,7 @@ export default function ProfilePage() {
                 <div className="cq-starting-district" style={{ borderColor: data.startingDistrict.color }}>
                   <Map size={18} />
                   <div>
-                    <span>Starting District (Vol. 1 Main Operation)</span>
+                    <span>Starting District (Founder&apos;s Cipher)</span>
                     <strong>{data.startingDistrict.district}</strong>
                   </div>
                 </div>
@@ -397,7 +397,7 @@ export default function ProfilePage() {
                   <Map size={18} />
                   <div>
                     <span>Starting District</span>
-                    <strong>Enter the Vol. 1 Main Operation to choose a path</strong>
+                    <strong>Enter the Founder&apos;s Cipher to choose a path</strong>
                   </div>
                 </Link>
               )}

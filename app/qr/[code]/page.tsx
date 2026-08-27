@@ -43,7 +43,7 @@ function AuthGate({ nextPath }: { nextPath: string }) {
       <span className="badge badge-medium bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-mono">
         CANTON QR SIGNAL DETECTED
       </span>
-      <h1 className="text-xl font-extrabold text-white">One Player Identity gets you into every Operation.</h1>
+      <h1 className="text-xl font-extrabold text-white">One Player Identity gets you into every Mission.</h1>
       <p className="text-sm text-gray-300">Create your player identity or access your Command Center to claim this signal.</p>
       <div className="flex flex-col gap-2 pt-2">
         <Link href={`/register?next=${next}`} className="btn btn-primary w-full py-3 text-sm font-bold">

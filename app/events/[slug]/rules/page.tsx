@@ -130,12 +130,12 @@ export default function OperationRulesPage({ params }: { params: { slug: string 
             </>
           ) : (
             <>
-              <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Operation Rules</span>
+              <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Mission Rules</span>
               <h1 className="font-display font-black text-3xl sm:text-4xl text-white uppercase tracking-tight mt-2 mb-6">
                 Official Rules
               </h1>
               <p className="text-sm text-stone-300 font-body leading-relaxed mb-6">
-                This Operation&apos;s specific rules aren&apos;t published as a standalone page yet. See{' '}
+                This Mission&apos;s specific rules aren&apos;t published as a standalone page yet. See{' '}
                 <Link href="/how-it-works" className="text-amber-400 underline">
                   How It Works
                 </Link>{' '}

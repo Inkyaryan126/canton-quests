@@ -53,7 +53,7 @@ export default function PlayerRosterPage() {
           <PageHeader
             eyebrow="PERMANENT IDENTITIES"
             title="PLAYER ROSTER"
-            body="Every Canton Quests agent who has created a Player Identity — across every Operation, whether they've scored yet or not."
+            body="Every Canton Quests agent who has created a Player Identity — across every Mission, whether they've scored yet or not."
             accent="cyan"
             divider
           />

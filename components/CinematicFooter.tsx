@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Compass, Eye, HelpCircle, Home, Users } from 'lucide-react';
+import { Compass, HelpCircle, Home, Users } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 
 export default function CinematicFooter() {
@@ -13,7 +13,7 @@ export default function CinematicFooter() {
           <div>
             <span className="font-display font-black text-white text-base tracking-tight">CANTON QUESTS</span>
             <p className="text-xs text-stone-400 font-mono mt-0.5">
-              Real city. Real missions. New Operations.
+              Real city. Real missions. New adventures.
             </p>
           </div>
         </div>
@@ -26,7 +26,7 @@ export default function CinematicFooter() {
           </Link>
           <Link href="/#operations" className="hover:text-amber-400 transition-colors flex items-center gap-1.5">
             <Compass size={14} aria-hidden="true" />
-            Operations
+            Missions
           </Link>
           <Link href="/roster" className="hover:text-amber-400 transition-colors flex items-center gap-1.5">
             <Users size={14} aria-hidden="true" />
@@ -36,16 +36,12 @@ export default function CinematicFooter() {
             <HelpCircle size={14} aria-hidden="true" />
             How It Works
           </Link>
-          <Link href="/watch" className="hover:text-amber-400 transition-colors flex items-center gap-1.5">
-            <Eye size={14} aria-hidden="true" />
-            Watch Live
-          </Link>
         </div>
       </div>
 
       <div className="relative max-w-6xl mx-auto mt-8 pt-4 border-t border-stone-800/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-stone-500">
         <span>SIGNAL ACTIVE • CANTON, OHIO</span>
-        <span>MULTIPLE OPERATIONS • ONE PLAYER IDENTITY</span>
+        <span>MULTIPLE MISSIONS • ONE PLAYER IDENTITY</span>
       </div>
 
       <div className="relative max-w-6xl mx-auto mt-3 flex flex-wrap items-center justify-center gap-4 text-[11px] font-mono text-stone-500">

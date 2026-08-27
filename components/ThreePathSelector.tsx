@@ -102,7 +102,7 @@ export const PATH_OPTIONS: PathOption[] = [
 ];
 
 // Ordered left-to-right matching the three_doors.png artwork: Left (Challenge), Center (Family), Right (Secret)
-const DOOR_HOTSPOTS: {
+export const DOOR_HOTSPOTS: {
   id: StartingPath;
   ariaLabel: string;
   className: string;

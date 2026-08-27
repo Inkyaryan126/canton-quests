@@ -164,12 +164,12 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
         });
         const data = await res.json();
         if (!res.ok || !data.success) {
-          setEnterError(data.error || 'Unable to enter this Operation.');
+          setEnterError(data.error || 'Unable to enter this Mission.');
           return;
         }
         setParticipation(data.participation);
       } catch {
-        setEnterError('Unable to enter this Operation. Check your connection and try again.');
+        setEnterError('Unable to enter this Mission. Check your connection and try again.');
       } finally {
         setEntering(false);
       }
@@ -342,7 +342,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
               <div className="relative z-10 space-y-4 max-w-xl mx-auto">
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 text-xs font-mono font-bold uppercase tracking-wider">
                   <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                  <span>OPERATION INCOMING</span>
+                  <span>MISSION UPCOMING</span>
                 </div>
 
                 <h1 className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight">
@@ -350,7 +350,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
                 </h1>
 
                 <p className="text-sm sm:text-base text-stone-300 leading-relaxed font-body">
-                  This Operation opens {formatEventWindow(event)}. Check back then to Enter Operation.
+                  This Mission opens {formatEventWindow(event)}. Check back then to enter it.
                 </p>
 
                 <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -443,12 +443,12 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
           className="object-cover opacity-15 pointer-events-none"
         />
         <div className="relative z-10 space-y-4">
-          <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Operation Access Required</span>
+          <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Mission Access Required</span>
           <h1 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
             {event.title}
           </h1>
           <p className="text-sm text-stone-300 leading-relaxed font-body">
-            {event.description || 'One permanent Canton Quests Player Identity gets you into every Operation.'}
+            {event.description || 'One permanent Canton Quests Player Identity gets you into every Mission.'}
           </p>
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
@@ -501,7 +501,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
     return (
       <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent mb-4" />
-        <p className="text-xs text-amber-300 tracking-wider uppercase">Entering Operation...</p>
+        <p className="text-xs text-amber-300 tracking-wider uppercase">Entering Mission...</p>
         {enterError && (
           <div className="mt-4 text-center space-y-3">
             <p className="text-xs text-red-400">{enterError}</p>

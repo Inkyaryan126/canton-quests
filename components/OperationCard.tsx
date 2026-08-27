@@ -55,7 +55,7 @@ export default function OperationCard({ event, status }: OperationCardProps) {
             className="w-1.5 h-1.5 rounded-full"
             style={{ backgroundColor: isLive ? '#22d3ee' : '#f0c978' }}
           />
-          {isLive ? 'LIVE NOW' : 'INCOMING'}
+          {isLive ? 'ACTIVE MISSION' : 'UPCOMING MISSION'}
         </span>
         <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wide">{formatOperationDate(event)}</span>
       </div>
@@ -77,7 +77,7 @@ export default function OperationCard({ event, status }: OperationCardProps) {
           href={`/events/${event.slug}`}
           className="cq-gold-button inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-6"
         >
-          <span>ENTER OPERATION</span>
+          <span>ENTER MISSION</span>
           <ArrowRight size={14} />
         </Link>
         <Link

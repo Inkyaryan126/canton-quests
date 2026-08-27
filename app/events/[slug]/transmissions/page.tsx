@@ -73,7 +73,7 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
                 href={`/events/${params.slug}`}
                 className="cq-dark-button text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
               >
-                RETURN TO OPERATION
+                RETURN TO MISSION
               </Link>
             </div>
           </div>
@@ -81,16 +81,16 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
           <div className="w-full max-w-2xl px-4 py-16 text-center space-y-4">
             <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Transmission Archive</span>
             <h1 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-              No Archive For This Operation
+              No Archive For This Mission
             </h1>
             <p className="text-sm text-stone-300 font-body leading-relaxed">
-              This Operation doesn&apos;t have a Commander transmission archive yet.
+              This Mission doesn&apos;t have a Commander transmission archive yet.
             </p>
             <Link
               href={`/events/${params.slug}`}
               className="cq-gold-button inline-flex items-center gap-2 text-xs font-mono py-3 px-6"
             >
-              RETURN TO OPERATION
+              RETURN TO MISSION
             </Link>
           </div>
         )}
