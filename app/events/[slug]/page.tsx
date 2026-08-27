@@ -385,6 +385,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
               authenticatedPlayer={authenticatedPlayer}
               stage="upcoming"
               countdown={countdownValue}
+              chosenPath={participation?.path}
             />
           </main>
           <CinematicFooter />
@@ -473,7 +474,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
         <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
           <Header eventSlug={eventSlug} />
           <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12">
-            <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue}>
+            <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={participation?.path}>
               <div className="max-w-lg mx-auto flex flex-col justify-center items-center text-center py-4">{gateCard}</div>
             </FounderCipherShell>
           </main>
@@ -533,7 +534,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
         <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
           <Header eventSlug={eventSlug} />
           <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12">
-            <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue}>
+            <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={participation?.path}>
               {pathSelector}
             </FounderCipherShell>
           </main>
@@ -1034,7 +1035,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
         <Header eventSlug={eventSlug} />
         <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12">
-          <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue}>
+          <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={participation?.path}>
             <div className="max-w-4xl mx-auto">{dashboardCore}</div>
           </FounderCipherShell>
         </main>

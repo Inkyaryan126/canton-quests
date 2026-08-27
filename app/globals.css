@@ -2407,6 +2407,35 @@ code, pre, .font-mono {
     grid-template-columns: 1fr;
   }
 
+  /* Founder's Cipher-only compact-mobile modifiers — opted into via an extra
+     class alongside .cq-pillars/.cq-destination-grid so the homepage and
+     /events listing (which use those classes unmodified) keep their
+     existing single-column mobile stack. Halves the Cipher page's mobile
+     scroll length for these two sections. */
+  .cq-pillars.cq-compact-mobile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cq-pillar-card.cq-compact-mobile-card {
+    min-height: 0;
+  }
+
+  .cq-destination-grid.cq-compact-mobile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cq-destination-card.cq-compact-mobile-card {
+    min-height: 300px;
+  }
+
+  .cq-destination-card.cq-compact-mobile-card h3 {
+    font-size: 1.15rem;
+  }
+
+  .cq-destination-card.cq-compact-mobile-card p {
+    font-size: 0.82rem;
+  }
+
   .cq-page-hero {
     min-height: auto;
     padding-top: 2rem;

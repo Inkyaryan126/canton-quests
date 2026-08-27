@@ -8,15 +8,18 @@ import {
   Gift,
   HelpCircle,
   KeyRound,
+  ListChecks,
+  Map,
   MapPin,
   Play,
   Radio,
   ShieldCheck,
+  Tv,
   Trophy,
   Zap,
   Compass,
 } from 'lucide-react';
-import { Player, QuestEvent } from '@/lib/types';
+import { Player, QuestEvent, StartingPath } from '@/lib/types';
 import { cqImages, destinationCards, formatEventWindow } from '@/lib/marketing-assets';
 import { DOOR_HOTSPOTS } from '@/components/ThreePathSelector';
 import { OperationLifecycleStage } from '@/lib/launch-status';
@@ -25,22 +28,22 @@ import { getFeaturedTransmission } from '@/lib/commander-transmissions';
 const founderCipherSteps = [
   {
     title: 'PICK',
-    text: 'Choose a mission from your path — or browse them all.',
+    text: 'Choose a mission from your path — or browse the full board.',
     Icon: Compass,
   },
   {
     title: 'GO',
-    text: 'Solve it remotely, or go find it in Canton.',
+    text: 'Solve it remotely, or walk it in downtown Canton.',
     Icon: MapPin,
   },
   {
     title: 'PROVE',
-    text: 'Scan, check in, solve, or submit proof.',
+    text: 'Scan, check in, solve, or submit field proof.',
     Icon: ShieldCheck,
   },
   {
     title: 'SCORE',
-    text: 'Earn XP and climb the citywide leaderboard.',
+    text: 'XP climbs the citywide board — every quest is a drawing entry.',
     Icon: Trophy,
   },
 ];
@@ -51,11 +54,30 @@ interface CountdownInfo {
   subtext: string;
 }
 
+interface MissionControlLink {
+  label: string;
+  href: string;
+  Icon: typeof Map;
+}
+
+function getMissionControlLinks(eventSlug: string): MissionControlLink[] {
+  return [
+    { label: 'Mission Board', href: `/events/${eventSlug}/quests`, Icon: ListChecks },
+    { label: 'Map', href: `/events/${eventSlug}/map`, Icon: Map },
+    { label: 'Leaderboard', href: `/events/${eventSlug}/leaderboard`, Icon: Trophy },
+    { label: 'Watch Live', href: `/events/${eventSlug}/watch`, Icon: Tv },
+    { label: 'Transmissions', href: `/events/${eventSlug}/transmissions`, Icon: Radio },
+    { label: 'Drawing', href: `/events/${eventSlug}/drawing`, Icon: Gift },
+  ];
+}
+
 interface FounderCipherShellProps {
   event: QuestEvent | null;
   authenticatedPlayer: Player | null;
   stage: OperationLifecycleStage;
   countdown: CountdownInfo;
+  /** The player's chosen starting path once set on their event_players record — lets the persistent doors moment greet a returning player by their path instead of re-asking them to choose. */
+  chosenPath?: StartingPath | null;
   /** Live gates/dashboard content — rendered under the status widget for 'active'/'finale'/'ended' stages. */
   children?: ReactNode;
 }
@@ -67,16 +89,34 @@ const STAGE_BADGE: Record<OperationLifecycleStage, { label: string; dotClass: st
   ended: { label: 'MISSION COMPLETE — RESULTS ARCHIVED', dotClass: 'bg-stone-400' },
 };
 
-export default function FounderCipherShell({ event, authenticatedPlayer, stage, countdown, children }: FounderCipherShellProps) {
+const MISSION_CONTROL_COPY: Record<OperationLifecycleStage, { eyebrow: string; heading: string }> = {
+  upcoming: { eyebrow: '', heading: '' },
+  active: { eyebrow: 'MISSION GRID LIVE', heading: 'Live Mission Control' },
+  finale: { eyebrow: 'FINAL HOURS', heading: 'Live Mission Control' },
+  ended: { eyebrow: 'ARCHIVED', heading: 'Mission Control — Final Standings' },
+};
+
+export default function FounderCipherShell({
+  event,
+  authenticatedPlayer,
+  stage,
+  countdown,
+  chosenPath,
+  children,
+}: FounderCipherShellProps) {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const eventWindow = event ? formatEventWindow(event) : 'September 11 – 14, 2026';
   const badge = STAGE_BADGE[stage];
   const featuredTransmission = getFeaturedTransmission();
+  const eventSlug = event?.slug || 'canton-weekend-1';
   // The door preview isn't wired to selection state itself — clicking a
   // door routes into the real entry flow (register-then-choose, or straight
   // into the Operation if already signed in) so it drives the existing
   // path-selection logic instead of duplicating it.
   const doorHref = authenticatedPlayer ? '/events/canton-weekend-1' : '/register?next=%2Fevents%2Fcanton-weekend-1';
+  const chosenDoor = chosenPath ? DOOR_HOTSPOTS.find((d) => d.id === chosenPath) : undefined;
+  const missionControlLinks = getMissionControlLinks(eventSlug);
+  const missionControlCopy = MISSION_CONTROL_COPY[stage];
 
   return (
     <div className="space-y-16 sm:space-y-20 pb-4">
@@ -92,9 +132,15 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/30" />
         <div className="relative z-10 p-6 sm:p-12 space-y-5 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
-            <span className={`w-2 h-2 rounded-full ${badge.dotClass} animate-pulse`} />
-            <span>{badge.label}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
+              <span className={`w-2 h-2 rounded-full ${badge.dotClass} animate-pulse`} />
+              <span>{badge.label}</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/50 border border-amber-500/30 text-amber-200 font-mono text-xs font-bold">
+              <Gift size={12} />
+              <span>$500 PRIZE POOL</span>
+            </div>
           </div>
           <h1 className="font-display font-black text-3xl sm:text-5xl text-white uppercase tracking-tight leading-[0.95]">
             Canton Quests: Volume 1
@@ -168,16 +214,29 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
                   The Founder&apos;s Cipher has concluded — results are archived below.
                 </span>
               )}
+              {authenticatedPlayer && (
+                <Link
+                  href={
+                    stage === 'ended'
+                      ? `/events/${eventSlug}/leaderboard`
+                      : `/events/${eventSlug}/quests`
+                  }
+                  className="cq-gold-button inline-flex items-center gap-2 text-xs font-mono py-2.5 px-5"
+                >
+                  {stage === 'ended' ? 'VIEW FINAL RESULTS' : 'CONTINUE MISSION'}
+                  <ArrowRight size={14} />
+                </Link>
+              )}
             </div>
           )}
         </div>
       </section>
 
-      {/* PERSISTENT — COMMANDER BRIEFING (moved directly under the hero: this
-          is the first thing every player should hear before entering). */}
+      {/* PERSISTENT — COMMANDER BRIEFING (directly under the hero: this is
+          the first thing every player should hear before entering). */}
       <section aria-labelledby="cipher-briefing-heading" className="bg-stone-950/70 border-y border-stone-800/80 -mx-4 sm:-mx-6 px-4 sm:px-6 py-12">
         <div className="text-center max-w-2xl mx-auto mb-8">
-          <span className="cq-kicker">BEFORE YOU ENTER</span>
+          <span className="cq-kicker">COMMANDER CHANNEL // SECURE</span>
           <h2 id="cipher-briefing-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
             Hear From The Commander
           </h2>
@@ -257,34 +316,71 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
           </div>
         </div>
 
-        {/* COMMANDER ARCHIVE TEASER */}
+        {/* FEATURED TRANSMISSION TEASER — one compact entry point into the
+            15-transmission archive, not the full archive inline. */}
         <div className="max-w-5xl mx-auto mt-8 pt-8 border-t border-stone-800/60">
           <div className="flex flex-col sm:flex-row items-center gap-5 rounded-2xl border border-amber-500/20 bg-black/40 p-4 sm:p-5">
-            <div className="relative w-16 h-28 sm:w-20 sm:h-36 shrink-0 rounded-xl overflow-hidden border border-amber-500/30 bg-black">
+            <Link
+              href={`/events/canton-weekend-1/transmissions/${featuredTransmission.id}`}
+              className="relative w-16 h-28 sm:w-20 sm:h-36 shrink-0 rounded-xl overflow-hidden border border-amber-500/30 bg-black group"
+              aria-label={`Watch ${featuredTransmission.title}`}
+            >
               <Image
                 src={featuredTransmission.posterUrl}
                 alt={featuredTransmission.title}
                 fill
                 sizes="80px"
-                className="object-cover"
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
               />
-            </div>
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
+                <Play size={20} className="fill-white text-white drop-shadow" />
+              </div>
+            </Link>
             <div className="flex-1 text-center sm:text-left space-y-1">
               <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-400">
-                Commander Archive
+                Featured Transmission
               </span>
-              <p className="text-sm text-stone-300 font-body">
-                15 recorded transmissions on file — every briefing the Commander has sent about the Founder&apos;s Cipher.
-              </p>
+              <p className="text-sm text-white font-display font-bold">{featuredTransmission.title}</p>
+              <p className="text-xs text-stone-400 font-body">15 recorded briefings on file from the Commander.</p>
             </div>
-            <Link
-              href="/events/canton-weekend-1/transmissions"
-              className="cq-dark-button text-xs font-mono py-3 px-5 inline-flex items-center gap-2 shrink-0"
-            >
-              <Radio size={14} />
-              VIEW TRANSMISSIONS
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
+              <Link
+                href={`/events/canton-weekend-1/transmissions/${featuredTransmission.id}`}
+                className="cq-gold-button text-xs font-mono py-3 px-5 inline-flex items-center justify-center gap-2"
+              >
+                <Play size={13} className="fill-black" />
+                WATCH
+              </Link>
+              <Link
+                href="/events/canton-weekend-1/transmissions"
+                className="cq-dark-button text-xs font-mono py-3 px-5 inline-flex items-center justify-center gap-2"
+              >
+                VIEW ALL
+              </Link>
+            </div>
           </div>
+        </div>
+      </section>
+
+      {/* PERSISTENT — COMPACT PRIZE CALLOUT (the full breakdown still lives
+          further down; this exists so the $500 registers early, right where
+          a player decides whether this Mission is worth entering). */}
+      <section aria-label="Prize summary" className="max-w-4xl mx-auto -mt-8 sm:-mt-12">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-stone-950 to-stone-950 px-5 sm:px-7 py-5">
+          <div className="flex items-center gap-3 text-center sm:text-left">
+            <Gift size={22} className="text-amber-400 shrink-0" />
+            <p className="text-sm text-stone-200 font-body">
+              <strong className="text-amber-300 font-display font-black">$500 in prizes.</strong>{' '}
+              Leaderboard cash for the top scorers, plus every verified quest earns a cash-drawing entry.
+            </p>
+          </div>
+          <a
+            href="#cipher-prize-heading"
+            className="cq-dark-button text-xs font-mono py-2.5 px-5 inline-flex items-center gap-2 shrink-0 whitespace-nowrap"
+          >
+            SEE THE FULL BREAKDOWN
+            <ArrowRight size={13} />
+          </a>
         </div>
       </section>
 
@@ -293,40 +389,48 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
           map, score). */}
       {children}
 
-      {/* PERSISTENT — FOUR STEPS */}
-      <section aria-labelledby="cipher-steps-heading">
-        <div className="text-center max-w-2xl mx-auto mb-8">
-          <span className="cq-kicker">HOW THE FOUNDER&apos;S CIPHER WORKS</span>
-          <h2 id="cipher-steps-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-            Four Steps to Conquer Canton
-          </h2>
-        </div>
-        <div className="cq-pillars">
-          {founderCipherSteps.map(({ title, text, Icon }) => (
-            <article className="cq-pillar-card" key={title}>
-              <span className="cq-pillar-icon">
-                <Icon size={28} aria-hidden="true" />
-              </span>
-              <h2>{title}</h2>
-              <p>{text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      {/* PERSISTENT — LIVE MISSION CONTROL (fast links into the real game
+          surfaces; hidden pre-launch since there's nothing live to jump
+          into yet — the closing section below covers that state instead). */}
+      {stage !== 'upcoming' && (
+        <section id="mission-control" aria-labelledby="mission-control-heading" className="scroll-mt-24">
+          <div className="text-center max-w-2xl mx-auto mb-8">
+            <span className="cq-kicker">{missionControlCopy.eyebrow}</span>
+            <h2 id="mission-control-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+              {missionControlCopy.heading}
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {missionControlLinks.map(({ label, href, Icon }) => (
+              <Link
+                key={label}
+                href={href}
+                className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-stone-800 bg-stone-900/70 py-6 px-3 text-center hover:border-amber-500/50 hover:bg-stone-900 transition-colors"
+              >
+                <Icon size={22} className="text-amber-400" />
+                <span className="text-xs font-mono font-bold uppercase tracking-wide text-stone-200">{label}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* PERSISTENT — THREE DOORS (same artwork/CSS as the functional
           ThreePathSelector used once a player actually enters and needs to
           choose — this is the presentational preview; clicking a door
           routes into that real entry flow rather than duplicating its
-          selection/signup logic here). */}
+          selection/signup logic here). Reframes to a "your path" confirmation
+          once the player already has one on file instead of re-asking. */}
       <section id="choose-path" className="cq-three-doors-section scroll-mt-28" aria-labelledby="cipher-paths-heading">
         <div className="cq-three-doors-intro">
-          <span className="cq-three-doors-eyebrow">THREE DOORS. ONE CITY.</span>
+          <span className="cq-three-doors-eyebrow">THREE PATHS. ONE MISSION.</span>
           <h2 id="cipher-paths-heading" className="cq-three-doors-title">
-            Family, Challenge, or Secret
+            {chosenDoor ? `You Chose: ${chosenDoor.label}` : 'Family, Challenge, or Secret'}
           </h2>
           <p className="cq-three-doors-desc">
-            Your starting path gives you your first mission and identity — every quest in Canton stays open to you.
+            {chosenDoor
+              ? `Your path shaped how you entered — every quest in Canton is still open to you.`
+              : 'Your choice changes how you enter the game. Every quest in Canton stays open either way.'}
           </p>
         </div>
 
@@ -345,16 +449,20 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
               <Link
                 key={door.id}
                 href={doorHref}
-                aria-label={`${door.ariaLabel} — enter the Founder's Cipher to choose`}
+                aria-label={
+                  chosenDoor?.id === door.id
+                    ? `${door.ariaLabel} — your chosen path`
+                    : `${door.ariaLabel} — enter the Founder's Cipher to choose`
+                }
                 title={`${door.ariaLabel} (${door.district})`}
-                className={`cq-door-hotspot ${door.className}`}
+                className={`cq-door-hotspot ${door.className}${chosenDoor?.id === door.id ? ' is-selected' : ''}`}
               >
                 <div className="cq-door-badge-row">
                   <span
                     className="cq-door-tag"
                     style={{ backgroundColor: `${door.color}25`, borderColor: `${door.color}60`, color: door.color }}
                   >
-                    {door.tag}
+                    {chosenDoor?.id === door.id ? 'Your Door' : door.tag}
                   </span>
                   <div
                     className="cq-door-icon-box"
@@ -381,18 +489,46 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
         </div>
       </section>
 
-      {/* PERSISTENT — REAL CANTON LOCATIONS */}
+      {/* PERSISTENT — FOUR STEPS (Cipher-specific mechanics only — the
+          platform homepage already carries the generic explanation, so this
+          version speaks in terms of paths, XP, and drawing entries). */}
+      <section aria-labelledby="cipher-steps-heading">
+        <div className="text-center max-w-2xl mx-auto mb-8">
+          <span className="cq-kicker">INSIDE THE FOUNDER&apos;S CIPHER</span>
+          <h2 id="cipher-steps-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+            Four Steps to Conquer Canton
+          </h2>
+        </div>
+        <div className="cq-pillars cq-compact-mobile-grid">
+          {founderCipherSteps.map(({ title, text, Icon }) => (
+            <article className="cq-pillar-card cq-compact-mobile-card" key={title}>
+              <span className="cq-pillar-icon">
+                <Icon size={28} aria-hidden="true" />
+              </span>
+              <h2>{title}</h2>
+              <p>{text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* PERSISTENT — REAL CANTON LOCATIONS ("the city is the game board" —
+          a sample of the kinds of real places quests move through, not a
+          claim that every image below is an active quest right now). */}
       <section aria-labelledby="cipher-destinations-heading">
         <div className="text-center max-w-2xl mx-auto mb-8">
-          <span className="cq-kicker">THE CITY IS THE GAME BOARD</span>
+          <span className="cq-kicker">CANTON IS THE GAME BOARD</span>
           <h2 id="cipher-destinations-heading" className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
             Real Places. Real Missions.
           </h2>
+          <p className="text-sm text-stone-400 font-body mt-2">
+            A sample of the downtown Canton locations quests move through — not every one is live this minute.
+          </p>
         </div>
-        <div className="cq-destination-grid">
+        <div className="cq-destination-grid cq-compact-mobile-grid">
           {destinationCards.map((card) => (
-            <article className="cq-destination-card" key={card.title}>
-              <Image src={card.image} alt={card.title} fill sizes="(max-width: 820px) 100vw, 25vw" />
+            <article className="cq-destination-card cq-compact-mobile-card" key={card.title}>
+              <Image src={card.image} alt={card.title} fill sizes="(max-width: 820px) 50vw, 25vw" />
               <div>
                 <span>{card.label}</span>
                 <h3>{card.title}</h3>
@@ -403,7 +539,9 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
         </div>
       </section>
 
-      {/* PERSISTENT — $500 PRIZE PRESENTATION */}
+      {/* PERSISTENT — $500 PRIZE PRESENTATION (full breakdown; the compact
+          callout higher up already puts the number in front of players
+          early — this is the detail for those who scroll to it). */}
       <section aria-labelledby="cipher-prize-heading">
         <div className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-stone-950 p-8 sm:p-12 shadow-2xl">
           <Image
@@ -419,7 +557,7 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
                 <Gift size={14} className="text-amber-400" />
                 <span>FOUNDER&apos;S CIPHER · EVERY QUEST = ONE DRAWING ENTRY</span>
               </div>
-              <h2 id="cipher-prize-heading" className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight">
+              <h2 id="cipher-prize-heading" className="font-display font-black text-2xl sm:text-4xl text-white uppercase tracking-tight scroll-mt-24">
                 $500 Prize Pool
               </h2>
               <p className="text-sm text-stone-300 font-body leading-relaxed">
@@ -490,6 +628,13 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
               HOW IT WORKS
             </Link>
             <Link
+              href="/events/canton-weekend-1/transmissions"
+              className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+            >
+              <Radio size={15} />
+              TRANSMISSIONS
+            </Link>
+            <Link
               href="/events/canton-weekend-1/leaderboard"
               className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
             >
@@ -502,6 +647,41 @@ export default function FounderCipherShell({ event, authenticatedPlayer, stage, 
             >
               <KeyRound size={15} />
               RETURN TO COMMAND CENTER
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {stage === 'ended' && (
+        <section className="text-center max-w-xl mx-auto space-y-4">
+          <h2 className="font-display font-black text-xl sm:text-2xl text-white uppercase tracking-tight">
+            Mission Complete
+          </h2>
+          <p className="text-sm text-stone-400 font-body">
+            The Founder&apos;s Cipher has concluded. Final standings, the full transmission archive, and the prize
+            ledger stay open for the record.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/events/canton-weekend-1/leaderboard"
+              className="cq-gold-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+            >
+              <Trophy size={15} />
+              FINAL LEADERBOARD
+            </Link>
+            <Link
+              href="/events/canton-weekend-1/drawing"
+              className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+            >
+              <Gift size={15} />
+              PRIZE RESULTS
+            </Link>
+            <Link
+              href="/events/canton-weekend-1/transmissions"
+              className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
+            >
+              <Radio size={15} />
+              FULL ARCHIVE
             </Link>
           </div>
         </section>
