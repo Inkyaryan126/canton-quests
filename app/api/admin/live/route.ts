@@ -30,6 +30,7 @@ import {
 } from '@/lib/spectator-db';
 import { processAudienceLifecycleCron } from '@/lib/spectator-engine';
 import { getActiveLiveEventsDB, createLiveEventDB, activateLiveEventDB, cancelLiveEventDB } from '@/lib/live-events-db';
+import { getEventFieldNpcsDB, createFieldNpcDB, setFieldNpcActiveDB, rotateFieldNpcCodeDB } from '@/lib/field-npcs-db';
 import {
   computeEventReadinessReport,
   evaluateEventLaunchGates,
@@ -436,6 +437,45 @@ export async function POST(request: Request) {
       case 'list_live_events': {
         const liveEvents = await getActiveLiveEventsDB(eventId);
         return NextResponse.json({ success: true, liveEvents });
+      }
+
+      // --- Field NPC / Courier system (lib/field-npcs.ts / lib/field-npcs-db.ts) ---
+      case 'create_field_npc': {
+        const {
+          npcType, aliasName, publicDescription, avatarSymbol, sectorScope, broadAreaLabel,
+          exactLat, exactLon, startsAt, endsAt, claimLimit, rewardXp, rewardDrawingEntries,
+          commanderTransmissionTrigger, operatorNotes,
+        } = body;
+        if (!npcType || !aliasName || !publicDescription) {
+          return NextResponse.json({ success: false, error: 'Missing npcType, aliasName, or publicDescription' }, { status: 400 });
+        }
+        const npc = await createFieldNpcDB({
+          eventId, npcType, aliasName, publicDescription, avatarSymbol, sectorScope, broadAreaLabel,
+          exactLat, exactLon, startsAt, endsAt, claimLimit, rewardXp, rewardDrawingEntries,
+          commanderTransmissionTrigger, operatorNotes,
+        });
+        return NextResponse.json({ success: true, npc });
+      }
+
+      case 'set_field_npc_active': {
+        const { npcId, isActive } = body;
+        if (!npcId) return NextResponse.json({ success: false, error: 'Missing npcId' }, { status: 400 });
+        const npc = await setFieldNpcActiveDB(npcId, Boolean(isActive));
+        if (!npc) return NextResponse.json({ success: false, error: 'Field NPC not found' }, { status: 400 });
+        return NextResponse.json({ success: true, npc });
+      }
+
+      case 'rotate_field_npc_code': {
+        const { npcId } = body;
+        if (!npcId) return NextResponse.json({ success: false, error: 'Missing npcId' }, { status: 400 });
+        const npc = await rotateFieldNpcCodeDB(npcId);
+        if (!npc) return NextResponse.json({ success: false, error: 'Field NPC not found' }, { status: 400 });
+        return NextResponse.json({ success: true, npc });
+      }
+
+      case 'list_field_npcs': {
+        const npcs = await getEventFieldNpcsDB(eventId);
+        return NextResponse.json({ success: true, npcs });
       }
 
       default:

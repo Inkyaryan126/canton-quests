@@ -577,7 +577,8 @@ export type RewardGrantReason =
   | 'THREE_LOCKS_FRAGMENT'
   | 'FINALE_PROGRESS'
   | 'PROFILE_COMPLETION'
-  | 'PLAYER_LINK';
+  | 'PLAYER_LINK'
+  | 'NPC_CLAIM';
 
 export interface RewardGrant {
   id: string;
