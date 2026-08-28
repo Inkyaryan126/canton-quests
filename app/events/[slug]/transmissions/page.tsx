@@ -1,13 +1,40 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
-import { COMMANDER_TRANSMISSIONS } from '@/lib/commander-transmissions';
-import { Play, Radio } from 'lucide-react';
+import { Lock, Play, Radio } from 'lucide-react';
+
+interface ArchiveEntry {
+  id: number;
+  order: number;
+  unlocked: boolean;
+  title?: string;
+  posterUrl?: string;
+}
 
 export default function TransmissionArchivePage({ params }: { params: { slug: string } }) {
   const isFounderCipher = isKnownCantonLaunchSlug(params.slug);
+  const [entries, setEntries] = useState<ArchiveEntry[] | null>(null);
+
+  useEffect(() => {
+    if (!isFounderCipher) return;
+    let cancelled = false;
+    fetch(`/api/game/transmissions?eventSlug=${encodeURIComponent(params.slug)}`)
+      .then((res) => res.json())
+      .then((data: { transmissions?: ArchiveEntry[] }) => {
+        if (!cancelled) setEntries(data.transmissions || []);
+      })
+      .catch(() => {
+        if (!cancelled) setEntries([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFounderCipher, params.slug]);
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
@@ -28,45 +55,77 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
                   Commander Transmissions
                 </h1>
                 <p className="text-sm text-stone-400 font-body">
-                  Every recorded briefing from the Game Commander — {COMMANDER_TRANSMISSIONS.length} transmissions on file.
+                  Every briefing the Commander has sent — {entries ? entries.filter((e) => e.unlocked).length : '—'} of{' '}
+                  {entries?.length ?? 15} received so far.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-              {COMMANDER_TRANSMISSIONS.map((t) => (
-                <Link
-                  key={t.id}
-                  href={`/events/${params.slug}/transmissions/${t.id}`}
-                  className="group relative rounded-2xl overflow-hidden border border-amber-500/25 bg-stone-900 shadow-xl hover:border-amber-400/60 transition-colors"
-                >
-                  <div className="relative aspect-[9/16] bg-black">
-                    <Image
-                      src={t.posterUrl}
-                      alt={t.title}
-                      fill
-                      loading="lazy"
-                      sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 18vw"
-                      className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="w-10 h-10 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-lg">
-                        <Play size={18} className="fill-black ml-0.5" />
+            {entries === null ? (
+              <p className="text-center text-xs font-mono text-stone-500 uppercase tracking-widest">Loading archive...</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                {entries.map((t) =>
+                  t.unlocked ? (
+                    <Link
+                      key={t.id}
+                      href={`/events/${params.slug}/transmissions/${t.id}`}
+                      className="group relative rounded-2xl overflow-hidden border border-amber-500/25 bg-stone-900 shadow-xl hover:border-amber-400/60 transition-colors"
+                    >
+                      <div className="relative aspect-[9/16] bg-black">
+                        {t.posterUrl && (
+                          <Image
+                            src={t.posterUrl}
+                            alt={t.title || `Transmission ${t.id}`}
+                            fill
+                            loading="lazy"
+                            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 18vw"
+                            className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-10 h-10 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-lg">
+                            <Play size={18} className="fill-black ml-0.5" />
+                          </div>
+                        </div>
+                        <span className="absolute top-2 left-2 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-black/70 border border-amber-500/40 text-amber-300">
+                          {String(t.id).padStart(2, '0')}
+                        </span>
+                      </div>
+                      <div className="p-2.5">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-300 line-clamp-2">
+                          {t.title}
+                        </span>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div
+                      key={t.id}
+                      className="relative rounded-2xl overflow-hidden border border-stone-800 bg-stone-900/50"
+                      aria-label={`Transmission ${t.id} — locked`}
+                    >
+                      <div className="relative aspect-[9/16] bg-black flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-2 text-stone-600">
+                          <Lock size={20} />
+                          <span className="text-[9px] font-mono uppercase tracking-widest text-center px-2">
+                            Signal Not Received
+                          </span>
+                        </div>
+                        <span className="absolute top-2 left-2 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-black/70 border border-stone-700 text-stone-500">
+                          {String(t.id).padStart(2, '0')}
+                        </span>
+                      </div>
+                      <div className="p-2.5">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-600">
+                          Locked
+                        </span>
                       </div>
                     </div>
-                    <span className="absolute top-2 left-2 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-black/70 border border-amber-500/40 text-amber-300">
-                      {String(t.id).padStart(2, '0')}
-                    </span>
-                  </div>
-                  <div className="p-2.5">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-300 line-clamp-2">
-                      {t.title}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                  )
+                )}
+              </div>
+            )}
 
             <div className="text-center mt-10">
               <Link

@@ -497,6 +497,8 @@ export interface QuestCommanderTransmission {
   replayable?: boolean;
   /** If false, the CTA/skip control is hidden and the transmission must play/be read in full (rare — use sparingly). Defaults to true. */
   skippable?: boolean;
+  /** VIDEO framing. Defaults to 'video' (16:9) — the existing per-quest placeholder treatment. 'portrait' (9:16) is used by the real numbered Commander videos (see lib/commander-transmissions.ts). */
+  mediaAspect?: 'video' | 'portrait';
 }
 
 export interface QuestRaceBonusTier {

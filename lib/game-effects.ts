@@ -171,7 +171,23 @@ export type CommanderTransmissionTrigger =
   | 'three_locks_fragment'
   | 'finale_qualified'
   | 'finale_opening'
-  | 'leaderboard_milestone';
+  | 'leaderboard_milestone'
+  // Founder's Cipher numbered Commander video archive (see
+  // lib/commander-transmissions.ts) — the real 1-15 video registry, distinct
+  // from the placeholder per-quest QuestCommanderTransmission triggers above.
+  | 'cipher_cold_open'
+  | 'cipher_welcome'
+  | 'cipher_prize_intro'
+  | 'cipher_rules_intro'
+  | 'cipher_city_intro'
+  | 'cipher_path_selected'
+  | 'cipher_three_doors'
+  | 'cipher_callsign'
+  | 'cipher_profile'
+  | 'cipher_first_xp'
+  | 'cipher_first_entry'
+  | 'cipher_leaderboard'
+  | 'cipher_first_quest';
 
 export interface CommanderTransmissionMoment extends BaseGameMoment {
   type: 'commander-transmission';

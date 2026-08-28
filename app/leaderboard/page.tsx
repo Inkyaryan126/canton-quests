@@ -12,6 +12,10 @@ import PageHeader from '@/components/PageHeader';
 import { LeaderboardEntry, Player, QuestEvent } from '@/lib/types';
 import { cqImages, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
 import PlayerAvatar from "@/components/PlayerAvatar";
+import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
+import { showGameMoment } from '@/lib/game-effects';
+import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
+import { getCommanderTransmissionForTrigger, toGameplayTransmission } from '@/lib/commander-transmissions';
 
 function getClientPlayer(): Player {
   const stored = window.localStorage.getItem('canton_quests_current_player');
@@ -55,6 +59,25 @@ function LeaderboardContent() {
         setEntries(data?.leaderboard || []);
       });
   }, [operationSlug]);
+
+  // "The Leaderboard" (video 14) — fires once per player, the first time
+  // they visit the Founder's Cipher leaderboard with a real (non-zero)
+  // score already on the board — i.e. a leaderboard visit that actually
+  // means something to them, not an empty pre-launch board.
+  useEffect(() => {
+    if (!selectedEvent || !isKnownCantonLaunchSlug(selectedEvent.slug) || !currentPlayer) return;
+    const myEntry = entries.find((e) => e.playerId === currentPlayer.id);
+    if (!myEntry || myEntry.totalPoints <= 0) return;
+    if (!shouldAutoShowTransmission('cipher_leaderboard', 'video-14', currentPlayer.id)) return;
+    const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_leaderboard' });
+    if (!entry) return;
+    markTransmissionViewed('cipher_leaderboard', 'video-14', currentPlayer.id);
+    showGameMoment({
+      type: 'commander-transmission',
+      trigger: 'cipher_leaderboard',
+      transmission: toGameplayTransmission(entry),
+    });
+  }, [selectedEvent, currentPlayer, entries]);
 
   const activeEvent = selectedEvent || getActiveEvent(events);
   const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events';

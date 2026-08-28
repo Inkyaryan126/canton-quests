@@ -25,6 +25,7 @@ export default function CommanderTransmissionEffect({ moment, onDismiss, reduced
   const { transmission } = moment;
   const skippable = isTransmissionSkippable(transmission);
   const cta = resolveTransmissionCta(transmission);
+  const isPortrait = transmission.mediaAspect === 'portrait';
 
   useEffect(() => {
     cqSoundManager.play('transmission');
@@ -43,7 +44,7 @@ export default function CommanderTransmissionEffect({ moment, onDismiss, reduced
       aria-modal="true"
       aria-label="Commander transmission"
     >
-      <div className="relative z-10 max-w-lg w-full max-h-[90vh] overflow-y-auto bg-[#07090e]/97 border-2 border-amber-500/60 rounded-2xl shadow-[0_0_60px_rgba(245,158,11,0.25)]">
+      <div className={`relative z-10 ${isPortrait ? 'max-w-sm' : 'max-w-lg'} w-full max-h-[90vh] overflow-y-auto bg-[#07090e]/97 border-2 border-amber-500/60 rounded-2xl shadow-[0_0_60px_rgba(245,158,11,0.25)]`}>
         {/* Header HUD */}
         <div className="flex items-center justify-between px-4 py-3 bg-stone-950/90 border-b border-amber-500/30 rounded-t-2xl">
           <div className="flex items-center gap-2">

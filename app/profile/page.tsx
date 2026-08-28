@@ -35,6 +35,8 @@ import {
   hasValidAvatar,
 } from '@/lib/player-command-center';
 import { showGameMoment } from '@/lib/game-effects';
+import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
+import { getCommanderTransmissionForTrigger, toGameplayTransmission } from '@/lib/commander-transmissions';
 
 type BadgeCatalogItem = Achievement & {
   iconPath: string;
@@ -99,6 +101,24 @@ function announceProfileCompletion(payload: { profileCompletionReward?: boolean;
     xpAmount: payload.profileCompletionXp || 100,
     cta: 'VIEW PLAYER FILE',
   });
+
+  // "Your Player Profile" (video 11) — queued right after the reward
+  // moment above (GameMomentManager plays queued moments in priority
+  // order, reward-token before commander-transmission, so this never
+  // overlaps it); fires once, only on a genuinely new server-confirmed
+  // grant, never inferred from form state.
+  const pid = payload.player?.id;
+  if (pid && shouldAutoShowTransmission('cipher_profile', 'video-11', pid)) {
+    const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_profile' });
+    if (entry) {
+      markTransmissionViewed('cipher_profile', 'video-11', pid);
+      showGameMoment({
+        type: 'commander-transmission',
+        trigger: 'cipher_profile',
+        transmission: toGameplayTransmission(entry),
+      });
+    }
+  }
 }
 
 function QuestList({ title, quests }: { title: string; quests: Quest[] }) {

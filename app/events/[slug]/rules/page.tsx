@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
+import CipherRulesVideoTrigger from '@/components/commander/CipherRulesVideoTrigger';
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -25,6 +26,7 @@ export default function OperationRulesPage({ params }: { params: { slug: string 
         <div className="w-full max-w-3xl px-4 py-16">
           {isFounderCipher ? (
             <>
+              <CipherRulesVideoTrigger />
               <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Legal — Draft for Review</span>
               <h1 className="font-display font-black text-3xl sm:text-4xl text-white uppercase tracking-tight mt-2 mb-8">
                 Official Rules

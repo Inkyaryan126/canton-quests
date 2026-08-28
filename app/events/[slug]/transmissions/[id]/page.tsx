@@ -1,27 +1,87 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
-import { getAdjacentTransmissionIds, getTransmissionById } from '@/lib/commander-transmissions';
-import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Radio } from 'lucide-react';
+import { getAdjacentTransmissionIds } from '@/lib/commander-transmissions';
+import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Lock, Radio } from 'lucide-react';
+
+interface UnlockedTransmission {
+  id: number;
+  order: number;
+  title: string;
+  videoUrl: string;
+  posterUrl: string;
+}
+
+type LoadState = 'loading' | 'unlocked' | 'locked';
 
 export default function TransmissionPlayerPage({ params }: { params: { slug: string; id: string } }) {
   const isFounderCipher = isKnownCantonLaunchSlug(params.slug);
   const id = Number.parseInt(params.id, 10);
-  const transmission = isFounderCipher ? getTransmissionById(id) : undefined;
 
-  if (!transmission) {
+  const [state, setState] = useState<LoadState>('loading');
+  const [transmission, setTransmission] = useState<UnlockedTransmission | null>(null);
+
+  useEffect(() => {
+    if (!isFounderCipher || Number.isNaN(id)) {
+      setState('locked');
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/game/transmissions?eventSlug=${encodeURIComponent(params.slug)}&id=${id}`)
+      .then((res) => res.json())
+      .then((data: { unlocked: boolean; transmission?: UnlockedTransmission }) => {
+        if (cancelled) return;
+        if (data.unlocked && data.transmission) {
+          setTransmission(data.transmission);
+          setState('unlocked');
+        } else {
+          setState('locked');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setState('locked');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFounderCipher, params.slug, id]);
+
+  if (state === 'loading') {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
+        <Header eventSlug={params.slug} />
+        <main className="flex-1 flex justify-center items-center px-4 py-16">
+          <p className="text-xs font-mono text-stone-500 uppercase tracking-widest">Checking signal...</p>
+        </main>
+        <CinematicFooter />
+      </div>
+    );
+  }
+
+  if (state === 'locked' || !transmission) {
+    // Same safe-state card whether the id doesn't exist at all or the
+    // player simply hasn't reached this transmission's moment yet — never
+    // reveals which case it is, and never sends a locked video's real URL.
+    const isValidId = !Number.isNaN(id) && id >= 1 && id <= 15;
     return (
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
         <Header eventSlug={params.slug} />
         <main className="flex-1 flex justify-center items-center px-4 py-16 text-center">
           <div className="w-full max-w-lg p-8 rounded-3xl border border-stone-800 bg-stone-900/80 shadow-2xl space-y-4">
-            <div className="text-4xl">📡</div>
+            <div className="w-14 h-14 mx-auto rounded-full bg-stone-800/80 flex items-center justify-center text-stone-500">
+              <Lock size={24} />
+            </div>
             <h1 className="font-display font-black text-xl sm:text-2xl text-white uppercase tracking-tight">
-              TRANSMISSION NOT FOUND
+              {isValidId ? 'SIGNAL NOT RECEIVED' : 'TRANSMISSION NOT FOUND'}
             </h1>
             <p className="text-xs sm:text-sm text-stone-400 leading-relaxed">
-              That transmission doesn&apos;t exist in this Mission&apos;s archive.
+              {isValidId
+                ? "This transmission hasn't reached you yet — keep playing and it'll unlock in the archive."
+                : "That transmission doesn't exist in this Mission's archive."}
             </p>
             <div className="pt-2">
               <Link

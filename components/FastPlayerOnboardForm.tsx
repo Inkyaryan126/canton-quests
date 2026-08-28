@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { ArrowRight, CheckCircle2, KeyRound, Mail, RefreshCw, ShieldCheck, Sparkles, UserCheck, Zap, Eye, EyeOff } from 'lucide-react';
 import { StartingPath } from '@/lib/types';
 import { showGameMoment } from '@/lib/game-effects';
+import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
+import { getCommanderTransmissionForTrigger, toGameplayTransmission } from '@/lib/commander-transmissions';
 
 interface FastPlayerOnboardFormProps {
   /**
@@ -115,6 +117,25 @@ export default function FastPlayerOnboardForm({
         }
         window.localStorage.removeItem('canton_auth_token');
         window.localStorage.removeItem('canton_refresh_token');
+      }
+
+      // "Create Your Callsign" (video 10) — a genuinely new account,
+      // Founder's Cipher-bound (the redirect target says so), fires once
+      // per player. Registration into the Fair or another Mission never
+      // sees this — it's a Founder's Cipher-branded briefing.
+      if (data.player?.id && redirectTo.includes('canton-weekend-1')) {
+        const pid = data.player.id as string;
+        if (shouldAutoShowTransmission('cipher_callsign', 'video-10', pid)) {
+          const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_callsign' });
+          if (entry) {
+            markTransmissionViewed('cipher_callsign', 'video-10', pid);
+            showGameMoment({
+              type: 'commander-transmission',
+              trigger: 'cipher_callsign',
+              transmission: toGameplayTransmission(entry),
+            });
+          }
+        }
       }
 
       // Trigger Path Lock Game Moment and navigate smoothly

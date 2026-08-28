@@ -35,6 +35,8 @@ import {
   isPreLaunchEvent,
 } from '@/lib/launch-status';
 import { showGameMoment } from '@/lib/game-effects';
+import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
+import { getCommanderTransmissionForTrigger, toGameplayTransmission } from '@/lib/commander-transmissions';
 import ThreePathSelector from '@/components/ThreePathSelector';
 
 interface FeedbackState {
@@ -171,13 +173,35 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
           return;
         }
         setParticipation(data.participation);
+
+        // Path-selection Commander video (6/7/8) — only after a genuine,
+        // successful, authoritative path save (never inferred from a
+        // client-side selection before the server confirms it), and only
+        // once per player per path. `path` is only ever truthy here when
+        // this call came from Gate 3's explicit onConfirm — the silent
+        // auto-entry effect below always calls enterOperation() with no
+        // path, so it never fires this.
+        if (path && isKnownCantonLaunchSlug(eventSlug) && authenticatedPlayer) {
+          const pid = authenticatedPlayer.id;
+          if (shouldAutoShowTransmission('cipher_path_selected', path, pid)) {
+            const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_path_selected', path });
+            if (entry) {
+              markTransmissionViewed('cipher_path_selected', path, pid);
+              showGameMoment({
+                type: 'commander-transmission',
+                trigger: 'cipher_path_selected',
+                transmission: toGameplayTransmission(entry),
+              });
+            }
+          }
+        }
       } catch {
         setEnterError('Unable to enter this Mission. Check your connection and try again.');
       } finally {
         setEntering(false);
       }
     },
-    [eventSlug]
+    [eventSlug, authenticatedPlayer]
   );
 
   // Once the player's real authenticated identity is confirmed, silently
@@ -190,6 +214,62 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, authenticatedPlayer]);
+
+  // Onboarding Commander video chain (1 -> 2 -> 5) — at most ONE new video
+  // per visit, never a forced back-to-back chain: each check only proceeds
+  // to the next once the previous has already been viewed (persisted via
+  // lib/transmission-viewed-state.ts, the same de-dupe store the per-quest
+  // transmission system already uses), so 1 shows on the player's first
+  // visit, 2 on a later visit, 5 on a later visit still — never all three
+  // stacked in one queue. Marks viewed synchronously at trigger time (not
+  // only on dismiss) so a re-run of this effect before the overlay is
+  // dismissed can never enqueue a second copy of the same video.
+  useEffect(() => {
+    if (!isKnownCantonLaunchSlug(eventSlug)) return;
+    if (!authenticatedPlayer || !participation) return;
+    const pid = authenticatedPlayer.id;
+
+    const chain: Array<{ trigger: 'cipher_cold_open' | 'cipher_welcome' | 'cipher_city_intro'; key: string }> = [
+      { trigger: 'cipher_cold_open', key: 'video-1' },
+      { trigger: 'cipher_welcome', key: 'video-2' },
+      { trigger: 'cipher_city_intro', key: 'video-5' },
+    ];
+
+    for (const step of chain) {
+      if (shouldAutoShowTransmission(step.trigger, step.key, pid)) {
+        const entry = getCommanderTransmissionForTrigger({ trigger: step.trigger });
+        if (entry) {
+          markTransmissionViewed(step.trigger, step.key, pid);
+          showGameMoment({
+            type: 'commander-transmission',
+            trigger: step.trigger,
+            transmission: toGameplayTransmission(entry),
+          });
+        }
+        return;
+      }
+    }
+  }, [eventSlug, authenticatedPlayer, participation]);
+
+  // "Three Doors — One Competition" (video 9) — fires around the first
+  // genuine path-selection moment (Gate 3 below), never after a path is
+  // already on file (that condition is baked into the same check that
+  // renders Gate 3 at all).
+  useEffect(() => {
+    if (!isKnownCantonLaunchSlug(eventSlug)) return;
+    if (!event || !authenticatedPlayer || !participation) return;
+    if (!(event.requiresPath && !participation.path)) return;
+    const pid = authenticatedPlayer.id;
+    if (!shouldAutoShowTransmission('cipher_three_doors', 'video-9', pid)) return;
+    const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_three_doors' });
+    if (!entry) return;
+    markTransmissionViewed('cipher_three_doors', 'video-9', pid);
+    showGameMoment({
+      type: 'commander-transmission',
+      trigger: 'cipher_three_doors',
+      transmission: toGameplayTransmission(entry),
+    });
+  }, [eventSlug, event, authenticatedPlayer, participation]);
 
   const refreshData = useCallback(() => {
     const player = authenticatedPlayer || getClientPlayer();

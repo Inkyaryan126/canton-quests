@@ -29,11 +29,13 @@ export default function CommanderMedia({ transmission, variant = 'inline', class
   const [videoFailed, setVideoFailed] = useState(false);
 
   const isCinematic = variant === 'cinematic';
+  const isPortrait = transmission.mediaAspect === 'portrait';
   const wantsVideo = resolveTransmissionMediaMode(transmission, videoFailed) === 'video';
 
   if (wantsVideo) {
+    const aspectClass = isPortrait ? 'aspect-[9/16] max-h-[75vh] mx-auto max-w-[min(100%,420px)]' : 'aspect-video';
     return (
-      <div className={`relative w-full aspect-video bg-black overflow-hidden ${isCinematic ? 'rounded-t-2xl' : 'rounded-lg border border-amber-500/20'} ${className}`}>
+      <div className={`relative w-full ${aspectClass} bg-black overflow-hidden ${isCinematic ? 'rounded-t-2xl' : 'rounded-lg border border-amber-500/20'} ${className}`}>
         <video
           className="w-full h-full object-contain"
           src={transmission.mediaKey}
@@ -49,10 +51,17 @@ export default function CommanderMedia({ transmission, variant = 'inline', class
   }
 
   // PHOTO_MESSAGE treatment (also used as the VIDEO fallback when no
-  // mediaKey is configured yet, or playback failed).
+  // mediaKey is configured yet, or playback failed). Aspect matches the
+  // original per-variant defaults exactly (aspect-[4/3] cinematic /
+  // aspect-video inline) unless this transmission is explicitly portrait.
+  const photoAspectClass = isPortrait
+    ? 'aspect-[9/16] max-h-[75vh] mx-auto max-w-[min(100%,420px)]'
+    : isCinematic
+    ? 'aspect-[4/3]'
+    : 'aspect-video';
   return (
     <div
-      className={`relative w-full ${isCinematic ? 'aspect-[4/3] rounded-t-2xl' : 'aspect-video rounded-lg border border-amber-500/20'} bg-gradient-to-b from-stone-900 to-black overflow-hidden flex items-center justify-center ${className}`}
+      className={`relative w-full ${photoAspectClass} ${isCinematic ? 'rounded-t-2xl' : 'rounded-lg border border-amber-500/20'} bg-gradient-to-b from-stone-900 to-black overflow-hidden flex items-center justify-center ${className}`}
     >
       {transmission.posterKey || transmission.mediaKey ? (
         // eslint-disable-next-line @next/next/no-img-element
