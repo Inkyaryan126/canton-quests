@@ -112,12 +112,18 @@ export async function POST(request: Request) {
         })
       : undefined;
 
+    // Only ever tell the CALLER whether THEY personally just caught the
+    // Signal Carrier role — never whether the other player already carries
+    // it (that's their own private role state, not this caller's business).
+    const caughtSignal = result.signalPropagatedTo === session.player.id;
+
     return NextResponse.json({
       success: true,
       linkId: result.linkId,
       newlyRewarded: result.newlyRewarded,
       xpAwarded: result.xpAwarded,
       transmission,
+      caughtSignal,
     });
   } catch (error: any) {
     console.error('[API /game/player-links] POST error:', error);

@@ -21,6 +21,7 @@ import {
   PlayerLinkEligibility,
 } from './player-links';
 import { getEventParticipationDB, insertRewardGrantDB } from './supabase-db';
+import { propagateSignalCarrierDB } from './personal-roles-db';
 
 function isMissingTable(error: any): boolean {
   return error?.code === '42P01' || /relation .* does not exist/i.test(error?.message || '');
@@ -32,6 +33,8 @@ export interface CreatePlayerLinkResult {
   /** True only when this exact (pair, link_type) had never been rewarded before this call. */
   newlyRewarded: boolean;
   xpAwarded: number;
+  /** Set to the player id who newly caught the Signal Carrier role from this link, if propagation occurred (lib/personal-roles-db.ts). */
+  signalPropagatedTo?: string;
 }
 
 /**
@@ -89,6 +92,18 @@ export async function createPlayerLinkDB(params: {
     throw new Error(`Failed to record player link: ${linkError.message}`);
   }
 
+  // Signal Carrier propagation (lib/personal-roles-db.ts) — a real link
+  // just happened, so this is the one place carrying status can spread.
+  // Never fails the link itself over a propagation error; this is
+  // additive game flavor on top of an already-recorded interaction.
+  let signalPropagatedTo: string | undefined;
+  try {
+    const propagation = await propagateSignalCarrierDB(params.eventId, params.initiatorId, params.targetId);
+    signalPropagatedTo = propagation.propagatedTo;
+  } catch {
+    // Non-fatal.
+  }
+
   let newlyRewarded = false;
   for (const playerId of [params.initiatorId, params.targetId]) {
     const granted = await insertRewardGrantDB({
@@ -113,7 +128,7 @@ export async function createPlayerLinkDB(params: {
     }
   }
 
-  return { eligibility, linkId: linkRow?.id, newlyRewarded, xpAwarded: newlyRewarded ? xpAwarded : 0 };
+  return { eligibility, linkId: linkRow?.id, newlyRewarded, xpAwarded: newlyRewarded ? xpAwarded : 0, signalPropagatedTo };
 }
 
 /**

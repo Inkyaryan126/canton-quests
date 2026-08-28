@@ -38,6 +38,8 @@ export interface CityStateProjection {
     secret: DistrictProgressSummary;
   };
   totalPlayerLinks: number;
+  /** Players currently holding the Signal Carrier personal role (lib/personal-roles.ts) — count only, never which players. */
+  totalSignalCarriers: number;
   sigilDistribution: SigilDistribution;
   /** Players who have unlocked all three district sigils — eligible for Founder's Cipher convergence (Mission 8). */
   convergenceReadyPlayers: number;

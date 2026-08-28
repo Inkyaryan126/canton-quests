@@ -38,8 +38,8 @@ export const BOUNTY_DEFINITIONS: BountyDefinition[] = [
 
 const CORE_BOUNTY_KEYS: BountyKey[] = ['cross_path_signal', 'close_rank_link', 'group_signal'];
 
-/** A stable, non-cryptographic hash — deterministic assignment only, never used for anything security-sensitive. */
-function stableHash(input: string): number {
+/** A stable, non-cryptographic hash — deterministic assignment only, never used for anything security-sensitive. Reused by lib/personal-roles.ts for the same kind of deterministic-pick assignment. */
+export function stableHash(input: string): number {
   let hash = 0;
   for (let i = 0; i < input.length; i++) {
     hash = (hash * 31 + input.charCodeAt(i)) >>> 0;

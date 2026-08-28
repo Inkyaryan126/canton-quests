@@ -31,6 +31,7 @@ import {
 import { processAudienceLifecycleCron } from '@/lib/spectator-engine';
 import { getActiveLiveEventsDB, createLiveEventDB, activateLiveEventDB, cancelLiveEventDB } from '@/lib/live-events-db';
 import { getEventFieldNpcsDB, createFieldNpcDB, setFieldNpcActiveDB, rotateFieldNpcCodeDB } from '@/lib/field-npcs-db';
+import { seedSignalCarrierDB, getSignalCarrierCountDB } from '@/lib/personal-roles-db';
 import {
   computeEventReadinessReport,
   evaluateEventLaunchGates,
@@ -476,6 +477,19 @@ export async function POST(request: Request) {
       case 'list_field_npcs': {
         const npcs = await getEventFieldNpcsDB(eventId);
         return NextResponse.json({ success: true, npcs });
+      }
+
+      // --- Personal Roles / Signal Carrier (lib/personal-roles-db.ts) ---
+      case 'seed_signal_carrier': {
+        const { playerId } = body;
+        if (!playerId) return NextResponse.json({ success: false, error: 'Missing playerId' }, { status: 400 });
+        const result = await seedSignalCarrierDB(eventId, playerId);
+        return NextResponse.json({ success: true, ...result });
+      }
+
+      case 'get_signal_carrier_count': {
+        const count = await getSignalCarrierCountDB(eventId);
+        return NextResponse.json({ success: true, count });
       }
 
       default:

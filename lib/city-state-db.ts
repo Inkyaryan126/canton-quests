@@ -12,6 +12,7 @@
 import { supabaseAdmin, isSupabaseAdminConfigured } from './supabase';
 import { CityStateProjection, DistrictProgressSummary } from './city-state';
 import { getPlayerLinkStatsDB } from './player-links-db';
+import { getSignalCarrierCountDB } from './personal-roles-db';
 
 function isMissingTable(error: any): boolean {
   return error?.code === '42P01' || /relation .* does not exist/i.test(error?.message || '');
@@ -26,6 +27,7 @@ const EMPTY_PROJECTION = (eventId: string): CityStateProjection => ({
   totalCompletedQuests: 0,
   districtProgress: { arts: EMPTY_DISTRICT, challenge: EMPTY_DISTRICT, secret: EMPTY_DISTRICT },
   totalPlayerLinks: 0,
+  totalSignalCarriers: 0,
   sigilDistribution: { oneDistrict: 0, twoDistricts: 0, threeDistricts: 0 },
   convergenceReadyPlayers: 0,
   computedAt: new Date().toISOString(),
@@ -40,11 +42,12 @@ export async function getCityStateDB(eventId: string): Promise<CityStateProjecti
   if (!isSupabaseAdminConfigured || !supabaseAdmin) return EMPTY_PROJECTION(eventId);
   const db = supabaseAdmin;
 
-  const [registeredResult, submissionsResult, districtRowsResult, linkStats] = await Promise.all([
+  const [registeredResult, submissionsResult, districtRowsResult, linkStats, signalCarrierCount] = await Promise.all([
     db.from('event_players').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
     db.from('quest_submissions').select('player_id, status').eq('event_id', eventId),
     db.from('player_district_cipher_progress').select('player_id, district_key, status, collected_count, required_count').eq('event_id', eventId),
     getPlayerLinkStatsDB(eventId),
+    getSignalCarrierCountDB(eventId),
   ]);
 
   if (registeredResult.error && !isMissingTable(registeredResult.error)) {
@@ -111,6 +114,7 @@ export async function getCityStateDB(eventId: string): Promise<CityStateProjecti
     totalCompletedQuests,
     districtProgress,
     totalPlayerLinks: linkStats.totalLinks,
+    totalSignalCarriers: signalCarrierCount,
     sigilDistribution: { oneDistrict, twoDistricts, threeDistricts },
     convergenceReadyPlayers: threeDistricts,
     computedAt: new Date().toISOString(),
