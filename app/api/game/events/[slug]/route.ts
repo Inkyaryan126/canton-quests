@@ -5,8 +5,10 @@ import {
   getLeaderboardDB,
   getPlayerProgressDB,
 } from '@/lib/supabase-db';
+import { getPlayerCipherProgressDB } from '@/lib/founders-cipher';
 import { getPublicQuestView } from '@/lib/game-engine';
 import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
+import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
 
 export async function GET(
   request: Request,
@@ -34,12 +36,18 @@ export async function GET(
     const safeQuests = quests.map(getPublicQuestView);
     const leaderboard = await getLeaderboardDB(event.id);
     const progress = playerId ? await getPlayerProgressDB(playerId, event.id) : null;
+    const authenticatedPlayer = await resolveAuthenticatedPlayer(request);
+    const cipherProgress =
+      playerId && authenticatedPlayer?.id === playerId
+        ? await getPlayerCipherProgressDB(event.id, authenticatedPlayer.id)
+        : null;
 
     return NextResponse.json({
       event,
       quests: safeQuests,
       leaderboard,
       progress,
+      cipherProgress,
       isPreLaunch: isPreLaunchEvent(event, slug),
     });
   } catch (error: any) {

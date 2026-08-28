@@ -75,6 +75,41 @@ export type StartingPath = 'family' | 'challenge' | 'secret';
 
 export type QuestPath = StartingPath | 'cross_city';
 
+export type CipherDistrictKey = 'arts' | 'challenge' | 'secret';
+
+export type CipherDistrictStatus = 'locked' | 'in_progress' | 'ready_to_decode' | 'token_unlocked';
+
+export interface CipherFragmentView {
+  key: string;
+  districtKey: CipherDistrictKey;
+  displayName?: string;
+  obscuredLabel: string;
+  revealCopy?: string;
+  collected: boolean;
+  sortOrder: number;
+  grantedAt?: string;
+}
+
+export interface CipherDistrictProgressView {
+  key: CipherDistrictKey;
+  name: string;
+  status: CipherDistrictStatus;
+  collectedCount: number;
+  requiredCount: number;
+  tokenLabel?: string;
+  sigilSymbol?: string;
+  tokenUnlockedAt?: string;
+  fragments: CipherFragmentView[];
+}
+
+export interface PlayerCipherProgressView {
+  eventId: string;
+  playerId: string;
+  districts: CipherDistrictProgressView[];
+  totalCollected: number;
+  totalRequired: number;
+}
+
 export interface Player {
   id: string;
   userId?: string;
@@ -512,6 +547,8 @@ export interface QuestRewardConfig {
   secretQuestUnlockIds?: string[];
   /** The Founder's Three Locks fragment this quest awards, if any. */
   threeLocksFragment?: { lock: 'mark' | 'code' | 'word'; collectibleId: string };
+  /** Hidden district-fragment keys granted after server-verified completion. */
+  cipherFragmentKeys?: string[];
   /** Whether completing this quest counts toward finale qualification. */
   countsTowardFinale?: boolean;
 }
@@ -895,6 +932,8 @@ export interface SubmitProofResult {
   /** Which Three Locks fragment (if any) this submission newly granted, and full current ownership. */
   threeLocksFragmentAwarded?: 'mark' | 'code' | 'word';
   threeLocksOwned?: { mark: boolean; code: boolean; word: boolean };
+  cipherFragmentsAwarded?: string[];
+  cipherDistrictsUnlocked?: CipherDistrictKey[];
 }
 
 export interface LiveAnnouncement {

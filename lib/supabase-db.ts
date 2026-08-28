@@ -82,6 +82,7 @@ import {
   resolveAuthenticatedSupabaseUser,
   sanitizePlayerForPublic,
 } from './supabase-auth';
+import { grantCipherFragmentsForQuestRewardDB } from './founders-cipher';
 
 const DRAWABLE_LEDGER_STATUSES: DrawingStatus[] = ['locked', 'drawn'];
 const PUBLISHABLE_LEDGER_STATUSES: DrawingStatus[] = ['drawn'];
@@ -1014,6 +1015,8 @@ export async function awardQuestRewardsDB(params: {
   grantedCollectible?: Collectible;
   threeLocksFragmentAwarded?: 'mark' | 'code' | 'word';
   threeLocksOwned?: { mark: boolean; code: boolean; word: boolean };
+  cipherFragmentsAwarded?: string[];
+  cipherDistrictsUnlocked?: Array<'arts' | 'challenge' | 'secret'>;
   newAchievements: Array<{ id: string; title: string; description: string; icon?: string }>;
 }> {
   if (!isSupabaseConfigured || !supabaseAdmin) {
@@ -1264,6 +1267,20 @@ export async function awardQuestRewardsDB(params: {
     });
   }
 
+  let cipherFragmentsAwarded: string[] = [];
+  let cipherDistrictsUnlocked: Array<'arts' | 'challenge' | 'secret'> = [];
+  if (unlocks.cipherFragmentKeys.length > 0) {
+    const cipherGrant = await grantCipherFragmentsForQuestRewardDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      fragmentKeys: unlocks.cipherFragmentKeys,
+    });
+    cipherFragmentsAwarded = cipherGrant.newlyGrantedFragmentKeys;
+    cipherDistrictsUnlocked = cipherGrant.unlockedDistricts;
+  }
+
   if (unlocks.countsTowardFinale) {
     const granted = await insertRewardGrantDB({
       eventId,
@@ -1300,6 +1317,8 @@ export async function awardQuestRewardsDB(params: {
     grantedCollectible,
     threeLocksFragmentAwarded,
     threeLocksOwned,
+    cipherFragmentsAwarded,
+    cipherDistrictsUnlocked,
     newAchievements,
   };
 }
@@ -1380,6 +1399,8 @@ async function submitSupplementalFieldProofDB(
         newAchievements: grant.newAchievements,
         threeLocksFragmentAwarded: grant.threeLocksFragmentAwarded,
         threeLocksOwned: grant.threeLocksOwned,
+        cipherFragmentsAwarded: grant.cipherFragmentsAwarded,
+        cipherDistrictsUnlocked: grant.cipherDistrictsUnlocked,
       };
     } catch (grantErr: any) {
       await supabaseAdmin.from('reward_grants').delete().eq('submission_id', dbSub.id);
@@ -2140,6 +2161,8 @@ export async function submitQuestProofDB(
     }> | undefined = undefined;
     let threeLocksFragmentAwarded: 'mark' | 'code' | 'word' | undefined;
     let threeLocksOwned: { mark: boolean; code: boolean; word: boolean } | undefined;
+    let cipherFragmentsAwarded: string[] | undefined;
+    let cipherDistrictsUnlocked: Array<'arts' | 'challenge' | 'secret'> | undefined;
 
     if (verification.status === 'verified') {
       try {
@@ -2163,6 +2186,8 @@ export async function submitQuestProofDB(
         if (grant.newAchievements.length > 0) newAchievements = grant.newAchievements;
         threeLocksFragmentAwarded = grant.threeLocksFragmentAwarded;
         threeLocksOwned = grant.threeLocksOwned;
+        cipherFragmentsAwarded = grant.cipherFragmentsAwarded;
+        cipherDistrictsUnlocked = grant.cipherDistrictsUnlocked;
       } catch (grantErr: any) {
         // Reward granting failed partway through — unwind every row keyed to
         // this submission (score/drawing/audit ledger + the submission
@@ -2205,6 +2230,8 @@ export async function submitQuestProofDB(
       newAchievements,
       threeLocksFragmentAwarded,
       threeLocksOwned,
+      cipherFragmentsAwarded,
+      cipherDistrictsUnlocked,
     };
   } catch (err: any) {
     console.error('submitQuestProofDB error:', err);

@@ -116,6 +116,7 @@ const STORAGE_KEYS = {
   LOCATIONS: 'canton_quests_locations',
   REWARD_GRANTS: 'canton_quests_reward_grants',
   EVENT_PLAYERS: 'canton_quests_event_players',
+  CIPHER_FRAGMENT_GRANTS: 'canton_quests_cipher_fragment_grants',
 };
 
 const inMemoryStore = new Map<string, any>();
@@ -2261,6 +2262,8 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   let grantedCol: Collectible | undefined = undefined;
   let threeLocksFragmentAwardedResult: 'mark' | 'code' | 'word' | undefined;
   let threeLocksOwnedResult: { mark: boolean; code: boolean; word: boolean } | undefined;
+  let cipherFragmentsAwarded: string[] | undefined;
+  let cipherDistrictsUnlocked: Array<'arts' | 'challenge' | 'secret'> | undefined;
   let oldRank: number | undefined = undefined;
   let newRank: number | undefined = undefined;
   let newAchievements: Array<{
@@ -2302,6 +2305,8 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     grantedCol = grant.grantedCollectible;
     threeLocksFragmentAwardedResult = grant.threeLocksFragmentAwarded;
     threeLocksOwnedResult = grant.threeLocksOwned;
+    cipherFragmentsAwarded = grant.cipherFragmentsAwarded;
+    cipherDistrictsUnlocked = grant.cipherDistrictsUnlocked;
     newSubmission.awardedPoints = awardedPoints;
     newSubmission.drawingEntriesAwarded = drawingEntriesAwarded;
     setStoredItem(STORAGE_KEYS.SUBMISSIONS, updatedSubmissions);
@@ -2337,6 +2342,8 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     collectibleAwarded: grantedCol,
     threeLocksFragmentAwarded: threeLocksFragmentAwardedResult,
     threeLocksOwned: threeLocksOwnedResult,
+    cipherFragmentsAwarded,
+    cipherDistrictsUnlocked,
     flags: reviewFlags,
     oldRank,
     newRank,
@@ -2454,6 +2461,89 @@ export function recordRewardGrant(entry: {
 }
 
 const THREE_LOCKS_COLLECTIBLE_IDS = ['col-founder-mark', 'col-founder-code', 'col-founder-word'];
+const LOCAL_CIPHER_FRAGMENT_DISTRICT: Record<string, 'arts' | 'challenge' | 'secret'> = {
+  'arts-founder-signal': 'arts',
+  'arts-painted-witness': 'arts',
+  'arts-palace-lantern': 'arts',
+  'challenge-brass-key': 'challenge',
+  'challenge-helmet-emblem': 'challenge',
+  'challenge-neon-loop': 'challenge',
+  'secret-stone-stair': 'secret',
+  'secret-quiet-signal': 'secret',
+  'secret-silent-court': 'secret',
+};
+const LOCAL_CIPHER_REQUIRED_BY_DISTRICT: Record<'arts' | 'challenge' | 'secret', string[]> = {
+  arts: ['arts-founder-signal', 'arts-painted-witness', 'arts-palace-lantern'],
+  challenge: ['challenge-brass-key', 'challenge-helmet-emblem', 'challenge-neon-loop'],
+  secret: ['secret-stone-stair', 'secret-quiet-signal', 'secret-silent-court'],
+};
+
+interface LocalCipherFragmentGrant {
+  eventId: string;
+  playerId: string;
+  questId: string;
+  submissionId: string;
+  fragmentKey: string;
+  districtKey: 'arts' | 'challenge' | 'secret';
+  grantedAt: string;
+}
+
+export function getLocalCipherFragmentGrants(playerId: string, eventId: string): LocalCipherFragmentGrant[] {
+  return getStoredItem<LocalCipherFragmentGrant[]>(STORAGE_KEYS.CIPHER_FRAGMENT_GRANTS, []).filter(
+    (grant) => grant.playerId === playerId && grant.eventId === eventId
+  );
+}
+
+export function isLocalCipherDistrictTokenUnlocked(
+  playerId: string,
+  eventId: string,
+  districtKey: 'arts' | 'challenge' | 'secret'
+): boolean {
+  const owned = new Set(getLocalCipherFragmentGrants(playerId, eventId).map((grant) => grant.fragmentKey));
+  return LOCAL_CIPHER_REQUIRED_BY_DISTRICT[districtKey].every((fragmentKey) => owned.has(fragmentKey));
+}
+
+function grantLocalCipherFragments(params: {
+  eventId: string;
+  playerId: string;
+  questId: string;
+  submissionId: string;
+  fragmentKeys: string[];
+}): { newlyGrantedFragmentKeys: string[]; unlockedDistricts: Array<'arts' | 'challenge' | 'secret'> } {
+  const existing = getStoredItem<LocalCipherFragmentGrant[]>(STORAGE_KEYS.CIPHER_FRAGMENT_GRANTS, []);
+  const next = [...existing];
+  const newlyGrantedFragmentKeys: string[] = [];
+  const touchedDistricts = new Set<'arts' | 'challenge' | 'secret'>();
+
+  for (const fragmentKey of [...new Set(params.fragmentKeys)]) {
+    const districtKey = LOCAL_CIPHER_FRAGMENT_DISTRICT[fragmentKey];
+    if (!districtKey) continue;
+    touchedDistricts.add(districtKey);
+    const alreadyGranted = existing.some(
+      (grant) => grant.eventId === params.eventId && grant.playerId === params.playerId && grant.fragmentKey === fragmentKey
+    );
+    if (alreadyGranted) continue;
+    next.push({
+      eventId: params.eventId,
+      playerId: params.playerId,
+      questId: params.questId,
+      submissionId: params.submissionId,
+      fragmentKey,
+      districtKey,
+      grantedAt: new Date().toISOString(),
+    });
+    newlyGrantedFragmentKeys.push(fragmentKey);
+  }
+
+  setStoredItem(STORAGE_KEYS.CIPHER_FRAGMENT_GRANTS, next);
+
+  const owned = new Set(next.filter((grant) => grant.eventId === params.eventId && grant.playerId === params.playerId).map((grant) => grant.fragmentKey));
+  const unlockedDistricts = [...touchedDistricts].filter((districtKey) =>
+    LOCAL_CIPHER_REQUIRED_BY_DISTRICT[districtKey].every((fragmentKey) => owned.has(fragmentKey))
+  );
+
+  return { newlyGrantedFragmentKeys, unlockedDistricts };
+}
 
 /**
  * The single reward-granting transaction for a verified/approved quest
@@ -2494,6 +2584,8 @@ function applyQuestRewardGrants(
   grantedCollectible?: Collectible;
   threeLocksFragmentAwarded?: 'mark' | 'code' | 'word';
   threeLocksOwned?: { mark: boolean; code: boolean; word: boolean };
+  cipherFragmentsAwarded?: string[];
+  cipherDistrictsUnlocked?: Array<'arts' | 'challenge' | 'secret'>;
   newAchievements: Array<{
     id: string;
     title: string;
@@ -2706,6 +2798,20 @@ function applyQuestRewardGrants(
     });
   }
 
+  let cipherFragmentsAwarded: string[] = [];
+  let cipherDistrictsUnlocked: Array<'arts' | 'challenge' | 'secret'> = [];
+  if (unlocks.cipherFragmentKeys.length > 0) {
+    const cipherGrant = grantLocalCipherFragments({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      fragmentKeys: unlocks.cipherFragmentKeys,
+    });
+    cipherFragmentsAwarded = cipherGrant.newlyGrantedFragmentKeys;
+    cipherDistrictsUnlocked = cipherGrant.unlockedDistricts;
+  }
+
   if (unlocks.countsTowardFinale) {
     const granted = recordRewardGrant({
       eventId,
@@ -2735,6 +2841,8 @@ function applyQuestRewardGrants(
     grantedCollectible,
     threeLocksFragmentAwarded,
     threeLocksOwned,
+    cipherFragmentsAwarded,
+    cipherDistrictsUnlocked,
     newAchievements,
   };
 }

@@ -13,6 +13,7 @@ import GameFeedbackModal from '@/components/GameFeedbackModal';
 import MobileStartBar from '@/components/MobileStartBar';
 import CinematicFooter from '@/components/CinematicFooter';
 import FounderCipherShell from '@/components/FounderCipherShell';
+import CipherFragmentsPanel from '@/components/CipherFragmentsPanel';
 import {
   QuestEvent,
   PublicQuestView,
@@ -23,6 +24,7 @@ import {
   NPCCharacter,
   EventParticipation,
   StartingPath,
+  PlayerCipherProgressView,
 } from '@/lib/types';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
 import { cleanQuestTitle, cqImages, formatEventWindow } from '@/lib/marketing-assets';
@@ -110,6 +112,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [progress, setProgress] = useState<PlayerEventProgress | null>(null);
+  const [cipherProgress, setCipherProgress] = useState<PlayerCipherProgressView | null>(null);
 
   // Phase 3 Live States
   const [collectibles, setCollectibles] = useState<PlayerCollectible[]>([]);
@@ -189,7 +192,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
   }, [authChecked, authenticatedPlayer]);
 
   const refreshData = useCallback(() => {
-    const player = getClientPlayer();
+    const player = authenticatedPlayer || getClientPlayer();
     setCurrentPlayerState(player);
 
     fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`)
@@ -207,6 +210,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
         quests?: PublicQuestView[];
         leaderboard?: LeaderboardEntry[];
         progress?: PlayerEventProgress;
+        cipherProgress?: PlayerCipherProgressView | null;
         isPreLaunch?: boolean;
       } | null) => {
         setIsLoading(false);
@@ -220,6 +224,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
           setQuests(loadedQuests);
           setLeaderboard(data.leaderboard || []);
           setProgress(data.progress || null);
+          setCipherProgress(data.cipherProgress || null);
           setCollectibles([]);
           setNpcs([]);
 
@@ -247,7 +252,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
           setIsPreLaunch(true);
         }
       });
-  }, [eventSlug]);
+  }, [authenticatedPlayer, eventSlug]);
 
   useEffect(() => {
     refreshData();
@@ -735,6 +740,8 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
 
       {/* Player Identity Bar */}
       <PlayerIdentityBar onPlayerChanged={() => refreshData()} />
+
+      {isCipher && <CipherFragmentsPanel progress={cipherProgress} />}
 
       {/* Start Here Panel */}
       {currentPlayer && recommendedQuest && (

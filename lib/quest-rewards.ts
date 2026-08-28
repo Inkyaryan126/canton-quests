@@ -30,6 +30,7 @@ export interface QuestUnlockSummary {
   collectibleIds: string[];
   secretQuestIds: string[];
   threeLocksFragment?: { lock: 'mark' | 'code' | 'word'; collectibleId: string };
+  cipherFragmentKeys: string[];
   countsTowardFinale: boolean;
 }
 
@@ -111,6 +112,7 @@ export function getUnlockSummary(quest: Quest): QuestUnlockSummary {
     collectibleIds: cfg.collectibleUnlockIds ?? [],
     secretQuestIds: cfg.secretQuestUnlockIds ?? [],
     threeLocksFragment: cfg.threeLocksFragment,
+    cipherFragmentKeys: cfg.cipherFragmentKeys ?? [],
     countsTowardFinale: Boolean(cfg.countsTowardFinale),
   };
 }
@@ -149,6 +151,7 @@ export function getQuestRewardSummary(quest: Quest): QuestRewardSummary {
       unlocks.badgeSlugs.length > 0 ||
       unlocks.collectibleIds.length > 0 ||
       unlocks.secretQuestIds.length > 0 ||
+      unlocks.cipherFragmentKeys.length > 0 ||
       Boolean(unlocks.threeLocksFragment) ||
       unlocks.countsTowardFinale,
   };

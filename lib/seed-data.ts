@@ -619,6 +619,7 @@ export const SEED_QUESTS: Quest[] = [
     rewardConfig: {
       collectibleUnlockIds: ['col-founder-token', 'col-founder-mark'],
       threeLocksFragment: { lock: 'mark', collectibleId: 'col-founder-mark' },
+      cipherFragmentKeys: ['arts-founder-signal'],
     },
   },
   {
@@ -646,6 +647,9 @@ export const SEED_QUESTS: Quest[] = [
     requireLocationVerification: true,
     safetyNotes: 'Daylight recommended. Stairs may be slick; players do not need to climb quickly or leave public paths.',
     gmNotes: 'Existing server hash expects the verified four-digit answer. Reconfirm plaque wording and target marker before printing clue cards.',
+    rewardConfig: {
+      cipherFragmentKeys: ['secret-stone-stair'],
+    },
   },
   {
     id: 'qst-4th-st-mural-photo',
@@ -670,6 +674,9 @@ export const SEED_QUESTS: Quest[] = [
     createdAt: '2026-08-01T00:00:00Z',
     safetyNotes: 'Stay on sidewalks, keep storefront entrances clear, and watch traffic when crossing downtown streets.',
     gmNotes: 'Manual review should verify the mural is visible and the proof appears original to the event window.',
+    rewardConfig: {
+      cipherFragmentKeys: ['arts-painted-witness'],
+    },
   },
   {
     id: 'qst-aura-coffee-qr',
@@ -720,6 +727,9 @@ export const SEED_QUESTS: Quest[] = [
     createdAt: '2026-08-01T00:00:00Z',
     safetyNotes: 'Partner permission required. Family-friendly hours only; no alcohol purchase or adult-only access may be required.',
     gmNotes: 'Partner-ready slot. Confirm venue name, hours, minor policy, and exact proof backdrop before activation.',
+    rewardConfig: {
+      cipherFragmentKeys: ['challenge-neon-loop'],
+    },
   },
   {
     id: 'qst-palace-theatre-year',
@@ -744,6 +754,9 @@ export const SEED_QUESTS: Quest[] = [
     createdAt: '2026-08-01T00:00:00Z',
     safetyNotes: 'Stay on public sidewalks and keep theatre entrances clear. No ticket purchase is required.',
     gmNotes: 'Existing server hash expects the verified four-digit answer. Reconfirm marker text before launch.',
+    rewardConfig: {
+      cipherFragmentKeys: ['arts-palace-lantern'],
+    },
   },
   {
     id: 'qst-market-square-flash',
@@ -815,6 +828,7 @@ export const SEED_QUESTS: Quest[] = [
     rewardConfig: {
       collectibleUnlockIds: ['col-founder-code'],
       threeLocksFragment: { lock: 'code', collectibleId: 'col-founder-code' },
+      cipherFragmentKeys: ['challenge-brass-key'],
     },
   },
   {
@@ -842,6 +856,9 @@ export const SEED_QUESTS: Quest[] = [
     radiusMeters: 75,
     safetyNotes: 'Use marked pedestrian routes and daylight hours. Do not cross traffic outside crosswalks.',
     gmNotes: 'Human verification required for exact placement, permission, QR weatherproofing, and pedestrian safety.',
+    rewardConfig: {
+      cipherFragmentKeys: ['challenge-helmet-emblem'],
+    },
   },
   // Secret Path — West Lawn Archive: Chapter 1
   {
@@ -872,6 +889,9 @@ export const SEED_QUESTS: Quest[] = [
       'Daylight only. Confirm cemetery hours before visiting. Stay on paved or gravel paths. No touching, climbing, rubbing, decorating, moving items, loud behavior, nighttime access, or interference with graves, markers, visitors, or staff.',
     gmNotes:
       'MUST complete site walk before launch: (1) confirm Frankenstein monument exact location and surname spelling, (2) confirm cemetery public visitor hours, (3) confirm photography rules. Chapter 1 of the West Lawn Archive chain.',
+    rewardConfig: {
+      cipherFragmentKeys: ['secret-quiet-signal'],
+    },
   },
   // Secret Path — West Lawn Archive: Chapter 2
   {
@@ -997,6 +1017,7 @@ export const SEED_QUESTS: Quest[] = [
     rewardConfig: {
       collectibleUnlockIds: ['col-founder-word'],
       threeLocksFragment: { lock: 'word', collectibleId: 'col-founder-word' },
+      cipherFragmentKeys: ['secret-silent-court'],
       countsTowardFinale: true,
     },
   },
