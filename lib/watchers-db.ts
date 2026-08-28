@@ -1,10 +1,15 @@
 /**
  * Canton Quests — Watchers Foundation (Supabase data access)
  * ===============================================================
- * Server-only. Every read is scoped to one player's own eligibility record
- * — there is no function anywhere in this module that looks up another
- * player's Watcher state, and the API route built on top of it enforces
- * the same (own-session-only, never a client-supplied target id).
+ * Server-only. Every per-player read is scoped to that one player's own
+ * eligibility record — there is no function that looks up ANOTHER
+ * player's Watcher state by identity, and the player-facing API route
+ * built on top of this module enforces the same (own-session-only, never
+ * a client-supplied target id). The one exception is
+ * getWatcherEligibleCountDB, a safe aggregate COUNT with zero per-player
+ * identity — the same class of exception every other private-state module
+ * this session makes (getSignalCarrierCountDB, getPlayerLinkStatsDB), for
+ * the GM room's Mission Status / Watchers section only.
  */
 
 import { supabaseAdmin, isSupabaseAdminConfigured } from './supabase';
@@ -15,7 +20,19 @@ import { LiveEvent, toPublicLiveEvent, PublicLiveEvent } from './live-events';
 import { resolveContextualTransmission } from './contextual-transmissions';
 
 function isMissingTable(error: any): boolean {
-  return error?.code === '42P01' || /relation .* does not exist/i.test(error?.message || '');
+  // PostgREST returns two different shapes for "this table doesn't exist
+  // yet" depending on path: a raw Postgres 42P01/"relation ... does not
+  // exist" error, OR (far more commonly in practice, including every
+  // migration this session left unapplied remotely) its own
+  // schema-cache-miss wording ("Could not find the table 'public.x' in the
+  // schema cache", code PGRST205) — both must be treated as "gracefully
+  // degrade," not "crash the route."
+  return (
+    error?.code === '42P01' ||
+    error?.code === 'PGRST205' ||
+    /relation .* does not exist/i.test(error?.message || '') ||
+    /could not find the table/i.test(error?.message || '')
+  );
 }
 
 /** Idempotent — a repeat grant for the same (event, player, source) is a safe no-op, absorbed by the UNIQUE constraint. */
@@ -106,4 +123,12 @@ export async function getPersonalizedLiveEventsDB(eventId: string, eventSlug: st
     }
     return publicEvent;
   });
+}
+
+/** Safe aggregate — count of distinct players with at least one eligibility record. GM room only. */
+export async function getWatcherEligibleCountDB(eventId: string): Promise<number> {
+  if (!isSupabaseAdminConfigured || !supabaseAdmin) return 0;
+  const { data, error } = await supabaseAdmin.from('watcher_eligibility').select('player_id').eq('event_id', eventId);
+  if (error) return 0;
+  return new Set((data || []).map((r: any) => r.player_id)).size;
 }

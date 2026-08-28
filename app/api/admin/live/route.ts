@@ -32,9 +32,11 @@ import { processAudienceLifecycleCron } from '@/lib/spectator-engine';
 import { getActiveLiveEventsDB, createLiveEventDB, activateLiveEventDB, cancelLiveEventDB } from '@/lib/live-events-db';
 import { getEventFieldNpcsDB, createFieldNpcDB, setFieldNpcActiveDB, rotateFieldNpcCodeDB } from '@/lib/field-npcs-db';
 import { seedSignalCarrierDB, getSignalCarrierCountDB } from '@/lib/personal-roles-db';
-import { grantWatcherEligibilityDB, getWatcherStatusDB } from '@/lib/watchers-db';
+import { grantWatcherEligibilityDB, getWatcherStatusDB, getWatcherEligibleCountDB } from '@/lib/watchers-db';
 import { upsertFinaleConfigDB } from '@/lib/finale-db';
 import { proofDigest } from '@/lib/quest-proof-secrets';
+import { recordAdminAuditDB, getAdminAuditLogDB } from '@/lib/admin-audit-db';
+import { searchPlayersDB, getPendingSubmissionsDB } from '@/lib/admin-player-search-db';
 import {
   computeEventReadinessReport,
   evaluateEventLaunchGates,
@@ -174,6 +176,7 @@ export async function POST(request: Request) {
         const isPaused = Boolean(body.isPaused);
         const reason = body.reason;
         const updated = toggleEventPause(eventId, isPaused, reason);
+        await recordAdminAuditDB({ eventId, action: 'toggle_pause', targetType: 'event', targetId: eventId, detail: { isPaused, reason: reason || null } });
         return NextResponse.json({ success: true, event: updated });
       }
 
@@ -182,7 +185,14 @@ export async function POST(request: Request) {
         if (!phase) {
           return NextResponse.json({ success: false, error: 'Missing phase' }, { status: 400 });
         }
+        // High-risk finale transitions require explicit confirmation —
+        // this is a real server-side gate, not just a UI dialog that a
+        // direct API call could bypass.
+        if ((phase === 'finale' || phase === 'ended') && !body.confirm) {
+          return NextResponse.json({ success: false, error: `Setting phase to "${phase}" requires confirm: true.` }, { status: 400 });
+        }
         const updated = setEventPhase(eventId, phase);
+        await recordAdminAuditDB({ eventId, action: 'set_phase', targetType: 'event', targetId: eventId, detail: { phase } });
         return NextResponse.json({ success: true, event: updated });
       }
 
@@ -390,7 +400,11 @@ export async function POST(request: Request) {
       case 'end_event':
       case 'execute_event_closure': {
         const { reason } = body;
+        if (!body.confirm) {
+          return NextResponse.json({ success: false, error: 'Ending the Mission requires confirm: true.' }, { status: 400 });
+        }
         const closureResult = executeEventClosure(eventId, 'Game Director', reason);
+        await recordAdminAuditDB({ eventId, action: 'execute_event_closure', targetType: 'event', targetId: eventId, detail: { reason: reason || null } });
         return NextResponse.json(closureResult);
       }
 
@@ -458,6 +472,7 @@ export async function POST(request: Request) {
           exactLat, exactLon, startsAt, endsAt, claimLimit, rewardXp, rewardDrawingEntries,
           commanderTransmissionTrigger, operatorNotes,
         });
+        await recordAdminAuditDB({ eventId, action: 'create_field_npc', targetType: 'field_npc', targetId: npc.id, detail: { npcType, aliasName } });
         return NextResponse.json({ success: true, npc });
       }
 
@@ -466,6 +481,7 @@ export async function POST(request: Request) {
         if (!npcId) return NextResponse.json({ success: false, error: 'Missing npcId' }, { status: 400 });
         const npc = await setFieldNpcActiveDB(npcId, Boolean(isActive));
         if (!npc) return NextResponse.json({ success: false, error: 'Field NPC not found' }, { status: 400 });
+        await recordAdminAuditDB({ eventId, action: 'set_field_npc_active', targetType: 'field_npc', targetId: npcId, detail: { isActive: Boolean(isActive) } });
         return NextResponse.json({ success: true, npc });
       }
 
@@ -474,6 +490,7 @@ export async function POST(request: Request) {
         if (!npcId) return NextResponse.json({ success: false, error: 'Missing npcId' }, { status: 400 });
         const npc = await rotateFieldNpcCodeDB(npcId);
         if (!npc) return NextResponse.json({ success: false, error: 'Field NPC not found' }, { status: 400 });
+        await recordAdminAuditDB({ eventId, action: 'rotate_field_npc_code', targetType: 'field_npc', targetId: npcId });
         return NextResponse.json({ success: true, npc });
       }
 
@@ -487,6 +504,7 @@ export async function POST(request: Request) {
         const { playerId } = body;
         if (!playerId) return NextResponse.json({ success: false, error: 'Missing playerId' }, { status: 400 });
         const result = await seedSignalCarrierDB(eventId, playerId);
+        await recordAdminAuditDB({ eventId, action: 'seed_signal_carrier', targetType: 'player', targetId: playerId, detail: result });
         return NextResponse.json({ success: true, ...result });
       }
 
@@ -500,6 +518,7 @@ export async function POST(request: Request) {
         const { playerId, detail } = body;
         if (!playerId) return NextResponse.json({ success: false, error: 'Missing playerId' }, { status: 400 });
         const result = await grantWatcherEligibilityDB(eventId, playerId, 'GM_ACTIVATION', detail);
+        await recordAdminAuditDB({ eventId, action: 'activate_watcher_eligibility', targetType: 'player', targetId: playerId, detail: { detail: detail || null, ...result } });
         return NextResponse.json({ success: true, ...result });
       }
 
@@ -521,6 +540,9 @@ export async function POST(request: Request) {
           finalAnswer, finalDestinationReveal, opensAt, closesAt,
           falseFinaleEnabled, falseFinaleAnswer, falseFinaleRevealText,
         } = body;
+        if ((finalAnswer || falseFinaleAnswer) && !body.confirm) {
+          return NextResponse.json({ success: false, error: 'Setting or changing the Master Cipher answer requires confirm: true.' }, { status: 400 });
+        }
         await upsertFinaleConfigDB(eventId, {
           requiredSigilCount,
           requiresWatcherEligibility,
@@ -533,7 +555,37 @@ export async function POST(request: Request) {
           falseFinaleAnswerHash: falseFinaleAnswer ? `sha256:${proofDigest(falseFinaleAnswer)}` : undefined,
           falseFinaleRevealText,
         });
+        // Never log the plaintext answer — only that the config changed and which fields.
+        await recordAdminAuditDB({
+          eventId,
+          action: 'configure_finale',
+          targetType: 'finale_config',
+          targetId: eventId,
+          detail: { answerChanged: !!finalAnswer, falseFinaleAnswerChanged: !!falseFinaleAnswer, requiredSigilCount, requiresWatcherEligibility, falseFinaleEnabled },
+        });
         return NextResponse.json({ success: true });
+      }
+
+      // --- Game Master Control Room (lib/admin-audit-db.ts / lib/admin-player-search-db.ts) ---
+      case 'get_admin_audit_log': {
+        const entries = await getAdminAuditLogDB(eventId, body.limit || 100);
+        return NextResponse.json({ success: true, entries });
+      }
+
+      case 'search_players': {
+        const { query } = body;
+        const players = await searchPlayersDB(eventId, query || '');
+        return NextResponse.json({ success: true, players });
+      }
+
+      case 'list_pending_submissions': {
+        const submissions = await getPendingSubmissionsDB(eventId);
+        return NextResponse.json({ success: true, submissions });
+      }
+
+      case 'get_watcher_eligible_count': {
+        const count = await getWatcherEligibleCountDB(eventId);
+        return NextResponse.json({ success: true, count });
       }
 
       default:

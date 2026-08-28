@@ -11,7 +11,19 @@ import { supabaseAdmin, isSupabaseAdminConfigured } from './supabase';
 import { PersonalRoleType, PersonalRoleState, PERSONAL_ROLE_DEFINITIONS, assignCoreRole, decideSignalPropagation } from './personal-roles';
 
 function isMissingTable(error: any): boolean {
-  return error?.code === '42P01' || /relation .* does not exist/i.test(error?.message || '');
+  // PostgREST returns two different shapes for "this table doesn't exist
+  // yet" depending on path: a raw Postgres 42P01/"relation ... does not
+  // exist" error, OR (far more commonly in practice, including every
+  // migration this session left unapplied remotely) its own
+  // schema-cache-miss wording ("Could not find the table 'public.x' in the
+  // schema cache", code PGRST205) — both must be treated as "gracefully
+  // degrade," not "crash the route."
+  return (
+    error?.code === '42P01' ||
+    error?.code === 'PGRST205' ||
+    /relation .* does not exist/i.test(error?.message || '') ||
+    /could not find the table/i.test(error?.message || '')
+  );
 }
 
 function mapRow(row: any): PersonalRoleState {
