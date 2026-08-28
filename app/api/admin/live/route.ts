@@ -32,6 +32,7 @@ import { processAudienceLifecycleCron } from '@/lib/spectator-engine';
 import { getActiveLiveEventsDB, createLiveEventDB, activateLiveEventDB, cancelLiveEventDB } from '@/lib/live-events-db';
 import { getEventFieldNpcsDB, createFieldNpcDB, setFieldNpcActiveDB, rotateFieldNpcCodeDB } from '@/lib/field-npcs-db';
 import { seedSignalCarrierDB, getSignalCarrierCountDB } from '@/lib/personal-roles-db';
+import { grantWatcherEligibilityDB, getWatcherStatusDB } from '@/lib/watchers-db';
 import {
   computeEventReadinessReport,
   evaluateEventLaunchGates,
@@ -490,6 +491,21 @@ export async function POST(request: Request) {
       case 'get_signal_carrier_count': {
         const count = await getSignalCarrierCountDB(eventId);
         return NextResponse.json({ success: true, count });
+      }
+
+      // --- Watchers Foundation (lib/watchers-db.ts) ---
+      case 'activate_watcher_eligibility': {
+        const { playerId, detail } = body;
+        if (!playerId) return NextResponse.json({ success: false, error: 'Missing playerId' }, { status: 400 });
+        const result = await grantWatcherEligibilityDB(eventId, playerId, 'GM_ACTIVATION', detail);
+        return NextResponse.json({ success: true, ...result });
+      }
+
+      case 'get_watcher_status': {
+        const { playerId } = body;
+        if (!playerId) return NextResponse.json({ success: false, error: 'Missing playerId' }, { status: 400 });
+        const status = await getWatcherStatusDB(eventId, playerId);
+        return NextResponse.json({ success: true, status });
       }
 
       default:
