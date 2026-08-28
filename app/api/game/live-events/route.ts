@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ liveEvents: [] });
     }
 
-    const liveEvents = await getPublicLiveEventsDB(event.id);
+    const liveEvents = await getPublicLiveEventsDB(event.id, eventSlug);
     return NextResponse.json({ liveEvents });
   } catch (error) {
     console.error('[API /game/live-events] GET error:', error);

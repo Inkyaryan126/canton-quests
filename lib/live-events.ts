@@ -19,7 +19,17 @@
  * event from players who started on a different path.
  */
 
-import { StartingPath } from './types';
+import { QuestCommanderTransmission, StartingPath } from './types';
+import { CommanderTransmissionTrigger } from './game-effects';
+
+/** Maps a LiveEventType onto the matching generic contextual trigger (lib/contextual-transmissions.ts) — only for the types that have a real, name-matching trigger. XP_MULTIPLIER/TEMPORARY_UNLOCK/SPECIAL_OBJECTIVE have no 1:1 match and are intentionally omitted rather than forced onto an unrelated trigger name. */
+export const LIVE_EVENT_TRANSMISSION_TRIGGER: Partial<Record<LiveEventType, CommanderTransmissionTrigger>> = {
+  FLASH_DROP: 'flash_drop',
+  CITY_EVENT: 'city_event',
+  SECTOR_EVENT: 'sector_event',
+  COMMUNITY_MILESTONE: 'community_milestone',
+  EMERGENCY_MESSAGE: 'emergency',
+};
 
 export type LiveEventType =
   | 'FLASH_DROP'
@@ -60,8 +70,16 @@ export interface LiveEvent {
   updatedAt: string;
 }
 
-/** The sanitized shape returned to players — never admin_payload, createdBy, or the Commander trigger key. */
-export type PublicLiveEvent = Omit<LiveEvent, 'adminPayload' | 'createdBy' | 'commanderTransmissionTrigger'>;
+/**
+ * The sanitized shape returned to players — never admin_payload, createdBy,
+ * or the raw Commander trigger key. `resolvedTransmission` is computed
+ * server-side (lib/live-events-db.ts, via the Contextual Transmission
+ * Engine) and attached here instead — the client receives ready-to-display
+ * content, never the internal trigger/rule machinery that produced it.
+ */
+export type PublicLiveEvent = Omit<LiveEvent, 'adminPayload' | 'createdBy' | 'commanderTransmissionTrigger'> & {
+  resolvedTransmission?: QuestCommanderTransmission;
+};
 
 export type LiveEventAvailability =
   | { ok: true }

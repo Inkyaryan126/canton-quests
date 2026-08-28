@@ -499,6 +499,8 @@ export interface QuestCommanderTransmission {
   skippable?: boolean;
   /** VIDEO framing. Defaults to 'video' (16:9) — the existing per-quest placeholder treatment. 'portrait' (9:16) is used by the real numbered Commander videos (see lib/commander-transmissions.ts). */
   mediaAspect?: 'video' | 'portrait';
+  /** ISO timestamp — when set, the transmission UI may render a live countdown to this instant (e.g. a Flash Drop's remaining window). Purely presentational; never the authority for whether anything is actually still active. */
+  countdownEndsAt?: string;
 }
 
 export interface QuestRaceBonusTier {

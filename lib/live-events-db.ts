@@ -1,13 +1,17 @@
 /**
  * Canton Quests — Live City Events (Supabase data access)
  * ==========================================================
- * Server-only. Every write here uses supabaseAdmin (service role); reads
- * that are safe for a player's own browser go through the anon-capable
- * `supabase` client against the public_live_events view (see the
- * 20260828130000_live_city_events_system.sql migration), which already
+ * Server-only. Every read and write here uses supabaseAdmin (service
+ * role) — getPublicLiveEventsDB reads at admin level specifically so it can
+ * see commanderTransmissionTrigger/publicPayload and resolve each event's
+ * Commander transmission server-side (lib/contextual-transmissions.ts), then
+ * sanitizes via toPublicLiveEvent before anything reaches the client. The
+ * public_live_events DB view from the 20260828130000 migration remains in
+ * place as an independent, defense-in-depth read path (anon-capable,
  * excludes admin_payload/createdBy/commanderTransmissionTrigger at the
- * database layer — this module strips them again in toPublicLiveEvent as a
- * second, redundant guard, never relying on the view alone.
+ * database layer) for any future caller that only needs the raw fields with
+ * no resolution step — this module just doesn't happen to use it, since
+ * resolving a transmission requires the admin-level columns anyway.
  *
  * There is no cron/scheduled-job runner anywhere in this codebase (the one
  * function literally named with "Cron" in it is invoked on-demand from an
@@ -25,17 +29,20 @@
  * lib/founders-cipher.ts uses for the same reason.
  */
 
-import { supabase, supabaseAdmin, isSupabaseConfigured, isSupabaseAdminConfigured } from './supabase';
+import { supabaseAdmin, isSupabaseAdminConfigured } from './supabase';
 import { StartingPath } from './types';
 import {
   LiveEvent,
   LiveEventType,
   LiveEventVisibility,
   PublicLiveEvent,
+  LIVE_EVENT_TRANSMISSION_TRIGGER,
   getLiveEventAvailability,
   getEffectiveLiveEventMultiplier,
   toPublicLiveEvent,
 } from './live-events';
+import { CommanderTransmissionTrigger } from './game-effects';
+import { resolveContextualTransmission } from './contextual-transmissions';
 
 function isMissingTable(error: any): boolean {
   return error?.code === '42P01' || /relation .* does not exist/i.test(error?.message || '');
@@ -91,18 +98,39 @@ export async function getActiveLiveEventsDB(eventId: string, now: Date = new Dat
   return rows.filter((row) => getLiveEventAvailability(row, now).ok);
 }
 
-/** The sanitized, player-safe list — reads the public_live_events view (anon-capable), then re-applies the time-window check since the view's WHERE clause is not itself time-aware. */
-export async function getPublicLiveEventsDB(eventId: string, now: Date = new Date()): Promise<PublicLiveEvent[]> {
-  if (!isSupabaseConfigured || !supabase) return [];
-  const { data, error } = await supabase.from('public_live_events').select('*').eq('event_id', eventId);
-  if (error) {
-    if (isMissingTable(error)) return [];
-    throw new Error(`Failed to read public live events: ${error.message}`);
-  }
-  return (data || [])
-    .map((row) => mapLiveEventFromDB({ ...row, admin_payload: {}, created_by: null, commander_transmission_trigger: null }))
-    .filter((row) => getLiveEventAvailability(row, now).ok)
-    .map(toPublicLiveEvent);
+/**
+ * The sanitized, player-safe list. Reads through getActiveLiveEventsDB
+ * (admin-level, so it can see commanderTransmissionTrigger/publicPayload)
+ * specifically so it can resolve each event's Commander transmission
+ * content server-side — the client must never see the raw trigger name or
+ * decide for itself what to display; it only ever receives a
+ * ready-to-render QuestCommanderTransmission. toPublicLiveEvent is the
+ * sanitization boundary: adminPayload/createdBy/commanderTransmissionTrigger
+ * are stripped from every row before it leaves this function, regardless of
+ * whether a transmission was resolved. The public_live_events DB view
+ * remains in place as an independent, defense-in-depth read path for any
+ * future caller that only needs the raw fields with no resolution step.
+ */
+export async function getPublicLiveEventsDB(eventId: string, eventSlug: string, now: Date = new Date()): Promise<PublicLiveEvent[]> {
+  const active = await getActiveLiveEventsDB(eventId, now);
+  return active.map((row) => {
+    const publicEvent = toPublicLiveEvent(row);
+    const trigger = row.commanderTransmissionTrigger as CommanderTransmissionTrigger | null | undefined;
+    const inline = (row.publicPayload as any)?.transmission as { headline: string; message: string; cta?: string; posterKey?: string } | undefined;
+    const effectiveTrigger = trigger || LIVE_EVENT_TRANSMISSION_TRIGGER[row.eventType];
+    if (effectiveTrigger || inline) {
+      const resolved = resolveContextualTransmission({
+        trigger: effectiveTrigger || 'city_event',
+        eventSlug,
+        path: row.sectorScope || undefined,
+        inlineContent: inline,
+        countdownEndsAt: row.endsAt || undefined,
+        now,
+      });
+      if (resolved) publicEvent.resolvedTransmission = resolved;
+    }
+    return publicEvent;
+  });
 }
 
 export async function getLiveEventByIdDB(liveEventId: string): Promise<LiveEvent | undefined> {

@@ -187,7 +187,34 @@ export type CommanderTransmissionTrigger =
   | 'cipher_first_xp'
   | 'cipher_first_entry'
   | 'cipher_leaderboard'
-  | 'cipher_first_quest';
+  | 'cipher_first_quest'
+  // Contextual Transmission Engine (see lib/contextual-transmissions.ts) —
+  // the generic trigger vocabulary the whole live game resolves through, so
+  // future systems (player links, NPCs, Watchers, the finale) never need to
+  // invent their own scattered Commander-firing logic. Several of these
+  // resolve to the SAME numbered video as an existing cipher_* trigger above
+  // when their content genuinely matches (mission_entry ~ cipher_cold_open,
+  // path_selection ~ cipher_three_doors, path_selected ~
+  // cipher_path_selected) — kept as distinct trigger names rather than
+  // renaming the existing ones, so nothing already wired has to change.
+  | 'mission_entry'
+  | 'path_selection'
+  | 'path_selected'
+  | 'fragment_recovered'
+  | 'district_sigil_unlocked'
+  | 'xp_awarded'
+  | 'drawing_entry_awarded'
+  | 'badge_awarded'
+  | 'flash_drop'
+  | 'city_event'
+  | 'sector_event'
+  | 'community_milestone'
+  | 'npc_event'
+  | 'player_link'
+  | 'watcher_signal'
+  | 'final_hours'
+  | 'finale'
+  | 'emergency';
 
 export interface CommanderTransmissionMoment extends BaseGameMoment {
   type: 'commander-transmission';

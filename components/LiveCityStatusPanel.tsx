@@ -74,18 +74,31 @@ export default function LiveCityStatusPanel({ eventSlug, questBaseHref }: LiveCi
             sessionStorage.setItem(sessionKey, 'true');
 
             const config = TYPE_CONFIG[le.eventType];
-            showGameMoment({
-              type: 'field-event',
-              kind: 'live-event',
-              headline: le.title,
-              primaryText: le.description,
-              secondaryText: le.sectorScope ? SECTOR_LABEL[le.sectorScope] : undefined,
-              pathColor: config.color,
-              progress:
-                le.eventType === 'COMMUNITY_MILESTONE' && le.progressTarget
-                  ? { current: le.progressCurrent, total: le.progressTarget, label: 'City Progress' }
-                  : undefined,
-            });
+            // A server-resolved Commander transmission (lib/contextual-transmissions.ts,
+            // computed in getPublicLiveEventsDB) takes priority over the generic
+            // chip-style announcement when this specific live event has one —
+            // the client never decides content, it only renders what the server sent.
+            if (le.resolvedTransmission) {
+              showGameMoment({
+                type: 'commander-transmission',
+                trigger: 'city_event',
+                transmission: le.resolvedTransmission,
+                viewedStateKey: `live-event-${le.id}`,
+              });
+            } else {
+              showGameMoment({
+                type: 'field-event',
+                kind: 'live-event',
+                headline: le.title,
+                primaryText: le.description,
+                secondaryText: le.sectorScope ? SECTOR_LABEL[le.sectorScope] : undefined,
+                pathColor: config.color,
+                progress:
+                  le.eventType === 'COMMUNITY_MILESTONE' && le.progressTarget
+                    ? { current: le.progressCurrent, total: le.progressTarget, label: 'City Progress' }
+                    : undefined,
+              });
+            }
           }
         })
         .catch(() => {

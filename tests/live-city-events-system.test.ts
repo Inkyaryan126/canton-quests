@@ -201,7 +201,7 @@ describe('toPublicLiveEvent — never leaks admin-only fields', () => {
 describe('lib/live-events-db.ts — graceful degradation with no Supabase configured', () => {
   it('every read returns a safe empty/undefined result rather than throwing', async () => {
     await expect(getActiveLiveEventsDB(SEED_EVENT.id)).resolves.toEqual([]);
-    await expect(getPublicLiveEventsDB(SEED_EVENT.id)).resolves.toEqual([]);
+    await expect(getPublicLiveEventsDB(SEED_EVENT.id, SEED_EVENT.slug)).resolves.toEqual([]);
     await expect(getLiveEventByIdDB('le-nonexistent')).resolves.toBeUndefined();
     await expect(getActiveLiveEventMultiplierDB(SEED_EVENT.id, 'family')).resolves.toBe(1);
   });
