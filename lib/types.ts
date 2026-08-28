@@ -578,7 +578,8 @@ export type RewardGrantReason =
   | 'FINALE_PROGRESS'
   | 'PROFILE_COMPLETION'
   | 'PLAYER_LINK'
-  | 'NPC_CLAIM';
+  | 'NPC_CLAIM'
+  | 'BOUNTY_COMPLETE';
 
 export interface RewardGrant {
   id: string;
