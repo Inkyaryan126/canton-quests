@@ -33,6 +33,8 @@ import { getActiveLiveEventsDB, createLiveEventDB, activateLiveEventDB, cancelLi
 import { getEventFieldNpcsDB, createFieldNpcDB, setFieldNpcActiveDB, rotateFieldNpcCodeDB } from '@/lib/field-npcs-db';
 import { seedSignalCarrierDB, getSignalCarrierCountDB } from '@/lib/personal-roles-db';
 import { grantWatcherEligibilityDB, getWatcherStatusDB } from '@/lib/watchers-db';
+import { upsertFinaleConfigDB } from '@/lib/finale-db';
+import { proofDigest } from '@/lib/quest-proof-secrets';
 import {
   computeEventReadinessReport,
   evaluateEventLaunchGates,
@@ -506,6 +508,32 @@ export async function POST(request: Request) {
         if (!playerId) return NextResponse.json({ success: false, error: 'Missing playerId' }, { status: 400 });
         const status = await getWatcherStatusDB(eventId, playerId);
         return NextResponse.json({ success: true, status });
+      }
+
+      // --- Founder's Cipher Finale (lib/finale-db.ts) ---
+      // Plaintext answers are hashed here, server-side, before ever
+      // touching the database — the GM types the real answer once in the
+      // admin panel and it is never stored or transmitted as plaintext
+      // again from this point on.
+      case 'configure_finale': {
+        const {
+          requiredSigilCount, requiresWatcherEligibility, masterCipherCluePieces,
+          finalAnswer, finalDestinationReveal, opensAt, closesAt,
+          falseFinaleEnabled, falseFinaleAnswer, falseFinaleRevealText,
+        } = body;
+        await upsertFinaleConfigDB(eventId, {
+          requiredSigilCount,
+          requiresWatcherEligibility,
+          masterCipherCluePieces,
+          finalAnswerHash: finalAnswer ? `sha256:${proofDigest(finalAnswer)}` : undefined,
+          finalDestinationReveal,
+          opensAt,
+          closesAt,
+          falseFinaleEnabled,
+          falseFinaleAnswerHash: falseFinaleAnswer ? `sha256:${proofDigest(falseFinaleAnswer)}` : undefined,
+          falseFinaleRevealText,
+        });
+        return NextResponse.json({ success: true });
       }
 
       default:
