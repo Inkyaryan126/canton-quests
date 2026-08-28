@@ -29,6 +29,7 @@ import {
   resolveSpectatorEventId,
 } from '@/lib/spectator-db';
 import { processAudienceLifecycleCron } from '@/lib/spectator-engine';
+import { getActiveLiveEventsDB, createLiveEventDB, activateLiveEventDB, cancelLiveEventDB } from '@/lib/live-events-db';
 import {
   computeEventReadinessReport,
   evaluateEventLaunchGates,
@@ -90,6 +91,7 @@ export async function GET(request: Request) {
         checklist: null,
         qrAudit: null,
         questAudit: null,
+        liveEvents: [],
       });
     }
 
@@ -112,6 +114,7 @@ export async function GET(request: Request) {
     const checklist = getOperatorChecklist(eventId);
     const qrAudit = auditEventQRQuests(eventId);
     const questAudit = auditEventQuestsAndLocations(eventId);
+    const liveEvents = await getActiveLiveEventsDB(eventId);
 
     return NextResponse.json({
       success: true,
@@ -126,6 +129,7 @@ export async function GET(request: Request) {
       checklist,
       qrAudit,
       questAudit,
+      liveEvents,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -383,6 +387,55 @@ export async function POST(request: Request) {
         const { reason } = body;
         const closureResult = executeEventClosure(eventId, 'Game Director', reason);
         return NextResponse.json(closureResult);
+      }
+
+      // --- Live City Events (Flash Drops, City/Sector Events, Community
+      // Milestones, XP Multipliers, Temporary Unlocks, Special Objectives,
+      // Emergency Messages) — see lib/live-events.ts / lib/live-events-db.ts.
+      case 'create_live_event': {
+        const {
+          eventType, title, description, startsAt, endsAt, sectorScope, questScopeId,
+          multiplierValue, progressTarget, firstNSlots, visibility, commanderTransmissionTrigger,
+          publicPayload, adminPayload, activateImmediately,
+        } = body;
+        if (!eventType || !title || !startsAt) {
+          return NextResponse.json({ success: false, error: 'Missing eventType, title, or startsAt' }, { status: 400 });
+        }
+        const liveEvent = await createLiveEventDB({
+          eventId, eventType, title, description, startsAt, endsAt, sectorScope, questScopeId,
+          multiplierValue, progressTarget, firstNSlots, visibility, commanderTransmissionTrigger,
+          publicPayload, adminPayload, activateImmediately: Boolean(activateImmediately), createdBy: 'Game Master',
+        });
+        return NextResponse.json({ success: true, liveEvent });
+      }
+
+      case 'activate_live_event': {
+        const { liveEventId } = body;
+        if (!liveEventId) {
+          return NextResponse.json({ success: false, error: 'Missing liveEventId' }, { status: 400 });
+        }
+        const liveEvent = await activateLiveEventDB(liveEventId);
+        if (!liveEvent) {
+          return NextResponse.json({ success: false, error: 'Live event not found or not in scheduled status' }, { status: 400 });
+        }
+        return NextResponse.json({ success: true, liveEvent });
+      }
+
+      case 'cancel_live_event': {
+        const { liveEventId, reason } = body;
+        if (!liveEventId) {
+          return NextResponse.json({ success: false, error: 'Missing liveEventId' }, { status: 400 });
+        }
+        const liveEvent = await cancelLiveEventDB(liveEventId, reason);
+        if (!liveEvent) {
+          return NextResponse.json({ success: false, error: 'Live event not found or already ended' }, { status: 400 });
+        }
+        return NextResponse.json({ success: true, liveEvent });
+      }
+
+      case 'list_live_events': {
+        const liveEvents = await getActiveLiveEventsDB(eventId);
+        return NextResponse.json({ success: true, liveEvents });
       }
 
       default:

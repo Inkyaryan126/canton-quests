@@ -83,6 +83,7 @@ import {
   sanitizePlayerForPublic,
 } from './supabase-auth';
 import { grantCipherFragmentsForQuestRewardDB } from './founders-cipher';
+import { getActiveLiveEventMultiplierDB, getActiveLiveEventsDB, incrementLiveEventProgressDB } from './live-events-db';
 
 const DRAWABLE_LEDGER_STATUSES: DrawingStatus[] = ['locked', 'drawn'];
 const PUBLISHABLE_LEDGER_STATUSES: DrawingStatus[] = ['drawn'];
@@ -604,6 +605,13 @@ export async function getEventBySlugDB(slug: string): Promise<QuestEvent | undef
   return mapEventFromDB(data);
 }
 
+export async function getEventByIdDB(eventId: string): Promise<QuestEvent | undefined> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getEvents().find((e) => e.id === eventId);
+  const { data, error } = await supabase.from('events').select('*').eq('id', eventId).maybeSingle();
+  if (error || !data) return undefined;
+  return mapEventFromDB(data);
+}
+
 function mapEventParticipationFromDB(row: any): EventParticipation {
   return {
     id: row.id,
@@ -1025,7 +1033,15 @@ export async function awardQuestRewardsDB(params: {
   const { quest, eventId, playerId, submissionId, method } = params;
   const db = supabaseAdmin;
 
-  const multiplier = params.bonusMultiplier ?? 1;
+  // Live-event XP multiplier (lib/live-events.ts) — callers essentially
+  // never pass bonusMultiplier explicitly today, so this is where an active
+  // XP_MULTIPLIER live event actually reaches real reward math. A caller
+  // that does pass one explicitly is trusted over the live-event lookup.
+  const questSectorScope: StartingPath | undefined =
+    quest.startingPath === 'family' || quest.startingPath === 'challenge' || quest.startingPath === 'secret'
+      ? quest.startingPath
+      : undefined;
+  const multiplier = params.bonusMultiplier ?? (await getActiveLiveEventMultiplierDB(eventId, questSectorScope));
   const rawBaseXp = getEffectiveBaseXp(quest);
   const multipliedBaseXp = Math.round(rawBaseXp * multiplier);
 
@@ -1053,6 +1069,26 @@ export async function awardQuestRewardsDB(params: {
     claimPlacement = claimResult as number;
   }
   const extraFlatXp = isNewBase ? params.extraFlatXp || 0 : 0;
+
+  // Community milestones (lib/live-events.ts) advance on a genuine new quest
+  // completion only — never on a supplemental field/photo submission for a
+  // quest already completed, matching the same isNewBase gate used for the
+  // race-placement claim and base XP above. Multiple simultaneous milestones
+  // (e.g. a 100-completions and a 500-completions live event both active at
+  // once) each advance independently; the RPC's row lock makes each
+  // increment concurrency-safe and each threshold-cross reported at most once.
+  if (isNewBase) {
+    try {
+      const activeMilestones = (await getActiveLiveEventsDB(eventId)).filter((le) => le.eventType === 'COMMUNITY_MILESTONE');
+      for (const milestone of activeMilestones) {
+        await incrementLiveEventProgressDB(milestone.id, eventId, 1);
+      }
+    } catch {
+      // Milestone progress is observability/celebration on top of a real
+      // completion that has already been recorded — never fail the reward
+      // grant transaction over it.
+    }
+  }
 
   const bonuses = computeAwardedBonusesForSubmission(quest, { method, racePlacement: claimPlacement, usedNfc: params.usedNfc });
 
@@ -2031,6 +2067,18 @@ export async function submitQuestProofDB(
 
     if (quest.eventId !== trustedParams.eventId) {
       return failedSubmissionResult(trustedParams, 'Quest does not belong to the requested event.');
+    }
+
+    // Emergency pause: real in local-engine play since day one, but never
+    // enforced against this, the actual production submission path — see
+    // lib/live-events.ts's module doc comment. A paused event must reject
+    // new submissions the same way the offline engine already does.
+    const event = await getEventByIdDB(trustedParams.eventId);
+    if (event?.isPaused) {
+      return failedSubmissionResult(
+        trustedParams,
+        `Event is currently paused by Game Master${event.pauseReason ? ` (${event.pauseReason})` : ''}. Submissions held.`
+      );
     }
 
     const { data: existingSubmissions } = await supabaseAdmin

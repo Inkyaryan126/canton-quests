@@ -38,6 +38,7 @@ import { showGameMoment } from '@/lib/game-effects';
 import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
 import { getCommanderTransmissionForTrigger, toGameplayTransmission } from '@/lib/commander-transmissions';
 import ThreePathSelector from '@/components/ThreePathSelector';
+import LiveCityStatusPanel from '@/components/LiveCityStatusPanel';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -743,6 +744,9 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
           </aside>
         </div>
       </section>
+
+      {/* Live City Events HUD — Flash Drops, City/Sector Events, Community Milestones, XP boosts, alerts */}
+      <LiveCityStatusPanel eventSlug={eventSlug} questBaseHref={`/events/${eventSlug}/quests`} />
 
       {/* Live Pop-Up Mission Alert Banner */}
       {activeFlashQuests.length > 0 && (

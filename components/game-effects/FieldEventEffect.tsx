@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { MapPin, Nfc, ArrowRight } from 'lucide-react';
+import { MapPin, Nfc, Radio, ArrowRight } from 'lucide-react';
 import { FieldEventMoment } from '@/lib/game-effects';
 import HudParticlesCanvas from './HudParticlesCanvas';
 import { cqSoundManager } from '@/lib/audio';
@@ -15,6 +15,7 @@ interface FieldEventEffectProps {
 const KIND_CONFIG = {
   'field-confirmed': { icon: MapPin, label: 'FIELD PRESENCE CONFIRMED', color: '#22c55e', sound: 'node_ping' as const },
   'nfc-cache': { icon: Nfc, label: 'SIGNAL ACQUIRED', color: '#06b6d4', sound: 'node_ping' as const },
+  'live-event': { icon: Radio, label: 'LIVE CITY SIGNAL', color: '#f59e0b', sound: 'node_ping' as const },
 };
 
 /**

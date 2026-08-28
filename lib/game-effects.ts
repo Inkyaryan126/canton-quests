@@ -241,7 +241,7 @@ export interface UnlockMoment extends RewardMomentBase {
   kind: UnlockKind;
 }
 
-export type FieldEventKind = 'field-confirmed' | 'nfc-cache';
+export type FieldEventKind = 'field-confirmed' | 'nfc-cache' | 'live-event';
 export interface FieldEventMoment extends RewardMomentBase {
   type: 'field-event';
   kind: FieldEventKind;
