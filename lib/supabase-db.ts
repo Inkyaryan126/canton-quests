@@ -886,7 +886,7 @@ export async function grantFinaleQualificationDB(
  * (submissionId, rewardType, rewardKey) grant already exists — the core
  * idempotency gate for the shared reward-granting transaction below.
  */
-async function insertRewardGrantDB(entry: {
+export async function insertRewardGrantDB(entry: {
   eventId: string;
   playerId: string;
   questId?: string;
