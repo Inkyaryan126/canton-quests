@@ -312,7 +312,7 @@ export default function EnterGameModal({
 
             <div className="space-y-2 bg-obsidian/70 p-4 rounded-xl border border-gray-800">
               <label className="block text-xs font-mono font-bold text-amber-400 uppercase">
-                Email for Verification & Prizes *
+                Email for Account Verification *
               </label>
               <input
                 type="email"

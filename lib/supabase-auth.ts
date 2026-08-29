@@ -1442,8 +1442,8 @@ export async function resolveOrCreatePlayerForAuthUser(
   // callsign field submits, so a player's actually-chosen callsign is never
   // silently discarded and replaced by their email-address prefix.
   const cleanName = (
-    params?.displayName ||
     authUser.user_metadata?.display_name ||
+    params?.displayName ||
     authUser.email?.split('@')[0] ||
     'Canton Explorer'
   ).trim();

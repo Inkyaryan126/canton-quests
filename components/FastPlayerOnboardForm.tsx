@@ -287,6 +287,15 @@ export default function FastPlayerOnboardForm({
         </span>
       </div>
 
+      {/* Accurate signup incentive — account creation alone earns nothing;
+          the +100 XP identity reward only fires once a district + avatar
+          are both chosen post-signup. Never imply a free drawing entry here. */}
+      {!isVerificationPending && mode === 'signup' && (
+        <p className="text-[11px] font-mono text-stone-400 mb-3 -mt-1">
+          Join the Canton Quests player roster. Complete your player identity after signup to earn <span className="text-amber-400 font-bold">+100 XP</span>.
+        </p>
+      )}
+
       {/* Mode Selector Tabs */}
       {!isVerificationPending && (
         <div className="flex items-center gap-2 mb-3 p-1 rounded-xl bg-stone-950 border border-stone-800 text-xs font-mono">
@@ -402,7 +411,7 @@ export default function FastPlayerOnboardForm({
 
           <div>
             <label htmlFor="onboard-email" className="block text-xs font-mono font-bold text-stone-200 mb-1">
-              Email Address (For Verification & Prizes) *
+              Email Address (For Account Verification) *
             </label>
             <input
               id="onboard-email"
