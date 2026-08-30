@@ -22,10 +22,12 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
   signUpWithPassword,
   resolveOrCreatePlayerForAuthUser,
+  computeNeedsCallsignPrompt,
   resetMockAuthStores,
   type AuthSessionUser,
 } from '../lib/supabase-auth';
 import { POST as loginHandler } from '../app/api/auth/login/route';
+import { POST as confirmPostHandler } from '../app/api/auth/confirm/route';
 import { GET as commandCenterHandler } from '../app/api/player/command-center/route';
 import { POST as profilePostHandler } from '../app/api/player/profile/route';
 import * as localEngine from '../lib/game-engine';
@@ -118,16 +120,82 @@ describe('Bug 2 — Callsign is collected once, not twice', () => {
     expect(result.player?.displayName).toBe('CipherRunner_77');
   });
 
-  describe('confirm page only prompts for a callsign when the signup flow genuinely never collected one', () => {
-    const source = readSource('app/auth/confirm/page.tsx');
-
-    it('hides the callsign box for the password-signup flow (type=signup), which already has one', () => {
-      expect(source).toMatch(/\{!isRecovery && type !== 'signup' && \(/);
+  describe('computeNeedsCallsignPrompt — the real decision signal, not the email link\'s `type`', () => {
+    it('regression: a real production password-signup confirmation link (type=email, NOT type=signup) never triggers the prompt', async () => {
+      // This is the exact shape production actually sends — confirmed via
+      // live Vercel logs: Supabase's "Confirm signup" email uses
+      // type=email, not type=signup. computeNeedsCallsignPrompt doesn't
+      // even accept a `type` parameter, so it cannot regress on this again.
+      const authUser: AuthSessionUser = {
+        id: 'usr-real-prod-shape',
+        email: 'real-prod-shape@example.com',
+        user_metadata: { display_name: 'RealCallsign_42' },
+      };
+      const player = await resolveOrCreatePlayerForAuthUser(authUser, {});
+      expect(computeNeedsCallsignPrompt(authUser, player)).toBe(false);
     });
 
-    it('still offers the callsign field as a recovery path for the passwordless flow that never collects one elsewhere', () => {
+    it('prompts for a callsign when the account genuinely never collected one (passwordless magic-link/OTP)', async () => {
+      const authUser: AuthSessionUser = {
+        id: 'usr-otp-needs-callsign',
+        email: 'otp-needs-callsign@example.com',
+        user_metadata: {},
+      };
+      const player = await resolveOrCreatePlayerForAuthUser(authUser, {});
+      expect(player.displayName).toBe('otp-needs-callsign');
+      expect(computeNeedsCallsignPrompt(authUser, player)).toBe(true);
+    });
+
+    it('does not re-prompt an existing player who already has a real, non-fallback name', async () => {
+      const authUser: AuthSessionUser = {
+        id: 'usr-existing-real-name',
+        email: 'existing-real-name@example.com',
+        user_metadata: {},
+      };
+      const player = { displayName: 'AlreadyCuratedName', id: 'plr-x' } as any;
+      expect(computeNeedsCallsignPrompt(authUser, player)).toBe(false);
+    });
+  });
+
+  describe('confirm page derives the prompt from the server response, never from the email link\'s `type`', () => {
+    const source = readSource('app/auth/confirm/page.tsx');
+
+    it('gates the callsign step on data.needsCallsign, not on the `type` query param', () => {
+      expect(source).not.toMatch(/type !== 'signup'/);
+      expect(source).toContain('data.needsCallsign && data.player');
+      expect(source).toContain('setAwaitingCallsign(');
+    });
+
+    it('still offers a callsign field, with a skip option, only in the post-verification step', () => {
       expect(source).toContain('confirm-callsign-input');
-      expect(source).toContain('Player Callsign (Optional / Can be set later)');
+      expect(source).toContain('handleSkipCallsign');
+      expect(source).toContain('Skip for now');
+    });
+
+    it('a normal password-signup verification (no needsCallsign) proceeds straight through with no extra step', () => {
+      expect(source).toContain('proceedToGame(data.player, targetDestination);');
+    });
+  });
+
+  describe('confirm route computes needsCallsign from server-side state via computeNeedsCallsignPrompt', () => {
+    const routeSource = readSource('app/api/auth/confirm/route.ts');
+
+    it('imports and calls the shared helper rather than re-deriving from `type`', () => {
+      expect(routeSource).toContain('computeNeedsCallsignPrompt');
+      expect(routeSource).toContain('computeNeedsCallsignPrompt(verifyRes.user, player)');
+    });
+
+    it('the confirm route returns needsCallsign: true for a verified account with no real callsign (integration, via the mock auth verifier)', async () => {
+      const req = new Request('http://localhost:3000/api/auth/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token_hash: 'mock-token-no-callsign', type: 'email', next: '/profile' }),
+      });
+      const res = await confirmPostHandler(req);
+      const json = await res.json();
+      expect(res.status).toBe(200);
+      expect(json.success).toBe(true);
+      expect(json.needsCallsign).toBe(true);
     });
   });
 

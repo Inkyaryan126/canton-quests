@@ -967,7 +967,7 @@ export async function evaluateAndGrantProfileCompletionRewardDB(
     player_id: playerId,
     points: xpAwarded,
     category: 'profile_completion',
-    description: 'Player identity complete — starting district + avatar selected',
+    description: 'Player identity complete — avatar selected',
   });
   if (scoreInsert.error) {
     throw new Error(`Failed to record profile completion score ledger entry: ${scoreInsert.error.message}`);

@@ -1397,6 +1397,28 @@ export async function resolveAuthenticatedPlayerId(
 }
 
 /**
+ * Whether a verified account should be offered a one-time post-verification
+ * callsign prompt. Deliberately NOT derived from the email link's `type`
+ * query param — Supabase's real "Confirm signup" email uses type=email
+ * (confirmed against live production), not type=signup, so that value
+ * cannot reliably distinguish "already has a callsign" from "never
+ * collected one." The reliable signal is whether the verified auth user's
+ * own user_metadata.display_name exists (set at password-signup time by
+ * signUpWithPassword) — the passwordless magic-link/OTP flow (sendEmailOtp)
+ * is the only path that never sets it, and its players fall back to an
+ * auto-generated name (email-local-part or 'Canton Explorer') with no real
+ * metadata behind it.
+ */
+export function computeNeedsCallsignPrompt(authUser: AuthSessionUser, player: Player): boolean {
+  const hadRealMetadataName = Boolean(
+    authUser.user_metadata?.display_name && String(authUser.user_metadata.display_name).trim().length >= 2
+  );
+  if (hadRealMetadataName) return false;
+  const autoFallbackName = authUser.email?.split('@')[0] || 'Canton Explorer';
+  return player.displayName === autoFallbackName || player.displayName === 'Canton Explorer';
+}
+
+/**
  * Resolves or creates a player record for a verified Supabase Auth user.
  */
 export async function resolveOrCreatePlayerForAuthUser(

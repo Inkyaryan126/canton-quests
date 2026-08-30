@@ -59,15 +59,16 @@ export default function OperationRulesPage({ params }: { params: { slug: string 
               <Section title="Scoring & Leaderboard">
                 <p>
                   All players compete on one individual, citywide leaderboard ranked by total XP. There are no team or
-                  per-path leaderboards. XP is earned by completing quests and, once, by completing your player
-                  identity (selecting a starting path and an avatar).
+                  per-path leaderboards. XP is earned by completing quests and, once, by completing your permanent
+                  player identity (selecting an avatar). A starting path is a separate, per-Mission identity choice
+                  and is not required for the identity-completion reward.
                 </p>
               </Section>
 
               <Section title="Rewards: Account, Identity, and Quest Completion">
                 <ul className="list-disc list-inside space-y-1">
                   <li>Creating an account: 0 XP unless a separately configured action grants XP, and 0 drawing entries.</li>
-                  <li>Completing your player identity (starting path + avatar): +100 XP, one time only, and 0 drawing entries.</li>
+                  <li>Completing your permanent player identity (selecting an avatar — no starting path required): +100 XP, one time only, and 0 drawing entries.</li>
                   <li>
                     A verified core quest completion normally earns XP according to that quest&apos;s configured reward,
                     and normally earns +1 Entry Token / drawing entry when the quest is configured to grant one.

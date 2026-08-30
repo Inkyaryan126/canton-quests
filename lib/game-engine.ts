@@ -1555,7 +1555,7 @@ export function evaluateAndGrantProfileCompletionReward(playerId: string): { new
     playerId,
     points: PROFILE_COMPLETION_XP,
     category: 'profile_completion',
-    description: 'Player identity complete — starting district + avatar selected',
+    description: 'Player identity complete — avatar selected',
   });
 
   return { newlyGranted: true, xpAwarded: PROFILE_COMPLETION_XP };

@@ -176,7 +176,7 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
                     🎟️ TRANSPARENT DRAWING RULES
                   </span>
                   <p className="text-xs sm:text-sm text-stone-300 leading-relaxed font-body">
-                    Every completed quest during the live event earns <strong>one drawing entry</strong>. Players do not have to participate all three days.
+                    Every completed quest during the live event earns <strong>one drawing entry</strong>. Players do not have to participate all four days.
                   </p>
                 </div>
 
@@ -191,10 +191,10 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
 
                 <div className="p-4 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-2">
                   <span className="text-xs font-mono text-purple-400 font-bold uppercase tracking-wider block">
-                    🏆 SUNDAY EVENING DRAWING
+                    🏆 MONDAY EVENING DRAWING
                   </span>
                   <p className="text-xs sm:text-sm text-stone-300 leading-relaxed font-body">
-                    Winners will be drawn Sunday evening at the conclusion of the event window.
+                    Winners will be drawn Monday evening, September 14, at the conclusion of the event window.
                   </p>
                 </div>
 

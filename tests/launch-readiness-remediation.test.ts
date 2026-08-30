@@ -153,9 +153,23 @@ describe('Launch-readiness remediation', () => {
   });
 
   describe('5. Callsign is not redundantly requested after email verification', () => {
-    it('the confirm page hides the callsign prompt for the password-signup flow (type=signup)', () => {
+    // Superseded: live production verification proved Supabase's real
+    // "Confirm signup" email link carries type=email, not type=signup, so
+    // gating on the URL's `type` never actually worked. The confirm page
+    // now derives this from the server's needsCallsign response field
+    // (computeNeedsCallsignPrompt in lib/supabase-auth.ts), which checks
+    // the verified auth user's real user_metadata.display_name instead.
+    it('the confirm page derives the callsign step from the server-computed needsCallsign field, not from the URL `type`', () => {
       const source = readFile('app/auth/confirm/page.tsx');
-      expect(source).toContain("type !== 'signup'");
+      expect(source).not.toMatch(/type !== 'signup'/);
+      expect(source).toContain('data.needsCallsign && data.player');
+    });
+
+    it('computeNeedsCallsignPrompt is the shared source of truth, used by the confirm route', () => {
+      const source = readFile('lib/supabase-auth.ts');
+      expect(source).toContain('export function computeNeedsCallsignPrompt');
+      const routeSource = readFile('app/api/auth/confirm/route.ts');
+      expect(routeSource).toContain('computeNeedsCallsignPrompt(verifyRes.user, player)');
     });
 
     it('resolveOrCreatePlayerForAuthUser honors the callsign captured at registration via user_metadata before falling back to the email prefix', () => {

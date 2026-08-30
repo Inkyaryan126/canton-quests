@@ -3,6 +3,7 @@ import {
   verifyTokenHash,
   resolveAuthenticatedPlayer,
   resolveOrCreatePlayerForAuthUser,
+  computeNeedsCallsignPrompt,
   getSiteUrl,
   sanitizeRedirectUrl,
   setAuthCookies,
@@ -82,11 +83,18 @@ export async function POST(request: Request) {
 
     const safeRedirect = sanitizeRedirectUrl(next, '/profile');
 
+    // Whether the client should offer a one-time callsign prompt AFTER this
+    // verification succeeds — derived from reliable server-side state
+    // (verifyRes.user.user_metadata + the resolved player), never from the
+    // email link's `type` query param. See computeNeedsCallsignPrompt.
+    const needsCallsign = computeNeedsCallsignPrompt(verifyRes.user, player);
+
     const response = NextResponse.json({
       success: true,
       player,
       session: verifyRes.session,
       redirectTo: safeRedirect,
+      needsCallsign,
       message: `Email verified successfully! Welcome to Canton Quests, ${player.displayName}!`,
     });
 

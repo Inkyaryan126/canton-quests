@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { CheckCircle2, KeyRound, AlertCircle, ArrowRight, ShieldCheck, Sparkles, RefreshCw } from 'lucide-react';
 import { showGameMoment } from '@/lib/game-effects';
 import { cqImages } from '@/lib/marketing-assets';
+import { Player } from '@/lib/types';
 
 function sanitizeNextPath(rawNext?: string | null): string {
   if (!rawNext || typeof rawNext !== 'string') return '/profile';
@@ -27,12 +28,72 @@ function ConfirmEmailContent() {
   const urlError = searchParams.get('error') || '';
   const urlErrorDesc = searchParams.get('error_description') || '';
 
-  const [callsign, setCallsign] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState(
     urlErrorDesc || (urlError ? `Authentication error: ${urlError}` : '')
   );
+
+  // Set only when the server (not a guessed URL `type`) determines this
+  // verified account genuinely never collected a callsign anywhere — see
+  // needsCallsign in app/api/auth/confirm/route.ts. Holds verification
+  // results until the player either sets a callsign or skips.
+  const [awaitingCallsign, setAwaitingCallsign] = useState<{ player: Player; targetDestination: string } | null>(null);
+  const [callsignInput, setCallsignInput] = useState('');
+  const [isSavingCallsign, setIsSavingCallsign] = useState(false);
+
+  const isRecovery = type === 'recovery';
+
+  const proceedToGame = (player: Player | undefined, targetDestination: string) => {
+    setIsSuccess(true);
+
+    // Save player profile in localStorage for instant UI display
+    // Persistent authentication is secured via HTTP-only cookies
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (player) {
+        window.localStorage.setItem('canton_quests_current_player', JSON.stringify(player));
+        window.localStorage.setItem('canton_player_profile', JSON.stringify(player));
+      }
+      window.localStorage.removeItem('canton_auth_token');
+      window.localStorage.removeItem('canton_refresh_token');
+    }
+
+    let hasNavigated = false;
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const navigateNext = () => {
+      if (hasNavigated) return;
+      hasNavigated = true;
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+      }
+      if (router && router.push) {
+        router.push(targetDestination);
+      } else if (typeof window !== 'undefined') {
+        window.location.href = targetDestination;
+      }
+    };
+
+    // Trigger Celebration Game Moment and navigate upon conclusion. Path is
+    // Operation-specific now (event_players.path) — a brand-new player has
+    // no path yet at this account-level confirmation step, so the
+    // path-locked cinematic only fires when one is genuinely already set
+    // (e.g. a pre-reorg legacy account). Otherwise just navigate on.
+    if (player?.selectedStartingPath) {
+      showGameMoment({
+        type: 'path-lock',
+        path: player.selectedStartingPath,
+        title: `${player?.displayName || 'Agent'} Activated`,
+        onFinished: navigateNext,
+      });
+
+      // Safe fallback timer in case moment dismissal is delayed or unmounted
+      fallbackTimer = setTimeout(navigateNext, 3500);
+    } else {
+      navigateNext();
+    }
+  };
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,12 +110,7 @@ function ConfirmEmailContent() {
       const res = await fetch('/api/auth/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token_hash: tokenHash,
-          type,
-          next,
-          displayName: callsign.trim() || undefined,
-        }),
+        body: JSON.stringify({ token_hash: tokenHash, type, next }),
       });
 
       const data = await res.json();
@@ -63,23 +119,16 @@ function ConfirmEmailContent() {
         throw new Error(data.error || 'Email verification failed or link expired.');
       }
 
-      setIsSuccess(true);
-
-      // Save player profile in localStorage for instant UI display
-      // Persistent authentication is secured via HTTP-only cookies
-      if (typeof window !== 'undefined' && window.localStorage) {
-        if (data.player) {
-          window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
-          window.localStorage.setItem('canton_player_profile', JSON.stringify(data.player));
-        }
-        window.localStorage.removeItem('canton_auth_token');
-        window.localStorage.removeItem('canton_refresh_token');
-      }
-
-      const isRecovery = type === 'recovery';
       const targetDestination = data.redirectTo || next || (isRecovery ? '/auth/reset-password' : '/profile');
 
       if (isRecovery) {
+        setIsSuccess(true);
+        if (typeof window !== 'undefined' && window.localStorage) {
+          if (data.player) {
+            window.localStorage.setItem('canton_quests_current_player', JSON.stringify(data.player));
+            window.localStorage.setItem('canton_player_profile', JSON.stringify(data.player));
+          }
+        }
         if (router && router.push) {
           router.push(targetDestination);
         } else if (typeof window !== 'undefined') {
@@ -88,48 +137,55 @@ function ConfirmEmailContent() {
         return;
       }
 
-      let hasNavigated = false;
-      let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
-
-      const navigateNext = () => {
-        if (hasNavigated) return;
-        hasNavigated = true;
-        if (fallbackTimer) {
-          clearTimeout(fallbackTimer);
-          fallbackTimer = null;
-        }
-        if (router && router.push) {
-          router.push(targetDestination);
-        } else if (typeof window !== 'undefined') {
-          window.location.href = targetDestination;
-        }
-      };
-
-      // Trigger Celebration Game Moment and navigate upon conclusion. Path is
-      // Operation-specific now (event_players.path) — a brand-new player has
-      // no path yet at this account-level confirmation step, so the
-      // path-locked cinematic only fires when one is genuinely already set
-      // (e.g. a pre-reorg legacy account). Otherwise just navigate on.
-      if (data.player?.selectedStartingPath) {
-        showGameMoment({
-          type: 'path-lock',
-          path: data.player.selectedStartingPath,
-          title: `${data.player?.displayName || 'Agent'} Activated`,
-          onFinished: navigateNext,
-        });
-
-        // Safe fallback timer in case moment dismissal is delayed or unmounted
-        fallbackTimer = setTimeout(navigateNext, 3500);
-      } else {
-        navigateNext();
+      // Only a genuinely callsign-less account (verified server-side, never
+      // guessed from the link's `type`) pauses here — a normal password
+      // signup, which already has a real callsign, goes straight through.
+      if (data.needsCallsign && data.player) {
+        setIsLoading(false);
+        setAwaitingCallsign({ player: data.player, targetDestination });
+        return;
       }
+
+      proceedToGame(data.player, targetDestination);
     } catch (err: any) {
       setErrorMessage(err.message || 'Verification link is invalid or has expired.');
       setIsLoading(false);
     }
   };
 
-  const isRecovery = type === 'recovery';
+  const handleSetCallsign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!awaitingCallsign) return;
+    const cleanCallsign = callsignInput.trim();
+    if (cleanCallsign.length < 2) {
+      setErrorMessage('Choose a callsign at least 2 characters, or skip for now.');
+      return;
+    }
+
+    setIsSavingCallsign(true);
+    setErrorMessage('');
+    try {
+      const res = await fetch('/api/player/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: cleanCallsign }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to save callsign.');
+      }
+      proceedToGame(data.player || awaitingCallsign.player, awaitingCallsign.targetDestination);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to save callsign. You can also set it later in Profile Settings.');
+    } finally {
+      setIsSavingCallsign(false);
+    }
+  };
+
+  const handleSkipCallsign = () => {
+    if (!awaitingCallsign) return;
+    proceedToGame(awaitingCallsign.player, awaitingCallsign.targetDestination);
+  };
 
   return (
     <div className="cq-confirm-card">
@@ -144,6 +200,8 @@ function ConfirmEmailContent() {
       <h1 className="cq-confirm-title">
         {isSuccess
           ? (isRecovery ? 'RECOVERY VERIFIED!' : 'EMAIL CONFIRMED!')
+          : awaitingCallsign
+          ? 'CHOOSE YOUR CALLSIGN'
           : (isRecovery ? 'RESTORE PLAYER ACCESS' : 'CONFIRM YOUR EMAIL')}
       </h1>
 
@@ -152,6 +210,8 @@ function ConfirmEmailContent() {
           ? (isRecovery
               ? 'Recovery verified. Redirecting to set new password...'
               : 'Your email is verified and your player identity is activated. Entering Canton Quests...')
+          : awaitingCallsign
+          ? 'Your email is verified. Pick the public callsign other players will see — or skip and set it later in Profile Settings.'
           : (isRecovery
               ? 'Click below to securely verify your recovery link and choose a new password.'
               : 'Click below to verify your email address and activate your player identity for Canton Quests.')}
@@ -177,36 +237,58 @@ function ConfirmEmailContent() {
             <div className="bg-emerald-400 h-full w-full animate-pulse" />
           </div>
         </div>
+      ) : awaitingCallsign ? (
+        // Shown only when the server (never the link's guessed `type`)
+        // confirms this verified account has no real callsign anywhere —
+        // the passwordless magic-link/OTP case. A normal password signup
+        // already has one and skips straight past this to proceedToGame.
+        <form onSubmit={handleSetCallsign} className="cq-confirm-form">
+          <div className="cq-confirm-callsign-box">
+            <label htmlFor="confirm-callsign-input" className="cq-confirm-label">
+              Player Callsign
+            </label>
+            <input
+              id="confirm-callsign-input"
+              type="text"
+              value={callsignInput}
+              onChange={(e) => setCallsignInput(e.target.value)}
+              placeholder="e.g. NeonVoyager_330"
+              maxLength={30}
+              autoFocus
+              className="cq-confirm-input"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSavingCallsign}
+            className="cq-confirm-submit-btn"
+          >
+            {isSavingCallsign ? (
+              <span className="flex items-center justify-center gap-2">
+                <RefreshCw size={18} className="animate-spin" />
+                <span>Saving...</span>
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <KeyRound size={18} />
+                <span>SAVE & ENTER CANTON QUESTS</span>
+                <ArrowRight size={18} />
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSkipCallsign}
+            disabled={isSavingCallsign}
+            className="text-xs font-mono text-stone-400 hover:text-amber-300 underline w-full text-center mt-1"
+          >
+            Skip for now — set it later in Profile Settings
+          </button>
+        </form>
       ) : tokenHash ? (
         <form onSubmit={handleConfirm} className="cq-confirm-form">
-          {/*
-            The password-signup flow (type=signup) always collects a callsign
-            at registration — signUpWithPassword persists it into Supabase
-            Auth user_metadata, and the server now honors that value when
-            creating the player record (see resolveOrCreatePlayerForAuthUser
-            in lib/supabase-auth.ts). Re-prompting here would just be a
-            redundant, confusing second callsign question. Only the
-            passwordless magic-link/OTP flow (sendEmailOtp) never collects a
-            callsign anywhere else, so it's the one case this field is
-            actually needed.
-          */}
-          {!isRecovery && type !== 'signup' && (
-            <div className="cq-confirm-callsign-box">
-              <label htmlFor="confirm-callsign-input" className="cq-confirm-label">
-                Player Callsign (Optional / Can be set later)
-              </label>
-              <input
-                id="confirm-callsign-input"
-                type="text"
-                value={callsign}
-                onChange={(e) => setCallsign(e.target.value)}
-                placeholder="e.g. NeonVoyager_330"
-                maxLength={30}
-                className="cq-confirm-input"
-              />
-            </div>
-          )}
-
           <div className="cq-confirm-security-bar">
             <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-xs">
               <ShieldCheck size={14} />
