@@ -692,13 +692,13 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
               {event.title.replace('Canton Quests: Volume 1 - ', '')}
             </h1>
             <p className="text-base text-gray-200 leading-relaxed mt-4 max-w-xl">
-              A real-world adventure across Canton. Choose a mission, visit the location, submit proof, and earn XP.
+              A real-world adventure across Canton. Choose a quest, visit the location, submit proof, and earn XP.
             </p>
 
             <div className="grid gap-2 sm:grid-cols-3 mt-6">
               {[
                 ['1', 'Create your callsign'],
-                ['2', 'Choose a mission'],
+                ['2', 'Choose a quest'],
                 ['3', 'Submit proof'],
               ].map(([step, label]) => (
                 <div key={step} className="bg-black/55 border border-amber-500/25 p-3">
@@ -710,7 +710,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
 
             <div className="flex flex-wrap gap-3 mt-6">
               <a href="#quest-board" className="btn btn-primary text-sm px-5 py-3 font-bold">
-                Choose a Mission
+                Choose a Quest
               </a>
               <button onClick={requestLocation} className="btn btn-secondary text-sm px-5 py-3 font-bold">
                 Enable GPS
@@ -752,14 +752,14 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
       {/* Live City Events HUD — Flash Drops, City/Sector Events, Community Milestones, XP boosts, alerts */}
       <LiveCityStatusPanel eventSlug={eventSlug} questBaseHref={`/events/${eventSlug}/quests`} />
 
-      {/* Live Pop-Up Mission Alert Banner */}
+      {/* Live Pop-Up Quest Alert Banner */}
       {activeFlashQuests.length > 0 && (
         <div className="p-4 bg-red-950/40 border-2 border-red-500/60 rounded-2xl mb-6 shadow-xl flex flex-wrap items-center justify-between gap-3 animate-pulse">
           <div className="flex items-center gap-3">
             <span className="text-3xl">⚡</span>
             <div>
               <span className="text-[10px] font-mono uppercase text-red-400 font-bold tracking-widest block">
-                LIVE POP-UP MISSION ACTIVE
+                LIVE POP-UP QUEST ACTIVE
               </span>
               <h3 className="text-base font-extrabold text-white">
                 {activeFlashQuests[0].title} (+{activeFlashQuests[0].pointValue} XP)
@@ -770,7 +770,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
             href={`/events/${event.slug}/quests/${activeFlashQuests[0].id}`}
             className="btn btn-primary text-xs py-2 px-4 font-bold"
           >
-            Go to Mission →
+            Go to Quest →
           </Link>
         </div>
       )}
@@ -842,11 +842,11 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
               <div>
                 <h2 className="text-2xl font-extrabold text-white">{currentPlayer.displayName}</h2>
                 <p className="text-xs text-gray-300 font-mono">
-                  {progress?.totalPoints || 0} XP · {progress?.completedCount || 0} missions completed
+                  {progress?.totalPoints || 0} XP · {progress?.completedCount || 0} quests completed
                 </p>
               </div>
               <a href="#quest-board" className="btn btn-secondary text-xs px-4 py-2 font-bold">
-                Browse All Missions
+                Browse All Quests
               </a>
             </div>
           </div>
@@ -856,12 +856,12 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
             className="glass-panel p-4 border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/15 transition-colors min-w-full md:min-w-[280px]"
           >
             <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">
-              Recommended next mission
+              Recommended next quest
             </span>
             <h3 className="text-lg font-extrabold text-white mt-1">{cleanQuestTitle(recommendedQuest.title)}</h3>
             <p className="text-xs text-gray-300 mt-1 line-clamp-2">{recommendedQuest.description}</p>
             <div className="mt-3 btn btn-primary text-xs py-2 px-4 w-full font-bold">
-              Start This Mission →
+              Start This Quest →
             </div>
           </Link>
         </section>
@@ -878,7 +878,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
           </div>
 
           <div className="glass-card p-3 text-center">
-            <span className="text-[10px] font-mono text-gray-400 uppercase block">Missions Solved</span>
+            <span className="text-[10px] font-mono text-gray-400 uppercase block">Quests Solved</span>
             <span className="font-display font-extrabold text-2xl text-emerald-400">
               {progress.completedCount} / {progress.availableCount}
             </span>
@@ -910,7 +910,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
-          Missions ({quests.length})
+          Quests ({quests.length})
         </button>
         <button
           onClick={() => setActiveTab('map')}
@@ -998,10 +998,10 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
             </div>
           </div>
 
-          {/* Missions Grid */}
+          {/* Quests Grid */}
           {filteredQuests.length === 0 ? (
             <div className="glass-panel p-8 text-center text-gray-400 font-mono text-sm">
-              No missions match the selected category filter.
+              No quests match the selected category filter.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1071,7 +1071,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
 
           {collectibles.length === 0 ? (
             <div className="p-8 text-center text-gray-400 text-xs">
-              No collectibles discovered yet. Complete mission chains or redeem secret passcode drops.
+              No collectibles discovered yet. Complete quest chains or redeem secret passcode drops.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1103,7 +1103,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
           </h2>
           <div className="space-y-3 text-sm text-gray-300 leading-relaxed">
             <div className="p-3 bg-red-950/30 border border-red-800/40 rounded-xl text-red-300 font-mono text-xs">
-              ⚠️ SAFETY FIRST DIRECTIVE: No mission or XP value is worth injury or property damage. Stay on public sidewalks and observe traffic signals.
+              ⚠️ SAFETY FIRST DIRECTIVE: No quest or XP value is worth injury or property damage. Stay on public sidewalks and observe traffic signals.
             </div>
             <ul className="list-disc pl-5 space-y-2 text-xs font-mono text-gray-300">
               <li><strong className="text-white">Public Access Hours:</strong> Observe park opening hours (Dawn to Dusk) and business hours. Never trespass on private property.</li>

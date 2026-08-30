@@ -29,12 +29,12 @@ import { cqImages, getActiveEvent } from '@/lib/marketing-assets';
 const steps = [
   {
     title: 'Pick a quest',
-    text: 'Choose a mission from the quest board.',
+    text: 'Choose a quest from the board.',
     Icon: Compass,
   },
   {
     title: 'Solve or go there',
-    text: 'Some missions solve remotely; visiting Canton unlocks field bonuses and physical caches.',
+    text: 'Some quests solve remotely; visiting Canton unlocks field bonuses and physical caches.',
     Icon: MapPin,
   },
   {
@@ -44,12 +44,12 @@ const steps = [
   },
   {
     title: 'Earn XP',
-    text: 'Verified missions add XP score to your profile.',
+    text: 'Verified quests add XP to your permanent Player Identity.',
     Icon: Zap,
   },
   {
     title: 'Climb the board',
-    text: 'Keep playing to rise on the citywide leaderboard.',
+    text: 'Keep playing to climb that Mission\'s leaderboard.',
     Icon: Trophy,
   },
 ];
@@ -187,7 +187,7 @@ export default function HowItWorksPage() {
             <span className="cq-kicker">SCORE & PROGRESSION</span>
             <h2>WHAT IS XP?</h2>
             <p>
-              <strong>XP means Experience Points.</strong> You earn XP when verified quests are completed. XP is your score in Canton Quests. The more XP you earn, the higher you climb on the citywide leaderboard.
+              <strong>XP means Experience Points.</strong> You earn XP when verified quests are completed. Your total XP lives on your permanent Player Identity, wherever you check it. Each Mission also runs its own leaderboard — the more XP you earn in that Mission, the higher you climb on its board.
             </p>
             <Link href="/leaderboard" className="cq-gold-button">
               VIEW LEADERBOARD

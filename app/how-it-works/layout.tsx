@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'How It Works',
   description:
-    'How Canton Quests works: pick a starting path, complete real-world missions around Canton, Ohio, earn XP and drawing entries, and climb the citywide leaderboard.',
+    'How Canton Quests works: create your permanent Player Identity, join a Mission, complete real-world quests around Canton, Ohio, and earn XP and drawing entries.',
   alternates: { canonical: '/how-it-works' },
 };
 

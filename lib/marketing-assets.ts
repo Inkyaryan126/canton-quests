@@ -180,6 +180,21 @@ export function getActiveEvent(events: QuestEvent[]) {
   return events.find((event) => event.status === 'active') || events[0];
 }
 
+/**
+ * A Mission's public status for directory/card display: LIVE, UPCOMING, or
+ * ENDED. Prefers the event's own authoritative `status` field (the same
+ * source getActiveEvent already trusts) and only falls back to comparing
+ * startTime/endTime against now for older/local data that never got a
+ * maintained status value.
+ */
+export function getOperationStatus(event: QuestEvent): 'LIVE' | 'UPCOMING' | 'ENDED' {
+  if (event.status === 'ended') return 'ENDED';
+  if (event.status === 'active') return 'LIVE';
+  if (event.endTime && new Date(event.endTime).getTime() <= Date.now()) return 'ENDED';
+  if (!event.startTime || new Date(event.startTime).getTime() <= Date.now()) return 'LIVE';
+  return 'UPCOMING';
+}
+
 export function getQuestRarity(quest: Quest) {
   if (quest.isSecret || quest.isFinaleQuest) return 'LEGENDARY';
   if (quest.isFlash) return 'EPIC';

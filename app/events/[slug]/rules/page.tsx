@@ -43,25 +43,30 @@ export default function OperationRulesPage({ params }: { params: { slug: string 
                   purchase is necessary to play, to earn XP, or to qualify for a drawing entry.
                 </p>
                 <p>
-                  Players create a free account with a callsign (public display name), an email address, and a
-                  starting path. Accounts intended for minors follow the age-acknowledgment flow presented at signup.
+                  Players create one free, permanent Player Identity with a callsign (public display name) and an
+                  email address — no starting path is required to create an account. Accounts intended for minors
+                  follow the age-acknowledgment flow presented at signup.
                 </p>
               </Section>
 
               <Section title="Starting Paths">
                 <p>
-                  Family, Challenge, and Secret are identity choices only. Your starting path sets your first mission
-                  and public identity flavor — it never restricts which quests you can see or complete. Every player
-                  can attempt every available quest regardless of starting path.
+                  Family, Challenge, and Secret are optional, Mission-specific identity choices — not a permanent
+                  account attribute. For a Mission that uses paths (like this one), your starting path sets your
+                  first quest recommendation and public identity flavor within that Mission — it never restricts
+                  which quests you can see or complete. Every player can attempt every available quest regardless of
+                  starting path, and a Mission that doesn&apos;t use paths (like the Fair QR Hunt) never asks for one.
                 </p>
               </Section>
 
               <Section title="Scoring & Leaderboard">
                 <p>
-                  All players compete on one individual, citywide leaderboard ranked by total XP. There are no team or
-                  per-path leaderboards. XP is earned by completing quests and, once, by completing your permanent
-                  player identity (selecting an avatar). A starting path is a separate, per-Mission identity choice
-                  and is not required for the identity-completion reward.
+                  This Mission has its own individual leaderboard, ranking every participating player by the XP
+                  they&apos;ve earned within Canton Quests: Volume 1 specifically — there are no team or per-path
+                  leaderboards. Your permanent Player Identity separately tracks your lifetime total XP across every
+                  Mission you&apos;ve played, shown on your Player File. XP is earned by completing quests and, once, by
+                  completing your permanent player identity (selecting an avatar). A starting path is a separate,
+                  per-Mission identity choice and is not required for the identity-completion reward.
                 </p>
               </Section>
 

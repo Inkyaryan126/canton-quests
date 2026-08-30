@@ -1,27 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Users } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import PageHeader from '@/components/PageHeader';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { PublicRosterEntry, StartingPath } from '@/lib/types';
-import { STARTING_DISTRICTS } from '@/lib/player-command-center';
-
-const PATH_FILTERS: Array<{ value: StartingPath | 'all'; label: string }> = [
-  { value: 'all', label: 'ALL PATHS' },
-  { value: 'family', label: 'FAMILY' },
-  { value: 'challenge', label: 'CHALLENGE' },
-  { value: 'secret', label: 'SECRET' },
-];
+import { PublicRosterEntry } from '@/lib/types';
 
 export default function PlayerRosterPage() {
   const [roster, setRoster] = useState<PublicRosterEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [pathFilter, setPathFilter] = useState<StartingPath | 'all'>('all');
 
   useEffect(() => {
     setLoading(true);
@@ -38,11 +29,6 @@ export default function PlayerRosterPage() {
     }, 250);
     return () => clearTimeout(handle);
   }, [search]);
-
-  const visibleRoster = useMemo(() => {
-    if (pathFilter === 'all') return roster;
-    return roster.filter((entry) => entry.selectedStartingPath === pathFilter);
-  }, [roster, pathFilter]);
 
   return (
     <div className="cq-home-shell">
@@ -82,57 +68,36 @@ export default function PlayerRosterPage() {
                 }}
               />
             </div>
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-              {PATH_FILTERS.map((filter) => (
-                <button
-                  key={filter.value}
-                  type="button"
-                  onClick={() => setPathFilter(filter.value)}
-                  className="cq-dark-button cq-btn-sm"
-                  style={{
-                    opacity: pathFilter === filter.value ? 1 : 0.55,
-                    borderColor: pathFilter === filter.value ? '#f0c978' : undefined,
-                  }}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {loading ? (
             <p className="cq-empty-state">Loading roster...</p>
-          ) : visibleRoster.length === 0 ? (
+          ) : roster.length === 0 ? (
             <div className="relative overflow-hidden p-10 rounded-3xl bg-stone-950 border border-stone-800 text-center space-y-3 max-w-2xl mx-auto my-8">
               <Users size={28} className="mx-auto text-amber-400" />
               <h2 className="text-xl font-black font-display text-white uppercase tracking-tight">No Agents Found</h2>
-              <p className="text-sm text-stone-300 font-body">Try a different callsign search or path filter.</p>
+              <p className="text-sm text-stone-300 font-body">Try a different callsign search.</p>
             </div>
           ) : (
             <div className="cq-rank-list">
-              {visibleRoster.map((entry) => {
-                const district = entry.selectedStartingPath ? STARTING_DISTRICTS[entry.selectedStartingPath] : null;
-                return (
-                  <article key={entry.id}>
-                    <PlayerAvatar
-                      avatarUrl={entry.avatarUrl}
-                      cropZoom={entry.profileImageCropZoom}
-                      cropX={entry.profileImageCropX}
-                      cropY={entry.profileImageCropY}
-                      size={46}
-                      className="cq-rank-avatar"
-                      ariaLabel={`${entry.displayName} avatar`}
-                      style={{ fontSize: '1.4rem' }}
-                    />
-                    <div className="cq-rank-name">
-                      <h3>{entry.displayName}</h3>
-                      <p>
-                        {district ? `${district.label} · ${district.district}` : 'No path selected yet'} · Level {entry.level}
-                      </p>
-                    </div>
-                  </article>
-                );
-              })}
+              {roster.map((entry) => (
+                <article key={entry.id}>
+                  <PlayerAvatar
+                    avatarUrl={entry.avatarUrl}
+                    cropZoom={entry.profileImageCropZoom}
+                    cropX={entry.profileImageCropX}
+                    cropY={entry.profileImageCropY}
+                    size={46}
+                    className="cq-rank-avatar"
+                    ariaLabel={`${entry.displayName} avatar`}
+                    style={{ fontSize: '1.4rem' }}
+                  />
+                  <div className="cq-rank-name">
+                    <h3>{entry.displayName}</h3>
+                    <p>Level {entry.level}</p>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </section>

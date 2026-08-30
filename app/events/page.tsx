@@ -2,27 +2,32 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { ArrowRight, CalendarDays, MapPin, Radio, ShieldCheck, Zap } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
+import OperationCard from '@/components/OperationCard';
 import { QuestEvent } from '@/lib/types';
-import { cqImages, destinationCards, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
+import { cqImages, destinationCards, getActiveEvent, getOperationStatus } from '@/lib/marketing-assets';
 
 export default function EventsPage() {
   const [events, setEvents] = useState<QuestEvent[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/game/events')
       .then((res) => res.json())
       .then((data: { events?: QuestEvent[] }) => {
         setEvents(data.events || []);
-      });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const activeEvent = getActiveEvent(events);
   const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events';
+
+  const liveMissions = events.filter((e) => getOperationStatus(e) === 'LIVE');
+  const upcomingMissions = events.filter((e) => getOperationStatus(e) === 'UPCOMING');
+  const endedMissions = events.filter((e) => getOperationStatus(e) === 'ENDED');
 
   return (
     <div className="cq-home-shell">
@@ -32,86 +37,71 @@ export default function EventsPage() {
         <section className="cq-event-hero">
           <Image src={cqImages.heroCity} alt="Canton quest skyline signal" fill priority sizes="100vw" />
           <div>
-            <span className="cq-kicker">FEATURED QUEST</span>
-            <h1>{activeEvent?.title || 'Canton Quest Weekend'}</h1>
+            <span className="cq-kicker">MISSION DIRECTORY</span>
+            <h1>Canton Quests Missions</h1>
             <p>
-              {activeEvent?.description ||
-                'Start the quest, choose missions, visit Canton locations, submit proof, earn XP, and climb the board.'}
+              One permanent Player Identity gets you into every Mission Canton Quests runs. Each Mission has its own
+              dates, scoring, prizes, and rules — some use a starting path, some don&apos;t.
             </p>
-            <div className="cq-page-actions">
-              <Link href={eventHref} className="cq-gold-button">
-                START QUEST
-                <ArrowRight size={17} aria-hidden="true" />
-              </Link>
-              <Link href="/leaderboard" className="cq-dark-button">
-                VIEW LEADERBOARD
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="cq-event-stats">
-          <div>
-            <CalendarDays size={22} aria-hidden="true" />
-            <strong>{activeEvent ? formatEventWindow(activeEvent) : 'Loading'}</strong>
-            <span>quest dates</span>
-          </div>
-          <div>
-            <MapPin size={22} aria-hidden="true" />
-            <strong>Downtown Canton</strong>
-            <span>launch zone</span>
-          </div>
-          <div>
-            <Zap size={22} aria-hidden="true" />
-            <strong>0 XP</strong>
-            <span>available score</span>
-          </div>
-          <div>
-            <Radio size={22} aria-hidden="true" />
-            <strong>0</strong>
-            <span>missions</span>
           </div>
         </section>
 
         <section className="cq-page-section">
-          <div className="cq-section-heading">
-            <div>
-              <span className="cq-kicker">QUESTS</span>
-              <h2>START HERE</h2>
-            </div>
-            <Link href="/events/canton-weekend-1/quests" className="cq-view-all-button">
-              BROWSE QUESTS
-              <ArrowRight size={16} aria-hidden="true" />
-            </Link>
-          </div>
-
-          <div className="cq-event-grid">
-            {events.map((event, index) => {
-              const image = index % 2 === 0 ? cqImages.heroCityBeam : cqImages.cantonSign;
-
-              return (
-                <article className="cq-event-card" key={event.id}>
-                  <div className="cq-event-card-image">
-                    <Image src={image} alt={`${event.title} artwork`} fill sizes="(max-width: 820px) 100vw, 44vw" />
-                    <span>{event.status}</span>
-                  </div>
-                  <div>
-                    <h3>{event.title}</h3>
-                    <p>{event.description}</p>
-                    <div className="cq-event-card-meta">
-                      <span>{formatEventWindow(event)}</span>
-                      <span>missions hidden until event entry</span>
-                      <span>XP revealed in mission board</span>
+          {loading ? (
+            <p className="cq-empty-state" style={{ padding: '2rem 0' }}>Loading Missions...</p>
+          ) : events.length === 0 ? (
+            <p className="cq-empty-state" style={{ padding: '2rem 0' }}>No Missions are published yet. Check back soon.</p>
+          ) : (
+            <div className="space-y-10">
+              {liveMissions.length > 0 && (
+                <div>
+                  <div className="cq-section-heading">
+                    <div>
+                      <span className="cq-kicker">LIVE NOW</span>
+                      <h2>Active Missions</h2>
                     </div>
-                    <Link href={`/events/${event.slug}`} className="cq-gold-button">
-                      START QUEST
-                      <ShieldCheck size={17} aria-hidden="true" />
-                    </Link>
                   </div>
-                </article>
-              );
-            })}
-          </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {liveMissions.map((event) => (
+                      <OperationCard key={event.id} event={event} status="LIVE" />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {upcomingMissions.length > 0 && (
+                <div>
+                  <div className="cq-section-heading">
+                    <div>
+                      <span className="cq-kicker">COMING UP</span>
+                      <h2>Upcoming Missions</h2>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {upcomingMissions.map((event) => (
+                      <OperationCard key={event.id} event={event} status="INCOMING" />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {endedMissions.length > 0 && (
+                <div>
+                  <div className="cq-section-heading">
+                    <div>
+                      <span className="cq-kicker">ARCHIVE</span>
+                      <h2>Ended Missions</h2>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {endedMissions.map((event) => (
+                      <OperationCard key={event.id} event={event} status="ENDED" />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="cq-page-section">
