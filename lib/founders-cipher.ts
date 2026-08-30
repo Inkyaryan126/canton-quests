@@ -73,7 +73,20 @@ function normalizeStatus(value: unknown): CipherDistrictStatus {
 }
 
 function isMissingTable(error: any): boolean {
-  return error?.code === '42P01' || /relation .* does not exist/i.test(error?.message || '');
+  // PostgREST returns two different shapes for "this table doesn't exist
+  // yet" depending on path: a raw Postgres 42P01/"relation ... does not
+  // exist" error, OR (far more common in practice against real, not-yet-
+  // fully-migrated infrastructure) its own schema-cache-miss wording
+  // ("Could not find the table 'public.x' in the schema cache", code
+  // PGRST205) — both must be treated as "gracefully degrade," not "crash
+  // the route." See lib/live-events-db.ts and siblings for the identical
+  // fix applied session-wide; this file was missed in that pass.
+  return (
+    error?.code === '42P01' ||
+    error?.code === 'PGRST205' ||
+    /relation .* does not exist/i.test(error?.message || '') ||
+    /could not find the table/i.test(error?.message || '')
+  );
 }
 
 async function refreshDistrictProgressDB(
