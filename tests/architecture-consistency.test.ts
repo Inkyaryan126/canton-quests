@@ -101,6 +101,17 @@ describe('3. No public copy implies one universal, cross-Mission leaderboard', (
     expect(source).toContain('Each Mission also runs its own leaderboard');
   });
 
+  it('every remaining "citywide leaderboard" mention is scoped to a specific Mission, never claimed as universal', () => {
+    const scanned = ['components/OperationCard.tsx', 'components/FounderCipherShell.tsx'];
+    for (const file of scanned) {
+      const source = readSource(file);
+      const matches = source.match(/[^.]{0,40}citywide leaderboard/gi) || [];
+      for (const m of matches) {
+        expect(m).toMatch(/this mission/i);
+      }
+    }
+  });
+
   it('the how-it-works meta description no longer claims a single citywide leaderboard or a required starting path', () => {
     const source = readSource('app/how-it-works/layout.tsx');
     expect(source).not.toMatch(/citywide leaderboard/i);

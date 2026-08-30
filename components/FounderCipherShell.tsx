@@ -149,7 +149,7 @@ export default function FounderCipherShell({
           </h1>
           <p className="text-sm sm:text-base text-stone-200 font-body leading-relaxed">
             The full three-path Canton Quests experience. Ciphers, sprints, and secrets hidden across downtown
-            Canton — Family, Challenge, or Secret — on one citywide leaderboard. {eventWindow}.
+            Canton — Family, Challenge, or Secret — on this Mission&apos;s own citywide leaderboard. {eventWindow}.
           </p>
 
           {/* STAGE-SPECIFIC STATUS WIDGET */}
