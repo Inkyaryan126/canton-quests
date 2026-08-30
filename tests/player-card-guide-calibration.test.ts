@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   PLAYER_CARD_LAYOUT,
   getCallsignFontScale,
-  getDistrictFontScale,
 } from '../lib/player-card-layout';
 import { resetGameEngineStore } from '../lib/game-engine';
 import React from 'react';
@@ -35,16 +34,28 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
       expect(PLAYER_CARD_LAYOUT.callsign.height).toBe('8.59%');
     });
 
-    it('verifies exact starting path and district coordinates', () => {
-      expect(PLAYER_CARD_LAYOUT.path.left).toBe('51.17%');
-      expect(PLAYER_CARD_LAYOUT.path.top).toBe('26.95%');
-      expect(PLAYER_CARD_LAYOUT.path.width).toBe('45.02%');
-      expect(PLAYER_CARD_LAYOUT.path.height).toBe('5.27%');
+    it('verifies the Motto panel occupies the exact former combined Path+District footprint', () => {
+      expect(PLAYER_CARD_LAYOUT.motto.left).toBe('51.17%');
+      expect(PLAYER_CARD_LAYOUT.motto.top).toBe('26.95%');
+      expect(PLAYER_CARD_LAYOUT.motto.width).toBe('45.02%');
+      expect(PLAYER_CARD_LAYOUT.motto.height).toBe('12.70%');
+    });
 
-      expect(PLAYER_CARD_LAYOUT.district.left).toBe('51.27%');
-      expect(PLAYER_CARD_LAYOUT.district.top).toBe('34.51%');
-      expect(PLAYER_CARD_LAYOUT.district.width).toBe('44.92%');
-      expect(PLAYER_CARD_LAYOUT.district.height).toBe('5.14%');
+    it('verifies 5 Player Level segments share the Player Signal row and sit to its left', () => {
+      expect(PLAYER_CARD_LAYOUT.playerLevel.segments).toHaveLength(5);
+      PLAYER_CARD_LAYOUT.playerLevel.segments.forEach((segment) => {
+        expect(segment.top).toBe(PLAYER_CARD_LAYOUT.signal.top);
+        expect(segment.height).toBe(PLAYER_CARD_LAYOUT.signal.height);
+      });
+      expect(PLAYER_CARD_LAYOUT.playerLevel.segments[0].left).toBe('4.10%');
+      expect(PLAYER_CARD_LAYOUT.playerLevel.segments[4].left).toBe('41.70%');
+    });
+
+    it('verifies Player Signal coordinates are unchanged', () => {
+      expect(PLAYER_CARD_LAYOUT.signal.left).toBe('52.93%');
+      expect(PLAYER_CARD_LAYOUT.signal.top).toBe('43.62%');
+      expect(PLAYER_CARD_LAYOUT.signal.width).toBe('30.86%');
+      expect(PLAYER_CARD_LAYOUT.signal.height).toBe('5.53%');
     });
 
     it('verifies exact numeric 4-stat row coordinates', () => {
@@ -87,7 +98,7 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
     });
   });
 
-  describe('2. Callsign & District Dynamic Scaling Logic', () => {
+  describe('2. Callsign Dynamic Scaling Logic', () => {
     it('assigns correct callsign scaling classes across short, medium, real-user, and longest names', () => {
       expect(getCallsignFontScale('ACE')).toBe('cq-callsign-lg'); // 3 chars
       expect(getCallsignFontScale('CantonCipher')).toBe('cq-callsign-md'); // 12 chars
@@ -95,21 +106,14 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
       expect(getCallsignFontScale('iron_explorer_99')).toBe('cq-callsign-sm'); // 16 chars
       expect(getCallsignFontScale('SUPER_LONG_EXPLORER_CALLSIGN_99')).toBe('cq-callsign-xs'); // 31 chars
     });
-
-    it('assigns correct district scaling classes for all 3 starter paths and custom regions', () => {
-      expect(getDistrictFontScale('Arts District')).toBe('cq-district-lg'); // Family (13 chars)
-      expect(getDistrictFontScale('9th St Skate Park area')).toBe('cq-district-md'); // Challenge (22 chars)
-      expect(getDistrictFontScale('West Lawn Cemetery / McKinley area')).toBe('cq-district-sm'); // Secret (34 chars)
-    });
   });
 
   describe('3. Component Rendering & Real Production Stress Case', () => {
-    it('renders real user "dustinsigley126" cleanly with all artwork overlay elements', () => {
+    it('renders real user "dustinsigley126" cleanly with all artwork overlay elements, including a saved Motto', () => {
       const html = ReactDOMServer.renderToString(
         React.createElement(PlayerCard, {
           displayName: 'dustinsigley126',
-          startingPathLabel: 'CHALLENGE',
-          startingDistrictName: '9th St Skate Park area',
+          motto: 'Trust the process.',
           avatarImage: '/canton-quests/1.png',
           cropZoom: 1,
           cropX: 50,
@@ -118,6 +122,7 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
           completedQuests: 5,
           prizeEntries: 3,
           cityRank: 1,
+          participatedQuestCount: 3,
           memberSinceDate: 'AUG 21, 2026',
           playerCode: 'CQ-8821',
         })
@@ -130,11 +135,18 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
       expect(html).toContain('cq-card-callsign cq-callsign-sm');
       expect(html).toContain('dustinsigley126');
 
-      // Verify starting path & district
-      expect(html).toContain('cq-card-path');
-      expect(html).toContain('CHALLENGE');
-      expect(html).toContain('cq-card-district cq-district-md');
-      expect(html).toContain('9th St Skate Park area');
+      // Verify Motto is rendered
+      expect(html).toContain('cq-card-motto');
+      expect(html).toContain('Trust the process.');
+
+      // Verify Player Level segments: 3 of 5 filled, in order
+      const segmentMatches = html.match(/cq-card-level-segment[^"]*/g) || [];
+      expect(segmentMatches).toHaveLength(5);
+      const filledCount = segmentMatches.filter((cls) => cls.includes('is-filled')).length;
+      expect(filledCount).toBe(3);
+      expect(segmentMatches[0]).toContain('is-filled');
+      expect(segmentMatches[2]).toContain('is-filled');
+      expect(segmentMatches[3]).not.toContain('is-filled');
 
       // Verify numeric stat row
       expect(html).toContain('1,250');
@@ -150,7 +162,7 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
       expect(html.match(/cq-card-badge-slot/g)).toHaveLength(6);
     });
 
-    it('renders varying badge counts (0, 3, 6) preserving empty artwork rings', () => {
+    it('renders an empty Motto without fabricating placeholder text, and 0 participated quests as 0 filled segments', () => {
       const badges = [
         { name: 'Day 1 Champion', iconPath: '/canton-quests/badges/day1.png' },
         { name: 'Family Pathfinder', iconPath: '/canton-quests/badges/family.png' },
@@ -159,21 +171,46 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
       const html = ReactDOMServer.renderToString(
         React.createElement(PlayerCard, {
           displayName: 'Explorer',
-          startingPathLabel: 'FAMILY',
-          startingDistrictName: 'Arts District',
           avatarImage: '/canton-quests/2.png',
           totalXp: 0,
           completedQuests: 0,
           prizeEntries: 0,
           cityRank: null,
+          participatedQuestCount: 0,
           featuredBadges: badges,
         })
       );
+
+      expect(html).toContain('cq-card-motto');
+      // No quote marks rendered when motto is empty/absent
+      expect(html).not.toMatch(/&quot;[^&]/);
+
+      const segmentMatches = html.match(/cq-card-level-segment[^"]*/g) || [];
+      expect(segmentMatches).toHaveLength(5);
+      expect(segmentMatches.some((cls) => cls.includes('is-filled'))).toBe(false);
 
       expect(html.match(/cq-card-badge-slot/g)).toHaveLength(6);
       expect(html).toContain('day1.png');
       expect(html).toContain('family.png');
       expect(html).toContain('Unranked');
+    });
+
+    it('caps Player Level segments at 5 filled even when participation exceeds available segments (no overflow)', () => {
+      const html = ReactDOMServer.renderToString(
+        React.createElement(PlayerCard, {
+          displayName: 'Veteran',
+          avatarImage: '/canton-quests/3.png',
+          totalXp: 5000,
+          completedQuests: 20,
+          prizeEntries: 10,
+          cityRank: 1,
+          participatedQuestCount: 40,
+        })
+      );
+
+      const segmentMatches = html.match(/cq-card-level-segment[^"]*/g) || [];
+      expect(segmentMatches).toHaveLength(5);
+      expect(segmentMatches.every((cls) => cls.includes('is-filled'))).toBe(true);
     });
   });
 });

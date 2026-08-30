@@ -1726,6 +1726,16 @@ export function getAllSubmissions(): QuestSubmission[] {
   return getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
 }
 
+/**
+ * Distinct quests a player has ever submitted for, across all Missions
+ * (lifetime scope, any submission status). Powers the Player Card's
+ * PLAYER LEVEL segments.
+ */
+export function getParticipatedQuestCount(playerId: string): number {
+  const submissions = getSubmissionsForPlayer(playerId);
+  return new Set(submissions.map((s) => s.questId)).size;
+}
+
 function getLatestQuestProgressSubmission(
   submissions: QuestSubmission[],
   playerId: string,

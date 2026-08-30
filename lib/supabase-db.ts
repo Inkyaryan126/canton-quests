@@ -2552,6 +2552,30 @@ export async function getPlayerProgressDB(playerId: string, eventId: string): Pr
   }
 }
 
+/**
+ * Distinct quests a player has ever submitted for, across all Missions
+ * (lifetime scope, any submission status — a rejected or pending submission
+ * still required the player to actually engage, unlike a merely-available
+ * quest which never produces a quest_submissions row). Powers the Player
+ * Card's PLAYER LEVEL segments.
+ */
+export async function getParticipatedQuestCountDB(playerId: string): Promise<number> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getParticipatedQuestCount(playerId);
+  const db = supabaseAdmin || supabase;
+
+  try {
+    const { data, error } = await db
+      .from('quest_submissions')
+      .select('quest_id')
+      .eq('player_id', playerId);
+
+    if (error || !data) return 0;
+    return new Set(data.map((row) => row.quest_id)).size;
+  } catch {
+    return localEngine.getParticipatedQuestCount(playerId);
+  }
+}
+
 export async function getDrawingEntriesForPlayerDB(
   playerId: string,
   eventId?: string

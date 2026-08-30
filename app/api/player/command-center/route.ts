@@ -6,6 +6,7 @@ import {
   getDrawingEntriesForPlayerDB,
   getEventParticipationDB,
   getLeaderboardDB,
+  getParticipatedQuestCountDB,
   getPlayerProgressDB,
   getQuestsForEventDB,
 } from '@/lib/supabase-db';
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('eventId') || DEFAULT_EVENT_ID;
 
-    const [quests, progress, leaderboard, achievements, catalog, drawingEntries, playerCollectibles, participation] = await Promise.all([
+    const [quests, progress, leaderboard, achievements, catalog, drawingEntries, playerCollectibles, participation, participatedQuestCount] = await Promise.all([
       getQuestsForEventDB(eventId),
       getPlayerProgressDB(player.id, eventId),
       getLeaderboardDB(eventId),
@@ -62,6 +63,7 @@ export async function GET(request: Request) {
       getDrawingEntriesForPlayerDB(player.id, eventId),
       getCollectiblesForPlayerDB(player.id),
       getEventParticipationDB(eventId, player.id),
+      getParticipatedQuestCountDB(player.id),
     ]);
 
     // Path is Operation-specific (event_players.path for THIS eventId), not
@@ -111,6 +113,10 @@ export async function GET(request: Request) {
         completedQuests: progress.completedCount,
         prizeEntries: countPrizeEntries(drawingEntries),
         badgesEarned: achievements.length,
+        // Distinct quests ever submitted for, across all Missions (lifetime
+        // scope) — powers the Player Card's PLAYER LEVEL segments. See
+        // lib/supabase-db.ts getParticipatedQuestCountDB.
+        participatedQuestCount,
       },
       quests: {
         recommended: recommendedQuests.slice(0, 4),

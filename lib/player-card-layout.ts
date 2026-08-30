@@ -39,17 +39,33 @@ export const PLAYER_CARD_LAYOUT = {
     width: '53.32%',
     height: '8.59%',
   },
-  path: {
+  /**
+   * Replaces the old Starting Path + Starting District fields — the guide's
+   * Path/District area was consolidated into a single MOTTO panel occupying
+   * their exact combined footprint (path.top through district.bottom), so
+   * this reuses those retired coordinates rather than re-deriving new ones.
+   */
+  motto: {
     left: '51.17%',
     top: '26.95%',
     width: '45.02%',
-    height: '5.27%',
+    height: '12.70%',
   },
-  district: {
-    left: '51.27%',
-    top: '34.51%',
-    width: '44.92%',
-    height: '5.14%',
+  /**
+   * PLAYER LEVEL — 5 segments filling left-to-right with the player's
+   * distinct-quest participation count (see getParticipatedQuestCountDB).
+   * Derived from the updated player_card_guide.png's newly-marked green
+   * boxes: same row (top/height) as PLAYER SIGNAL, occupying the
+   * previously-unused left portion of that row.
+   */
+  playerLevel: {
+    segments: [
+      { left: '4.10%', top: '43.62%', width: '8.00%', height: '5.53%' },
+      { left: '13.50%', top: '43.62%', width: '8.00%', height: '5.53%' },
+      { left: '22.90%', top: '43.62%', width: '8.00%', height: '5.53%' },
+      { left: '32.30%', top: '43.62%', width: '8.00%', height: '5.53%' },
+      { left: '41.70%', top: '43.62%', width: '8.00%', height: '5.53%' },
+    ] as const,
   },
   signal: {
     left: '52.93%',
@@ -119,14 +135,4 @@ export function getCallsignFontScale(callsign: string): string {
   if (len <= 14) return 'cq-callsign-md';
   if (len <= 20) return 'cq-callsign-sm';
   return 'cq-callsign-xs';
-}
-
-/**
- * Returns dynamic CSS classes for starting district to fit long names cleanly.
- */
-export function getDistrictFontScale(district: string): string {
-  const len = (district || '').trim().length;
-  if (len <= 15) return 'cq-district-lg';
-  if (len <= 24) return 'cq-district-md';
-  return 'cq-district-sm';
 }

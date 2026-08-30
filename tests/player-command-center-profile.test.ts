@@ -267,8 +267,8 @@ describe('Player Command Center profile rules', () => {
     // Layout coordinate map verification
     expect(layoutSource).toContain('PLAYER_CARD_LAYOUT');
     expect(layoutSource).toContain("left: '42.97%'"); // Callsign box
-    expect(layoutSource).toContain("left: '51.17%'"); // Starting Path box
-    expect(layoutSource).toContain("left: '51.27%'"); // Starting District box
+    expect(layoutSource).toContain("left: '51.17%'"); // Motto box
+    expect(layoutSource).toContain("left: '4.10%'"); // First Player Level segment
     expect(layoutSource).toContain("left: '12.21%'"); // Total XP box
     expect(layoutSource).toContain("left: '34.67%'"); // Quests Complete box
     expect(layoutSource).toContain("left: '58.20%'"); // Prize Entries box

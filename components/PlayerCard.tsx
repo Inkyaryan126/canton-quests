@@ -5,7 +5,6 @@ import Image from 'next/image';
 import {
   PLAYER_CARD_LAYOUT,
   getCallsignFontScale,
-  getDistrictFontScale,
 } from '@/lib/player-card-layout';
 import { getAvatarCropStyle } from '@/lib/avatar-crop';
 
@@ -15,10 +14,11 @@ export interface PlayerCardBadge {
   iconPath: string;
 }
 
+const PLAYER_LEVEL_SEGMENT_COUNT = PLAYER_CARD_LAYOUT.playerLevel.segments.length;
+
 export interface PlayerCardProps {
   displayName: string;
-  startingPathLabel: string;
-  startingDistrictName: string;
+  motto?: string;
   avatarImage: string;
   cropZoom?: number;
   cropX?: number;
@@ -27,6 +27,8 @@ export interface PlayerCardProps {
   completedQuests: number;
   prizeEntries: number;
   cityRank: number | null;
+  /** Distinct quests the player has participated in (any submission, any status) — fills the Player Level segments left to right, capped at the number of available segments. */
+  participatedQuestCount?: number;
   memberSinceDate?: string;
   playerCode?: string;
   playerLevelText?: string;
@@ -37,8 +39,7 @@ export interface PlayerCardProps {
 
 export default function PlayerCard({
   displayName,
-  startingPathLabel,
-  startingDistrictName,
+  motto,
   avatarImage,
   cropZoom = 1,
   cropX = 50,
@@ -47,6 +48,7 @@ export default function PlayerCard({
   completedQuests,
   prizeEntries,
   cityRank,
+  participatedQuestCount = 0,
   memberSinceDate,
   playerCode,
   playerLevelText = 'ACTIVE // FIELD READY',
@@ -56,7 +58,8 @@ export default function PlayerCard({
 }: PlayerCardProps) {
   const cleanName = (displayName || 'Canton Agent').trim();
   const callsignClass = getCallsignFontScale(cleanName);
-  const districtClass = getDistrictFontScale(startingDistrictName || '');
+  const cleanMotto = (motto || '').trim();
+  const filledLevelSegments = Math.max(0, Math.min(participatedQuestCount, PLAYER_LEVEL_SEGMENT_COUNT));
 
   return (
     <div className={`cq-player-card-wrap ${className}`} role="region" aria-label="Player ID Card">
@@ -100,23 +103,27 @@ export default function PlayerCard({
         <span>{cleanName}</span>
       </div>
 
-      {/* 5. Starting Path */}
+      {/* 5. Motto (optional, replaces the old Starting Path + Starting District area) */}
       <div
-        className="cq-card-path"
-        style={PLAYER_CARD_LAYOUT.path}
-        title={startingPathLabel}
+        className="cq-card-motto"
+        style={PLAYER_CARD_LAYOUT.motto}
+        title={cleanMotto || undefined}
       >
-        <span>{startingPathLabel}</span>
+        {cleanMotto && <span>&quot;{cleanMotto}&quot;</span>}
       </div>
 
-      {/* 6. Starting District (Scaled to fit without overlap) */}
-      <div
-        className={`cq-card-district ${districtClass}`}
-        style={PLAYER_CARD_LAYOUT.district}
-        title={startingDistrictName}
-      >
-        <span>{startingDistrictName}</span>
-      </div>
+      {/* 6. Player Level — distinct-quest participation, filled left to right */}
+      {PLAYER_CARD_LAYOUT.playerLevel.segments.map((segmentStyle, index) => {
+        const filledClass = index < filledLevelSegments ? 'is-filled' : '';
+        return (
+          <div
+            key={index}
+            className={`cq-card-level-segment ${filledClass}`}
+            style={segmentStyle}
+            title={`Player Level segment ${index + 1} of ${PLAYER_LEVEL_SEGMENT_COUNT}`}
+          />
+        );
+      })}
 
       {/* 7. Player Signal / Status */}
       <div

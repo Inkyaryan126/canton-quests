@@ -54,6 +54,7 @@ type CommandCenterData = {
     completedQuests: number;
     prizeEntries: number;
     badgesEarned: number;
+    participatedQuestCount: number;
   };
   quests: {
     recommended: Quest[];
@@ -71,6 +72,11 @@ type CommandCenterData = {
   recentActivity: Array<{ id: string; label: string; detail: string; occurredAt: string }>;
   founderKeys?: { mark: boolean; code: boolean; word: boolean };
 };
+
+// Matches the server-side limit enforced in app/api/player/profile/route.ts
+// (tagline: cleanString(body.tagline, 60)) and fits the Player Card's Motto
+// panel (3 clamped lines) without overflow.
+const MOTTO_MAX_LENGTH = 60;
 
 function authHeaders(): Record<string, string> {
   return {};
@@ -152,6 +158,7 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [displayName, setDisplayName] = useState('');
+  const [motto, setMotto] = useState('');
   const [avatarPresetKey, setAvatarPresetKey] = useState('1');
   const [cropZoom, setCropZoom] = useState(1);
   const [cropX, setCropX] = useState(50);
@@ -186,6 +193,7 @@ export default function ProfilePage() {
       const nextData = payload as CommandCenterData & { success: true };
       setData(nextData);
       setDisplayName(nextData.player.displayName || '');
+      setMotto(nextData.player.tagline || '');
       const loadedPresetKey = nextData.player.avatarPresetKey || '1';
       setAvatarPresetKey(loadedPresetKey);
       if (PLAYER_AVATAR_PRESETS.includes(loadedPresetKey as (typeof PLAYER_AVATAR_PRESETS)[number])) {
@@ -242,6 +250,7 @@ export default function ProfilePage() {
         body: JSON.stringify({
           playerId: data?.player.id,
           displayName,
+          tagline: motto,
           avatarPresetKey,
           profileImageCropZoom: cropZoom,
           profileImageCropX: cropX,
@@ -372,8 +381,7 @@ export default function ProfilePage() {
             <section className="cq-player-card-panel" aria-label="Player ID Card preview">
               <PlayerCard
                 displayName={displayName || 'Canton Agent'}
-                startingPathLabel={data.startingDistrict?.label || 'UNASSIGNED'}
-                startingDistrictName={data.startingDistrict?.district || 'No Mission path chosen'}
+                motto={motto}
                 avatarImage={avatarImage}
                 cropZoom={cropZoom}
                 cropX={cropX}
@@ -382,6 +390,7 @@ export default function ProfilePage() {
                 completedQuests={data.stats.completedQuests}
                 prizeEntries={data.stats.prizeEntries}
                 cityRank={data.stats.cityRank}
+                participatedQuestCount={data.stats.participatedQuestCount || 0}
                 memberSinceDate={data.player.createdAt ? formatDate(data.player.createdAt).toUpperCase() : 'AUG 2026'}
                 playerCode={data.player.id ? `CQ-${data.player.id.slice(-4).toUpperCase()}` : 'CQ-2026'}
                 playerLevelText={`LEVEL ${Math.max(1, data.player.level || 1)}${data.startingDistrict ? ` // ${data.startingDistrict.label}` : ''}`}
@@ -575,6 +584,15 @@ export default function ProfilePage() {
                 <label>
                   <span>Callsign</span>
                   <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={30} required />
+                </label>
+                <label>
+                  <span>Motto ({MOTTO_MAX_LENGTH - motto.length} left)</span>
+                  <input
+                    value={motto}
+                    onChange={(event) => setMotto(event.target.value)}
+                    maxLength={MOTTO_MAX_LENGTH}
+                    placeholder="Optional — a short personal tagline for your Player Card"
+                  />
                 </label>
               </div>
 
