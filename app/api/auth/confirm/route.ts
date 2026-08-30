@@ -81,7 +81,19 @@ export async function POST(request: Request) {
       isMinor: Boolean(isMinor),
     });
 
-    const safeRedirect = sanitizeRedirectUrl(next, '/profile');
+    // Prefer the destination saved at signup time (verifyRes.user.user_
+    // metadata.pending_redirect) over whatever `next` the confirm page's
+    // own URL carries. Supabase's real "Confirm signup" email link never
+    // preserves emailRedirectTo's extra query params (confirmed live — only
+    // token_hash and type survive), so the client-submitted `next` is
+    // always just the '/profile' default in practice; without this, a
+    // player who scanned a Fair QR and registered would land on /profile
+    // with no path back to the signal they scanned.
+    const pendingRedirect =
+      typeof verifyRes.user.user_metadata?.pending_redirect === 'string'
+        ? verifyRes.user.user_metadata.pending_redirect
+        : undefined;
+    const safeRedirect = sanitizeRedirectUrl(pendingRedirect || next, '/profile');
 
     // Whether the client should offer a one-time callsign prompt AFTER this
     // verification succeeds — derived from reliable server-side state

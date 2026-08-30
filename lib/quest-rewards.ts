@@ -184,14 +184,14 @@ export function getQuestAvailability(quest: Quest, now: Date = new Date()): Ques
   // those fields.
   const isFairQuest = quest.category === 'fair_core' || quest.category === 'fair_bonus';
   if (isFairQuest && quest.status === 'inactive') {
-    return { ok: false, reason: 'inactive', message: 'This mission is not currently active.' };
+    return { ok: false, reason: 'inactive', message: 'This quest is not currently active.' };
   }
   const nowMs = now.getTime();
   if (quest.startsAt && new Date(quest.startsAt).getTime() > nowMs) {
-    return { ok: false, reason: 'not_yet_active', message: 'This mission is not open yet.' };
+    return { ok: false, reason: 'not_yet_active', message: 'This quest is not open yet.' };
   }
   if (quest.expiresAt && new Date(quest.expiresAt).getTime() <= nowMs) {
-    return { ok: false, reason: 'expired', message: 'This mission window has closed.' };
+    return { ok: false, reason: 'expired', message: 'This quest window has closed.' };
   }
   return { ok: true };
 }

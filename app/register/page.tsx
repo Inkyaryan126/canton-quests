@@ -26,20 +26,45 @@ function RegisterContent() {
 
   useEffect(() => {
     if (!next) return;
-    const match = next.match(/^\/events\/([^/]+)/);
-    if (!match) {
-      setResolved(true);
+
+    const eventMatch = next.match(/^\/events\/([^/]+)/);
+    if (eventMatch) {
+      const slug = eventMatch[1];
+      setEventSlug(slug);
+      fetch(`/api/game/events/${slug}`)
+        .then((res) => res.json())
+        .then((data: { event?: { requiresPath?: boolean } }) => {
+          setRequiresPath(Boolean(data.event?.requiresPath));
+        })
+        .catch(() => {})
+        .finally(() => setResolved(true));
       return;
     }
-    const slug = match[1];
-    setEventSlug(slug);
-    fetch(`/api/game/events/${slug}`)
-      .then((res) => res.json())
-      .then((data: { event?: { requiresPath?: boolean } }) => {
-        setRequiresPath(Boolean(data.event?.requiresPath));
-      })
-      .catch(() => {})
-      .finally(() => setResolved(true));
+
+    // A physical QR scan (e.g. every Fair QR Hunt signal) redirects here as
+    // /qr/[code] before the player has an account. That destination isn't
+    // self-describing about which Mission it belongs to, so without this
+    // lookup requiresPath silently kept its canton-weekend-1 default (true)
+    // for ANY non-/events/ destination — showing the Family/Challenge/Secret
+    // path selector to a first-time Fair player even though the Fair is
+    // explicitly path-free.
+    const qrMatch = next.match(/^\/qr\/([^/?]+)/);
+    if (qrMatch) {
+      const code = decodeURIComponent(qrMatch[1]);
+      fetch(`/api/qr/lookup?code=${encodeURIComponent(code)}`)
+        .then((res) => res.json())
+        .then((data: { found?: boolean; eventSlug?: string; requiresPath?: boolean }) => {
+          if (data.found) {
+            if (data.eventSlug) setEventSlug(data.eventSlug);
+            setRequiresPath(Boolean(data.requiresPath));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setResolved(true));
+      return;
+    }
+
+    setResolved(true);
   }, [next]);
 
   return (

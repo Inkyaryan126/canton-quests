@@ -249,6 +249,18 @@ export async function signUpWithPassword(
             acquisition_source: acquisitionSource,
             avatar_url: params.avatarUrl || '⚡',
             is_minor: Boolean(params.isMinor),
+            // Supabase's actual "Confirm signup" email link does not
+            // preserve emailRedirectTo's extra query params (confirmed live
+            // — the real link only ever carries token_hash and type), so
+            // `next` from that URL is unusable for context preservation.
+            // Persist the player's actual intended destination here instead
+            // (same mechanism the callsign fix already relies on for
+            // display_name) — POST /api/auth/confirm reads it back and
+            // prefers it over whatever the confirm page's own URL carries.
+            // Without this, a player who scans a Fair QR, registers, and
+            // confirms their email lands on /profile with no idea where the
+            // signal they scanned went.
+            pending_redirect: safeTargetNext,
           },
         },
       });
@@ -312,6 +324,7 @@ export async function signUpWithPassword(
       display_name: cleanDisplayName,
       selected_starting_path: cleanPath,
       acquisition_source: acquisitionSource,
+      pending_redirect: safeTargetNext,
     },
   };
 

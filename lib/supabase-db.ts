@@ -2191,6 +2191,36 @@ export async function submitQuestProofDB(
       .select()
       .single();
 
+    if (subError?.code === '23505' && verification.status === 'verified') {
+      // Lost a genuine race against a near-simultaneous duplicate claim for
+      // this exact (player, quest) — two rapid taps, a retried request after
+      // an apparent timeout, etc. The other request's insert already won
+      // and is verified (uq_quest_submissions_player_quest_verified is the
+      // only unique constraint this insert could hit). Re-read it and
+      // return the SAME "already completed" response the upfront check
+      // gives — a retry or accidental double-submit must never look like a
+      // failure to the player, even though this request itself inserted
+      // nothing and awarded nothing.
+      const { data: winner } = await supabaseAdmin
+        .from('quest_submissions')
+        .select('*')
+        .eq('player_id', trustedPlayerId)
+        .eq('quest_id', trustedParams.questId)
+        .eq('status', 'verified')
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (winner) {
+        return {
+          success: false,
+          submission: mapSubmissionFromDB(winner),
+          message: 'Quest already completed! Rewards have already been issued.',
+          awardedPoints: 0,
+          drawingEntriesAwarded: 0,
+        };
+      }
+    }
+
     if (subError || !dbSub) {
       throw new Error(subError?.message || 'Failed to persist quest submission.');
     }
