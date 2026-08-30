@@ -97,8 +97,8 @@ describe('3. No public copy implies one universal, cross-Mission leaderboard', (
   it('how-it-works ties leaderboard climbing to "that Mission", not a platform-wide citywide leaderboard', () => {
     const source = readSource('app/how-it-works/page.tsx');
     expect(source).not.toMatch(/higher you climb on the citywide leaderboard/i);
-    expect(source).toContain('climb that Mission');
-    expect(source).toContain('Each Mission also runs its own leaderboard');
+    expect(source).toMatch(/Mission leaderboards total verified score ledger points for that Mission only/i);
+    expect(source).toMatch(/each Mission leaderboard ranks Mission-scoped XP/i);
   });
 
   it('every remaining "citywide leaderboard" mention is scoped to a specific Mission, never claimed as universal', () => {
@@ -122,7 +122,9 @@ describe('3. No public copy implies one universal, cross-Mission leaderboard', (
 describe('4. Individual quests are not mislabeled "missions" (hierarchy ambiguity)', () => {
   it('the how-it-works step list consistently calls a single objective a "quest"', () => {
     const source = readSource('app/how-it-works/page.tsx');
-    expect(source).toContain("text: 'Choose a quest from the board.'");
+    expect(source).toContain("title: 'Pick a quest'");
+    expect(source).toContain("text: 'Choose a task from that Mission\\'s board.'");
+    expect(source).toMatch(/A quest is the individual objective you complete/i);
     expect(source).not.toMatch(/Choose a mission from the quest board/i);
   });
 

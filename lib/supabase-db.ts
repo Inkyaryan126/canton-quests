@@ -2576,6 +2576,32 @@ export async function getParticipatedQuestCountDB(playerId: string): Promise<num
   }
 }
 
+/**
+ * Whether a player has any quest_submissions row (any status — verified,
+ * pending, or rejected) for one specific Mission. Powers the Player Card's
+ * PLAYER SIGNAL status (ON MISSION vs ACTIVE) — same "any status counts as
+ * engagement" definition as getParticipatedQuestCountDB, just scoped to a
+ * single event instead of lifetime.
+ */
+export async function hasEventSubmissionDB(playerId: string, eventId: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.hasEventSubmission(playerId, eventId);
+  const db = supabaseAdmin || supabase;
+
+  try {
+    const { data, error } = await db
+      .from('quest_submissions')
+      .select('id')
+      .eq('player_id', playerId)
+      .eq('event_id', eventId)
+      .limit(1);
+
+    if (error) return false;
+    return Boolean(data && data.length > 0);
+  } catch {
+    return localEngine.hasEventSubmission(playerId, eventId);
+  }
+}
+
 export async function getDrawingEntriesForPlayerDB(
   playerId: string,
   eventId?: string

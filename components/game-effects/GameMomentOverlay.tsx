@@ -56,6 +56,15 @@ export default function GameMomentOverlay() {
     gameMomentManager.dismissCurrent();
   };
 
+  // Commander transmissions must never vanish from an accidental backdrop
+  // tap — only a deliberate control (X/Close, Skip, Continue, or the
+  // video's own onEnded) may dismiss one. Every other moment type keeps
+  // the existing tap-anywhere-to-continue behavior.
+  const handleBackdropDismiss = () => {
+    if (current.type === 'commander-transmission') return;
+    handleDismiss();
+  };
+
   const handleSkipAll = (e: React.MouseEvent) => {
     e.stopPropagation();
     gameMomentManager.skipAll();
@@ -64,7 +73,7 @@ export default function GameMomentOverlay() {
   return (
     <div
       className="cq-moment-overlay"
-      onClick={handleDismiss}
+      onClick={handleBackdropDismiss}
     >
       {/* Top HUD Utility Bar */}
       <header
@@ -227,10 +236,13 @@ export default function GameMomentOverlay() {
         )}
       </main>
 
-      {/* Bottom Hint */}
+      {/* Bottom Hint — never claims "tap anywhere" for a commander
+          transmission, since backdrop taps are deliberately disabled there. */}
       <footer className="cq-moment-footer-hint">
         <span>
-          TAP ANYWHERE OR PRESS ESC TO CONTINUE
+          {current.type === 'commander-transmission'
+            ? 'USE THE CONTROLS ABOVE OR PRESS ESC TO CONTINUE'
+            : 'TAP ANYWHERE OR PRESS ESC TO CONTINUE'}
         </span>
       </footer>
     </div>

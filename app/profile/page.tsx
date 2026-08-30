@@ -6,24 +6,19 @@ import Link from 'next/link';
 import {
   BadgeCheck,
   CheckCircle2,
-  Compass,
   ImagePlus,
   Lock,
-  Map,
   Plus,
   RotateCcw,
   Save,
   ShieldCheck,
-  Sparkles,
-  Trophy,
   User,
-  Zap,
   LogOut,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CinematicNav from '@/components/CinematicNav';
 import CinematicFooter from '@/components/CinematicFooter';
-import { Achievement, Player, PlayerAchievement, Quest } from '@/lib/types';
+import { Achievement, Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import PlayerCard from '@/components/PlayerCard';
 import PlayerAvatar from '@/components/PlayerAvatar';
@@ -35,8 +30,6 @@ import {
   hasValidAvatar,
 } from '@/lib/player-command-center';
 import { showGameMoment } from '@/lib/game-effects';
-import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
-import { getCommanderTransmissionForTrigger, toGameplayTransmission } from '@/lib/commander-transmissions';
 
 type BadgeCatalogItem = Achievement & {
   iconPath: string;
@@ -44,33 +37,27 @@ type BadgeCatalogItem = Achievement & {
   earnedAt?: string;
 };
 
+// Permanent Player File data only — this page renders the Player Card,
+// Badge Selection, and Profile Settings. /api/player/command-center is
+// scoped to exactly this data; Mission-specific data (path, district,
+// quest recommendations, finale-key state) is fetched by Mission pages
+// directly, never through this endpoint. See
+// app/api/player/command-center/route.ts.
 type CommandCenterData = {
-  eventId: string;
   player: Player & { avatarPresetPath?: string };
-  startingDistrict: { label: string; district: string; color: string } | null;
+  playerSignalStatus: 'STANDBY' | 'ACTIVE' | 'ON MISSION';
   stats: {
     totalXp: number;
     cityRank: number | null;
     completedQuests: number;
     prizeEntries: number;
-    badgesEarned: number;
     participatedQuestCount: number;
   };
-  quests: {
-    recommended: Quest[];
-    startingDistrict: Quest[];
-    citywide: Quest[];
-    allAvailable: Quest[];
-  };
-  districtProgress: Array<{ path: string; label: string; completed: number; total: number }>;
   badges: {
-    earned: PlayerAchievement[];
     catalog: BadgeCatalogItem[];
     featuredSlugs: string[];
     maxFeatured: number;
   };
-  recentActivity: Array<{ id: string; label: string; detail: string; occurredAt: string }>;
-  founderKeys?: { mark: boolean; code: boolean; word: boolean };
 };
 
 // Matches the server-side limit enforced in app/api/player/profile/route.ts
@@ -107,47 +94,6 @@ function announceProfileCompletion(payload: { profileCompletionReward?: boolean;
     xpAmount: payload.profileCompletionXp || 100,
     cta: 'VIEW PLAYER FILE',
   });
-
-  // "Your Player Profile" (video 11) — queued right after the reward
-  // moment above (GameMomentManager plays queued moments in priority
-  // order, reward-token before commander-transmission, so this never
-  // overlaps it); fires once, only on a genuinely new server-confirmed
-  // grant, never inferred from form state.
-  const pid = payload.player?.id;
-  if (pid && shouldAutoShowTransmission('cipher_profile', 'video-11', pid)) {
-    const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_profile' });
-    if (entry) {
-      markTransmissionViewed('cipher_profile', 'video-11', pid);
-      showGameMoment({
-        type: 'commander-transmission',
-        trigger: 'cipher_profile',
-        transmission: toGameplayTransmission(entry),
-      });
-    }
-  }
-}
-
-function QuestList({ title, quests }: { title: string; quests: Quest[] }) {
-  return (
-    <section className="cq-command-section" aria-labelledby={`${title.replace(/\s+/g, '-').toLowerCase()}-heading`}>
-      <div className="cq-command-section-head">
-        <h2 id={`${title.replace(/\s+/g, '-').toLowerCase()}-heading`}>{title}</h2>
-      </div>
-      {quests.length === 0 ? (
-        <p className="cq-empty-state">No active signals in this group yet.</p>
-      ) : (
-        <div className="cq-command-quest-grid">
-          {quests.map((quest) => (
-            <Link key={quest.id} href={`/events/canton-weekend-1/quests/${quest.id}`} className="cq-command-quest-card">
-              <span className="cq-command-quest-meta">{quest.location?.name || quest.startingPath || 'Canton'} • {quest.difficulty}</span>
-              <strong>{quest.title}</strong>
-              <span>{quest.xpReward || quest.pointValue} XP</span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </section>
-  );
 }
 
 export default function ProfilePage() {
@@ -237,8 +183,6 @@ export default function ProfilePage() {
       .filter((badge): badge is BadgeCatalogItem => Boolean(badge)),
     [data, featuredBadgeSlugs]
   );
-  const nextMove = data?.quests.recommended[0];
-
   const saveProfile = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
@@ -346,10 +290,6 @@ export default function ProfilePage() {
             <h1>{data?.player.displayName || 'Canton Agent'}</h1>
           </div>
           <div className="cq-command-actions">
-            <Link href="/events/canton-weekend-1/quests" className="cq-command-primary-link">
-              <Compass size={18} />
-              <span>All Quests</span>
-            </Link>
             <button
               type="button"
               onClick={handleLogout}
@@ -393,122 +333,10 @@ export default function ProfilePage() {
                 participatedQuestCount={data.stats.participatedQuestCount || 0}
                 memberSinceDate={data.player.createdAt ? formatDate(data.player.createdAt).toUpperCase() : 'AUG 2026'}
                 playerCode={data.player.id ? `CQ-${data.player.id.slice(-4).toUpperCase()}` : 'CQ-2026'}
-                playerLevelText={`LEVEL ${Math.max(1, data.player.level || 1)}${data.startingDistrict ? ` // ${data.startingDistrict.label}` : ''}`}
+                signalStatusText={data.playerSignalStatus}
                 clearanceLevelText="VOL. 1 OPERATIVE"
                 featuredBadges={featuredBadges}
               />
-            </section>
-
-            <section className="cq-command-section cq-next-move" aria-labelledby="next-move-heading">
-              <div className="cq-command-section-head">
-                <h2 id="next-move-heading">Commander&apos;s Next Move</h2>
-                <Zap size={18} />
-              </div>
-              {nextMove ? (
-                <Link href={`/events/canton-weekend-1/quests/${nextMove.id}`} className="cq-next-move-card">
-                  <span>{nextMove.location?.name || data.startingDistrict?.district || 'Canton'}</span>
-                  <strong>{nextMove.title}</strong>
-                  <em>{nextMove.xpReward || nextMove.pointValue} XP // {nextMove.verificationType}</em>
-                </Link>
-              ) : (
-                <p className="cq-empty-state">No open recommendation. The full city board remains available.</p>
-              )}
-              {data.startingDistrict ? (
-                <div className="cq-starting-district" style={{ borderColor: data.startingDistrict.color }}>
-                  <Map size={18} />
-                  <div>
-                    <span>Starting District (Founder&apos;s Cipher)</span>
-                    <strong>{data.startingDistrict.district}</strong>
-                  </div>
-                </div>
-              ) : (
-                <Link href="/events/canton-weekend-1" className="cq-starting-district">
-                  <Map size={18} />
-                  <div>
-                    <span>Starting District</span>
-                    <strong>Enter the Founder&apos;s Cipher to choose a path</strong>
-                  </div>
-                </Link>
-              )}
-              <p className="cq-open-city-copy">Your path recommends where to begin. The entire city remains open.</p>
-            </section>
-
-            <section className="cq-command-stats" aria-label="Player stats">
-              {[
-                ['XP', data.stats.totalXp],
-                ['City Rank', data.stats.cityRank ? `#${data.stats.cityRank}` : 'Unranked'],
-                ['Completed', data.stats.completedQuests],
-                ['Drawing Entries', data.stats.prizeEntries],
-                ['BADGES', data.stats.badgesEarned],
-              ].map(([label, value]) => (
-                <div key={label} className="cq-command-stat">
-                  <span>{label}</span>
-                  <strong>{value}</strong>
-                </div>
-              ))}
-            </section>
-
-            <QuestList title="Recommended Quests" quests={data.quests.startingDistrict} />
-            <QuestList title="Other Districts / Citywide Access" quests={data.quests.citywide} />
-
-            <section className="cq-command-section" aria-labelledby="district-progress-heading">
-              <div className="cq-command-section-head">
-                <h2 id="district-progress-heading">District Progress</h2>
-              </div>
-              <div className="cq-progress-stack">
-                {data.districtProgress.map((district) => {
-                  const pct = district.total ? Math.round((district.completed / district.total) * 100) : 0;
-                  return (
-                    <div key={district.path} className="cq-progress-row">
-                      <span>{district.label}</span>
-                      <strong>{district.completed} / {district.total}</strong>
-                      <div><i style={{ width: `${pct}%` }} /></div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="cq-command-section" aria-labelledby="drawing-entries-heading">
-              <div className="cq-command-section-head">
-                <h2 id="drawing-entries-heading">DRAWING ENTRIES</h2>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.5rem', color: '#f59e0b', fontWeight: 900 }}>
-                  {data.stats.prizeEntries}
-                </span>
-              </div>
-              <p className="cq-section-note">Each entry gives you another chance at one of the random cash drawings.</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '10px', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
-                <div style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(8,11,16,0.75)' }}>
-                  <span style={{ color: '#f59e0b', fontWeight: 700, display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontSize: '0.62rem', letterSpacing: '0.08em' }}>RANDOM CASH PRIZES</span>
-                  <span style={{ color: '#fff' }}>$100 + $50 + $50 = $200</span>
-                </div>
-                <div style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(8,11,16,0.75)' }}>
-                  <span style={{ color: '#f59e0b', fontWeight: 700, display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontSize: '0.62rem', letterSpacing: '0.08em' }}>HOW TO EARN</span>
-                  <span style={{ color: '#ccc' }}>+1 signup · +1 per verified quest</span>
-                </div>
-              </div>
-              <p className="cq-section-note" style={{ marginTop: '8px' }}>Drawing entries do not affect leaderboard placement. XP determines rank.</p>
-            </section>
-
-            <section className="cq-command-section" aria-labelledby="master-key-heading">
-              <div className="cq-command-section-head">
-                <h2 id="master-key-heading">FOUNDER&apos;S THREE LOCKS</h2>
-                <ShieldCheck size={18} />
-              </div>
-              <p className="cq-section-note">Complete each district path to claim the three keys. All three unlock THE FOUNDER&apos;S THREE LOCKS finale chain.</p>
-              <div className="cq-master-key-grid">
-                {[
-                  { id: 'mark', label: 'THE MARK', path: 'FAMILY / RECORD', acquired: data.founderKeys?.mark ?? false, color: '#f59e0b' },
-                  { id: 'code', label: 'THE CODE', path: 'CHALLENGE / TRIAL', acquired: data.founderKeys?.code ?? false, color: '#ef4444' },
-                  { id: 'word', label: 'THE WORD', path: 'SECRET / ARCHIVE', acquired: data.founderKeys?.word ?? false, color: '#a855f7' },
-                ].map((key) => (
-                  <div key={key.id} className={`cq-master-key-slot${key.acquired ? ' is-acquired' : ' is-locked'}`} style={key.acquired ? { borderColor: key.color } : {}}>
-                    <span className="cq-master-key-label" style={key.acquired ? { color: key.color } : {}}>{key.label}</span>
-                    <span className="cq-master-key-path">{key.path}</span>
-                    <span className="cq-master-key-status">{key.acquired ? 'ACQUIRED' : 'LOCKED'}</span>
-                  </div>
-                ))}
-              </div>
             </section>
 
             <section className="cq-command-section" aria-labelledby="badges-heading">
@@ -532,25 +360,6 @@ export default function ProfilePage() {
                   </button>
                 ))}
               </div>
-            </section>
-
-            <section className="cq-command-section" aria-labelledby="activity-heading">
-              <div className="cq-command-section-head">
-                <h2 id="activity-heading">Recent Field Activity</h2>
-              </div>
-              {data.recentActivity.length === 0 ? (
-                <p className="cq-empty-state">No verified activity yet. Start with the recommended district signal.</p>
-              ) : (
-                <div className="cq-activity-list">
-                  {data.recentActivity.map((item) => (
-                    <div key={item.id}>
-                      <span>{item.label}</span>
-                      <strong>{item.detail}</strong>
-                      <em>{formatDate(item.occurredAt)}</em>
-                    </div>
-                  ))}
-                </div>
-              )}
             </section>
 
             <section className="cq-command-section" aria-labelledby="settings-heading">

@@ -10,6 +10,14 @@ interface CommanderMediaProps {
   /** 'inline' for the briefing-card treatment, 'cinematic' for the full-overlay treatment. */
   variant?: 'inline' | 'cinematic';
   className?: string;
+  /**
+   * Fires on the video element's real `ended` event — playback genuinely
+   * reaching its end, never a guessed duration. Pausing, buffering, or
+   * seeking never fire this. Callers that gate progression on "the player
+   * finished watching" (e.g. CommanderTransmissionEffect) should advance
+   * from here, not a timer.
+   */
+  onVideoEnded?: () => void;
 }
 
 /**
@@ -25,7 +33,7 @@ interface CommanderMediaProps {
  * this renders a placeholder "Commander photo" treatment instead — never a
  * broken image/video element.
  */
-export default function CommanderMedia({ transmission, variant = 'inline', className = '' }: CommanderMediaProps) {
+export default function CommanderMedia({ transmission, variant = 'inline', className = '', onVideoEnded }: CommanderMediaProps) {
   const [videoFailed, setVideoFailed] = useState(false);
 
   const isCinematic = variant === 'cinematic';
@@ -43,6 +51,7 @@ export default function CommanderMedia({ transmission, variant = 'inline', class
           controls
           playsInline
           onError={() => setVideoFailed(true)}
+          onEnded={onVideoEnded}
         >
           Your browser does not support video playback.
         </video>

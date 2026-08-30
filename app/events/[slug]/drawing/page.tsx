@@ -8,8 +8,7 @@ import CinematicFooter from '@/components/CinematicFooter';
 import { PublicDrawingPageData, Player } from '@/lib/types';
 import { cqImages } from '@/lib/marketing-assets';
 import { showGameMoment } from '@/lib/game-effects';
-import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
-import { getCommanderTransmissionForTrigger, toGameplayTransmission } from '@/lib/commander-transmissions';
+import WatchTransmissionButton from '@/components/commander/WatchTransmissionButton';
 import { isKnownCantonLaunchSlug, isBeforeLaunchDate } from '@/lib/launch-status';
 
 export default function PublicDrawingPage({ params }: { params: { slug: string } }) {
@@ -37,21 +36,6 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
       });
   }, []);
 
-  // "Cash Prize Challenge" (video 3) — fires once per player the first
-  // time they land on the Founder's Cipher prize ledger page.
-  useEffect(() => {
-    if (!isKnownCantonLaunchSlug(params.slug) || !currentPlayer) return;
-    const pid = currentPlayer.id;
-    if (!shouldAutoShowTransmission('cipher_prize_intro', 'video-3', pid)) return;
-    const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_prize_intro' });
-    if (!entry) return;
-    markTransmissionViewed('cipher_prize_intro', 'video-3', pid);
-    showGameMoment({
-      type: 'commander-transmission',
-      trigger: 'cipher_prize_intro',
-      transmission: toGameplayTransmission(entry),
-    });
-  }, [params.slug, currentPlayer]);
 
   useEffect(() => {
     async function fetchDrawingData() {
@@ -301,6 +285,12 @@ export default function PublicDrawingPage({ params }: { params: { slug: string }
                     {data.eventTitle}
                   </h1>
                   <p className="text-sm font-mono text-amber-300/80 mt-1">Official Quest Prize Drawing • 1 Quest = 1 Entry</p>
+                  {isKnownCantonLaunchSlug(params.slug) && (
+                    <div className="flex flex-wrap gap-4 mt-4">
+                      <WatchTransmissionButton trigger="cipher_prize_intro" playerId={currentPlayer?.id} label="Cash Prize Challenge" size="medium" />
+                      <WatchTransmissionButton trigger="cipher_first_entry" playerId={currentPlayer?.id} label="How Prize Entries Work" size="medium" />
+                    </div>
+                  )}
                 </div>
 
                 {/* Status Badge */}

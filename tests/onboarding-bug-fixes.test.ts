@@ -358,6 +358,10 @@ describe('Bug 4 — No copy in signup/onboarding implies a free drawing entry fo
   it('how-it-works accurately states 0 drawing entries for signup and for profile completion', () => {
     const source = readSource('app/how-it-works/page.tsx');
     expect(source).toMatch(/Creating an account is free and gives 0 drawing entries/);
-    expect(source).toMatch(/still 0 entries/);
+    // Allow the natural JSX line-wrap whitespace (including a newline)
+    // between "still" and "0 entries" — the rendered page collapses this to
+    // a single space, so a literal single-space match is too brittle
+    // against cosmetic source reformatting.
+    expect(source).toMatch(/still\s+0 entries/);
   });
 });

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
-import CipherRulesVideoTrigger from '@/components/commander/CipherRulesVideoTrigger';
+import WatchTransmissionButton from '@/components/commander/WatchTransmissionButton';
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -26,16 +26,18 @@ export default function OperationRulesPage({ params }: { params: { slug: string 
         <div className="w-full max-w-3xl px-4 py-16">
           {isFounderCipher ? (
             <>
-              <CipherRulesVideoTrigger />
               <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Legal — Draft for Review</span>
-              <h1 className="font-display font-black text-3xl sm:text-4xl text-white uppercase tracking-tight mt-2 mb-8">
+              <h1 className="font-display font-black text-3xl sm:text-4xl text-white uppercase tracking-tight mt-2 mb-4">
                 Official Rules
               </h1>
-              <p className="text-sm text-stone-400 font-mono mb-10">
+              <p className="text-sm text-stone-400 font-mono mb-6">
                 Canton Quests: Volume 1 — The Founder&apos;s Cipher. These rules describe how the current build of the
                 product actually operates. They are an operational reference, not a substitute for legal review before
                 launch.
               </p>
+              <div className="mb-10">
+                <WatchTransmissionButton trigger="cipher_rules_intro" label="Commander Briefing" size="hero" />
+              </div>
 
               <Section title="Event & Eligibility">
                 <p>

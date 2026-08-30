@@ -99,9 +99,11 @@ describe('Command Center / Player Card XP consistency', () => {
     const after = await commandCenterRoute(authedRequest('http://localhost:3000/api/player/command-center', 'usr-refetch-agent'));
     const afterPayload = await after.json();
     expect(afterPayload.stats.totalXp).toBe(100);
-    // The old bug: progress.totalPoints (submission-only) stayed 0 because
-    // the profile-completion reward has no associated quest_submission.
-    expect(afterPayload.progress.completedQuestIds).toHaveLength(0);
+    // The old bug: the submission-only completed-quest count stayed 0
+    // because the profile-completion reward has no associated
+    // quest_submission — confirms the +100 XP isn't paired with a fake
+    // quest completion.
+    expect(afterPayload.stats.completedQuests).toBe(0);
   });
 
   it('4. refreshing (repeated Command Center refetch) preserves 100 — no drift back to the derived progress field', async () => {
@@ -139,21 +141,26 @@ describe('Command Center / Player Card XP consistency', () => {
     }
   });
 
-  it('7. level stays consistent with the authoritative floor(totalXp/250)+1 formula everywhere, including the Command Center response', async () => {
+  it('7. players.level stays consistent with the authoritative floor(totalXp/250)+1 formula, and remains present in the Command Center response even though the Player Card no longer renders it', async () => {
     registerPlayer({ displayName: 'LevelAgent', email: 'levelagent@example.com', userId: 'usr-level-agent' });
     await grantProfileCompletion('usr-level-agent', 'secret', '5');
 
     const ccRes = await commandCenterRoute(authedRequest('http://localhost:3000/api/player/command-center', 'usr-level-agent'));
     const ccPayload = await ccRes.json();
 
+    // The DB-authoritative XP->level formula is untouched by the PLAYER
+    // SIGNAL rework — this value still exists and is still correct, it is
+    // simply no longer displayed on the permanent Player Card (see
+    // tests/player-signal-status.test.ts).
     expect(ccPayload.player.totalXp).toBe(100);
     expect(ccPayload.player.level).toBe(Math.floor(100 / 250) + 1);
 
-    // The profile page must display that authoritative level, not
-    // recompute it locally with a different (previously mismatched) divisor.
     const profilePageSource = fs.readFileSync(path.join(process.cwd(), 'app/profile/page.tsx'), 'utf8');
     expect(profilePageSource).not.toMatch(/totalXp[^)]*\)\s*\/\s*500/);
-    expect(profilePageSource).toContain('data.player.level');
+    // The Player Card's PLAYER SIGNAL field must not display the raw
+    // XP-derived level — that concept now lives only in PLAYER LEVEL
+    // (distinct-quest participation) and TOTAL XP.
+    expect(profilePageSource).not.toContain('data.player.level');
   });
 
   it('8. Command Center stats.totalXp is sourced from the authoritative player.totalXp field, not the derived progress.totalPoints', () => {

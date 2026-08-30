@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { User } from 'lucide-react';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { Player } from '@/lib/types';
+import { createPlayerFileClickHandler } from '@/lib/player-file-nav';
 
 interface PlayerIdentityBarProps {
   onPlayerChanged?: (player: Player) => void;
@@ -50,10 +52,13 @@ function saveStoredPlayer(displayName: string, avatarUrl: string): Player {
 }
 
 export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBarProps) {
+  const router = useRouter();
   const [player, setPlayer] = useState<Player | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('⚡');
+  // Shared with every other "go to /profile" control — see lib/player-file-nav.ts.
+  const handlePlayerFileClick = createPlayerFileClickHandler(router, player);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -152,6 +157,7 @@ export default function PlayerIdentityBar({ onPlayerChanged }: PlayerIdentityBar
       <div className="flex items-center gap-2">
         <Link
           href="/profile"
+          onClick={handlePlayerFileClick}
           className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-700 text-stone-200 text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
         >
           <User size={13} className="text-amber-400" />

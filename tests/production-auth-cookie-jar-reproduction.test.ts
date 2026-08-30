@@ -209,7 +209,8 @@ describe('Production Auth Cookie-Jar Reproduction & Verification Test Suite', ()
         expect(ccJson.player.id).toBe(loginJson.player.id);
         expect(ccJson.player.displayName).toBe('IronScout');
         expect(ccJson.stats).toBeDefined();
-        expect(ccJson.districtProgress).toBeDefined();
+        expect(ccJson.badges).toBeDefined();
+        expect(ccJson.playerSignalStatus).toBeDefined();
       });
     });
   }

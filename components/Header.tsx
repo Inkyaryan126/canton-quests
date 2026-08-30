@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Compass, Gift, LogOut, Map, Radio, Trophy } from 'lucide-react';
+import { Compass, Gift, LogOut, Map, Radio, Trophy, UserCircle2 } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
 import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
+import { createPlayerFileClickHandler } from '@/lib/player-file-nav';
 
 interface HeaderProps {
   /**
@@ -57,6 +58,13 @@ export default function Header({ eventSlug }: HeaderProps) {
       })
       .catch(() => {});
   }, []);
+
+  // PLAYER FILE is a permanent, platform-level nav destination — never
+  // Mission-specific. See lib/player-file-nav.ts for the shared first-click
+  // intro / already-viewed / logged-out branching, reused by every other
+  // "go to /profile" control across the app so none of them can silently
+  // bypass the one-time Transmission #11 intro.
+  const handlePlayerFileClick = createPlayerFileClickHandler(router, player);
 
   const handleLogout = async () => {
     try {
@@ -112,6 +120,7 @@ export default function Header({ eventSlug }: HeaderProps) {
             <div className="cq-nav-user-cluster">
               <Link
                 href="/profile"
+                onClick={handlePlayerFileClick}
                 className="cq-header-profile-btn"
               >
                 {player.avatarUrl && (
@@ -191,6 +200,13 @@ export default function Header({ eventSlug }: HeaderProps) {
               Transmissions
             </Link>
           )}
+          {/* PLAYER FILE is a permanent platform nav item, not Mission-scoped
+              — shown here regardless of auth state (a logged-out click
+              routes through the existing register flow). */}
+          <Link href="/profile" onClick={handlePlayerFileClick}>
+            <UserCircle2 size={13} aria-hidden="true" />
+            Player File
+          </Link>
         </nav>
       )}
     </header>

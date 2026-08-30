@@ -6,14 +6,17 @@ import Image from 'next/image';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
-import { Lock, Play, Radio } from 'lucide-react';
+import { Play, Radio, Satellite } from 'lucide-react';
 
+// Only ever contains transmissions already revealed to this player — the
+// API never returns a not-yet-unlocked entry at all (see
+// app/api/game/transmissions/route.ts), so there is no `unlocked` flag or
+// locked-placeholder state to render here.
 interface ArchiveEntry {
   id: number;
   order: number;
-  unlocked: boolean;
-  title?: string;
-  posterUrl?: string;
+  title: string;
+  posterUrl: string;
 }
 
 export default function TransmissionArchivePage({ params }: { params: { slug: string } }) {
@@ -55,75 +58,59 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
                   Commander Transmissions
                 </h1>
                 <p className="text-sm text-stone-400 font-body">
-                  Every briefing the Commander has sent — {entries ? entries.filter((e) => e.unlocked).length : '—'} of{' '}
-                  {entries?.length ?? 15} received so far.
+                  Every briefing the Commander has sent you, in order.
                 </p>
               </div>
             </div>
 
             {entries === null ? (
               <p className="text-center text-xs font-mono text-stone-500 uppercase tracking-widest">Loading archive...</p>
+            ) : entries.length === 0 ? (
+              <div className="max-w-md mx-auto text-center space-y-3 py-10">
+                <Satellite size={28} className="mx-auto text-stone-600" />
+                <h2 className="font-display font-black text-lg text-white uppercase tracking-tight">
+                  No Transmissions Received
+                </h2>
+                <p className="text-xs sm:text-sm text-stone-400 leading-relaxed">
+                  Monitor the Mission. New Commander transmissions will appear here after they are delivered.
+                </p>
+              </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                {entries.map((t) =>
-                  t.unlocked ? (
-                    <Link
-                      key={t.id}
-                      href={`/events/${params.slug}/transmissions/${t.id}`}
-                      className="group relative rounded-2xl overflow-hidden border border-amber-500/25 bg-stone-900 shadow-xl hover:border-amber-400/60 transition-colors"
-                    >
-                      <div className="relative aspect-[9/16] bg-black">
-                        {t.posterUrl && (
-                          <Image
-                            src={t.posterUrl}
-                            alt={t.title || `Transmission ${t.id}`}
-                            fill
-                            loading="lazy"
-                            sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 18vw"
-                            className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                          />
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="w-10 h-10 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-lg">
-                            <Play size={18} className="fill-black ml-0.5" />
-                          </div>
+                {entries.map((t) => (
+                  <Link
+                    key={t.id}
+                    href={`/events/${params.slug}/transmissions/${t.id}?returnTo=${encodeURIComponent(`/events/${params.slug}/transmissions`)}`}
+                    className="group relative rounded-2xl overflow-hidden border border-amber-500/25 bg-stone-900 shadow-xl hover:border-amber-400/60 transition-colors"
+                  >
+                    <div className="relative aspect-[9/16] bg-black">
+                      {t.posterUrl && (
+                        <Image
+                          src={t.posterUrl}
+                          alt={t.title || `Transmission ${t.id}`}
+                          fill
+                          loading="lazy"
+                          sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 18vw"
+                          className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-10 h-10 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-lg">
+                          <Play size={18} className="fill-black ml-0.5" />
                         </div>
-                        <span className="absolute top-2 left-2 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-black/70 border border-amber-500/40 text-amber-300">
-                          {String(t.id).padStart(2, '0')}
-                        </span>
                       </div>
-                      <div className="p-2.5">
-                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-300 line-clamp-2">
-                          {t.title}
-                        </span>
-                      </div>
-                    </Link>
-                  ) : (
-                    <div
-                      key={t.id}
-                      className="relative rounded-2xl overflow-hidden border border-stone-800 bg-stone-900/50"
-                      aria-label={`Transmission ${t.id} — locked`}
-                    >
-                      <div className="relative aspect-[9/16] bg-black flex items-center justify-center">
-                        <div className="flex flex-col items-center gap-2 text-stone-600">
-                          <Lock size={20} />
-                          <span className="text-[9px] font-mono uppercase tracking-widest text-center px-2">
-                            Signal Not Received
-                          </span>
-                        </div>
-                        <span className="absolute top-2 left-2 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-black/70 border border-stone-700 text-stone-500">
-                          {String(t.id).padStart(2, '0')}
-                        </span>
-                      </div>
-                      <div className="p-2.5">
-                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-600">
-                          Locked
-                        </span>
-                      </div>
+                      <span className="absolute top-2 left-2 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-black/70 border border-amber-500/40 text-amber-300">
+                        {String(t.id).padStart(2, '0')}
+                      </span>
                     </div>
-                  )
-                )}
+                    <div className="p-2.5">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-300 line-clamp-2">
+                        {t.title}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
               </div>
             )}
 

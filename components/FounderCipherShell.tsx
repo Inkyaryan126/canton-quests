@@ -3,6 +3,7 @@
 import { ReactNode, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   Gift,
@@ -23,7 +24,7 @@ import { Player, QuestEvent, StartingPath } from '@/lib/types';
 import { cqImages, destinationCards, formatEventWindow } from '@/lib/marketing-assets';
 import { DOOR_HOTSPOTS } from '@/components/ThreePathSelector';
 import { OperationLifecycleStage } from '@/lib/launch-status';
-import { getFeaturedTransmission } from '@/lib/commander-transmissions';
+import { createPlayerFileClickHandler } from '@/lib/player-file-nav';
 
 const founderCipherSteps = [
   {
@@ -104,11 +105,13 @@ export default function FounderCipherShell({
   chosenPath,
   children,
 }: FounderCipherShellProps) {
+  const router = useRouter();
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const eventWindow = event ? formatEventWindow(event) : 'September 11 – 14, 2026';
   const badge = STAGE_BADGE[stage];
-  const featuredTransmission = getFeaturedTransmission();
   const eventSlug = event?.slug || 'canton-weekend-1';
+  // Shared with every other "go to /profile" control — see lib/player-file-nav.ts.
+  const handlePlayerFileClick = createPlayerFileClickHandler(router, authenticatedPlayer);
   // The door preview isn't wired to selection state itself — clicking a
   // door routes into the real entry flow (register-then-choose, or straight
   // into the Operation if already signed in) so it drives the existing
@@ -170,7 +173,11 @@ export default function FounderCipherShell({
                       Signed in as {authenticatedPlayer.displayName} — you&apos;re already entered. The Mission Grid
                       unlocks at launch.
                     </span>
-                    <Link href="/profile" className="cq-gold-button inline-flex items-center gap-2 text-xs font-mono py-3 px-6">
+                    <Link
+                      href="/profile"
+                      onClick={handlePlayerFileClick}
+                      className="cq-gold-button inline-flex items-center gap-2 text-xs font-mono py-3 px-6"
+                    >
                       VIEW PLAYER FILE
                       <ArrowRight size={15} />
                     </Link>
@@ -308,7 +315,7 @@ export default function FounderCipherShell({
                       <Radio size={12} className="text-red-500 animate-pulse" />
                       TRANSMISSION LOADED • CLICK TO PLAY
                     </span>
-                    <span>2:17 • 1080P HD</span>
+                    <span>2:11 • 720P HD</span>
                   </div>
                 </div>
               )}
@@ -316,50 +323,6 @@ export default function FounderCipherShell({
           </div>
         </div>
 
-        {/* FEATURED TRANSMISSION TEASER — one compact entry point into the
-            15-transmission archive, not the full archive inline. */}
-        <div className="max-w-5xl mx-auto mt-8 pt-8 border-t border-stone-800/60">
-          <div className="flex flex-col sm:flex-row items-center gap-5 rounded-2xl border border-amber-500/20 bg-black/40 p-4 sm:p-5">
-            <Link
-              href={`/events/canton-weekend-1/transmissions/${featuredTransmission.id}`}
-              className="relative w-16 h-28 sm:w-20 sm:h-36 shrink-0 rounded-xl overflow-hidden border border-amber-500/30 bg-black group"
-              aria-label={`Watch ${featuredTransmission.title}`}
-            >
-              <Image
-                src={featuredTransmission.posterUrl}
-                alt={featuredTransmission.title}
-                fill
-                sizes="80px"
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/10 transition-colors">
-                <Play size={20} className="fill-white text-white drop-shadow" />
-              </div>
-            </Link>
-            <div className="flex-1 text-center sm:text-left space-y-1">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-400">
-                Featured Transmission
-              </span>
-              <p className="text-sm text-white font-display font-bold">{featuredTransmission.title}</p>
-              <p className="text-xs text-stone-400 font-body">15 recorded briefings on file from the Commander.</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
-              <Link
-                href={`/events/canton-weekend-1/transmissions/${featuredTransmission.id}`}
-                className="cq-gold-button text-xs font-mono py-3 px-5 inline-flex items-center justify-center gap-2"
-              >
-                <Play size={13} className="fill-black" />
-                WATCH
-              </Link>
-              <Link
-                href="/events/canton-weekend-1/transmissions"
-                className="cq-dark-button text-xs font-mono py-3 px-5 inline-flex items-center justify-center gap-2"
-              >
-                VIEW ALL
-              </Link>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* PERSISTENT — COMPACT PRIZE CALLOUT (the full breakdown still lives

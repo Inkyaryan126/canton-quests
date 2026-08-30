@@ -598,6 +598,13 @@ code, pre, .font-mono {
   flex-shrink: 0;
 }
 
+/* Mobile-only PLAYER FILE control — mirrors the desktop .cq-nav-links entry
+   (which is hidden entirely below 820px). Hidden by default so it never
+   duplicates the desktop link at wider widths. */
+.cq-nav-player-file-mobile {
+  display: none;
+}
+
 .cq-nav-avatar-img {
   width: 28px !important;
   height: 28px !important;
@@ -2316,6 +2323,31 @@ code, pre, .font-mono {
     display: none;
   }
 
+  .cq-nav-player-file-mobile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    min-height: 40px;
+    padding: 0.5rem 0.6rem;
+    clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
+    background: rgba(217, 164, 76, 0.07);
+    border: 1px solid rgba(240, 201, 120, 0.22);
+    color: #f0c978;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .cq-nav-player-file-mobile:hover,
+  .cq-nav-player-file-mobile:focus-visible {
+    background: rgba(217, 164, 76, 0.14);
+    border-color: rgba(240, 201, 120, 0.5);
+  }
+
   .cq-nav-cta {
     min-height: 44px;
     padding: 0.72rem 0.82rem;
@@ -3313,8 +3345,6 @@ code, pre, .font-mono {
 
 .cq-command-eyebrow,
 .cq-command-section-head h2,
-.cq-command-stat span,
-.cq-command-quest-meta,
 .cq-section-note,
 .cq-empty-state {
   font-family: var(--font-mono, monospace);
@@ -3348,8 +3378,7 @@ code, pre, .font-mono {
 .cq-command-alert,
 .cq-command-loading,
 .cq-command-section,
-.cq-player-card-panel,
-.cq-command-stat {
+.cq-player-card-panel {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: linear-gradient(180deg, rgba(22, 30, 46, 0.96), rgba(8, 11, 16, 0.96));
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
@@ -3510,17 +3539,21 @@ code, pre, .font-mono {
   -webkit-box-orient: vertical;
 }
 
-/* 5. Player Level Segments (distinct-quest participation, filled left to right) */
+/*
+ * 5. Player Level fill (distinct-quest participation, filled left to right).
+ * The 5 segment boxes and their dividers are already baked into
+ * player_card.png as a single bar — these elements are ONLY an interior
+ * fill color for each cell, never a border/outline, so the artwork's own
+ * cyan box and divider lines are never covered or redrawn.
+ */
 .cq-card-level-segment {
-  border-radius: 3px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(56, 189, 248, 0.05);
+  border-radius: 1px;
+  background: transparent;
 }
 
 .cq-card-level-segment.is-filled {
-  border-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.35);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.75), inset 0 0 4px rgba(56, 189, 248, 0.6);
+  background: rgba(56, 189, 248, 0.55);
+  box-shadow: inset 0 0 4px rgba(56, 189, 248, 0.6);
 }
 
 /* 6. Player Signal / Status */
@@ -3646,86 +3679,6 @@ code, pre, .font-mono {
   text-transform: uppercase;
 }
 
-.cq-next-move-card,
-.cq-command-quest-card {
-  display: grid;
-  gap: 6px;
-  margin-top: 12px;
-  padding: 14px;
-  border: 1px solid rgba(251, 191, 36, 0.32);
-  background: rgba(245, 158, 11, 0.1);
-  border-radius: 8px;
-}
-
-.cq-next-move-card strong,
-.cq-command-quest-card strong {
-  color: #fff;
-  font-size: 1.08rem;
-  line-height: 1.15;
-}
-
-.cq-next-move-card span,
-.cq-next-move-card em,
-.cq-command-quest-card span,
-.cq-command-quest-card em {
-  color: #d6d3d1;
-  font-size: 0.78rem;
-  font-style: normal;
-}
-
-.cq-starting-district {
-  margin-top: 12px;
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid;
-  border-radius: 8px;
-}
-
-.cq-starting-district span {
-  display: block;
-  color: #a8a29e;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  font-weight: 900;
-}
-
-.cq-starting-district strong {
-  color: #fff;
-}
-
-.cq-open-city-copy {
-  color: #fbbf24;
-  font-weight: 900;
-  margin: 12px 0 0;
-}
-
-.cq-command-stats {
-  grid-column: 2;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-}
-
-.cq-command-stat {
-  padding: 12px;
-}
-
-.cq-command-stat span {
-  display: block;
-  color: #a8a29e;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-}
-
-.cq-command-stat strong {
-  display: block;
-  color: #fff;
-  font-size: 1.22rem;
-  margin-top: 4px;
-}
-
 .cq-identity-status {
   display: flex;
   align-items: center;
@@ -3770,7 +3723,6 @@ code, pre, .font-mono {
   color: #6ee7b7;
 }
 
-.cq-command-quest-grid,
 .cq-badge-grid,
 .cq-settings-grid,
 .cq-avatar-controls {
@@ -3785,90 +3737,6 @@ code, pre, .font-mono {
   color: #a8a29e;
   font-size: 0.78rem;
   margin: 10px 0 0;
-}
-
-.cq-progress-stack,
-.cq-activity-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.cq-progress-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  color: #fff;
-}
-
-.cq-progress-row div {
-  grid-column: 1 / -1;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.cq-progress-row i {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, #f59e0b, #06b6d4);
-}
-
-.cq-master-key-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.cq-master-key-slot {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  background: rgba(8, 11, 16, 0.75);
-}
-
-.cq-master-key-slot.is-locked {
-  opacity: 0.5;
-}
-
-.cq-master-key-label {
-  font-family: var(--font-display, 'Oswald', sans-serif);
-  font-size: 0.8rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.cq-master-key-slot.is-acquired .cq-master-key-label {
-  color: inherit;
-}
-
-.cq-master-key-path {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.6rem;
-  color: rgba(255, 255, 255, 0.4);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.cq-master-key-status {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  margin-top: 6px;
-  color: rgba(255, 255, 255, 0.3);
-  text-transform: uppercase;
-}
-
-.cq-master-key-slot.is-acquired .cq-master-key-status {
-  color: #4ade80;
 }
 
 .cq-badge-button {
@@ -3909,23 +3777,6 @@ code, pre, .font-mono {
 
 .cq-badge-button.is-locked {
   opacity: 0.45;
-}
-
-.cq-activity-list div {
-  padding: 10px;
-  border-left: 3px solid #06b6d4;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.cq-activity-list span,
-.cq-activity-list em {
-  display: block;
-  color: #a8a29e;
-  font-size: 0.72rem;
-}
-
-.cq-activity-list strong {
-  color: #fff;
 }
 
 .cq-settings-grid label,
@@ -4217,8 +4068,7 @@ code, pre, .font-mono {
 
 @media (max-width: 900px) {
   .cq-command-grid,
-  .cq-command-section,
-  .cq-command-stats {
+  .cq-command-section {
     grid-template-columns: 1fr;
     grid-column: 1;
   }
@@ -4246,18 +4096,10 @@ code, pre, .font-mono {
     width: 100%;
   }
 
-  .cq-command-stats,
-  .cq-command-quest-grid,
   .cq-badge-grid,
   .cq-settings-grid,
   .cq-avatar-controls {
     grid-template-columns: 1fr;
-  }
-
-  .cq-command-stat {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
   }
 
   .cq-badge-button {
@@ -4615,6 +4457,103 @@ code, pre, .font-mono {
   object-fit: cover;
   opacity: 0.9;
   display: block;
+}
+
+/*
+ * Watch Transmission button (components/commander/WatchTransmissionButton.tsx)
+ * — the reusable in-world control for manually opening a Commander video.
+ * Uses the real /canton-quests/watch_transmission.png asset; these rules
+ * only handle sizing, interaction feedback, and layout — never redraw the
+ * artwork itself.
+ */
+.cq-watch-transmission-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.cq-watch-transmission-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #38bdf8;
+}
+
+.cq-watch-transmission-btn {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  max-width: 100%;
+  transition: transform 0.18s ease, filter 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cq-watch-transmission-btn:hover,
+.cq-watch-transmission-btn:focus-visible {
+  transform: scale(1.035);
+  filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.55)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+}
+
+.cq-watch-transmission-btn:active {
+  transform: scale(0.97);
+}
+
+.cq-watch-transmission-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 3px;
+}
+
+.cq-watch-transmission-img {
+  object-fit: contain;
+}
+
+/* Size variants — fixed dimensions (no CLS) at the asset's true 3:1 aspect ratio. */
+.cq-watch-transmission-small .cq-watch-transmission-btn {
+  width: 150px;
+  height: 50px;
+}
+
+.cq-watch-transmission-medium .cq-watch-transmission-btn {
+  width: 210px;
+  height: 70px;
+}
+
+.cq-watch-transmission-hero .cq-watch-transmission-btn {
+  width: 300px;
+  height: 100px;
+}
+
+@media (max-width: 480px) {
+  .cq-watch-transmission-hero .cq-watch-transmission-btn {
+    width: 240px;
+    height: 80px;
+  }
+}
+
+/* Fallback text button — only rendered if the image itself fails to load. */
+.cq-watch-transmission-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(240, 201, 120, 0.8);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #c98a32 0%, #e6b85c 50%, #d9a44c 100%);
+  color: #060708;
+  font-family: var(--font-display, sans-serif);
+  font-weight: 900;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /* Game Moment Overlays & Modals */

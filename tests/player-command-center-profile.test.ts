@@ -2,20 +2,16 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  buildRecentActivity,
-  computeDistrictProgress,
   countPrizeEntries,
   getPlayerCityRank,
-  getStartingDistrict,
   getBadgeIconPath,
   PLAYER_AVATAR_PRESETS,
   PLAYER_CARD_BADGE_SLOT_COUNT,
   CANONICAL_BADGE_ICON_PATHS,
-  recommendQuests,
   sanitizeFeaturedBadges,
   validateFeaturedBadges,
 } from '../lib/player-command-center';
-import { Achievement, Player, PlayerAchievement, Quest } from '../lib/types';
+import { Achievement, Player, PlayerAchievement } from '../lib/types';
 
 const eventId = 'evt-test';
 
@@ -25,66 +21,8 @@ const player: Player = {
   role: 'player',
   totalXp: 0,
   level: 1,
-  selectedStartingPath: 'challenge',
   createdAt: '2026-08-20T00:00:00Z',
 };
-
-const quests: Quest[] = [
-  {
-    id: 'q-family',
-    eventId,
-    title: 'Arts Signal',
-    slug: 'arts-signal',
-    description: '',
-    instructions: '',
-    pointValue: 75,
-    difficulty: 'easy',
-    category: 'exploration',
-    verificationType: 'checkin',
-    proofRequirement: '',
-    isFlash: false,
-    status: 'active',
-    sortOrder: 2,
-    startingPath: 'family',
-    createdAt: '2026-08-20T01:00:00Z',
-  },
-  {
-    id: 'q-challenge',
-    eventId,
-    title: 'Skate Signal',
-    slug: 'skate-signal',
-    description: '',
-    instructions: '',
-    pointValue: 125,
-    difficulty: 'medium',
-    category: 'observation',
-    verificationType: 'photo',
-    proofRequirement: '',
-    isFlash: false,
-    status: 'active',
-    sortOrder: 1,
-    startingPath: 'challenge',
-    createdAt: '2026-08-20T02:00:00Z',
-  },
-  {
-    id: 'q-secret',
-    eventId,
-    title: 'Monument Signal',
-    slug: 'monument-signal',
-    description: '',
-    instructions: '',
-    pointValue: 150,
-    difficulty: 'hard',
-    category: 'puzzle',
-    verificationType: 'passphrase',
-    proofRequirement: '',
-    isFlash: true,
-    status: 'active',
-    sortOrder: 3,
-    startingPath: 'secret',
-    createdAt: '2026-08-20T03:00:00Z',
-  },
-];
 
 const achievement: Achievement = {
   id: 'ach-one',
@@ -109,61 +47,6 @@ const earned: PlayerAchievement[] = [
 ];
 
 describe('Player Command Center profile rules', () => {
-  it('maps all three starting paths to the required recommended districts using the canonical public names', () => {
-    // Canonical starting-path district names (launch-readiness Phase 11):
-    // previously this file, app/profile/page.tsx, ThreePathSelector.tsx,
-    // and app/quests/page.tsx each used a different label for the same
-    // Challenge/Secret path ("9th St Skate Park area" / "Challenge District"
-    // vs "Mother Goose Land"; "West Lawn Cemetery / McKinley area" /
-    // "West Lawn Archive" vs "Monument Park"). Mother Goose Land and
-    // Monument Park were the majority-consensus labels already used by
-    // ThreePathSelector, PathLockEffect, the landing pages, and
-    // lib/game-engine.ts, so lib/player-command-center.ts was aligned to
-    // match rather than the other way around.
-    expect(getStartingDistrict('family')?.district).toBe('Arts District');
-    expect(getStartingDistrict('challenge')?.district).toBe('Mother Goose Land');
-    expect(getStartingDistrict('secret')?.district).toBe('Monument Park');
-  });
-
-  it('returns no starting district when the player has not chosen a path in this Operation', () => {
-    expect(getStartingDistrict(undefined)).toBeNull();
-    expect(getStartingDistrict(null)).toBeNull();
-  });
-
-  it('keeps all other districts accessible while surfacing the player starting district first', () => {
-    const recommended = recommendQuests(quests, player.selectedStartingPath, {
-      totalPoints: 0,
-      completedQuestIds: [],
-      pendingSubmissionQuestIds: [],
-      completedCount: 0,
-      availableCount: quests.length,
-      rank: 1,
-    });
-
-    expect(recommended[0].id).toBe('q-challenge');
-    expect(recommended.map((quest) => quest.id)).toEqual(expect.arrayContaining(['q-family', 'q-secret']));
-  });
-
-  it('does not claim proximity when there is no location signal', () => {
-    const recommended = recommendQuests(quests, player.selectedStartingPath, {
-      totalPoints: 0,
-      completedQuestIds: [],
-      pendingSubmissionQuestIds: [],
-      completedCount: 0,
-      availableCount: quests.length,
-      rank: 1,
-    });
-
-    expect(recommended.map((quest) => quest.title).join(' ')).not.toMatch(/nearby|near you|closest/i);
-  });
-
-  it('calculates district progress from real completed quest IDs', () => {
-    const progress = computeDistrictProgress(quests, ['q-family', 'q-secret']);
-    expect(progress.find((row) => row.path === 'family')).toMatchObject({ completed: 1, total: 1 });
-    expect(progress.find((row) => row.path === 'challenge')).toMatchObject({ completed: 0, total: 1 });
-    expect(progress.find((row) => row.path === 'secret')).toMatchObject({ completed: 1, total: 1 });
-  });
-
   it('uses leaderboard rank semantics and returns unranked for zero-score players', () => {
     expect(getPlayerCityRank(player.id, [{ rank: 3, playerId: player.id, displayName: 'SignalFox', totalPoints: 0, questsCompletedCount: 0 }])).toBeNull();
     expect(getPlayerCityRank(player.id, [{ rank: 2, playerId: player.id, displayName: 'SignalFox', totalPoints: 250, questsCompletedCount: 1 }])).toBe(2);
@@ -243,16 +126,6 @@ describe('Player Command Center profile rules', () => {
     expect(PLAYER_AVATAR_PRESETS).toEqual(['1', '2', '3', '4', '5', '6', '7', '8']);
   });
 
-  it('builds recent field activity from completed quests, BADGES, and drawing entries', () => {
-    const activity = buildRecentActivity([quests[0]], earned, [
-      { id: 'd1', eventId, playerId: player.id, entriesCount: 1, sourceType: 'quest_completion', reason: 'Completed Arts Signal', createdAt: '2026-08-20T05:00:00Z' },
-    ]);
-
-    expect(activity.map((item) => item.label)).toContain('Quest completed');
-    expect(activity.map((item) => item.label)).toContain('BADGE earned');
-    expect(activity.map((item) => item.label)).toContain('Prize entry earned');
-  });
-
   it('uses player_card.png as the card foundation with guide-calibrated overlay fields and single-line callsign scaling', () => {
     const profileSource = fs.readFileSync(path.join(process.cwd(), 'app/profile/page.tsx'), 'utf8');
     const cardComponentSource = fs.readFileSync(path.join(process.cwd(), 'components/PlayerCard.tsx'), 'utf8');
@@ -268,7 +141,7 @@ describe('Player Command Center profile rules', () => {
     expect(layoutSource).toContain('PLAYER_CARD_LAYOUT');
     expect(layoutSource).toContain("left: '42.97%'"); // Callsign box
     expect(layoutSource).toContain("left: '51.17%'"); // Motto box
-    expect(layoutSource).toContain("left: '4.10%'"); // First Player Level segment
+    expect(layoutSource).toContain("left: '5.66%'"); // First Player Level fill area
     expect(layoutSource).toContain("left: '12.21%'"); // Total XP box
     expect(layoutSource).toContain("left: '34.67%'"); // Quests Complete box
     expect(layoutSource).toContain("left: '58.20%'"); // Prize Entries box

@@ -4,9 +4,6 @@ import {
   LeaderboardEntry,
   Player,
   PlayerAchievement,
-  PlayerEventProgress,
-  Quest,
-  QuestPath,
   StartingPath,
 } from './types';
 
@@ -25,48 +22,6 @@ export const CANONICAL_BADGE_ICON_PATHS: Record<string, string> = {
   'day-one-king': '/canton-quests/badges/first_step.png',
 };
 export const DEFAULT_BADGE_ICON_PATH = '/canton-quests/badges/first_step.png';
-
-export const STARTING_DISTRICTS: Record<
-  StartingPath,
-  { label: string; district: string; color: string; accentClass: string }
-> = {
-  family: {
-    label: 'FAMILY',
-    district: 'Arts District',
-    color: '#f59e0b',
-    accentClass: 'cq-path-family',
-  },
-  challenge: {
-    label: 'CHALLENGE',
-    district: 'Mother Goose Land',
-    color: '#ef4444',
-    accentClass: 'cq-path-challenge',
-  },
-  secret: {
-    label: 'SECRET',
-    district: 'Monument Park',
-    color: '#a855f7',
-    accentClass: 'cq-path-secret',
-  },
-};
-
-export interface DistrictProgress {
-  path: QuestPath;
-  label: string;
-  completed: number;
-  total: number;
-}
-
-export interface RecentFieldActivity {
-  id: string;
-  label: string;
-  detail: string;
-  occurredAt: string;
-}
-
-export function getStartingDistrict(path?: StartingPath | null) {
-  return path ? STARTING_DISTRICTS[path] : null;
-}
 
 export function getAvatarPresetPath(key?: string) {
   return PLAYER_AVATAR_PRESETS.includes(key as (typeof PLAYER_AVATAR_PRESETS)[number])
@@ -170,45 +125,30 @@ export function getBadgeIconPath(achievement: Achievement) {
   return CANONICAL_BADGE_ICON_PATHS[achievement.slug] || DEFAULT_BADGE_ICON_PATH;
 }
 
-export function computeDistrictProgress(quests: Quest[], completedQuestIds: string[]): DistrictProgress[] {
-  const completed = new Set(completedQuestIds);
-  const labels: Record<QuestPath, string> = {
-    family: 'Arts District',
-    challenge: 'Mother Goose Land',
-    secret: 'Monument Park',
-    cross_city: 'Citywide',
-  };
-  const paths: QuestPath[] = ['family', 'challenge', 'secret', 'cross_city'];
-  return paths
-    .map((path) => {
-      const districtQuests = quests.filter((quest) => (quest.startingPath || 'family') === path && quest.status === 'active');
-      return {
-        path,
-        label: labels[path],
-        completed: districtQuests.filter((quest) => completed.has(quest.id)).length,
-        total: districtQuests.length,
-      };
-    })
-    .filter((row) => row.total > 0);
-}
+export type PlayerSignalStatus = 'STANDBY' | 'ACTIVE' | 'ON MISSION';
 
-export function recommendQuests(quests: Quest[], path: StartingPath | undefined, progress: PlayerEventProgress): Quest[] {
-  const completed = new Set(progress.completedQuestIds);
-  const pending = new Set(progress.pendingSubmissionQuestIds);
-  return quests
-    .filter((quest) => quest.status === 'active' && !completed.has(quest.id))
-    .sort((a, b) => {
-      const aPending = pending.has(a.id) ? 0 : 1;
-      const bPending = pending.has(b.id) ? 0 : 1;
-      if (aPending !== bPending) return aPending - bPending;
-      const aHome = a.startingPath === path ? 0 : 1;
-      const bHome = b.startingPath === path ? 0 : 1;
-      if (aHome !== bHome) return aHome - bHome;
-      const aFlash = a.isFlash ? 0 : 1;
-      const bFlash = b.isFlash ? 0 : 1;
-      if (aFlash !== bFlash) return aFlash - bFlash;
-      return (a.sortOrder || 0) - (b.sortOrder || 0);
-    });
+/**
+ * The Player Card's PLAYER SIGNAL field — the player's current
+ * activity/status, derived from real persisted Mission engagement, not XP
+ * or quest-participation lifetime totals (those are TOTAL XP / PLAYER
+ * LEVEL respectively).
+ *
+ *   STANDBY    — no currently-active Mission, or the player hasn't joined it
+ *   ACTIVE     — joined a currently-active Mission, no submission yet
+ *   ON MISSION — has at least one submission (any status) in that Mission
+ *
+ * Pure and deterministic: callers resolve the three booleans from
+ * event.status, event_players (getEventParticipationDB), and
+ * quest_submissions (hasEventSubmissionDB) before calling this.
+ */
+export function getPlayerSignalStatus(params: {
+  hasActiveMission: boolean;
+  hasJoinedActiveMission: boolean;
+  hasSubmissionInActiveMission: boolean;
+}): PlayerSignalStatus {
+  if (!params.hasActiveMission || !params.hasJoinedActiveMission) return 'STANDBY';
+  if (params.hasSubmissionInActiveMission) return 'ON MISSION';
+  return 'ACTIVE';
 }
 
 export function getPlayerCityRank(playerId: string, leaderboard: LeaderboardEntry[]) {
@@ -218,33 +158,4 @@ export function getPlayerCityRank(playerId: string, leaderboard: LeaderboardEntr
 
 export function countPrizeEntries(entries: DrawingEntryLedgerEntry[]) {
   return entries.reduce((sum, entry) => sum + Math.max(0, entry.entriesCount || 0), 0);
-}
-
-export function buildRecentActivity(
-  completedQuests: Quest[],
-  earnedBadges: PlayerAchievement[],
-  entries: DrawingEntryLedgerEntry[]
-): RecentFieldActivity[] {
-  const questItems = completedQuests.map((quest) => ({
-    id: `quest-${quest.id}`,
-    label: 'Quest completed',
-    detail: quest.title,
-    occurredAt: quest.createdAt,
-  }));
-  const badgeItems = earnedBadges.map((badge) => ({
-    id: `badge-${badge.id}`,
-    label: 'BADGE earned',
-    detail: badge.achievement?.name || badge.achievementSlug,
-    occurredAt: badge.earnedAt,
-  }));
-  const entryItems = entries.map((entry) => ({
-    id: `entry-${entry.id}`,
-    label: 'Prize entry earned',
-    detail: entry.reason || 'Verified quest completion',
-    occurredAt: entry.createdAt,
-  }));
-
-  return [...questItems, ...badgeItems, ...entryItems]
-    .sort((a, b) => new Date(b.occurredAt || 0).getTime() - new Date(a.occurredAt || 0).getTime())
-    .slice(0, 8);
 }

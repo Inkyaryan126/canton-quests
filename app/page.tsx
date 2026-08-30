@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   Compass,
@@ -22,6 +23,7 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import { Player, PublicRosterEntry, QuestEvent } from '@/lib/types';
 import { cqImages, getActiveEvent } from '@/lib/marketing-assets';
 import { isProfileIdentityComplete } from '@/lib/player-command-center';
+import { createPlayerFileClickHandler } from '@/lib/player-file-nav';
 
 function getStoredPlayer(): Player | null {
   if (typeof window === 'undefined') return null;
@@ -90,10 +92,13 @@ const platformPillars = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const [events, setEvents] = useState<QuestEvent[]>([]);
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [roster, setRoster] = useState<PublicRosterEntry[]>([]);
+  // Shared with every other "go to /profile" control — see lib/player-file-nav.ts.
+  const handlePlayerFileClick = createPlayerFileClickHandler(router, currentPlayer);
 
   useEffect(() => {
     // 1. Check client local storage display cache
@@ -230,6 +235,7 @@ export default function HomePage() {
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                   <Link
                     href="/profile"
+                    onClick={handlePlayerFileClick}
                     className="cq-gold-button flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-6"
                   >
                     <span>{identityComplete ? 'VIEW PLAYER FILE' : 'COMPLETE IDENTITY'}</span>
@@ -423,7 +429,7 @@ export default function HomePage() {
                           <Radio size={12} className="text-red-500 animate-pulse" />
                           TRANSMISSION LOADED • CLICK TO PLAY
                         </span>
-                        <span>2:17 • 1080P HD</span>
+                        <span>2:11 • 720P HD</span>
                       </div>
                     </div>
                   )}

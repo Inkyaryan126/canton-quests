@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
 import { getAdjacentTransmissionIds } from '@/lib/commander-transmissions';
-import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Lock, Radio } from 'lucide-react';
+import { sanitizeInternalPath, getReturnLabelForPath } from '@/lib/safe-internal-path';
+import { ArrowLeft, ChevronLeft, ChevronRight, Lock, Radio } from 'lucide-react';
 
 interface UnlockedTransmission {
   id: number;
@@ -18,9 +20,18 @@ interface UnlockedTransmission {
 
 type LoadState = 'loading' | 'unlocked' | 'locked';
 
-export default function TransmissionPlayerPage({ params }: { params: { slug: string; id: string } }) {
+function TransmissionPlayerPageContent({ params }: { params: { slug: string; id: string } }) {
   const isFounderCipher = isKnownCantonLaunchSlug(params.slug);
   const id = Number.parseInt(params.id, 10);
+  const searchParams = useSearchParams();
+
+  const archivePath = `/events/${params.slug}/transmissions`;
+  // Only ever a validated, same-app relative path — never trust an
+  // arbitrary/external `returnTo` value (no open redirect). Falls back to
+  // the archive (this page's natural parent) when missing or invalid.
+  const returnTo = sanitizeInternalPath(searchParams.get('returnTo'), archivePath);
+  const returnLabel = getReturnLabelForPath(returnTo);
+  const returnQuery = `?returnTo=${encodeURIComponent(returnTo)}`;
 
   const [state, setState] = useState<LoadState>('loading');
   const [transmission, setTransmission] = useState<UnlockedTransmission | null>(null);
@@ -85,10 +96,11 @@ export default function TransmissionPlayerPage({ params }: { params: { slug: str
             </p>
             <div className="pt-2">
               <Link
-                href={`/events/${params.slug}/transmissions`}
+                href={returnTo}
                 className="cq-gold-button w-full text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
               >
-                BACK TO ARCHIVE
+                <ArrowLeft size={15} />
+                {returnLabel}
               </Link>
             </div>
           </div>
@@ -114,7 +126,7 @@ export default function TransmissionPlayerPage({ params }: { params: { slug: str
           <div className="text-center mb-6 space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
               <Radio size={14} className="text-amber-400 animate-pulse" />
-              <span>TRANSMISSION {String(transmission.id).padStart(2, '0')} OF 15</span>
+              <span>TRANSMISSION {String(transmission.id).padStart(2, '0')}</span>
             </div>
             <h1 className="font-display font-black text-xl sm:text-3xl text-white uppercase tracking-tight">
               {transmission.title}
@@ -143,11 +155,13 @@ export default function TransmissionPlayerPage({ params }: { params: { slug: str
             </div>
           </div>
 
-          {/* Prev / Next */}
+          {/* Prev / Next — carries the same return context forward so
+              browsing adjacent transmissions never loses where the player
+              originally came from. */}
           <div className="flex items-center justify-between w-full max-w-[380px] mt-4 text-xs font-mono">
             {prevId ? (
               <Link
-                href={`/events/${params.slug}/transmissions/${prevId}`}
+                href={`/events/${params.slug}/transmissions/${prevId}${returnQuery}`}
                 className="cq-dark-button py-2 px-3 inline-flex items-center gap-1.5"
               >
                 <ChevronLeft size={14} />
@@ -158,7 +172,7 @@ export default function TransmissionPlayerPage({ params }: { params: { slug: str
             )}
             {nextId ? (
               <Link
-                href={`/events/${params.slug}/transmissions/${nextId}`}
+                href={`/events/${params.slug}/transmissions/${nextId}${returnQuery}`}
                 className="cq-dark-button py-2 px-3 inline-flex items-center gap-1.5"
               >
                 NEXT
@@ -169,25 +183,30 @@ export default function TransmissionPlayerPage({ params }: { params: { slug: str
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-10">
+          {/* Smart return — one truthful control, not a competing pair of
+              generic "Return to Archive / Return to Mission" buttons. Goes
+              back to wherever the player actually opened this transmission
+              from (validated same-app path), falling back to the archive. */}
+          <div className="flex items-center justify-center mt-10">
             <Link
-              href={`/events/${params.slug}/transmissions`}
-              className="cq-dark-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
-            >
-              <ArrowLeft size={15} />
-              BACK TO ARCHIVE
-            </Link>
-            <Link
-              href={`/events/${params.slug}`}
+              href={returnTo}
               className="cq-gold-button w-full sm:w-auto text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
             >
-              RETURN TO MISSION
-              <ArrowRight size={15} />
+              <ArrowLeft size={15} />
+              {returnLabel}
             </Link>
           </div>
         </div>
       </main>
       <CinematicFooter />
     </div>
+  );
+}
+
+export default function TransmissionPlayerPage({ params }: { params: { slug: string; id: string } }) {
+  return (
+    <Suspense fallback={null}>
+      <TransmissionPlayerPageContent params={params} />
+    </Suspense>
   );
 }

@@ -445,6 +445,7 @@ class GameMomentManager {
       timestamp: moment.timestamp ?? Date.now(),
       priority: moment.priority ?? this.getDefaultPriority(moment.type),
       durationMs: moment.durationMs ?? this.getDefaultDuration(moment.type),
+      autoDismiss: moment.autoDismiss ?? this.getDefaultAutoDismiss(moment.type),
       sequenceId: moment.sequenceId,
       sequenceIndex: moment.sequenceIndex,
       sequencePriority: moment.sequencePriority,
@@ -481,6 +482,7 @@ class GameMomentManager {
         timestamp: groupTimestamp,
         priority: m.priority ?? this.getDefaultPriority(m.type),
         durationMs: m.durationMs ?? this.getDefaultDuration(m.type),
+        autoDismiss: m.autoDismiss ?? this.getDefaultAutoDismiss(m.type),
         sequenceId: seqId,
         sequenceIndex: idx,
         sequencePriority,
@@ -570,14 +572,32 @@ class GameMomentManager {
       case 'leaderboard-milestone':
         return isReduced ? 2000 : 3000;
       case 'commander-transmission':
-        // Player-paced (reads a message / watches a poster+video), not a
-        // fire-and-forget celebration — give it a long default so it never
-        // feels rushed; skippable transmissions still let the player
-        // dismiss immediately via the CTA.
+        // Vestigial: commander-transmission never auto-dismisses on a timer
+        // (see getDefaultAutoDismiss / scheduleAutoDismiss) — a real video's
+        // runtime can't be guessed, so a fixed duration would either cut
+        // playback short or leave the player waiting long after it ended.
+        // This value is stamped for API completeness only and is never
+        // consulted by the scheduler for this type.
         return isReduced ? 4000 : 8000;
       default:
         return 2000;
     }
+  }
+
+  /**
+   * Whether a moment type should ever be force-dismissed by a fixed timer.
+   * commander-transmission is the one type that must NEVER auto-advance on
+   * a guessed duration — the player may be watching a real video of
+   * unknown length, and a timer racing against playback is exactly the bug
+   * this guards against (advancing mid-video regardless of pause/buffer/
+   * seek state). It advances only via the player's explicit Skip/Continue
+   * action or the video's own `onEnded` event, both of which call
+   * dismissCurrent() directly — never through this scheduler. Every other
+   * moment type is a short celebratory animation with no user-controlled
+   * media, where a timer is the correct, intended behavior.
+   */
+  private getDefaultAutoDismiss(type: GameMomentType): boolean {
+    return type !== 'commander-transmission';
   }
 
   private enqueue(moment: GameMoment, skipQueue?: boolean) {
@@ -605,6 +625,11 @@ class GameMomentManager {
 
   private scheduleAutoDismiss(moment: GameMoment) {
     this.clearTimer();
+    // moment.autoDismiss === false (always true for commander-transmission
+    // by default — see getDefaultAutoDismiss) means this moment advances
+    // only from an authoritative event — an explicit Skip/Continue click or
+    // a video's onEnded — never a guessed timer.
+    if (moment.autoDismiss === false) return;
     const duration = moment.durationMs || 3000;
 
     this.timer = setTimeout(() => {

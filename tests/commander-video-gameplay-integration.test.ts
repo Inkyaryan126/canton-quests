@@ -282,16 +282,15 @@ describe('GameMomentManager — duplicate triggers never produce duplicate overl
 });
 
 describe('API /api/game/transmissions — server-side archive gating', () => {
-  it('a non-Cipher (or unknown) event slug never receives the real registry — every entry comes back locked', async () => {
+  it('a non-Cipher (or unknown) event slug never receives the real registry — the archive list is empty, not 15 locked stubs', async () => {
     const req = new Request('http://localhost/api/game/transmissions?eventSlug=fair-qr-hunt');
     const res = await transmissionsGET(req);
     const body = await res.json();
-    expect(body.transmissions).toHaveLength(15);
-    for (const t of body.transmissions) {
-      expect(t.unlocked).toBe(false);
-      expect(t).not.toHaveProperty('title');
-      expect(t).not.toHaveProperty('posterUrl');
-    }
+    // The archive is a player-facing reveal, not a checklist: a
+    // not-yet-unlocked transmission must be entirely absent from the
+    // array — no id, no locked placeholder, and no way for the array
+    // length to leak how many transmissions exist in total.
+    expect(body.transmissions).toHaveLength(0);
   });
 
   it('an unknown slug requesting a single id (e.g. trying /15 against the wrong Mission) is safely locked, no video URL present', async () => {
@@ -311,13 +310,11 @@ describe('API /api/game/transmissions — server-side archive gating', () => {
     expect(body).not.toHaveProperty('transmission');
   });
 
-  it('an unauthenticated list request against the real Cipher slug returns all 15 as locked, with ids present but no titles/posters', async () => {
+  it('an unauthenticated list request against the real Cipher slug returns an empty archive — no ids, titles, posters, or count leak', async () => {
     const req = new Request('http://localhost/api/game/transmissions?eventSlug=canton-weekend-1');
     const res = await transmissionsGET(req);
     const body = await res.json();
-    expect(body.transmissions).toHaveLength(15);
-    expect(body.transmissions.every((t: any) => t.unlocked === false)).toBe(true);
-    expect(body.transmissions.every((t: any) => !('title' in t) && !('posterUrl' in t))).toBe(true);
+    expect(body.transmissions).toHaveLength(0);
   });
 
   it('a locked single-id response for a real, valid id never includes videoUrl/posterUrl/title — confirms direct-URL guessing (e.g. /15) cannot leak the asset', async () => {

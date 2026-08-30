@@ -40,6 +40,7 @@ import { getCommanderTransmissionForTrigger, toGameplayTransmission } from '@/li
 import ThreePathSelector from '@/components/ThreePathSelector';
 import LiveCityStatusPanel from '@/components/LiveCityStatusPanel';
 import CityPulseStrip from '@/components/CityPulseStrip';
+import WatchTransmissionButton from '@/components/commander/WatchTransmissionButton';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -217,40 +218,25 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, authenticatedPlayer]);
 
-  // Onboarding Commander video chain (1 -> 2 -> 5) — at most ONE new video
-  // per visit, never a forced back-to-back chain: each check only proceeds
-  // to the next once the previous has already been viewed (persisted via
-  // lib/transmission-viewed-state.ts, the same de-dupe store the per-quest
-  // transmission system already uses), so 1 shows on the player's first
-  // visit, 2 on a later visit, 5 on a later visit still — never all three
-  // stacked in one queue. Marks viewed synchronously at trigger time (not
-  // only on dismiss) so a re-run of this effect before the overlay is
-  // dismissed can never enqueue a second copy of the same video.
+  // Opening Commander video (1, "Cold Open") — the one strong "flow moment"
+  // that still auto-plays, once per player, immediately on first entering
+  // the Mission. Videos 2 ("Welcome to Canton Quests") and 5 ("Your City
+  // Is the Board") used to auto-chain right after this one; they're now
+  // manual WatchTransmissionButton placements in the Mission overview hero
+  // below, so entering the Mission never queues more than this single video.
   useEffect(() => {
     if (!isKnownCantonLaunchSlug(eventSlug)) return;
     if (!authenticatedPlayer || !participation) return;
     const pid = authenticatedPlayer.id;
-
-    const chain: Array<{ trigger: 'cipher_cold_open' | 'cipher_welcome' | 'cipher_city_intro'; key: string }> = [
-      { trigger: 'cipher_cold_open', key: 'video-1' },
-      { trigger: 'cipher_welcome', key: 'video-2' },
-      { trigger: 'cipher_city_intro', key: 'video-5' },
-    ];
-
-    for (const step of chain) {
-      if (shouldAutoShowTransmission(step.trigger, step.key, pid)) {
-        const entry = getCommanderTransmissionForTrigger({ trigger: step.trigger });
-        if (entry) {
-          markTransmissionViewed(step.trigger, step.key, pid);
-          showGameMoment({
-            type: 'commander-transmission',
-            trigger: step.trigger,
-            transmission: toGameplayTransmission(entry),
-          });
-        }
-        return;
-      }
-    }
+    if (!shouldAutoShowTransmission('cipher_cold_open', 'video-1', pid)) return;
+    const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_cold_open' });
+    if (!entry) return;
+    markTransmissionViewed('cipher_cold_open', 'video-1', pid);
+    showGameMoment({
+      type: 'commander-transmission',
+      trigger: 'cipher_cold_open',
+      transmission: toGameplayTransmission(entry),
+    });
   }, [eventSlug, authenticatedPlayer, participation]);
 
   // "Three Doors — One Competition" (video 9) — fires around the first
@@ -716,6 +702,13 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
                 Enable GPS
               </button>
             </div>
+
+            {isCipher && (
+              <div className="flex flex-wrap gap-4 mt-6">
+                <WatchTransmissionButton trigger="cipher_welcome" playerId={authenticatedPlayer?.id} label="Welcome to Canton Quests" size="medium" />
+                <WatchTransmissionButton trigger="cipher_city_intro" playerId={authenticatedPlayer?.id} label="Your City Is the Board" size="medium" />
+              </div>
+            )}
           </div>
 
           <aside className="grid bg-[#050607]">
@@ -900,6 +893,12 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
         </div>
       )}
 
+      {isCipher && progress && currentPlayer && (
+        <div className="mb-6">
+          <WatchTransmissionButton trigger="cipher_first_xp" playerId={authenticatedPlayer?.id} label="How XP Works" size="small" />
+        </div>
+      )}
+
       {/* Main Quest Navigation Tabs */}
       <div className="flex border-b border-[var(--border-subtle)] mb-6 font-display font-bold text-xs sm:text-sm overflow-x-auto scrollbar-none">
         <button
@@ -957,6 +956,9 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
       {/* TAB 1: QUESTS LIST */}
       {activeTab === 'quests' && (
         <section id="quest-board" className="space-y-4 scroll-mt-24">
+          {isCipher && (
+            <WatchTransmissionButton trigger="cipher_first_quest" playerId={authenticatedPlayer?.id} label="How to Read a Quest" size="small" />
+          )}
           {/* Sort & Filter Controls Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-obsidian/70 p-3 rounded-2xl border border-gray-800">
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Radio, ArrowRight, FastForward } from 'lucide-react';
 import { CommanderTransmissionMoment } from '@/lib/game-effects';
 import CommanderMedia from '../commander/CommanderMedia';
@@ -20,18 +20,32 @@ interface CommanderTransmissionEffectProps {
  * Three Locks fragment recovery, finale beats, leaderboard milestones).
  * Nothing here is Challenge-sector-specific; all copy/media comes from the
  * `transmission` payload.
+ *
+ * Advances only from an authoritative event: the video's real `onEnded`
+ * (wired through CommanderMedia's onVideoEnded) or the player's explicit
+ * Skip/Continue click — never a guessed timer (see GameMomentManager's
+ * getDefaultAutoDismiss, which disables its auto-dismiss timer entirely for
+ * type 'commander-transmission'). A ref guards against double-advancing if
+ * both fire close together (e.g. clicking Continue right as the video ends).
  */
 export default function CommanderTransmissionEffect({ moment, onDismiss, reducedMotion = false }: CommanderTransmissionEffectProps) {
   const { transmission } = moment;
   const skippable = isTransmissionSkippable(transmission);
   const cta = resolveTransmissionCta(transmission);
   const isPortrait = transmission.mediaAspect === 'portrait';
+  const hasAdvancedRef = useRef(false);
 
   useEffect(() => {
     cqSoundManager.play('transmission');
   }, []);
 
+  useEffect(() => {
+    hasAdvancedRef.current = false;
+  }, [moment.id]);
+
   const handleContinue = () => {
+    if (hasAdvancedRef.current) return;
+    hasAdvancedRef.current = true;
     moment.onContinue?.();
     onDismiss();
   };
@@ -59,7 +73,7 @@ export default function CommanderTransmissionEffect({ moment, onDismiss, reduced
           </span>
         </div>
 
-        <CommanderMedia transmission={transmission} variant="cinematic" />
+        <CommanderMedia transmission={transmission} variant="cinematic" onVideoEnded={handleContinue} />
 
         {/* Body */}
         <div className="p-5 sm:p-6 space-y-4 text-center">

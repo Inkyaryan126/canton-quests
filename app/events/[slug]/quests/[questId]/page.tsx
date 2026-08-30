@@ -14,7 +14,6 @@ import { QuestEvent, Player, QuestSubmission, SubmitProofResult, PublicQuestView
 import { cleanQuestTitle, cqImages, getQuestImage, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
 import { triggerQuestRewardSequence, triggerGameMomentSequence, showGameMoment } from '@/lib/game-effects';
 import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
-import { getCommanderTransmissionForTrigger, toGameplayTransmission } from '@/lib/commander-transmissions';
 import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
 import { getQuestRewardSummary } from '@/lib/quest-rewards';
 
@@ -161,26 +160,6 @@ export default function QuestDetailPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quest?.id, player?.id]);
 
-  // "How to Read a Quest" (video 15) — fires once per player, the first
-  // time they open ANY quest detail page (not per-quest, so it never
-  // repeats on a second/third quest). Separate effect from the
-  // sector/quest-intro one above so both can independently queue if a
-  // player's very first quest also happens to carry its own transmission —
-  // GameMomentManager plays them in order, never as duplicates.
-  useEffect(() => {
-    if (!quest || !player || !isKnownCantonLaunchSlug(eventSlug)) return;
-    if (!shouldAutoShowTransmission('cipher_first_quest', 'video-15', player.id)) return;
-    const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_first_quest' });
-    if (!entry) return;
-    markTransmissionViewed('cipher_first_quest', 'video-15', player.id);
-    showGameMoment({
-      type: 'commander-transmission',
-      trigger: 'cipher_first_quest',
-      transmission: toGameplayTransmission(entry),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quest?.id, player?.id, eventSlug]);
-
   if (!quest || !event || !player) {
     if (isKnownCantonLaunchSlug(eventSlug) || isPreLaunchEvent(event, eventSlug)) {
       return (
@@ -312,41 +291,6 @@ export default function QuestDetailPage({
       if (result.success) {
         setExistingSubmission(result.submission);
         setTextInput('');
-
-        // "How XP Works" (12) / "How Prize Entries Work" (13) — react to
-        // the player's FIRST-ever XP award / drawing entry (judged from
-        // `progress`, the pre-submission state already loaded for this
-        // page — never re-derived from this submission's own result alone,
-        // so a later resubmission never re-fires it). Queued after the
-        // quest-complete sequence below via GameMomentManager's own
-        // priority ordering (quest-complete outranks commander-transmission),
-        // so "Quest Solved!" always shows before the explainer. Watching
-        // these videos never grants XP/entries itself — they only react to
-        // what the server already awarded.
-        if (isKnownCantonLaunchSlug(eventSlug) && player) {
-          const hadNoXpBefore = (progress?.totalPoints ?? 0) === 0;
-          const hadNoQuestsBefore = (progress?.completedCount ?? 0) === 0;
-
-          if (hadNoXpBefore && result.awardedPoints > 0 && shouldAutoShowTransmission('cipher_first_xp', 'video-12', player.id)) {
-            const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_first_xp' });
-            if (entry) {
-              markTransmissionViewed('cipher_first_xp', 'video-12', player.id);
-              showGameMoment({ type: 'commander-transmission', trigger: 'cipher_first_xp', transmission: toGameplayTransmission(entry) });
-            }
-          }
-
-          if (
-            hadNoQuestsBefore &&
-            (result.drawingEntriesAwarded ?? 0) > 0 &&
-            shouldAutoShowTransmission('cipher_first_entry', 'video-13', player.id)
-          ) {
-            const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_first_entry' });
-            if (entry) {
-              markTransmissionViewed('cipher_first_entry', 'video-13', player.id);
-              showGameMoment({ type: 'commander-transmission', trigger: 'cipher_first_entry', transmission: toGameplayTransmission(entry) });
-            }
-          }
-        }
 
         // Check if completing this quest unlocked the next chain quest!
         const nextInChain = allEventQuests.find((q) => q.prerequisiteQuestId === quest.id);

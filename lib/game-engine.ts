@@ -1736,6 +1736,14 @@ export function getParticipatedQuestCount(playerId: string): number {
   return new Set(submissions.map((s) => s.questId)).size;
 }
 
+/**
+ * Whether a player has any submission (any status) for one specific
+ * Mission. Powers the Player Card's PLAYER SIGNAL status.
+ */
+export function hasEventSubmission(playerId: string, eventId: string): boolean {
+  return getSubmissionsForPlayer(playerId, eventId).length > 0;
+}
+
 function getLatestQuestProgressSubmission(
   submissions: QuestSubmission[],
   playerId: string,

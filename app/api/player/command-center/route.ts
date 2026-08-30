@@ -2,26 +2,23 @@ import { NextResponse } from 'next/server';
 import {
   getAchievementsDB,
   getAchievementsForPlayerDB,
-  getCollectiblesForPlayerDB,
   getDrawingEntriesForPlayerDB,
+  getEventByIdDB,
   getEventParticipationDB,
   getLeaderboardDB,
   getParticipatedQuestCountDB,
   getPlayerProgressDB,
-  getQuestsForEventDB,
+  hasEventSubmissionDB,
 } from '@/lib/supabase-db';
 import { resolveAuthenticatedSession, setAuthCookies, logAuthDiagnostic } from '@/lib/supabase-auth';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
 import {
-  buildRecentActivity,
-  computeDistrictProgress,
   countPrizeEntries,
   getAvatarPresetPath,
   getBadgeIconPath,
   getPlayerCityRank,
-  getStartingDistrict,
+  getPlayerSignalStatus,
   PLAYER_CARD_BADGE_SLOT_COUNT,
-  recommendQuests,
   sanitizeFeaturedBadges,
 } from '@/lib/player-command-center';
 
@@ -37,6 +34,13 @@ async function getOwnerImageUrl(path?: string | null) {
   return error ? null : data?.signedUrl || null;
 }
 
+/**
+ * Powers the permanent Player File (/profile): the Player Card, Badge
+ * Selection, and Profile Settings — nothing Mission-specific. Every DB call
+ * here exists only to fill one of those three. Mission dashboards
+ * (app/events/[slug]/*) fetch their own quest/path/district/finale data
+ * directly rather than through this endpoint.
+ */
 export async function GET(request: Request) {
   try {
     const sessionResult = await resolveAuthenticatedSession(request);
@@ -54,28 +58,28 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('eventId') || DEFAULT_EVENT_ID;
 
-    const [quests, progress, leaderboard, achievements, catalog, drawingEntries, playerCollectibles, participation, participatedQuestCount] = await Promise.all([
-      getQuestsForEventDB(eventId),
+    const [progress, leaderboard, achievements, catalog, drawingEntries, participation, participatedQuestCount, activeEvent, hasSubmissionInActiveMission] = await Promise.all([
       getPlayerProgressDB(player.id, eventId),
       getLeaderboardDB(eventId),
       getAchievementsForPlayerDB(player.id),
       getAchievementsDB(),
       getDrawingEntriesForPlayerDB(player.id, eventId),
-      getCollectiblesForPlayerDB(player.id),
       getEventParticipationDB(eventId, player.id),
       getParticipatedQuestCountDB(player.id),
+      getEventByIdDB(eventId),
+      hasEventSubmissionDB(player.id, eventId),
     ]);
 
-    // Path is Operation-specific (event_players.path for THIS eventId), not
-    // the legacy players.selected_starting_path account column — a player
-    // who hasn't chosen a path in this Operation yet has none here, and
-    // must not be defaulted to Family. See
-    // supabase/migrations/20260826072300_operation_scoped_path_and_fair_hunt.sql.
-    const operationPath = participation?.path || undefined;
+    // PLAYER SIGNAL — the Player Card's activity/status field, derived from
+    // this Mission's real state (event.status, event_players, and
+    // quest_submissions), never from XP or lifetime quest count. See
+    // lib/player-command-center.ts getPlayerSignalStatus.
+    const playerSignalStatus = getPlayerSignalStatus({
+      hasActiveMission: activeEvent?.status === 'active',
+      hasJoinedActiveMission: Boolean(participation),
+      hasSubmissionInActiveMission,
+    });
 
-    const completedSet = new Set(progress.completedQuestIds);
-    const completedQuests = quests.filter((quest) => completedSet.has(quest.id));
-    const recommendedQuests = recommendQuests(quests, operationPath, progress);
     const featuredSlugs = sanitizeFeaturedBadges(player.featuredBadgeSlugs || player.showcaseBadges || [], achievements);
     const badgeCatalog = catalog.map((achievement) => ({
       ...achievement,
@@ -86,7 +90,6 @@ export async function GET(request: Request) {
 
     const response = NextResponse.json({
       success: true,
-      eventId,
       player: {
         ...player,
         email: undefined,
@@ -94,48 +97,26 @@ export async function GET(request: Request) {
         profileImageUrl: await getOwnerImageUrl(player.profileImagePath),
         avatarPresetPath: getAvatarPresetPath(player.avatarPresetKey),
       },
-      startingDistrict: getStartingDistrict(operationPath),
-      progress: {
-        ...progress,
-        totalPoints: progress.totalPoints,
-        rank: getPlayerCityRank(player.id, leaderboard),
-        prizeEntries: countPrizeEntries(drawingEntries),
-      },
+      // PLAYER SIGNAL on the permanent Player Card — activity/status for
+      // THIS Mission (eventId), not a lifetime or XP-derived value.
+      playerSignalStatus,
       stats: {
-        // The authoritative lifetime XP total (players.total_xp), not
-        // progress.totalPoints — that field is a per-event sum derived from
-        // *quest-submission* score-ledger rows only, so it silently omits
-        // any non-quest reward (e.g. the profile-completion +100) that has
-        // no associated submission. See lib/game-engine.ts getPlayerProgress
+        // The authoritative lifetime XP total (players.total_xp), not a
+        // per-event derived sum — see lib/game-engine.ts getPlayerProgress
         // / lib/supabase-db.ts getPlayerProgressDB.
         totalXp: player.totalXp,
         cityRank: getPlayerCityRank(player.id, leaderboard),
         completedQuests: progress.completedCount,
         prizeEntries: countPrizeEntries(drawingEntries),
-        badgesEarned: achievements.length,
         // Distinct quests ever submitted for, across all Missions (lifetime
         // scope) — powers the Player Card's PLAYER LEVEL segments. See
         // lib/supabase-db.ts getParticipatedQuestCountDB.
         participatedQuestCount,
       },
-      quests: {
-        recommended: recommendedQuests.slice(0, 4),
-        startingDistrict: operationPath ? recommendedQuests.filter((quest) => quest.startingPath === operationPath).slice(0, 6) : [],
-        citywide: operationPath ? recommendedQuests.filter((quest) => quest.startingPath !== operationPath).slice(0, 12) : recommendedQuests.slice(0, 12),
-        allAvailable: quests.filter((quest) => quest.status === 'active'),
-      },
-      districtProgress: computeDistrictProgress(quests, progress.completedQuestIds),
       badges: {
-        earned: achievements,
         catalog: badgeCatalog,
         featuredSlugs,
         maxFeatured: PLAYER_CARD_BADGE_SLOT_COUNT,
-      },
-      recentActivity: buildRecentActivity(completedQuests, achievements, drawingEntries),
-      founderKeys: {
-        mark: playerCollectibles.some((c) => c.collectibleId === 'col-founder-mark'),
-        code: playerCollectibles.some((c) => c.collectibleId === 'col-founder-code'),
-        word: playerCollectibles.some((c) => c.collectibleId === 'col-founder-word'),
       },
     });
 

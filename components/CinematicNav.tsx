@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, BookOpen, LogOut, Compass } from 'lucide-react';
+import { ArrowRight, BookOpen, LogOut, Compass, User } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { Player } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { createPlayerFileClickHandler } from '@/lib/player-file-nav';
 
 type CinematicNavContext = 'global' | 'main-operation' | 'fair-operation';
 
@@ -110,6 +111,14 @@ export default function CinematicNav({ eventHref, context = 'global' }: Cinemati
       .catch(() => {});
   }, []);
 
+  // PLAYER FILE is a permanent, platform-level nav destination — never
+  // Mission-specific. See lib/player-file-nav.ts for the shared first-click
+  // intro / already-viewed / logged-out branching, reused by every other
+  // "go to /profile" control across the app (Header.tsx, FounderCipherShell,
+  // the homepage hero CTA, PlayerIdentityBar) so none of them can silently
+  // bypass the one-time Transmission #11 intro.
+  const handlePlayerFileClick = createPlayerFileClickHandler(router, player);
+
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
@@ -144,11 +153,12 @@ export default function CinematicNav({ eventHref, context = 'global' }: Cinemati
             {link.label}
           </Link>
         ))}
-        {player ? (
-          <Link href="/profile" className="cq-gold-text font-bold">
-            PLAYER FILE
-          </Link>
-        ) : null}
+        {/* PLAYER FILE is a permanent platform nav item — visible whether or
+            not the player is logged in (a logged-out click routes through
+            the existing register flow; see handlePlayerFileClick). */}
+        <Link href="/profile" onClick={handlePlayerFileClick} className="cq-gold-text font-bold">
+          PLAYER FILE
+        </Link>
       </div>
 
       <div className="cq-nav-actions">
@@ -160,10 +170,24 @@ export default function CinematicNav({ eventHref, context = 'global' }: Cinemati
           </Link>
         )}
 
+        {/* Mobile-only mirror of the PLAYER FILE nav item above — .cq-nav-links
+            is hidden entirely below 820px, so this is mobile's only PLAYER
+            FILE entry point. Desktop keeps it hidden (see globals.css). */}
+        <Link
+          href="/profile"
+          onClick={handlePlayerFileClick}
+          className="cq-nav-player-file-mobile"
+          aria-label="Player File"
+        >
+          <User size={13} aria-hidden="true" />
+          <span>FILE</span>
+        </Link>
+
         {player ? (
           <div className="cq-nav-user-cluster">
             <Link
               href="/profile"
+              onClick={handlePlayerFileClick}
               className="cq-gold-button cq-nav-cta"
               title={`Logged in as ${player.displayName}`}
             >

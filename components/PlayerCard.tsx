@@ -31,7 +31,8 @@ export interface PlayerCardProps {
   participatedQuestCount?: number;
   memberSinceDate?: string;
   playerCode?: string;
-  playerLevelText?: string;
+  /** PLAYER SIGNAL text — the player's current activity/status (e.g. 'STANDBY' / 'ACTIVE' / 'ON MISSION'), not an XP-derived level. */
+  signalStatusText?: string;
   clearanceLevelText?: string;
   featuredBadges?: (PlayerCardBadge | null | undefined)[];
   className?: string;
@@ -51,7 +52,7 @@ export default function PlayerCard({
   participatedQuestCount = 0,
   memberSinceDate,
   playerCode,
-  playerLevelText = 'ACTIVE // FIELD READY',
+  signalStatusText = 'STANDBY',
   clearanceLevelText = 'LEVEL 1 // AGENT',
   featuredBadges = [],
   className = '',
@@ -125,13 +126,13 @@ export default function PlayerCard({
         );
       })}
 
-      {/* 7. Player Signal / Status */}
+      {/* 7. Player Signal — current activity/status, not XP/level */}
       <div
         className="cq-card-signal"
         style={PLAYER_CARD_LAYOUT.signal}
-        title={playerLevelText}
+        title={signalStatusText}
       >
-        <span>{playerLevelText}</span>
+        <span>{signalStatusText}</span>
       </div>
 
       {/* 8. Numeric Stat Row (XP, Quests Complete, Prize Entries, City Rank) */}

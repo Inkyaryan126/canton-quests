@@ -52,19 +52,23 @@ export const PLAYER_CARD_LAYOUT = {
     height: '12.70%',
   },
   /**
-   * PLAYER LEVEL — 5 segments filling left-to-right with the player's
-   * distinct-quest participation count (see getParticipatedQuestCountDB).
-   * Derived from the updated player_card_guide.png's newly-marked green
-   * boxes: same row (top/height) as PLAYER SIGNAL, occupying the
-   * previously-unused left portion of that row.
+   * PLAYER LEVEL — the 5 segments are ALREADY BAKED INTO player_card.png as
+   * a single divided bar (one outlined box with 4 internal divider ticks).
+   * These coordinates are NOT new boxes to draw — they are the 5 interior
+   * fill areas, pixel-measured directly from the artwork (scanning for the
+   * bar's cyan border/divider pixels) and inset a few px on every side so a
+   * solid fill color sits inside each existing cell without touching or
+   * redrawing the artwork's own outline/divider lines. Fill left-to-right
+   * with the player's distinct-quest participation count (see
+   * getParticipatedQuestCountDB) — do not add borders to these elements.
    */
   playerLevel: {
     segments: [
-      { left: '4.10%', top: '43.62%', width: '8.00%', height: '5.53%' },
-      { left: '13.50%', top: '43.62%', width: '8.00%', height: '5.53%' },
-      { left: '22.90%', top: '43.62%', width: '8.00%', height: '5.53%' },
-      { left: '32.30%', top: '43.62%', width: '8.00%', height: '5.53%' },
-      { left: '41.70%', top: '43.62%', width: '8.00%', height: '5.53%' },
+      { left: '5.66%', top: '44.92%', width: '8.98%', height: '2.54%' },
+      { left: '15.43%', top: '44.92%', width: '8.11%', height: '2.54%' },
+      { left: '24.32%', top: '44.92%', width: '8.30%', height: '2.54%' },
+      { left: '33.40%', top: '44.92%', width: '7.81%', height: '2.54%' },
+      { left: '41.99%', top: '44.92%', width: '7.52%', height: '2.54%' },
     ] as const,
   },
   signal: {
