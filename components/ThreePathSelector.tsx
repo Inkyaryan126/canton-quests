@@ -15,6 +15,7 @@ import {
 import { StartingPath } from '@/lib/types';
 import { cqImages } from '@/lib/marketing-assets';
 import { showGameMoment } from '@/lib/game-effects';
+import { getPathTone } from '@/lib/path-tone';
 import FastPlayerOnboardForm from './FastPlayerOnboardForm';
 
 interface ThreePathSelectorProps {
@@ -205,13 +206,14 @@ export default function ThreePathSelector({
     <div id="choose-path" className="cq-three-doors-section scroll-mt-28" aria-labelledby="three-paths-heading">
       <div className="cq-three-doors-intro">
         <span className="cq-three-doors-eyebrow">
-          THREE DOORS. ONE CITY.
+          THREE VOICES. ONE CITY.
         </span>
         <h2 id="three-paths-heading" className="cq-three-doors-title">
-          Choose Your Starting Path
+          Choose How Canton Quests Speaks To You
         </h2>
         <p className="cq-three-doors-desc">
-          Pick the door that fits your style. Your starting path gives you your first mission and identity — but every quest in Canton stays open to you.
+          Pick the style that feels like you. Your path changes the tone, flavor text, and Commander wording you see —
+          it doesn&apos;t change which Quests you can play. Every Quest in Canton stays open to every path.
         </p>
       </div>
 
@@ -292,7 +294,7 @@ export default function ThreePathSelector({
                         {door.label}
                       </span>
                       <span className="cq-door-pill-district">
-                        {door.district}
+                        {getPathTone(door.id)?.styleTag || door.district}
                       </span>
                     </div>
                   </div>
@@ -311,10 +313,13 @@ export default function ThreePathSelector({
               <CheckCircle2 size={20} style={{ color: activeOption.color, flexShrink: 0, marginTop: '2px' }} />
               <div>
                 <strong style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block' }}>
-                  STARTING PATH CONFIRMED: {activeOption.title} ({activeOption.district})
+                  PATH CONFIRMED: {activeOption.title}
                 </strong>
                 <span style={{ fontSize: '0.75rem', color: '#d1d5db', display: 'block', marginTop: '3px' }}>
-                  {activeOption.vibe}
+                  {getPathTone(activeOption.id)?.description || activeOption.vibe}
+                </span>
+                <span style={{ fontSize: '0.68rem', color: '#9ca3af', display: 'block', marginTop: '4px' }}>
+                  Suggested Founder&apos;s Cipher starting point: {activeOption.district}
                 </span>
               </div>
             </div>
@@ -360,7 +365,7 @@ export default function ThreePathSelector({
         /* Prompt for unselected state */
         <div className="cq-door-prompt">
           <Sparkles size={14} style={{ color: '#f59e0b' }} />
-          <span>Click the Red, Gold, or Purple door in the image above to select your starting path.</span>
+          <span>Click the Red, Gold, or Purple door above to choose the style that fits you.</span>
         </div>
       )}
 

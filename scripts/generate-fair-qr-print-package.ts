@@ -1,7 +1,7 @@
 /**
  * Canton Quests — Fair QR Hunt print package generator
  * =======================================================
- * Produces the physical deployment package for all 27 Fair Signals from
+ * Produces the physical deployment package for all 22 Fair Signals from
  * the canonical, frozen manifest (lib/fair-deployment-manifest.ts) —
  * never hand-typed URLs. Run with:
  *
@@ -247,9 +247,9 @@ async function main() {
   const noVercelPreview = urls.every((u) => !u.includes('.vercel.app'));
 
   const integrityOk =
-    manifest.length === 27 &&
+    manifest.length === 22 &&
     coreCount === 20 &&
-    bonusCount === 7 &&
+    bonusCount === 2 &&
     uniqueCodes.size === codes.length &&
     uniqueUrls.size === urls.length &&
     allHttps &&
@@ -260,7 +260,7 @@ async function main() {
   if (!integrityOk) {
     throw new Error('Manifest integrity check failed — see verification-report.json for details.');
   }
-  console.log('Manifest integrity checks: PASS (27 total, 20 core, 7 bonus, all unique, all production HTTPS URLs).');
+  console.log('Manifest integrity checks: PASS (22 total, 20 core, 2 bonus, all unique, all production HTTPS URLs).');
 
   // ---- Sheets: 2 columns x 2 rows per US Letter page @ 300dpi, core and bonus separate ----
   const coreEntries = manifest.filter((e) => e.type === 'core');

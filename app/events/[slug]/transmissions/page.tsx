@@ -6,7 +6,9 @@ import Image from 'next/image';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
-import { Play, Radio, Satellite } from 'lucide-react';
+import { Play, Radio, Satellite, FileText } from 'lucide-react';
+import { showGameMoment } from '@/lib/game-effects';
+import { getFounderCipherMessageLog, LoggedFounderCipherMessage } from '@/lib/gameplay/founders-cipher/message-log';
 
 // Only ever contains transmissions already revealed to this player — the
 // API never returns a not-yet-unlocked entry at all (see
@@ -19,9 +21,20 @@ interface ArchiveEntry {
   posterUrl: string;
 }
 
+function getClientPlayerId(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const stored = window.localStorage.getItem('canton_quests_current_player');
+    return stored ? (JSON.parse(stored)?.id as string | undefined) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function TransmissionArchivePage({ params }: { params: { slug: string } }) {
   const isFounderCipher = isKnownCantonLaunchSlug(params.slug);
   const [entries, setEntries] = useState<ArchiveEntry[] | null>(null);
+  const [fieldLog, setFieldLog] = useState<LoggedFounderCipherMessage[]>([]);
 
   useEffect(() => {
     if (!isFounderCipher) return;
@@ -38,6 +51,27 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
       cancelled = true;
     };
   }, [isFounderCipher, params.slug]);
+
+  // FIELD LOG — recovers Commander Text Transmissions the player may have
+  // closed before reading in full. Client-side only (see
+  // lib/gameplay/founders-cipher/message-log.ts); reuses this same archive
+  // page rather than a second Transmissions surface.
+  useEffect(() => {
+    if (!isFounderCipher) return;
+    setFieldLog(getFounderCipherMessageLog(getClientPlayerId()));
+  }, [isFounderCipher]);
+
+  const reopenLoggedMessage = (entry: LoggedFounderCipherMessage) => {
+    showGameMoment({
+      type: 'commander-text',
+      title: entry.title,
+      body: entry.body,
+      size: entry.size,
+      path: entry.path,
+      cta: entry.cta,
+      messageId: entry.id,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
@@ -111,6 +145,37 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
                     </div>
                   </Link>
                 ))}
+              </div>
+            )}
+
+            {fieldLog.length > 0 && (
+              <div className="mt-14 pt-10 border-t border-stone-800">
+                <div className="flex justify-center mb-6">
+                  <div className="text-center max-w-2xl space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-bold uppercase tracking-wider">
+                      <FileText size={13} />
+                      <span>FIELD LOG</span>
+                    </div>
+                    <p className="text-xs text-stone-500 font-body">
+                      Commander field messages you may have closed before reading in full — tap to reopen.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl mx-auto">
+                  {fieldLog.map((entry, i) => (
+                    <button
+                      key={`${entry.id}-${entry.loggedAt}-${i}`}
+                      type="button"
+                      onClick={() => reopenLoggedMessage(entry)}
+                      className="text-left rounded-xl border border-stone-800 bg-stone-900/70 hover:border-cyan-500/50 transition-colors p-3.5"
+                    >
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-300">
+                        {entry.title}
+                      </span>
+                      <p className="text-xs text-stone-400 mt-1 line-clamp-2">{entry.body}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 

@@ -14,6 +14,8 @@ import MobileStartBar from '@/components/MobileStartBar';
 import CinematicFooter from '@/components/CinematicFooter';
 import FounderCipherShell from '@/components/FounderCipherShell';
 import CipherFragmentsPanel from '@/components/CipherFragmentsPanel';
+import MasterCipherStatusCard from '@/components/MasterCipherStatusCard';
+import type { PlayerFinaleStatus } from '@/lib/finale-db';
 import {
   QuestEvent,
   PublicQuestView,
@@ -37,6 +39,7 @@ import {
 import { showGameMoment } from '@/lib/game-effects';
 import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
 import { getCommanderTransmissionForTrigger, toGameplayTransmission } from '@/lib/commander-transmissions';
+import { showFounderCipherMessage } from '@/lib/gameplay/founders-cipher/message-resolver';
 import ThreePathSelector from '@/components/ThreePathSelector';
 import LiveCityStatusPanel from '@/components/LiveCityStatusPanel';
 import CityPulseStrip from '@/components/CityPulseStrip';
@@ -113,11 +116,17 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [isPreLaunch, setIsPreLaunch] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  // A genuine fetch failure (network error, request timeout, or a 500 from
+  // the API) is never disguised as "Mission hasn't started yet" — it gets
+  // its own honest error state with a retry action, so a real outage never
+  // reads as a false "pre-launch" message.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [quests, setQuests] = useState<PublicQuestView[]>([]);
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [progress, setProgress] = useState<PlayerEventProgress | null>(null);
   const [cipherProgress, setCipherProgress] = useState<PlayerCipherProgressView | null>(null);
+  const [finaleStatus, setFinaleStatus] = useState<PlayerFinaleStatus | null>(null);
 
   // Phase 3 Live States
   const [collectibles, setCollectibles] = useState<PlayerCollectible[]>([]);
@@ -176,6 +185,14 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
           return;
         }
         setParticipation(data.participation);
+        // A path chosen here is the player's UNIVERSAL identity (tone/theme
+        // across all of Canton Quests, not just this Mission) — the server
+        // already persisted it to players.selected_starting_path (the
+        // canonical source) and returns the updated player so this doesn't
+        // need a second round-trip to /api/auth/me.
+        if (data.player) {
+          setAuthenticatedPlayer(data.player);
+        }
 
         // Path-selection Commander video (6/7/8) — only after a genuine,
         // successful, authoritative path save (never inferred from a
@@ -236,17 +253,32 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
       type: 'commander-transmission',
       trigger: 'cipher_cold_open',
       transmission: toGameplayTransmission(entry),
+      // Once the Cold Open cinematic actually finishes (deliberate
+      // dismissal only — see GameMomentOverlay's backdrop-dismiss guard
+      // for commander-transmission), follow it with the Founder's Cipher
+      // MISSION_BRIEFING text transmission — the "here's your objective"
+      // beat the mission previously jumped straight past.
+      onFinished: () => {
+        if (shouldAutoShowTransmission('mission_entry', 'briefing-text', pid)) {
+          markTransmissionViewed('mission_entry', 'briefing-text', pid);
+          showFounderCipherMessage({
+            messageId: 'MISSION_BRIEFING',
+            path: authenticatedPlayer.selectedStartingPath,
+            playerId: pid,
+          });
+        }
+      },
     });
   }, [eventSlug, authenticatedPlayer, participation]);
 
   // "Three Doors — One Competition" (video 9) — fires around the first
-  // genuine path-selection moment (Gate 3 below), never after a path is
-  // already on file (that condition is baked into the same check that
-  // renders Gate 3 at all).
+  // genuine path-selection moment (Gate 3 below), never after the player's
+  // universal path is already on file (that condition is baked into the
+  // same check that renders Gate 3 at all).
   useEffect(() => {
     if (!isKnownCantonLaunchSlug(eventSlug)) return;
     if (!event || !authenticatedPlayer || !participation) return;
-    if (!(event.requiresPath && !participation.path)) return;
+    if (!(event.requiresPath && !authenticatedPlayer.selectedStartingPath)) return;
     const pid = authenticatedPlayer.id;
     if (!shouldAutoShowTransmission('cipher_three_doors', 'video-9', pid)) return;
     const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_three_doors' });
@@ -262,14 +294,32 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
   const refreshData = useCallback(() => {
     const player = authenticatedPlayer || getClientPlayer();
     setCurrentPlayerState(player);
+    setLoadError(null);
 
-    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`)
+    // A request that never settles (dropped connection, an intermediary
+    // that swallows the response, etc.) must not leave the UI on
+    // "Loading Mission Grid..." forever — abort and surface a real error
+    // with a retry action instead. 15s is generous for this endpoint's
+    // normal response time while still giving up well before a visitor
+    // assumes the app is simply broken.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`, {
+      signal: controller.signal,
+    })
       .then((res) => {
         if (!res.ok && res.status === 404) {
+          // No event record exists at all for this slug — for a known
+          // future Canton launch, "hasn't started yet" is the honest read;
+          // there's no real event data to fall back on either way.
           if (isKnownCantonLaunchSlug(eventSlug)) {
             setIsPreLaunch(true);
           }
           return null;
+        }
+        if (!res.ok) {
+          throw new Error(`Mission data request failed (${res.status})`);
         }
         return res.json();
       })
@@ -283,7 +333,12 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
       } | null) => {
         setIsLoading(false);
         if (!data) return;
-        if (data.isPreLaunch || isKnownCantonLaunchSlug(eventSlug)) {
+        // Trust the server's own isPreLaunchEvent() computation (it already
+        // checks this exact event's real status/startTime) rather than
+        // re-deriving it from the slug name alone — a known-launch slug
+        // does NOT mean "always pre-launch forever," only that it's a
+        // recognized Canton Quests launch context.
+        if (data.isPreLaunch) {
           setIsPreLaunch(true);
         }
         if (data.event) {
@@ -314,11 +369,19 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
           }
         }
       })
-      .catch(() => {
+      .catch((err) => {
         setIsLoading(false);
-        if (isKnownCantonLaunchSlug(eventSlug)) {
-          setIsPreLaunch(true);
-        }
+        // A genuine failure (network error, timeout abort, or a non-OK
+        // response) gets its own honest error state — never silently
+        // relabeled as "Mission hasn't started yet."
+        setLoadError(
+          err?.name === 'AbortError'
+            ? 'This is taking longer than expected. Check your connection and try again.'
+            : 'Unable to load this Mission right now. Please try again.'
+        );
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
       });
   }, [authenticatedPlayer, eventSlug]);
 
@@ -327,6 +390,44 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
     const interval = setInterval(refreshData, 6000);
     return () => clearInterval(interval);
   }, [refreshData]);
+
+  // Master Cipher Convergence finale status — the REAL, sigil-based finale
+  // system (lib/finale.ts / lib/finale-db.ts), distinct from the legacy
+  // isQualifiedForFinale stat above. Polled independently of refreshData so
+  // this page never needs to touch that endpoint's shape. Fires FINALE_
+  // UNLOCKED exactly once per player the first time eligibility flips true —
+  // this is the single, real "you may now enter the Master Cipher" moment,
+  // wherever the player happens to be standing when it becomes true.
+  const refreshFinaleStatus = useCallback(() => {
+    if (!isKnownCantonLaunchSlug(eventSlug) || !authenticatedPlayer || !participation) return;
+    fetch(`/api/game/finale?eventSlug=${encodeURIComponent(eventSlug)}`)
+      .then((res) => res.json())
+      .then((data: { status?: PlayerFinaleStatus }) => {
+        if (!data.status) return;
+        if (data.status.eligibility.ok && authenticatedPlayer) {
+          const pid = authenticatedPlayer.id;
+          if (shouldAutoShowTransmission('finale', 'finale-unlocked', pid)) {
+            markTransmissionViewed('finale', 'finale-unlocked', pid);
+            showFounderCipherMessage({
+              messageId: 'FINALE_UNLOCKED',
+              path: authenticatedPlayer.selectedStartingPath,
+              playerId: pid,
+              onContinue: () => {
+                window.location.href = `/events/${eventSlug}/finale`;
+              },
+            });
+          }
+        }
+        setFinaleStatus(data.status);
+      })
+      .catch(() => {});
+  }, [eventSlug, authenticatedPlayer, participation]);
+
+  useEffect(() => {
+    refreshFinaleStatus();
+    const interval = setInterval(refreshFinaleStatus, 6000);
+    return () => clearInterval(interval);
+  }, [refreshFinaleStatus]);
 
   // Geolocation Sensor
   const requestLocation = () => {
@@ -385,6 +486,26 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
       <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent mb-4" />
         <p className="text-xs text-amber-300 tracking-wider uppercase">Loading Mission Grid...</p>
+      </div>
+    );
+  }
+
+  // A genuine load failure with nothing already on screen gets its own
+  // honest error state and a retry action — never a silent, permanent
+  // spinner and never mislabeled as "Mission hasn't started yet." Once real
+  // event data has loaded at least once, a later background-refresh error
+  // no longer interrupts the page (the existing content just stays put).
+  if (loadError && !event) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono text-center">
+        <p className="text-xs text-red-400 tracking-wider uppercase mb-4">{loadError}</p>
+        <button
+          type="button"
+          onClick={() => refreshData()}
+          className="cq-gold-button text-xs py-2.5 px-6 font-mono font-bold"
+        >
+          RETRY
+        </button>
       </div>
     );
   }
@@ -458,7 +579,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
               authenticatedPlayer={authenticatedPlayer}
               stage="upcoming"
               countdown={countdownValue}
-              chosenPath={participation?.path}
+              chosenPath={authenticatedPlayer?.selectedStartingPath}
             />
           </main>
           <CinematicFooter />
@@ -547,7 +668,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
         <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
           <Header eventSlug={eventSlug} />
           <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12">
-            <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={participation?.path}>
+            <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={undefined}>
               <div className="max-w-lg mx-auto flex flex-col justify-center items-center text-center py-4">{gateCard}</div>
             </FounderCipherShell>
           </main>
@@ -589,9 +710,11 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
   }
 
   // GATE 3 — this Operation uses Family/Challenge/Secret and this player
-  // hasn't chosen one for it yet. A returning participant with a path
-  // already on their event_players record skips straight past this.
-  if (event.requiresPath && participation && !participation.path) {
+  // doesn't have a universal path on their permanent identity yet. A
+  // returning player who already chose one (whether here or during
+  // onboarding, for this Mission or any other) skips straight past this —
+  // Mission participation never re-asks for a path once the player has one.
+  if (event.requiresPath && participation && !authenticatedPlayer?.selectedStartingPath) {
     const pathSelector = (
       <ThreePathSelector
         eventSlug={eventSlug}
@@ -607,7 +730,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
         <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
           <Header eventSlug={eventSlug} />
           <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12">
-            <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={participation?.path}>
+            <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={authenticatedPlayer?.selectedStartingPath}>
               {pathSelector}
             </FounderCipherShell>
           </main>
@@ -627,7 +750,9 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
 
   const activeFlashQuests = quests.filter((q) => q.isFlash && q.status === 'active');
   const activeNpc = npcs[0];
-  const playerChosenPath = participation?.path || undefined;
+  // Recommendation framing only — every quest stays open to every player
+  // regardless of path; this just picks which one surfaces first.
+  const playerChosenPath = authenticatedPlayer?.selectedStartingPath || undefined;
   const pathQuests = quests.filter(
     (q) => q.startingPath === playerChosenPath && q.status === 'active' && !progress?.completedQuestIds.includes(q.id)
   );
@@ -823,6 +948,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
       <PlayerIdentityBar onPlayerChanged={() => refreshData()} />
 
       {isCipher && <CipherFragmentsPanel progress={cipherProgress} />}
+      {isCipher && <MasterCipherStatusCard eventSlug={eventSlug} status={finaleStatus} />}
 
       {/* Start Here Panel */}
       {currentPlayer && recommendedQuest && (
@@ -1132,7 +1258,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
         <Header eventSlug={eventSlug} />
         <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12">
-          <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={participation?.path}>
+          <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={authenticatedPlayer?.selectedStartingPath}>
             <div className="max-w-4xl mx-auto">{dashboardCore}</div>
           </FounderCipherShell>
         </main>

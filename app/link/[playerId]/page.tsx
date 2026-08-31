@@ -8,14 +8,13 @@ import CinematicFooter from '@/components/CinematicFooter';
 import { showGameMoment } from '@/lib/game-effects';
 import { SafePlayerLinkProfile, PlayerLinkType, PLAYER_LINK_CONFIG } from '@/lib/player-links';
 import { Player } from '@/lib/types';
+import { getPathTone } from '@/lib/path-tone';
 
 function getClientPlayer(): Player | null {
   if (typeof window === 'undefined') return null;
   const stored = window.localStorage.getItem('canton_quests_current_player');
   return stored ? (JSON.parse(stored) as Player) : null;
 }
-
-const SECTOR_LABEL: Record<string, string> = { family: 'Arts District', challenge: 'Mother Goose Land', secret: 'Monument Park' };
 
 /**
  * The safe player QR/link landing page — a player scans another player's
@@ -99,7 +98,11 @@ export default function PlayerLinkPage() {
             {status !== 'loading' && target && (
               <>
                 <h1 className="text-2xl font-black font-display text-white">{target.displayName}</h1>
-                {target.path && <p className="text-xs text-stone-400 uppercase font-mono">{SECTOR_LABEL[target.path] || target.path}</p>}
+                {target.path && (
+                  <p className="text-xs text-stone-400 uppercase font-mono">
+                    {getPathTone(target.path)?.label || target.path}
+                  </p>
+                )}
                 <p className="text-sm text-stone-300">
                   {linkType === 'DIFFERENT_PATH_LINK'
                     ? 'A cross-path signal — you two started on different paths.'

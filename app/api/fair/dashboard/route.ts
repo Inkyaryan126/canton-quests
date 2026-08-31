@@ -17,7 +17,7 @@ const LEADERBOARD_PREVIEW_SIZE = 10;
 /**
  * GET /api/fair/dashboard
  *
- * Always returns the public Fair state (Operation phase, all 27 quest
+ * Always returns the public Fair state (Operation phase, all 22 quest
  * slots, leaderboard preview) so a logged-out visitor can see what the
  * Fair QR Hunt is. Player-specific fields (score, rank, per-quest
  * claimed/unclaimed, Operation participation) are only included when

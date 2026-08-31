@@ -22,7 +22,7 @@ import { GET as fairDashboardRoute } from '../app/api/fair/dashboard/route';
 
 // Claim-flow tests exercise claim MECHANICS (duplicate protection,
 // cross-player independence, no-path-required, server-authoritative
-// points) — not the Sept 1–7 America/New_York window itself, which is
+// points) — not the Sept 4–5 America/New_York window itself, which is
 // covered independently (with explicit, controlled `now` values, so it
 // never depends on the real wall-clock date) in tests/fair-hunt-core.test.ts.
 // Every seeded Fair quest's window is widened to "always available" here so
@@ -54,7 +54,7 @@ function claimRequest(userId: string | null, code: string): Request {
 
 const CORE_1 = SEED_FAIR_QUESTS.find((q) => q.slug === 'fair-core-01')!;
 const CORE_2 = SEED_FAIR_QUESTS.find((q) => q.slug === 'fair-core-02')!;
-const BONUS_1 = SEED_FAIR_QUESTS.find((q) => q.slug === 'fair-bonus-2026-09-01')!;
+const BONUS_1 = SEED_FAIR_QUESTS.find((q) => q.slug === 'fair-bonus-2026-09-04')!;
 const MAIN_QR_QUEST = SEED_QUESTS.find((q) => q.verificationType === 'qr');
 
 describe('Fair QR Hunt claim flow', () => {
@@ -84,7 +84,7 @@ describe('Fair QR Hunt claim flow', () => {
 
   it('a fresh daily bonus claim succeeds and awards exactly 300 points, during its live window', async () => {
     registerPlayer({ displayName: 'FairScout2', userId: 'usr-fair-2' });
-    // fair-bonus-2026-09-01's window is 2026-09-01T04:00:00Z..2026-09-02T03:59:59Z;
+    // fair-bonus-2026-09-04's window is 2026-09-04T04:00:00Z..2026-09-05T03:59:59Z;
     // getQuestAvailability compares against real wall-clock `new Date()`, so
     // this assertion documents the requirement rather than forcing time —
     // verified independently (timezone-safe) in tests/fair-hunt-core.test.ts.
@@ -209,7 +209,7 @@ describe('Fair QR Hunt claim flow', () => {
     expect(data.isAuthenticated).toBe(true);
     expect(data.progress.totalScore).toBe(0);
     expect(data.progress.coreTotalCount).toBe(20);
-    expect(data.progress.bonusTotalCount).toBe(7);
+    expect(data.progress.bonusTotalCount).toBe(2);
     expect(data.progress.coreFoundCount).toBe(0);
     expect(data.progress.bonusFoundCount).toBe(0);
   });
@@ -219,6 +219,6 @@ describe('Fair QR Hunt claim flow', () => {
     const data = await res.json();
     expect(data.success).toBe(true);
     expect(data.isAuthenticated).toBe(false);
-    expect(data.quests.length).toBeGreaterThanOrEqual(27);
+    expect(data.quests.length).toBeGreaterThanOrEqual(22);
   });
 });

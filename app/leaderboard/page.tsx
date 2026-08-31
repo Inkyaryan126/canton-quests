@@ -130,7 +130,7 @@ function LeaderboardContent() {
                 <div className="relative z-10 space-y-3">
                   <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 font-mono text-xs font-bold uppercase tracking-widest">
                     <Trophy size={14} className="text-cyan-400" />
-                    <span>FAIR QR HUNT • SEPT 1 – SEPT 7</span>
+                    <span>FAIR QR HUNT • SEPT 4 – SEPT 5</span>
                   </div>
                   <h2 className="text-3xl font-black font-display text-white uppercase tracking-tight">
                     No Fair Scores Yet

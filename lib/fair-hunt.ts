@@ -9,7 +9,7 @@
  * The Fair's per-quest startsAt/expiresAt windows (seeded in
  * supabase/migrations/*_fair_qr_hunt_core_and_bonus_quests.sql and mirrored
  * in lib/seed-data.ts for local/offline use) already fall entirely inside
- * the Fair's own Sept 1–7 America/New_York window, so quest-level
+ * the Fair's own Sept 4–5 America/New_York window, so quest-level
  * availability (lib/quest-rewards.ts getQuestAvailability, enforced in both
  * submission paths) is what actually blocks claims before/after the Fair —
  * no separate event-level gate is needed here.
@@ -32,13 +32,8 @@ export const DAILY_BONUS_POINTS = 300;
 
 /** Canton, Ohio local calendar days the Fair runs, in America/New_York. */
 export const FAIR_BONUS_DATES = [
-  '2026-09-01',
-  '2026-09-02',
-  '2026-09-03',
   '2026-09-04',
   '2026-09-05',
-  '2026-09-06',
-  '2026-09-07',
 ] as const;
 
 export const DAILY_BONUS_COUNT = FAIR_BONUS_DATES.length;

@@ -42,6 +42,18 @@ function authedRequest(url: string, userId: string): Request {
   return new Request(url, { headers: { Authorization: `Bearer mock-jwt-${userId}` } });
 }
 
+/**
+ * Enters the Mission AND sets the player's universal path
+ * (players.selected_starting_path) — mirroring what the real
+ * POST /api/game/operations/[slug]/enter route now does in one call. Video
+ * 6/7/8 unlock reads the universal path (lib/commander-video-unlock.ts),
+ * not the legacy event_players.path this function also sets for realism.
+ */
+function enterWithPath(playerId: string, path: 'family' | 'challenge' | 'secret') {
+  getOrCreateEventParticipation(SEED_EVENT.id, playerId, path);
+  updatePlayerProfile(playerId, { selectedStartingPath: path });
+}
+
 function installLocalStorageShim() {
   const store = new Map<string, string>();
   (globalThis as any).window = {
@@ -83,7 +95,7 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
 
   it('once a real reveal condition fires (Mission entry), the eligible transmission appears with its real title/poster', async () => {
     const player = registerPlayer({ displayName: 'ArchiveEntered', email: 'archiveentered@example.com', userId: 'usr-archive-entered' });
-    getOrCreateEventParticipation(SEED_EVENT.id, player.id, 'family');
+    enterWithPath(player.id, 'family');
 
     const body = await fetchArchive('usr-archive-entered');
     const ids = body.transmissions.map((t) => t.id).sort((a, b) => a - b);
@@ -99,7 +111,7 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
 
   it('unrevealed titles never appear anywhere in the raw response body — not just missing from the array', async () => {
     const player = registerPlayer({ displayName: 'ArchiveNoLeak', email: 'archivenoleak@example.com', userId: 'usr-archive-no-leak' });
-    getOrCreateEventParticipation(SEED_EVENT.id, player.id, 'family');
+    enterWithPath(player.id, 'family');
 
     const req = authedRequest(`http://localhost/api/game/transmissions?eventSlug=${SEED_EVENT.slug}`, 'usr-archive-no-leak');
     const res = await transmissionsGET(req);
@@ -116,7 +128,7 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
   it('viewed state does not control reveal visibility — a delivered transmission the player never manually replayed still shows', async () => {
     installLocalStorageShim();
     const player = registerPlayer({ displayName: 'ArchiveUnviewed', email: 'archiveunviewed@example.com', userId: 'usr-archive-unviewed' });
-    getOrCreateEventParticipation(SEED_EVENT.id, player.id, 'family');
+    enterWithPath(player.id, 'family');
 
     // Never replayed/marked viewed from the archive — this is the DELIVERED
     // vs VIEWED distinction: hasViewedTransmission tracks a separate,
@@ -130,7 +142,7 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
 
   it('revealed state persists across repeated fetches (refresh) with no drift', async () => {
     const player = registerPlayer({ displayName: 'ArchivePersist', email: 'archivepersist@example.com', userId: 'usr-archive-persist' });
-    getOrCreateEventParticipation(SEED_EVENT.id, player.id, 'secret');
+    enterWithPath(player.id, 'secret');
 
     const first = await fetchArchive('usr-archive-persist');
     const second = await fetchArchive('usr-archive-persist');
@@ -143,7 +155,7 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
 
   it('archive grows monotonically and correctly after refresh once new progress is made — never shrinks, never skips ahead early', async () => {
     const player = registerPlayer({ displayName: 'ArchiveGrows', email: 'archivegrows@example.com', userId: 'usr-archive-grows' });
-    getOrCreateEventParticipation(SEED_EVENT.id, player.id, 'challenge');
+    enterWithPath(player.id, 'challenge');
 
     const before = await fetchArchive('usr-archive-grows');
     const beforeIds = before.transmissions.map((t) => t.id).sort((a, b) => a - b);
@@ -161,7 +173,7 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
 
   it('a player-specific transmission unlocked for one player never leaks into another player\'s archive', async () => {
     const playerA = registerPlayer({ displayName: 'ArchivePlayerA', email: 'archiveplayera@example.com', userId: 'usr-archive-player-a' });
-    getOrCreateEventParticipation(SEED_EVENT.id, playerA.id, 'family');
+    enterWithPath(playerA.id, 'family');
     updatePlayerProfile(playerA.id, { avatarPresetKey: '3' }); // unlocks 11 for A only
     submitQuestProof({
       playerId: playerA.id,
@@ -174,7 +186,7 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
     }); // real verified quest -> unlocks 12 (hasXp) and 14/15 (hasQuestActivity) for A only
 
     const playerB = registerPlayer({ displayName: 'ArchivePlayerB', email: 'archiveplayerb@example.com', userId: 'usr-archive-player-b' });
-    getOrCreateEventParticipation(SEED_EVENT.id, playerB.id, 'family');
+    enterWithPath(playerB.id, 'family');
     // Player B has entered but done nothing else — same onboarding tier only.
 
     const archiveA = await fetchArchive('usr-archive-player-a');
@@ -195,9 +207,9 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
 
   it('the onboarding tier reveals uniformly for every eligible player (global-like: gated on Mission entry, not individual milestones)', async () => {
     const playerC = registerPlayer({ displayName: 'ArchiveGlobalC', email: 'archiveglobalc@example.com', userId: 'usr-archive-global-c' });
-    getOrCreateEventParticipation(SEED_EVENT.id, playerC.id, 'secret');
+    enterWithPath(playerC.id, 'secret');
     const playerD = registerPlayer({ displayName: 'ArchiveGlobalD', email: 'archiveglobald@example.com', userId: 'usr-archive-global-d' });
-    getOrCreateEventParticipation(SEED_EVENT.id, playerD.id, 'secret');
+    enterWithPath(playerD.id, 'secret');
 
     const archiveC = await fetchArchive('usr-archive-global-c');
     const archiveD = await fetchArchive('usr-archive-global-d');
@@ -221,7 +233,7 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
 
   it('the archive never contains a duplicate id for the same transmission', async () => {
     const player = registerPlayer({ displayName: 'ArchiveNoDupe', email: 'archivenodupe@example.com', userId: 'usr-archive-no-dupe' });
-    getOrCreateEventParticipation(SEED_EVENT.id, player.id, 'family');
+    enterWithPath(player.id, 'family');
     updatePlayerProfile(player.id, { avatarPresetKey: '1' });
 
     const body = await fetchArchive('usr-archive-no-dupe');

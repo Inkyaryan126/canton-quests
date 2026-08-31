@@ -13,7 +13,7 @@
  */
 
 import { supabaseAdmin, isSupabaseAdminConfigured } from './supabase';
-import { getLeaderboardDB, getDrawingEntriesForPlayerDB, getAchievementsForPlayerDB, getEventParticipationDB, getQuestByIdDB } from './supabase-db';
+import { getLeaderboardDB, getDrawingEntriesForPlayerDB, getAchievementsForPlayerDB, getPlayerByIdDB, getQuestByIdDB } from './supabase-db';
 import { getPlayerPersonalRolesDB } from './personal-roles-db';
 
 export interface AdminPlayerSearchResult {
@@ -38,8 +38,8 @@ export async function searchPlayersDB(eventId: string, query: string, limit: num
 
   return Promise.all(
     matches.map(async (entry) => {
-      const [participation, drawingEntries, achievements, roles, sigilRows] = await Promise.all([
-        getEventParticipationDB(eventId, entry.playerId).catch(() => undefined),
+      const [player, drawingEntries, achievements, roles, sigilRows] = await Promise.all([
+        getPlayerByIdDB(entry.playerId).catch(() => undefined),
         getDrawingEntriesForPlayerDB(entry.playerId, eventId).catch(() => []),
         getAchievementsForPlayerDB(entry.playerId).catch(() => []),
         getPlayerPersonalRolesDB(eventId, entry.playerId).catch(() => []),
@@ -53,7 +53,9 @@ export async function searchPlayersDB(eventId: string, query: string, limit: num
       return {
         playerId: entry.playerId,
         displayName: entry.displayName,
-        path: participation?.path || null,
+        // The player's universal path (players.selected_starting_path) —
+        // not this Mission's own event_players.path legacy field.
+        path: player?.selectedStartingPath || null,
         totalXp: entry.totalPoints,
         rank: entry.rank,
         questsCompletedCount: entry.questsCompletedCount,

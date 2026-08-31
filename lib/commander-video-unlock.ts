@@ -13,7 +13,9 @@
  * server-tracked signal:
  *
  *   - "entered"  -> an event_players row exists for (player, event)
- *   - "path"     -> event_players.path matches the video's path
+ *   - "path"     -> players.selected_starting_path (the player's universal
+ *                   identity, not this event's own event_players.path
+ *                   legacy field) matches the video's path
  *   - "profile"  -> isProfileIdentityComplete(player) (existing helper)
  *   - "xp"       -> progress.totalPoints > 0
  *   - "entries"  -> the player has >=1 row in drawing_entry_ledger
@@ -99,7 +101,7 @@ export async function getCommanderVideoUnlockSignals(
 
   return {
     hasEntered: true,
-    path: participation.path,
+    path: player?.selectedStartingPath,
     isProfileComplete: player ? isProfileIdentityComplete(player) : false,
     hasXp: (progress?.totalPoints ?? 0) > 0,
     hasDrawingEntries: entries.length > 0,

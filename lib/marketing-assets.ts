@@ -67,7 +67,79 @@ export const cqImages = {
   monumentCinematic: `${CQ_ASSET_PATH}/monument.png`,
   promoVideo: `${CQ_ASSET_PATH}/cq-briefing-transmission.mp4`,
   promoVideoPoster: `${CQ_ASSET_PATH}/cq-briefing-poster.jpg`,
+
+  // Challenge Sector Standalone Quest Cards (1024x1536 PNG)
+  challengeSkatePark: `${CQ_ASSET_PATH}/quests/challenge/skate_park.png`,
+  challengeOpenGround: `${CQ_ASSET_PATH}/quests/challenge/the_open_ground.png`,
+  challengeTower: `${CQ_ASSET_PATH}/quests/challenge/silo.png`,
+  challengeMural: `${CQ_ASSET_PATH}/quests/challenge/mother_mural.png`,
+  challengeWillie: `${CQ_ASSET_PATH}/quests/challenge/willie.png`,
 };
+
+export interface ChallengeSectorCardDef {
+  order: number;
+  number: string;
+  title: string;
+  location: string;
+  image: string;
+  slug: string;
+  rewardXp: number;
+  description: string;
+}
+
+/** Canonical 5-mission Challenge Sector route order (01 Skate Park -> 02 Open Ground -> 03 Tower -> 04 Mural -> 05 Willie) */
+export const challengeSectorCards: ChallengeSectorCardDef[] = [
+  {
+    order: 1,
+    number: '01',
+    title: 'Skate Park Check-In',
+    location: '9th Street Skate Park',
+    image: cqImages.challengeSkatePark,
+    slug: '9th-street-opening',
+    rewardXp: 100,
+    description: 'Reach the skate park and establish your position to begin the Challenge Sector run.',
+  },
+  {
+    order: 2,
+    number: '02',
+    title: 'THE OPEN GROUND',
+    location: 'CHALLENGE FIELD',
+    image: cqImages.challengeOpenGround,
+    slug: 'challenge-open-ground',
+    rewardXp: 100,
+    description: 'Cross into the open ground. Your next Challenge signal is waiting somewhere beyond the pavement.',
+  },
+  {
+    order: 3,
+    number: '03',
+    title: 'The Tower',
+    location: 'Mother Goose Land',
+    image: cqImages.challengeTower,
+    slug: 'challenge-the-tower',
+    rewardXp: 100,
+    description: 'Find the strange tower standing over the old grounds. Get close enough to confirm the landmark.',
+  },
+  {
+    order: 4,
+    number: '04',
+    title: 'THE MURAL',
+    location: 'MOTHER GOOSE LAND',
+    image: cqImages.challengeMural,
+    slug: 'challenge-the-mural',
+    rewardXp: 100,
+    description: 'Locate the painted wall and inspect the characters hidden across the scene.',
+  },
+  {
+    order: 5,
+    number: '05',
+    title: 'Willie the Whale',
+    location: 'Mother Goose Land',
+    image: cqImages.challengeWillie,
+    slug: 'challenge-blue-signal',
+    rewardXp: 100,
+    description: 'Find Willie. The old whale is still holding his ground — and your final Challenge signal.',
+  },
+];
 
 export const questImagePool = [
   cqImages.palaceCinematic,
@@ -78,11 +150,34 @@ export const questImagePool = [
   cqImages.footballCinematic,
   cqImages.gooseWall,
   cqImages.gooseWillie,
+  cqImages.challengeSkatePark,
+  cqImages.challengeOpenGround,
+  cqImages.challengeTower,
+  cqImages.challengeMural,
+  cqImages.challengeWillie,
   cqImages.frankCinematic,
   cqImages.musicBlock,
   cqImages.heroCity,
   cqImages.mapHud,
 ];
+
+const questImageBySlug: Record<string, string> = {
+  // Challenge Sector Quests (Sequence 01 - 05)
+  '9th-street-opening': cqImages.challengeSkatePark,
+  'challenge-skate-park': cqImages.challengeSkatePark,
+  'challenge-open-ground': cqImages.challengeOpenGround,
+  'the-open-ground': cqImages.challengeOpenGround,
+  'challenge-the-tower': cqImages.challengeTower,
+  'the-tower': cqImages.challengeTower,
+  'challenge-the-mural': cqImages.challengeMural,
+  'the-mural': cqImages.challengeMural,
+  'goose-land-cipher': cqImages.challengeMural,
+  'challenge-blue-signal': cqImages.challengeWillie,
+  'willie-the-whale': cqImages.challengeWillie,
+  'challenge-storybook-witness': cqImages.challengeMural,
+  'challenge-what-survived': cqImages.challengeWillie,
+  'challenge-the-lost-page': cqImages.challengeMural,
+};
 
 const questImageByLocation: Record<string, string> = {
   // Real location photos used wherever available; cinematic art as fallback
@@ -95,7 +190,10 @@ const questImageByLocation: Record<string, string> = {
   'loc-hof-trail':             cqImages.footballWide,         // real sculpture photo (replaces cinematic)
   'loc-onesto-building':       cqImages.musicBlock,           // arts district photo — needs real Onesto photo
   'loc-west-lawn-frankenstein': cqImages.frankCinematic,      // cinematic illustration (no real photo exists)
-  'loc-mother-goose-land':     cqImages.gooseWall,            // cinematic mural illustration
+  'loc-mother-goose-land':     cqImages.challengeMural,       // Mother Goose Land mural / artwork card
+  'loc-9th-street':            cqImages.challengeSkatePark,   // 9th Street Skate Park card
+  'loc-challenge-field':       cqImages.challengeOpenGround,  // The Open Ground field card
+  'loc-challenge-tower':       cqImages.challengeTower,       // The Tower silo card
 };
 
 export const destinationCards = [
@@ -204,11 +302,20 @@ export function getQuestRarity(quest: Quest) {
 }
 
 export function getQuestImage(quest: Quest, index = 0) {
+  if (quest.slug && questImageBySlug[quest.slug]) {
+    return questImageBySlug[quest.slug];
+  }
+
   if (quest.locationId && questImageByLocation[quest.locationId]) {
     return questImageByLocation[quest.locationId];
   }
 
   return questImagePool[index % questImagePool.length];
+}
+
+export function isStandaloneQuestCard(imagePath?: string): boolean {
+  if (!imagePath) return false;
+  return imagePath.includes('/quests/challenge/') || imagePath.includes('/quests/family/') || imagePath.includes('/quests/secret/');
 }
 
 export function getQuestDuration(quest: Quest) {

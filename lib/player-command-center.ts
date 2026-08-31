@@ -60,17 +60,14 @@ export function hasValidAvatar(player: Pick<Player, 'avatarPresetKey' | 'profile
  * uploaded custom). This — not account creation alone — is what unlocks the
  * one-time, account-level Player Identity onboarding reward.
  *
- * A starting path is deliberately NOT required here. Path is an
- * Operation-specific gameplay attribute (see event_players.path /
- * lib/supabase-db.ts getOrCreateEventParticipationDB) that belongs to
- * whichever specific Operation uses one (today, the Sept 11 Main
- * Operation) — a player's permanent account identity should not be gated
- * on a choice that only makes sense inside one Operation. Requiring path
- * here was the pre-reorg behavior (hasValidStartingPath(player) &&
- * hasValidAvatar(player)); it was relaxed as part of the Command
- * Center/Operations reorganization. See
+ * A starting path is deliberately NOT required here — it's independent of
+ * whether the identity-completion reward has been earned. Path IS a
+ * universal, permanent player attribute (players.selected_starting_path,
+ * the canonical source — see hasValidStartingPath above), but requiring it
+ * for the avatar-driven XP reward specifically was never re-added after
+ * being relaxed during the Command Center/Operations reorganization. See
  * supabase/migrations/20260826072300_operation_scoped_path_and_fair_hunt.sql
- * for the one-time, zero-XP grandfather backfill this relaxation required
+ * for the one-time, zero-XP grandfather backfill that relaxation required
  * (mirroring the identical precedent in
  * 20260825000000_profile_completion_reward.sql) so relaxing the rule never
  * retroactively pays out +100 XP to an already-existing account — only

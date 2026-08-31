@@ -479,7 +479,9 @@ describe('Player File nav intro — Transmission #11 moved off /profile onto a o
 describe('Commander-transmission backdrop dismiss — accidental taps never close a commander briefing', () => {
   it('the overlay backdrop click handler skips dismissal for commander-transmission moments', () => {
     const source = readSource('components/game-effects/GameMomentOverlay.tsx');
-    expect(source).toMatch(/const handleBackdropDismiss = \(\) => \{\s*\n\s*if \(current\.type === 'commander-transmission'\) return;/);
+    expect(source).toContain('export function canBackdropDismissMoment');
+    expect(source).toMatch(/if \(current\.type === 'commander-transmission'\) return false;/);
+    expect(source).toMatch(/const handleBackdropDismiss = \(\) => \{\s*\n\s*if \(!canBackdropDismissMoment\(current\)\) return;/);
     expect(source).toContain('onClick={handleBackdropDismiss}');
   });
 

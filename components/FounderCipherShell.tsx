@@ -25,6 +25,7 @@ import { cqImages, destinationCards, formatEventWindow } from '@/lib/marketing-a
 import { DOOR_HOTSPOTS } from '@/components/ThreePathSelector';
 import { OperationLifecycleStage } from '@/lib/launch-status';
 import { createPlayerFileClickHandler } from '@/lib/player-file-nav';
+import { getPathTone } from '@/lib/path-tone';
 
 const founderCipherSteps = [
   {
@@ -442,7 +443,7 @@ export default function FounderCipherShell({
                     <door.icon size={13} style={{ color: door.color }} />
                     <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
                       <span className="cq-door-pill-title">{door.label}</span>
-                      <span className="cq-door-pill-district">{door.district}</span>
+                      <span className="cq-door-pill-district">{getPathTone(door.id)?.styleTag || door.district}</span>
                     </div>
                   </div>
                 </div>

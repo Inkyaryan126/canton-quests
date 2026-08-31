@@ -268,8 +268,10 @@ export default function FastPlayerOnboardForm({
       </div>
 
       {/* Accurate signup incentive — account creation alone earns nothing;
-          the +100 XP identity reward only fires once a district + avatar
-          are both chosen post-signup. Never imply a free drawing entry here. */}
+          the +100 XP identity reward only fires once a valid avatar is set
+          post-signup (path is not required for it — see
+          lib/player-command-center.ts isProfileIdentityComplete). Never
+          imply a free drawing entry here. */}
       {!isVerificationPending && mode === 'signup' && (
         <p className="text-[11px] font-mono text-stone-400 mb-3 -mt-1">
           Join the Canton Quests player roster. Complete your player identity after signup to earn <span className="text-amber-400 font-bold">+100 XP</span>.

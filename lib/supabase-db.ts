@@ -624,10 +624,14 @@ function mapEventParticipationFromDB(row: any): EventParticipation {
 
 // -----------------------------------------------------------------------------
 // Operation Participation (event_players) — the canonical "this player
-// entered this Operation" record, per the approved Command Center
-// architecture. Distinct from the player's permanent identity (players
-// table) and from a global path (players.selected_starting_path, kept as
-// legacy data) — path here is scoped to exactly one Operation.
+// entered this Operation" record. Distinct from the player's permanent
+// identity (players table). event_players.path is a LEGACY field from an
+// earlier architecture that scoped path to one Operation — it is still
+// written for backward compatibility (existing rows are never destroyed)
+// but is no longer read as the source of truth anywhere in the app.
+// players.selected_starting_path is the canonical, universal path: it
+// belongs to the player, not to any one Operation, and is what everything
+// outside this file should read.
 // -----------------------------------------------------------------------------
 
 export async function getEventParticipationDB(eventId: string, playerId: string): Promise<EventParticipation | undefined> {

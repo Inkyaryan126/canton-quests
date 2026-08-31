@@ -1,7 +1,7 @@
 /**
  * Canton Quests — Fair QR physical deployment coverage.
  *
- * Pins the 27 frozen production QR identifiers exactly as provided for
+ * Pins the 22 frozen production QR identifiers exactly as provided for
  * physical placement, the deployment manifest shape, the print generator's
  * canonical data source, and the admin-only placement-note privacy
  * guarantee (never leaked through PublicQuestView).
@@ -13,7 +13,7 @@ import { getPublicQuestView } from '../lib/game-engine';
 import { SEED_FAIR_QUESTS } from '../lib/seed-data';
 import { Quest } from '../lib/types';
 
-// The exact 27 production identifiers as frozen by this mission — do not
+// The exact 22 production identifiers as frozen by this mission — do not
 // regenerate, rename, or reorder. Any drift here means a printed/placed
 // physical card no longer matches what the server expects.
 const FROZEN_CORE_CODES: Record<string, string> = {
@@ -26,9 +26,7 @@ const FROZEN_CORE_CODES: Record<string, string> = {
   'Signal 19': 'FAIR-C19-UNYD', 'Signal 20': 'FAIR-C20-6X4J',
 };
 const FROZEN_BONUS_CODES: Record<string, string> = {
-  '2026-09-01': 'FAIR-B0901-FSP5', '2026-09-02': 'FAIR-B0902-UK33', '2026-09-03': 'FAIR-B0903-HERN',
-  '2026-09-04': 'FAIR-B0904-PFVX', '2026-09-05': 'FAIR-B0905-V47W', '2026-09-06': 'FAIR-B0906-UG5W',
-  '2026-09-07': 'FAIR-B0907-87AA',
+  '2026-09-04': 'FAIR-B0904-PFVX', '2026-09-05': 'FAIR-B0905-V47W',
 };
 
 describe('1. Frozen production QR codes are byte-exact and unchanged', () => {
@@ -58,23 +56,23 @@ describe('2 & 3. Signal counts', () => {
     expect(manifest.filter((e) => e.type === 'core')).toHaveLength(20);
   });
 
-  it('has exactly 7 daily bonus Signals', () => {
-    expect(manifest.filter((e) => e.type === 'daily_bonus')).toHaveLength(7);
+  it('has exactly 2 daily bonus Signals', () => {
+    expect(manifest.filter((e) => e.type === 'daily_bonus')).toHaveLength(2);
   });
 });
 
 describe('4, 5, 7, 8. URL/code uniqueness and domain correctness', () => {
   const manifest = getCanonicalFairManifest();
 
-  it('every Signal has exactly one public URL, unique across all 27', () => {
+  it('every Signal has exactly one public URL, unique across all 22', () => {
     const urls = manifest.map((e) => e.publicUrl);
-    expect(new Set(urls).size).toBe(27);
-    expect(urls).toHaveLength(27);
+    expect(new Set(urls).size).toBe(22);
+    expect(urls).toHaveLength(22);
   });
 
-  it('no duplicate codes across all 27', () => {
+  it('no duplicate codes across all 22', () => {
     const codes = manifest.map((e) => e.code);
-    expect(new Set(codes).size).toBe(27);
+    expect(new Set(codes).size).toBe(22);
   });
 
   it('no duplicate URLs across all 27', () => {
@@ -96,9 +94,9 @@ describe('4, 5, 7, 8. URL/code uniqueness and domain correctness', () => {
 });
 
 describe('6. Export manifest completeness', () => {
-  it('the canonical manifest contains all 27 Signals with no gaps', () => {
+  it('the canonical manifest contains all 22 Signals with no gaps', () => {
     const manifest = getCanonicalFairManifest();
-    expect(manifest).toHaveLength(27);
+    expect(manifest).toHaveLength(22);
     const coreNumbers = manifest
       .filter((e) => e.type === 'core')
       .map((e) => Number(e.signalLabel.replace('Signal ', '')))
@@ -127,13 +125,8 @@ describe('10. Daily bonus dates map correctly', () => {
     const manifest = getCanonicalFairManifest();
     const bonuses = manifest.filter((e) => e.type === 'daily_bonus');
     const expected: Record<string, string> = {
-      '2026-09-01': 'Daily Bonus — Sept 1',
-      '2026-09-02': 'Daily Bonus — Sept 2',
-      '2026-09-03': 'Daily Bonus — Sept 3',
       '2026-09-04': 'Daily Bonus — Sept 4',
       '2026-09-05': 'Daily Bonus — Sept 5',
-      '2026-09-06': 'Daily Bonus — Sept 6',
-      '2026-09-07': 'Daily Bonus — Sept 7',
     };
     for (const b of bonuses) {
       expect(b.scheduledDate).toBeDefined();
@@ -160,17 +153,17 @@ describe('11. Internal placement notes never leak through the public quest view'
 });
 
 describe('12 & 13. Fair activation/end window behavior', () => {
-  const event = { startTime: '2026-09-01T04:00:00Z', endTime: '2026-09-08T03:59:59Z' };
+  const event = { startTime: '2026-09-04T04:00:00Z', endTime: '2026-09-06T03:59:59Z' };
 
   it('12. activates automatically the instant the Fair starts — no manual event.status flip required', () => {
-    expect(getFairOperationPhase(event, new Date('2026-08-31T23:59:59Z'))).toBe('pre_launch');
-    expect(getFairOperationPhase(event, new Date('2026-09-01T04:00:00Z'))).toBe('active');
-    expect(getFairOperationPhase(event, new Date('2026-09-01T04:00:01Z'))).toBe('active');
+    expect(getFairOperationPhase(event, new Date('2026-09-03T23:59:59Z'))).toBe('pre_launch');
+    expect(getFairOperationPhase(event, new Date('2026-09-04T04:00:00Z'))).toBe('active');
+    expect(getFairOperationPhase(event, new Date('2026-09-04T04:00:01Z'))).toBe('active');
   });
 
   it('13. the Fair ending blocks new activity — phase flips to ended right after the window closes', () => {
-    expect(getFairOperationPhase(event, new Date('2026-09-08T03:59:59Z'))).toBe('active');
-    expect(getFairOperationPhase(event, new Date('2026-09-08T04:00:00Z'))).toBe('ended');
+    expect(getFairOperationPhase(event, new Date('2026-09-06T03:59:59Z'))).toBe('active');
+    expect(getFairOperationPhase(event, new Date('2026-09-06T04:00:00Z'))).toBe('ended');
   });
 });
 

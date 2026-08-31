@@ -1,10 +1,12 @@
 // Canton Quests — Command Center / Operations Reorganization
 //
 // Regression coverage for the player-flow reorganization: one permanent
-// account, event_players as the canonical Operation-participation record,
-// Operation-scoped path (not a global account requirement), the Fair QR
-// Hunt as a real second Operation, and the relaxed (avatar-only) Player
-// Identity completion reward.
+// account, event_players as the canonical Operation-participation record
+// (path on that record is legacy/back-compat only — see
+// tests/universal-player-path.test.ts for the canonical, universal
+// players.selected_starting_path coverage), the Fair QR Hunt as a real
+// second Operation, and the relaxed (avatar-only) Player Identity
+// completion reward.
 
 import fs from 'fs';
 import path from 'path';
@@ -178,6 +180,22 @@ describe('Command Center / Operations reorganization', () => {
       const returningData = await returning.json();
       expect(returningData.needsPath).toBe(false);
       expect(returningData.participation.path).toBe('family');
+    });
+
+    it('choosing a path persists it to the universal players.selected_starting_path, not just the Operation-scoped event_players.path', async () => {
+      registerPlayer({ displayName: 'UniversalPathAgent', email: 'universalpath@example.com', userId: 'usr-universal-path' });
+
+      const choosePath = await enterOperationRoute(
+        authedRequest('http://localhost:3000/api/game/operations/canton-weekend-1/enter', 'usr-universal-path', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'secret' }),
+        }),
+        { params: { slug: 'canton-weekend-1' } }
+      );
+      const data = await choosePath.json();
+      expect(data.player.selectedStartingPath).toBe('secret');
+      expect(getPlayerById(data.player.id)?.selectedStartingPath).toBe('secret');
     });
 
     it('a path supplied for the path-free Fair QR Hunt is ignored, never stored', async () => {

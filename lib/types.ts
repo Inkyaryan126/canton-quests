@@ -878,14 +878,17 @@ export interface PublicRosterEntry {
 
 /**
  * A player's participation record for one Operation (event_players).
- * Separate from PermanentPlayer identity — this is where an Operation-
- * specific path (when that Operation uses one) lives, not on the player
- * account itself.
+ * Separate from PermanentPlayer identity. `path` here is a LEGACY field —
+ * the player's real, universal path lives on Player.selectedStartingPath
+ * and applies platform-wide, not per Operation. This field is kept only
+ * for backward compatibility with existing rows; do not read it as the
+ * source of truth for a player's path.
  */
 export interface EventParticipation {
   id: string;
   eventId: string;
   playerId: string;
+  /** @deprecated legacy/back-compat only — read Player.selectedStartingPath instead. */
   path?: StartingPath | null;
   registeredAt: string;
 }

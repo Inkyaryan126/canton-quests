@@ -92,6 +92,14 @@ export interface PlayerFinaleStatus {
   cluePieces: string[];
   falseFinaleSolvedAt: string | null;
   completedAt: string | null;
+  /**
+   * Only populated once completedAt is set — same "only reveal once earned"
+   * rule as cluePieces above. Lets the player-facing completed state survive
+   * a refresh/deep-link (state E) with the real reveal text, rather than
+   * only ever seeing it once, live, from the POST response at the moment of
+   * submission.
+   */
+  destinationReveal: string | null;
 }
 
 /** The single player-facing read — computes convergence stage, eligibility, and (only if eligible) the clue pieces. The answer hash itself is never part of this or any other return value in this module. */
@@ -114,6 +122,7 @@ export async function getPlayerFinaleStatusDB(eventId: string, playerId: string)
     cluePieces: eligibility.ok ? config!.masterCipherCluePieces : [],
     falseFinaleSolvedAt: progress.falseFinaleSolvedAt,
     completedAt: progress.completedAt,
+    destinationReveal: progress.completedAt ? config?.finalDestinationReveal ?? null : null,
   };
 }
 

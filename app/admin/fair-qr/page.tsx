@@ -55,7 +55,7 @@ const DEPLOYMENT_SAFETY_REMINDERS = [
   'Avoid damaging surfaces — no nails/screws/permanent adhesive on property that is not ours.',
   'Do not move or relocate someone else’s property to make room for a card.',
   'Weather-protect the physical card (lamination/sleeve) — Fair week can be wet.',
-  'Retrieve/remove every card after the Fair ends (Sept 7) — nothing stays behind.',
+  'Retrieve/remove every card after the Fair ends (Sept 5) — nothing stays behind.',
 ];
 
 export default function FairQrAdminPage() {

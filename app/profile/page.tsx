@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   BadgeCheck,
   CheckCircle2,
+  Compass,
   ImagePlus,
   Lock,
   Plus,
@@ -30,6 +31,7 @@ import {
   hasValidAvatar,
 } from '@/lib/player-command-center';
 import { showGameMoment } from '@/lib/game-effects';
+import { getPathTone } from '@/lib/path-tone';
 
 type BadgeCatalogItem = Achievement & {
   iconPath: string;
@@ -360,6 +362,42 @@ export default function ProfilePage() {
                   </button>
                 ))}
               </div>
+            </section>
+
+            {/* CHOSEN PATH — the player's universal identity/tone preference
+                (players.selected_starting_path), not a Mission-specific
+                district or eligibility. Same FAMILY/CHALLENGE/SECRET value
+                everywhere across Canton Quests, never a Mission's own
+                geography. */}
+            <section className="cq-command-section" aria-labelledby="path-heading">
+              <div className="cq-command-section-head">
+                <h2 id="path-heading">CHOSEN PATH</h2>
+                <Compass size={18} />
+              </div>
+              {(() => {
+                const tone = getPathTone(data.player.selectedStartingPath);
+                if (!tone) {
+                  return (
+                    <div className="cq-identity-status">
+                      <span>NO PATH CHOSEN YET</span>
+                      <Link href="/#choose-path" className="cq-command-primary-link">
+                        Choose your path →
+                      </Link>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="cq-identity-status is-complete" style={{ borderColor: `${tone.color}50` }}>
+                    <CheckCircle2 size={15} style={{ color: tone.color }} />
+                    <span style={{ color: tone.color }}>{tone.label}</span>
+                    <em>{tone.styleTag}</em>
+                  </div>
+                );
+              })()}
+              <p className="cq-section-note">
+                Your path shapes how Canton Quests talks to you — tone, flavor text, and Commander wording. Every
+                player can play every Quest no matter which path they chose.
+              </p>
             </section>
 
             <section className="cq-command-section" aria-labelledby="settings-heading">

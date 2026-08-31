@@ -22,6 +22,7 @@ import {
   UserRound,
   Zap,
 } from 'lucide-react';
+import { PATH_TONES } from '@/lib/path-tone';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
@@ -69,6 +70,16 @@ const identityDetails = [
   { title: 'Mission entry', text: 'A Mission can require its own entry record before you see that Mission\'s quest board.', Icon: ClipboardCheck },
   { title: 'Private account data', text: 'Your public player label is shown for gameplay; account credentials are not leaderboard copy.', Icon: ShieldCheck },
 ];
+
+// FAMILY / CHALLENGE / SECRET are a universal player style choice, not a
+// Mission-specific branch — see lib/path-tone.ts. Icons reuse the same ones
+// as the door selector (components/ThreePathSelector.tsx) for consistency.
+const pathStyleIcons = { family: Compass, challenge: Zap, secret: KeyRound } as const;
+const pathStyles = (['family', 'challenge', 'secret'] as const).map((path) => ({
+  title: PATH_TONES[path].label,
+  text: PATH_TONES[path].description,
+  Icon: pathStyleIcons[path],
+}));
 
 const missionDetails = [
   { title: 'Mission', text: 'A bounded game experience with its own rules, active window, leaderboard, rewards, and archive.', Icon: Compass },
@@ -166,6 +177,31 @@ export default function HowItWorksPage() {
           </p>
           <div className="cq-proof-grid">
             {identityDetails.map(({ title, text, Icon }) => (
+              <article key={title}>
+                <Icon size={24} aria-hidden="true" />
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {/* PLAYER PATH — a communication style, not a Mission branch */}
+        <section className="cq-page-section">
+          <div className="cq-section-heading">
+            <div>
+              <span className="cq-kicker">PLAYER STYLE</span>
+              <h2>FAMILY, CHALLENGE, OR SECRET</h2>
+            </div>
+          </div>
+          <p>
+            Your path is part of your Player Identity, not a Mission. It&apos;s a one-time style choice that stays
+            with you everywhere in Canton Quests — it doesn&apos;t lock you into a location, a quest list, a prize
+            pool, or a leaderboard. <strong>All three paths can play the same Quests. Your path mainly changes the
+            way Canton Quests talks to you</strong> — tone, flavor text, and Commander wording.
+          </p>
+          <div className="cq-proof-grid">
+            {pathStyles.map(({ title, text, Icon }) => (
               <article key={title}>
                 <Icon size={24} aria-hidden="true" />
                 <h3>{title}</h3>

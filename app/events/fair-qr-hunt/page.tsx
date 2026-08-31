@@ -58,7 +58,7 @@ export default function FairQrHuntDashboard() {
         <PageHeader
           eyebrow="MISSION: FAIR QR HUNT"
           title="CANTON QUESTS: FAIR QR HUNT"
-          body="A path-free QR scavenger hunt across the fairgrounds — 20 permanent Signals plus one daily bonus Signal each day, Sept 1–7. $100 prize on the line."
+          body="A path-free QR scavenger hunt across the fairgrounds — 20 permanent Signals plus one daily bonus Signal each day, Sept 4–5. $100 prize on the line."
           accent="cyan"
           divider
         />
@@ -71,7 +71,7 @@ export default function FairQrHuntDashboard() {
           <>
             {data.phase === 'pre_launch' && (
               <div className="rounded-2xl border border-cyan-500/40 bg-cyan-950/20 p-5 text-sm font-mono text-cyan-200">
-                MISSION UPCOMING — the Fair QR Hunt opens September 1, 2026 and runs through September 7.
+                MISSION UPCOMING — the Fair QR Hunt opens September 4, 2026 and runs through September 5.
               </div>
             )}
             {data.phase === 'ended' && (

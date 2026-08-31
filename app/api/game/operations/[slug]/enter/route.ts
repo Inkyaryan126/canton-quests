@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
-import { getEventBySlugDB, getOrCreateEventParticipationDB } from '@/lib/supabase-db';
+import { getEventBySlugDB, getOrCreateEventParticipationDB, upsertPlayerDB } from '@/lib/supabase-db';
 import { VALID_STARTING_PATHS } from '@/lib/player-command-center';
 import { StartingPath } from '@/lib/types';
 
@@ -14,10 +14,16 @@ import { StartingPath } from '@/lib/types';
  * player — Canton Quests has no per-Operation login, and no anonymous
  * participation model.
  *
- * Also doubles as "Choose Your Path": pass { path } in the body once the
- * player has entered an Operation that requiresPath. A path is only
- * accepted/stored for Operations that actually use one; it's ignored for
- * path-free Operations like the Fair QR Hunt.
+ * Path is a UNIVERSAL player identity attribute
+ * (players.selected_starting_path — see lib/player-command-center.ts).
+ * When a path is submitted here (only possible for an Operation that
+ * requiresPath), this route is the single place that persists it — onto
+ * the player's permanent profile via upsertPlayerDB, the same call
+ * app/api/player/profile/route.ts makes, so it becomes the canonical,
+ * platform-wide choice immediately, not just something scoped to this one
+ * Operation. It's also mirrored onto this Operation's own event_players
+ * row for backward compatibility only; that field is never read back as
+ * the source of truth for whether a path is "needed".
  */
 export async function POST(request: Request, { params }: { params: { slug: string } }) {
   try {
@@ -40,14 +46,20 @@ export async function POST(request: Request, { params }: { params: { slug: strin
       path = body.path as StartingPath;
     }
 
-    const participation = await getOrCreateEventParticipationDB(event.id, player.id, path);
-    const needsPath = Boolean(event.requiresPath) && !participation.path;
+    let currentPlayer = player;
+    if (path && !VALID_STARTING_PATHS.includes(player.selectedStartingPath as StartingPath)) {
+      currentPlayer = await upsertPlayerDB({ ...player, id: player.id, selectedStartingPath: path });
+    }
+
+    const participation = await getOrCreateEventParticipationDB(event.id, currentPlayer.id, path);
+    const needsPath = Boolean(event.requiresPath) && !VALID_STARTING_PATHS.includes(currentPlayer.selectedStartingPath as StartingPath);
 
     return NextResponse.json({
       success: true,
       event,
       participation,
       needsPath,
+      player: currentPlayer,
     });
   } catch (error: any) {
     console.error('[API /game/operations/[slug]/enter] Server error:', error);

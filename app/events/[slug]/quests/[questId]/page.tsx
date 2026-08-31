@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import LocationVerifier from '@/components/LocationVerifier';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
@@ -14,8 +15,11 @@ import { QuestEvent, Player, QuestSubmission, SubmitProofResult, PublicQuestView
 import { cleanQuestTitle, cqImages, getQuestImage, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
 import { triggerQuestRewardSequence, triggerGameMomentSequence, showGameMoment } from '@/lib/game-effects';
 import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
+import { shouldShowContextualTransmission } from '@/lib/contextual-transmissions';
 import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
 import { getQuestRewardSummary } from '@/lib/quest-rewards';
+import { showFounderCipherMessage, getFounderCipherMessage } from '@/lib/gameplay/founders-cipher/message-resolver';
+import { FOUNDER_CIPHER_DISTRICTS } from '@/lib/founders-cipher';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -56,6 +60,7 @@ export default function QuestDetailPage({
   params: { slug: string; questId: string };
 }) {
   const { slug: eventSlug, questId } = params;
+  const router = useRouter();
 
   const [quest, setQuest] = useState<PublicQuestView | null>(null);
   const [event, setEvent] = useState<QuestEvent | null>(null);
@@ -155,6 +160,21 @@ export default function QuestDetailPage({
         transmission: quest.commanderTransmission,
         viewedStateKey: quest.id,
         onContinue: () => markTransmissionViewed('quest_intro', quest.id, player.id),
+      });
+      return;
+    }
+
+    // Neither a sector nor a per-quest transmission was authored for this
+    // quest — most quests have neither. Fall back to the canonical
+    // QUEST_STARTED Founder's Cipher message so a quest never opens in
+    // total silence, still gated to once per quest per player.
+    if (isKnownCantonLaunchSlug(eventSlug) && shouldAutoShowTransmission('quest_intro', `text-${quest.id}`, player.id)) {
+      markTransmissionViewed('quest_intro', `text-${quest.id}`, player.id);
+      showFounderCipherMessage({
+        messageId: 'QUEST_STARTED',
+        path: player.selectedStartingPath,
+        playerId: player.id,
+        contextLabel: quest.title,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -291,6 +311,74 @@ export default function QuestDetailPage({
       if (result.success) {
         setExistingSubmission(result.submission);
         setTextInput('');
+
+        // Cipher fragment / district sigil feedback — previously silent
+        // (see the mission report's gameplay audit): server already
+        // computes cipherFragmentsAwarded / cipherDistrictsUnlocked
+        // (lib/founders-cipher.ts, threaded through SubmitProofResult) but
+        // nothing consumed them client-side. Reuses the Contextual
+        // Transmission Engine's existing fragment_recovered /
+        // district_sigil_unlocked trigger vocabulary and cooldown/de-dupe
+        // eligibility check (lib/contextual-transmissions.ts) so this
+        // doesn't invent a second dedupe mechanism — only the actual
+        // rendering (path-flavored text over the Commander transmission
+        // template) is new.
+        if (isKnownCantonLaunchSlug(eventSlug) && result.cipherFragmentsAwarded && result.cipherFragmentsAwarded.length > 0) {
+          if (shouldShowContextualTransmission({ trigger: 'fragment_recovered', eventSlug, playerId: player.id, questId: quest.id })) {
+            markTransmissionViewed('fragment_recovered', quest.id, player.id);
+            showFounderCipherMessage({
+              messageId: 'CIPHER_FRAGMENT_FOUND',
+              path: player.selectedStartingPath,
+              playerId: player.id,
+              contextLabel: result.cipherFragmentsAwarded.length > 1 ? `${result.cipherFragmentsAwarded.length} FRAGMENTS` : undefined,
+            });
+          }
+        }
+
+        if (isKnownCantonLaunchSlug(eventSlug) && result.cipherDistrictsUnlocked && result.cipherDistrictsUnlocked.length > 0) {
+          for (const districtKey of result.cipherDistrictsUnlocked) {
+            const district = FOUNDER_CIPHER_DISTRICTS.find((d) => d.key === districtKey);
+            if (shouldShowContextualTransmission({ trigger: 'district_sigil_unlocked', eventSlug, playerId: player.id, subjectKey: districtKey })) {
+              markTransmissionViewed('district_sigil_unlocked', districtKey, player.id);
+              showFounderCipherMessage({
+                messageId: 'DISTRICT_OBJECTIVE_COMPLETE',
+                path: player.selectedStartingPath,
+                playerId: player.id,
+                contextLabel: district?.name,
+              });
+            }
+          }
+
+          // A district just completed — check whether that was the LAST
+          // one, i.e. every required fragment across all of Canton is now
+          // in hand. Re-fetches the same event endpoint the page already
+          // uses for its own initial load (no new API surface) purely to
+          // read the freshly-updated cipherProgress totals.
+          fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`)
+            .then((res) => res.json())
+            .then((data: { cipherProgress?: { totalCollected: number; totalRequired: number } }) => {
+              const cp = data.cipherProgress;
+              if (
+                cp &&
+                cp.totalRequired > 0 &&
+                cp.totalCollected >= cp.totalRequired &&
+                shouldAutoShowTransmission('fragment_recovered', 'all-fragments-collected', player.id)
+              ) {
+                markTransmissionViewed('fragment_recovered', 'all-fragments-collected', player.id);
+                showFounderCipherMessage({
+                  messageId: 'ALL_REQUIRED_FRAGMENTS_FOUND',
+                  path: player.selectedStartingPath,
+                  playerId: player.id,
+                  // The finale route itself is the single source of truth
+                  // for real access control (locked/ready/solved) — this
+                  // just gets the player there instead of leaving them to
+                  // find it on their own. See app/events/[slug]/finale.
+                  onContinue: () => router.push(`/events/${eventSlug}/finale`),
+                });
+              }
+            })
+            .catch(() => {});
+        }
 
         // Check if completing this quest unlocked the next chain quest!
         const nextInChain = allEventQuests.find((q) => q.prerequisiteQuestId === quest.id);
@@ -650,6 +738,19 @@ export default function QuestDetailPage({
             {submissionResult && !submissionResult.success && (
               <div className="p-3.5 bg-red-950/50 border border-red-800 text-red-300 text-xs font-mono rounded-xl animate-fade-in space-y-1">
                 <div className="font-bold">❌ Verification Failed</div>
+                {/* Path-flavored Commander tone alongside the exact server
+                    reason — deliberately NOT a full-screen Commander Text
+                    Transmission here: wrong answers can happen repeatedly
+                    in a row, and popping an overlay on every retry would
+                    be exactly the "bombard the player" pattern to avoid.
+                    This still routes through the same centralized
+                    registry (getFounderCipherMessage), just at the micro
+                    presentation level. */}
+                {isKnownCantonLaunchSlug(eventSlug) && (
+                  <div className="italic text-red-200/90">
+                    {getFounderCipherMessage('INVALID_ANSWER', player?.selectedStartingPath).body}
+                  </div>
+                )}
                 <div>{submissionResult.message}</div>
               </div>
             )}

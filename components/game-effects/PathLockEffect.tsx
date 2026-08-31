@@ -13,39 +13,42 @@ interface PathLockEffectProps {
   reducedMotion?: boolean;
 }
 
+// Path here is the player's universal communication-style choice, not a
+// Mission-specific district — subtitle/description describe TONE, never
+// geography. See lib/path-tone.ts for the shared source of this copy.
 const PATH_THEMES = {
   family: {
     title: 'FAMILY',
-    subtitle: 'Arts District Corridor',
+    subtitle: 'Adventure · Discovery · Teamwork',
     color: '#f59e0b',
     colorDark: '#78350f',
     icon: Compass,
     particleMode: 'gold-embers' as ParticleMode,
     reticleVariant: 'compass' as const,
     glow: 'rgba(245, 158, 11, 0.5)',
-    description: 'Walkable downtown quests, public arts, family-friendly landmarks, and partner cafes.',
+    description: 'Welcoming, collaborative, and easy to jump into — built for exploring together.',
   },
   challenge: {
     title: 'CHALLENGE',
-    subtitle: 'Mother Goose Land Corridor',
+    subtitle: 'Competition · Intensity · Skill',
     color: '#ef4444',
     colorDark: '#7f1d1d',
     icon: Zap,
     particleMode: 'kinetic-streaks' as ParticleMode,
     reticleVariant: 'kinetic' as const,
     glow: 'rgba(239, 68, 68, 0.5)',
-    description: 'High-energy physical challenges, video proof loops, timed sprints, and athletic heritage.',
+    description: 'Direct, energetic, and daring — built for players who want to prove themselves.',
   },
   secret: {
     title: 'SECRET',
-    subtitle: 'Monument Park Corridor',
+    subtitle: 'Mystery · Codes · Hidden Knowledge',
     color: '#a855f7',
     colorDark: '#581c87',
     icon: KeyRound,
     particleMode: 'cryptic-glyphs' as ParticleMode,
     reticleVariant: 'cryptic' as const,
     glow: 'rgba(168, 85, 247, 0.5)',
-    description: 'Cryptic ciphers, multi-step sequential fragment locks, and forgotten Canton lore.',
+    description: 'Cryptic, atmospheric, and investigative — built for uncovering what others miss.',
   },
 };
 

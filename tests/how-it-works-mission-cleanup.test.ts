@@ -42,10 +42,28 @@ describe('/how-it-works — Founder\'s Cipher Mission content is gone', () => {
     expect(howItWorksSource).not.toMatch(/PUBLICLY VERIFIABLE PRIZE DRAWINGS/i);
   });
 
-  it('no path-specific instructions, locks, or districts', () => {
+  it('no Mission-specific path mechanics, locks, or districts (the path NAMES themselves are now universal platform vocabulary, explained on this page — see the next describe block)', () => {
     expect(howItWorksSource).not.toMatch(/Founder.s Three Locks/i);
     expect(howItWorksSource).not.toMatch(/Starting District/i);
-    expect(howItWorksSource).not.toMatch(/Family \/ Challenge \/ Secret/i);
+    expect(howItWorksSource).not.toMatch(/Arts District/i);
+    expect(howItWorksSource).not.toMatch(/Mother Goose Land/i);
+    expect(howItWorksSource).not.toMatch(/Monument Park/i);
+  });
+});
+
+describe('/how-it-works — the 3 paths are explained as a universal player style, never a Mission branch', () => {
+  it('names all three paths as a Player Identity attribute, not Mission-specific content', () => {
+    expect(howItWorksSource).toMatch(/FAMILY, CHALLENGE, OR SECRET/i);
+    expect(howItWorksSource).toMatch(/part of your Player Identity, not a Mission/i);
+  });
+
+  it('states plainly that path does not restrict which Quests a player can play', () => {
+    expect(howItWorksSource).toMatch(/All three paths can play the same Quests/i);
+    expect(howItWorksSource).toMatch(/Your path mainly changes the\s+way Canton Quests talks to you/i);
+  });
+
+  it('never claims path controls geography, a quest list, a prize pool, or a leaderboard', () => {
+    expect(howItWorksSource).toMatch(/lock you into a location, a quest list, a prize\s+pool, or a leaderboard/i);
   });
 });
 

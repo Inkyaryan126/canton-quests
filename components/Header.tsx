@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Compass, Gift, LogOut, Map, Radio, Trophy, UserCircle2 } from 'lucide-react';
+import { Compass, Gift, KeyRound, LogOut, Map, Radio, Trophy, UserCircle2 } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
 import { Player } from '@/lib/types';
@@ -198,6 +198,12 @@ export default function Header({ eventSlug }: HeaderProps) {
             <Link href={`/events/${eventSlug}/transmissions`}>
               <Radio size={13} aria-hidden="true" />
               Transmissions
+            </Link>
+          )}
+          {isKnownCantonLaunchSlug(eventSlug) && (
+            <Link href={`/events/${eventSlug}/finale`}>
+              <KeyRound size={13} aria-hidden="true" />
+              Master Cipher
             </Link>
           )}
           {/* PLAYER FILE is a permanent platform nav item, not Mission-scoped

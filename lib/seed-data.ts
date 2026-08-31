@@ -171,6 +171,32 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     accessNotes: 'Public outdoor space. Daylight hours recommended.',
     openingHours: 'Dawn - Dusk',
   },
+  {
+    id: 'loc-challenge-field',
+    cityId: SEED_CITY.id,
+    name: 'Challenge Field',
+    address: '9th St NW & Shriver Ave NW, Canton, OH 44703',
+    latitude: 40.8058,
+    longitude: -81.3866,
+    locationNotes: 'Large open field location from the Challenge Sector route.',
+    isPartner: false,
+    radiusMeters: 60,
+    accessNotes: 'Open public park field ground. Daylight hours recommended.',
+    openingHours: 'Dawn - Dusk',
+  },
+  {
+    id: 'loc-challenge-tower',
+    cityId: SEED_CITY.id,
+    name: 'The Tower at Mother Goose Land',
+    address: '714 12th St NW, Canton, OH 44703',
+    latitude: 40.8056,
+    longitude: -81.3864,
+    locationNotes: 'Historic storybook silo/tower landmark standing over Mother Goose Land.',
+    isPartner: false,
+    radiusMeters: 60,
+    accessNotes: 'Open public park ground. Daylight hours recommended.',
+    openingHours: 'Dawn - Dusk',
+  },
 ];
 
 export const SEED_EVENT: QuestEvent = {
@@ -210,13 +236,13 @@ export const SEED_FAIR_EVENT: QuestEvent = {
   status: 'active',
   currentPhase: 'day_1',
   isPaused: false,
-  // Sept 1, 12:00 AM America/New_York -> Sept 7, 11:59:59 PM America/New_York.
+  // Sept 4, 12:00 AM America/New_York -> Sept 5, 11:59:59 PM America/New_York.
   // America/New_York is a fixed UTC-4 (EDT) offset for all of September
   // 2026 (DST doesn't end until early November), so these are safe fixed
   // UTC instants — mirrors the fair-qr-hunt event row seeded in
   // supabase/migrations/20260826072300_operation_scoped_path_and_fair_hunt.sql.
-  startTime: '2026-09-01T04:00:00Z',
-  endTime: '2026-09-08T03:59:59Z',
+  startTime: '2026-09-04T04:00:00Z',
+  endTime: '2026-09-06T03:59:59Z',
   basicInstructions:
     '1. Explore the fairgrounds and find the QR markers.\n2. Scan each one — every unique marker counts once per player.\n3. Track your live rank on the Fair QR Hunt leaderboard.',
   safetyNotes: 'Stay in public fairground areas, follow posted event staff instructions, and use marked walkways.',
@@ -1565,10 +1591,11 @@ export const SEED_QUESTS: Quest[] = [
   },
 ];
 
-// Fair QR Hunt — 20 permanent core QRs + 7 one-day-only daily bonus QRs.
-// Public target_code values mirror the ones seeded in production
-// (supabase/migrations/20260826140000_fair_qr_hunt_core_and_bonus_quests.sql)
-// so local/offline testing exercises the same real codes. starts_at/
+// Fair QR Hunt — 20 permanent core QRs + 2 one-day-only daily bonus QRs
+// (Sept 4-5). Public target_code values mirror the ones seeded in production
+// (supabase/migrations/20260826140000_fair_qr_hunt_core_and_bonus_quests.sql
+// plus the follow-up date-correction migration) so local/offline testing
+// exercises the same real codes. starts_at/
 // expires_at are fixed UTC instants — America/New_York is a constant UTC-4
 // (EDT) offset for all of September 2026, so no DST math is needed; see
 // FAIR_TIMEZONE / getFairDateKey in lib/fair-hunt.ts for the timezone-aware
@@ -1580,11 +1607,10 @@ const FAIR_CORE_CODES = [
   'FAIR-C16-DVXZ', 'FAIR-C17-4QTZ', 'FAIR-C18-Y373', 'FAIR-C19-UNYD', 'FAIR-C20-6X4J',
 ];
 const FAIR_BONUS_CODES = [
-  'FAIR-B0901-FSP5', 'FAIR-B0902-UK33', 'FAIR-B0903-HERN', 'FAIR-B0904-PFVX',
-  'FAIR-B0905-V47W', 'FAIR-B0906-UG5W', 'FAIR-B0907-87AA',
+  'FAIR-B0904-PFVX', 'FAIR-B0905-V47W',
 ];
-const FAIR_WINDOW_START = '2026-09-01T04:00:00Z';
-const FAIR_WINDOW_END = '2026-09-08T03:59:59Z';
+const FAIR_WINDOW_START = '2026-09-04T04:00:00Z';
+const FAIR_WINDOW_END = '2026-09-06T03:59:59Z';
 
 export const SEED_FAIR_QUESTS: Quest[] = [
   ...Array.from({ length: 20 }, (_, i) => {

@@ -1,7 +1,7 @@
 /**
  * Canton Quests — Fair QR Hunt deployment manifest
  * ===================================================
- * The canonical, frozen source of truth for the 27 Fair Signal identifiers
+ * The canonical, frozen source of truth for the 22 Fair Signal identifiers
  * (public code, public URL, points, scheduled date). Derived directly from
  * SEED_FAIR_QUESTS (lib/seed-data.ts) — the exact same data that seeded
  * production (supabase/migrations/20260826140000_fair_qr_hunt_core_and_bonus_quests.sql)
@@ -39,8 +39,8 @@ function toPrintFilename(slug: string): string {
 }
 
 /**
- * The 27 canonical Fair Signal identifiers, in stable Signal order
- * (core 01–20, then daily bonus Sept 1–7). Pure function of frozen source
+ * The 22 canonical Fair Signal identifiers, in stable Signal order
+ * (core 01–20, then daily bonus Sept 4–5). Pure function of frozen source
  * data — calling this twice always returns byte-identical results.
  */
 export function getCanonicalFairManifest(): FairManifestEntry[] {

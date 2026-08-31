@@ -20,6 +20,7 @@ export type GameMomentType =
   | 'three-locks-fragment'
   | 'three-locks-complete'
   | 'commander-transmission'
+  | 'commander-text'
   | 'reward-token'
   | 'unlock'
   | 'field-event'
@@ -226,6 +227,30 @@ export interface CommanderTransmissionMoment extends BaseGameMoment {
 }
 
 /**
+ * A lightweight, TEXT-ONLY Commander transmission, rendered over the
+ * static Commander transmission template artwork (see
+ * components/commander/CommanderTextTransmission.tsx) rather than a video
+ * or photo. Deliberately generic/Mission-agnostic here — the Founder's
+ * Cipher canonical copy that fills `title`/`body` lives in
+ * lib/gameplay/founders-cipher/, resolved via getFounderCipherMessage()
+ * before being passed into showGameMoment(). This engine file has no
+ * Founder's-Cipher-specific dependency, matching every other moment type.
+ */
+export interface CommanderTextMoment extends BaseGameMoment {
+  type: 'commander-text';
+  title: string;
+  body: string;
+  /** 'short' | 'medium' | 'long' — see lib/gameplay/founders-cipher/types.ts MessageSize; kept as a bare string union here to avoid a Mission-specific import. */
+  size: 'short' | 'medium' | 'long';
+  /** The player's resolved path, purely for the component's accent color/labeling — the copy itself is already fully resolved by the time it reaches here. */
+  path?: StartingPath | null;
+  cta?: string;
+  onContinue?: () => void;
+  /** Opaque id for the canonical message this instance came from (e.g. a FounderCipherMessageId) — used only for archive-logging/analytics, never interpreted by this engine. */
+  messageId?: string;
+}
+
+/**
  * Shared optional fields for the "reward" moment families (REWARD/TOKEN,
  * UNLOCK, FIELD EVENT, PROGRESSION, MAJOR CINEMATIC) so a new reward type
  * never needs its own bespoke prop list — see lib/quest-rewards.ts and
@@ -296,6 +321,7 @@ export type GameMoment =
   | ThreeLocksFragmentMoment
   | ThreeLocksCompleteMoment
   | CommanderTransmissionMoment
+  | CommanderTextMoment
   | RewardTokenMoment
   | UnlockMoment
   | FieldEventMoment
@@ -597,7 +623,7 @@ class GameMomentManager {
    * media, where a timer is the correct, intended behavior.
    */
   private getDefaultAutoDismiss(type: GameMomentType): boolean {
-    return type !== 'commander-transmission';
+    return type !== 'commander-transmission' && type !== 'commander-text';
   }
 
   private enqueue(moment: GameMoment, skipQueue?: boolean) {

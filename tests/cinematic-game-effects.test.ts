@@ -10,6 +10,7 @@ import {
   AchievementMoment,
   PathLockMoment,
 } from '../lib/game-effects';
+import { BACKDROP_DISMISS_GRACE_MS, canBackdropDismissMoment } from '../components/game-effects/GameMomentOverlay';
 import { proceduralSoundEngine } from '../lib/game-audio';
 import {
   initializeGameEngine,
@@ -195,6 +196,19 @@ describe('Canton Quests — Futuristic Game Moments Engine', () => {
       expect(gameMomentManager.getState().currentMoment?.type).toBe('finale-qualified');
       gameMomentManager.dismissCurrent();
       expect(onFinishedSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not allow the same click that opened a path-lock moment to immediately dismiss it via the overlay backdrop', () => {
+      const id = showGameMoment({
+        type: 'path-lock',
+        path: 'secret',
+      });
+
+      const current = gameMomentManager.getState().currentMoment;
+      expect(current?.id).toBe(id);
+      expect(current?.type).toBe('path-lock');
+      expect(current && canBackdropDismissMoment(current, (current.timestamp ?? 0) + BACKDROP_DISMISS_GRACE_MS - 1)).toBe(false);
+      expect(current && canBackdropDismissMoment(current, (current.timestamp ?? 0) + BACKDROP_DISMISS_GRACE_MS + 1)).toBe(true);
     });
   });
 

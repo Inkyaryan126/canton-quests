@@ -17,12 +17,31 @@ import ChainCompleteEffect from './ChainCompleteEffect';
 import FinaleQualificationEffect from './FinaleQualificationEffect';
 import ThreeLocksFragmentEffect from './ThreeLocksFragmentEffect';
 import CommanderTransmissionEffect from './CommanderTransmissionEffect';
+import CommanderTextTransmission from '../commander/CommanderTextTransmission';
 import RewardTokenEffect from './RewardTokenEffect';
 import UnlockEffect from './UnlockEffect';
 import FieldEventEffect from './FieldEventEffect';
 import ProgressionEffect from './ProgressionEffect';
 import MajorCinematicEffect from './MajorCinematicEffect';
 import SoundToggleControl from './SoundToggleControl';
+
+export const BACKDROP_DISMISS_GRACE_MS = 300;
+
+export function canBackdropDismissMoment(current: GameMoment, now = Date.now()): boolean {
+  if (current.type === 'commander-transmission') return false;
+  // Short/medium text transmissions are quick reads — a backdrop tap can
+  // dismiss them like most moments. A LONG one (mission briefing, finale,
+  // major reveals) gets the same protection as a video transmission: only
+  // a deliberate Continue/Close/ESC may advance it.
+  if (current.type === 'commander-text' && current.size === 'long') return false;
+
+  const createdAt = current.timestamp ?? 0;
+  if (createdAt > 0 && now - createdAt < BACKDROP_DISMISS_GRACE_MS) {
+    return false;
+  }
+
+  return true;
+}
 
 export default function GameMomentOverlay() {
   const [effectsState, setEffectsState] = useState<GameEffectsState>(() =>
@@ -57,11 +76,10 @@ export default function GameMomentOverlay() {
   };
 
   // Commander transmissions must never vanish from an accidental backdrop
-  // tap — only a deliberate control (X/Close, Skip, Continue, or the
-  // video's own onEnded) may dismiss one. Every other moment type keeps
-  // the existing tap-anywhere-to-continue behavior.
+  // tap, and newly-created moments should not be consumed by the same click
+  // that opened them. Every other deliberate close path stays available.
   const handleBackdropDismiss = () => {
-    if (current.type === 'commander-transmission') return;
+    if (!canBackdropDismissMoment(current)) return;
     handleDismiss();
   };
 
@@ -195,6 +213,14 @@ export default function GameMomentOverlay() {
           />
         )}
 
+        {current.type === 'commander-text' && (
+          <CommanderTextTransmission
+            moment={current}
+            onDismiss={handleDismiss}
+            reducedMotion={effectsState.reducedMotion}
+          />
+        )}
+
         {current.type === 'reward-token' && (
           <RewardTokenEffect
             moment={current}
@@ -240,7 +266,7 @@ export default function GameMomentOverlay() {
           transmission, since backdrop taps are deliberately disabled there. */}
       <footer className="cq-moment-footer-hint">
         <span>
-          {current.type === 'commander-transmission'
+          {!canBackdropDismissMoment(current)
             ? 'USE THE CONTROLS ABOVE OR PRESS ESC TO CONTINUE'
             : 'TAP ANYWHERE OR PRESS ESC TO CONTINUE'}
         </span>
