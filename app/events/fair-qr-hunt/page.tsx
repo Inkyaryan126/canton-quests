@@ -7,7 +7,17 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import PageHeader from '@/components/PageHeader';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { computeFairDashboardProgress, FairOperationPhase, MAX_FAIR_SCORE } from '@/lib/fair-hunt';
+import {
+  computeFairDashboardProgress,
+  FairOperationPhase,
+  MAX_FAIR_SCORE,
+  MAX_CORE_SCORE,
+  MAX_BONUS_SCORE,
+  CORE_QR_COUNT,
+  CORE_QR_POINTS,
+  DAILY_BONUS_COUNT,
+  DAILY_BONUS_POINTS,
+} from '@/lib/fair-hunt';
 import { LeaderboardEntry, PublicQuestView, QuestEvent } from '@/lib/types';
 
 interface DashboardData {
@@ -117,12 +127,16 @@ function ScoreStructure() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center font-mono text-xs">
       <div className="glass-panel p-4 border-cyan-500/30">
-        <div className="text-2xl font-black text-white">20 × 100</div>
-        <div className="text-gray-400 mt-1">Core Signals — 2,000 pts max</div>
+        <div className="text-2xl font-black text-white">
+          {CORE_QR_COUNT} × {CORE_QR_POINTS}
+        </div>
+        <div className="text-gray-400 mt-1">Core Signals — {MAX_CORE_SCORE.toLocaleString()} pts max</div>
       </div>
       <div className="glass-panel p-4 border-amber-500/30">
-        <div className="text-2xl font-black text-white">7 × 300</div>
-        <div className="text-gray-400 mt-1">Daily Bonus Signals — 2,100 pts max</div>
+        <div className="text-2xl font-black text-white">
+          {DAILY_BONUS_COUNT} × {DAILY_BONUS_POINTS}
+        </div>
+        <div className="text-gray-400 mt-1">Daily Bonus Signals — {MAX_BONUS_SCORE.toLocaleString()} pts max</div>
       </div>
       <div className="glass-panel p-4 border-emerald-500/30">
         <div className="text-2xl font-black text-white">{MAX_FAIR_SCORE.toLocaleString()}</div>
