@@ -4,8 +4,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createEventWizard,
   createQuest,
+  decodeLocalCipherDistrict,
   getLocalCipherFragmentGrants,
   getOrCreateEventParticipation,
+  isLocalCipherDistrictReadyToDecode,
   isLocalCipherDistrictTokenUnlocked,
   resetGameEngineStore,
   reviewSubmission,
@@ -93,7 +95,7 @@ describe("Founder's Cipher district fragment system", () => {
     expect(getLocalCipherFragmentGrants(playerId, otherEvent.id)).toHaveLength(1);
   });
 
-  it('unlocks a district token when all required district fragments are collected', () => {
+  it('marks a district ready to decode when 3 fragments are collected, and unlocks sigil on manual decode', () => {
     const playerId = 'plr-cipher-arts-complete';
     const quests = [
       makeQuest({ rewardConfig: { cipherFragmentKeys: ['arts-founder-signal'] } }),
@@ -103,11 +105,37 @@ describe("Founder's Cipher district fragment system", () => {
 
     submit(playerId, quests[0]);
     expect(isLocalCipherDistrictTokenUnlocked(playerId, EVENT_ID, 'arts')).toBe(false);
+    expect(isLocalCipherDistrictReadyToDecode(playerId, EVENT_ID, 'arts')).toBe(false);
     submit(playerId, quests[1]);
     expect(isLocalCipherDistrictTokenUnlocked(playerId, EVENT_ID, 'arts')).toBe(false);
+    expect(isLocalCipherDistrictReadyToDecode(playerId, EVENT_ID, 'arts')).toBe(false);
     const final = submit(playerId, quests[2]);
 
-    expect(final.cipherDistrictsUnlocked).toContain('arts');
+    // Fragment collection does NOT automatically unlock the sigil
+    expect(final.cipherDistrictsUnlocked).toEqual([]);
+    expect(isLocalCipherDistrictReadyToDecode(playerId, EVENT_ID, 'arts')).toBe(true);
+    expect(isLocalCipherDistrictTokenUnlocked(playerId, EVENT_ID, 'arts')).toBe(false);
+
+    // Wrong sequence fails
+    const wrongDecode = decodeLocalCipherDistrict({
+      eventId: EVENT_ID,
+      playerId,
+      districtKey: 'arts',
+      sequence: ['THE MAN', 'A NAME', 'OUTLIVES'],
+    });
+    expect(wrongDecode.success).toBe(false);
+    expect(isLocalCipherDistrictTokenUnlocked(playerId, EVENT_ID, 'arts')).toBe(false);
+
+    // Correct sequence unlocks the sigil
+    const correctDecode = decodeLocalCipherDistrict({
+      eventId: EVENT_ID,
+      playerId,
+      districtKey: 'arts',
+      sequence: ['A NAME', 'OUTLIVES', 'THE MAN'],
+    });
+    expect(correctDecode.success).toBe(true);
+    expect(correctDecode.status).toBe('token_unlocked');
+    expect(correctDecode.sigilSymbol).toBe('ARTS');
     expect(isLocalCipherDistrictTokenUnlocked(playerId, EVENT_ID, 'arts')).toBe(true);
   });
 

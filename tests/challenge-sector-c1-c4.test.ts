@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateQuestState,
   createQuest,
+  decodeLocalCipherDistrict,
   getCollectiblesForPlayer,
   getDrawingEntriesForPlayer,
   getPlayerById,
@@ -201,7 +202,7 @@ describe('C4 — The Lost Page: prerequisite chain and single CODE grant', () =>
 });
 
 describe('CODE uses the real Three Locks progression', () => {
-  it('MARK + CODE + WORD together unlock finale qualification, matching the existing Three Locks mechanism', () => {
+  it('MARK + CODE + WORD grant all three locks; finale requires all 3 locks AND all 3 decoded sigils', () => {
     const player = newPlayer('three-locks-code');
 
     // Grant MARK via a fixture quest carrying the exact same threeLocksFragment
@@ -226,15 +227,11 @@ describe('CODE uses the real Three Locks progression', () => {
     expect(chainResult.threeLocksOwned).toEqual({ mark: true, code: true, word: false });
 
     // WORD still outstanding — checked at the fragment-ownership level
-    // directly, since isPlayerQualifiedForFinale also has its own separate
-    // 750xp/5-quest heuristic that the C1-C4 chain's XP total alone would
-    // already satisfy regardless of Three Locks progress.
     const owned = getCollectiblesForPlayer(player.id).map((c) => c.collectibleId);
     expect(owned).toEqual(expect.arrayContaining(['col-founder-mark', 'col-founder-code']));
     expect(owned).not.toContain('col-founder-word');
 
-    // Now grant WORD via a fixture and confirm the same mechanism unlocks
-    // finale qualification once all three are owned.
+    // Now grant WORD via a fixture and confirm 3 locks alone do NOT qualify
     const wordFixture = createQuest({
       ...C1,
       title: 'WORD fixture',
@@ -246,6 +243,34 @@ describe('CODE uses the real Three Locks progression', () => {
     });
     const wordResult = submitQuestProof({ playerId: player.id, questId: wordFixture.id, eventId: EVENT_ID, proofType: 'passphrase', submittedContent: 'WORDFIXTURE' });
     expect(wordResult.threeLocksOwned).toEqual({ mark: true, code: true, word: true });
+
+    // In Founder's Cipher, 3 Locks alone do NOT grant finale access!
+    expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false);
+
+    // Collect all district fragments
+    const artsFragments = [
+      createQuest({ eventId: EVENT_ID, title: 'AF1', slug: `af1-${Date.now()}`, description: '', instructions: '', pointValue: 10, difficulty: 'easy', category: 'puzzle', verificationType: 'passphrase', targetCode: 'OK', proofRequirement: '', isFlash: false, status: 'active', sortOrder: 900, rewardConfig: { cipherFragmentKeys: ['arts-founder-signal'] } }),
+      createQuest({ eventId: EVENT_ID, title: 'AF2', slug: `af2-${Date.now()}`, description: '', instructions: '', pointValue: 10, difficulty: 'easy', category: 'puzzle', verificationType: 'passphrase', targetCode: 'OK', proofRequirement: '', isFlash: false, status: 'active', sortOrder: 901, rewardConfig: { cipherFragmentKeys: ['arts-painted-witness'] } }),
+      createQuest({ eventId: EVENT_ID, title: 'AF3', slug: `af3-${Date.now()}`, description: '', instructions: '', pointValue: 10, difficulty: 'easy', category: 'puzzle', verificationType: 'passphrase', targetCode: 'OK', proofRequirement: '', isFlash: false, status: 'active', sortOrder: 902, rewardConfig: { cipherFragmentKeys: ['arts-palace-lantern'] } }),
+    ];
+    const chalFragments = [
+      createQuest({ eventId: EVENT_ID, title: 'CF1', slug: `cf1-${Date.now()}`, description: '', instructions: '', pointValue: 10, difficulty: 'easy', category: 'puzzle', verificationType: 'passphrase', targetCode: 'OK', proofRequirement: '', isFlash: false, status: 'active', sortOrder: 903, rewardConfig: { cipherFragmentKeys: ['challenge-brass-key'] } }),
+      createQuest({ eventId: EVENT_ID, title: 'CF2', slug: `cf2-${Date.now()}`, description: '', instructions: '', pointValue: 10, difficulty: 'easy', category: 'puzzle', verificationType: 'passphrase', targetCode: 'OK', proofRequirement: '', isFlash: false, status: 'active', sortOrder: 904, rewardConfig: { cipherFragmentKeys: ['challenge-helmet-emblem'] } }),
+      createQuest({ eventId: EVENT_ID, title: 'CF3', slug: `cf3-${Date.now()}`, description: '', instructions: '', pointValue: 10, difficulty: 'easy', category: 'puzzle', verificationType: 'passphrase', targetCode: 'OK', proofRequirement: '', isFlash: false, status: 'active', sortOrder: 905, rewardConfig: { cipherFragmentKeys: ['challenge-neon-loop'] } }),
+    ];
+    const secrFragments = [
+      createQuest({ eventId: EVENT_ID, title: 'SF1', slug: `sf1-${Date.now()}`, description: '', instructions: '', pointValue: 10, difficulty: 'easy', category: 'puzzle', verificationType: 'passphrase', targetCode: 'OK', proofRequirement: '', isFlash: false, status: 'active', sortOrder: 906, rewardConfig: { cipherFragmentKeys: ['secret-stone-stair'] } }),
+      createQuest({ eventId: EVENT_ID, title: 'SF2', slug: `sf2-${Date.now()}`, description: '', instructions: '', pointValue: 10, difficulty: 'easy', category: 'puzzle', verificationType: 'passphrase', targetCode: 'OK', proofRequirement: '', isFlash: false, status: 'active', sortOrder: 907, rewardConfig: { cipherFragmentKeys: ['secret-quiet-signal'] } }),
+      createQuest({ eventId: EVENT_ID, title: 'SF3', slug: `sf3-${Date.now()}`, description: '', instructions: '', pointValue: 10, difficulty: 'easy', category: 'puzzle', verificationType: 'passphrase', targetCode: 'OK', proofRequirement: '', isFlash: false, status: 'active', sortOrder: 908, rewardConfig: { cipherFragmentKeys: ['secret-silent-court'] } }),
+    ];
+    [...artsFragments, ...chalFragments, ...secrFragments].forEach((q) =>
+      submitQuestProof({ playerId: player.id, questId: q.id, eventId: EVENT_ID, proofType: 'passphrase', submittedContent: 'OK' })
+    );
+
+    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'arts', sequence: ['A NAME', 'OUTLIVES', 'THE MAN'] });
+    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'challenge', sequence: ['THE WORLD', 'GAVE A MONSTER', 'HIS NAME'] });
+    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'secret', sequence: ['THE DEAD', 'KEEP IT', 'AT WEST LAWN'] });
+
     expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(true);
   });
 });

@@ -77,6 +77,40 @@ async function getUnlockedSigilCountDB(eventId: string, playerId: string): Promi
   return (data || []).filter((r: any) => r.status === 'token_unlocked').length;
 }
 
+async function getPlayerThreeLocksDB(playerId: string): Promise<{ mark: boolean; code: boolean; word: boolean; hasAll: boolean }> {
+  if (!isSupabaseAdminConfigured || !supabaseAdmin) {
+    return { mark: false, code: false, word: false, hasAll: false };
+  }
+  const { data, error } = await supabaseAdmin
+    .from('player_collectibles')
+    .select('collectible_id, collectibles(id, slug)')
+    .eq('player_id', playerId);
+  if (error || !data) {
+    return { mark: false, code: false, word: false, hasAll: false };
+  }
+
+  const ids = new Set<string>();
+  const slugs = new Set<string>();
+  for (const row of data as any[]) {
+    if (row.collectible_id) ids.add(row.collectible_id);
+    const slug = row.collectibles?.slug;
+    if (slug) slugs.add(slug);
+    const id = row.collectibles?.id;
+    if (id) ids.add(id);
+  }
+
+  const mark = ids.has('col-founder-mark') || slugs.has('founder-mark') || slugs.has('col-founder-mark');
+  const code = ids.has('col-founder-code') || slugs.has('founder-code') || slugs.has('col-founder-code');
+  const word = ids.has('col-founder-word') || slugs.has('founder-word') || slugs.has('col-founder-word');
+
+  return {
+    mark,
+    code,
+    word,
+    hasAll: mark && code && word,
+  };
+}
+
 async function getPlayerFinaleProgressDB(eventId: string, playerId: string): Promise<{ falseFinaleSolvedAt: string | null; completedAt: string | null; attempts: number }> {
   if (!isSupabaseAdminConfigured || !supabaseAdmin) return { falseFinaleSolvedAt: null, completedAt: null, attempts: 0 };
   const { data, error } = await supabaseAdmin.from('player_finale_progress').select('*').eq('event_id', eventId).eq('player_id', playerId).maybeSingle();
@@ -87,6 +121,8 @@ async function getPlayerFinaleProgressDB(eventId: string, playerId: string): Pro
 export interface PlayerFinaleStatus {
   convergenceStage: ConvergenceStage;
   unlockedSigilCount: number;
+  hasAllThreeLocks: boolean;
+  threeLocks: { mark: boolean; code: boolean; word: boolean };
   eligibility: FinaleEligibility;
   /** Only populated once eligibility.ok is true — never leaked before then. */
   cluePieces: string[];
@@ -104,20 +140,23 @@ export interface PlayerFinaleStatus {
 
 /** The single player-facing read — computes convergence stage, eligibility, and (only if eligible) the clue pieces. The answer hash itself is never part of this or any other return value in this module. */
 export async function getPlayerFinaleStatusDB(eventId: string, playerId: string): Promise<PlayerFinaleStatus> {
-  const [config, unlockedSigilCount, event, watcherStatus, progress] = await Promise.all([
+  const [config, unlockedSigilCount, threeLocks, event, watcherStatus, progress] = await Promise.all([
     getFinaleConfigDB(eventId),
     getUnlockedSigilCountDB(eventId, playerId),
+    getPlayerThreeLocksDB(playerId),
     getEventByIdDB(eventId),
     getWatcherStatusDB(eventId, playerId),
     getPlayerFinaleProgressDB(eventId, playerId),
   ]);
 
   const eventEnded = event?.status === 'ended' || event?.currentPhase === 'ended';
-  const eligibility = checkFinaleEligibility(config, unlockedSigilCount, watcherStatus.isEligible, eventEnded);
+  const eligibility = checkFinaleEligibility(config, unlockedSigilCount, threeLocks.hasAll, watcherStatus.isEligible, eventEnded);
 
   return {
     convergenceStage: getConvergenceStage(unlockedSigilCount),
     unlockedSigilCount,
+    hasAllThreeLocks: threeLocks.hasAll,
+    threeLocks: { mark: threeLocks.mark, code: threeLocks.code, word: threeLocks.word },
     eligibility,
     cluePieces: eligibility.ok ? config!.masterCipherCluePieces : [],
     falseFinaleSolvedAt: progress.falseFinaleSolvedAt,
@@ -147,16 +186,17 @@ export async function submitFinaleAnswerDB(eventId: string, playerId: string, su
     return { eligibility: { ok: false, reason: 'not_configured', message: 'Live finale submission requires Supabase configuration.' } };
   }
 
-  const [config, unlockedSigilCount, event, watcherStatus, progress] = await Promise.all([
+  const [config, unlockedSigilCount, threeLocks, event, watcherStatus, progress] = await Promise.all([
     getFinaleConfigDB(eventId),
     getUnlockedSigilCountDB(eventId, playerId),
+    getPlayerThreeLocksDB(playerId),
     getEventByIdDB(eventId),
     getWatcherStatusDB(eventId, playerId),
     getPlayerFinaleProgressDB(eventId, playerId),
   ]);
 
   const eventEnded = event?.status === 'ended' || event?.currentPhase === 'ended';
-  const eligibility = checkFinaleEligibility(config, unlockedSigilCount, watcherStatus.isEligible, eventEnded);
+  const eligibility = checkFinaleEligibility(config, unlockedSigilCount, threeLocks.hasAll, watcherStatus.isEligible, eventEnded);
   if (!eligibility.ok) return { eligibility };
 
   const outcome = evaluateFinaleSubmission(config!, progress, submittedAnswer);

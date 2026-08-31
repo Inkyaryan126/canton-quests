@@ -947,7 +947,13 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
       {/* Player Identity Bar */}
       <PlayerIdentityBar onPlayerChanged={() => refreshData()} />
 
-      {isCipher && <CipherFragmentsPanel progress={cipherProgress} />}
+      {isCipher && (
+        <CipherFragmentsPanel
+          progress={cipherProgress}
+          eventSlug={eventSlug}
+          onDecodeSuccess={() => refreshData()}
+        />
+      )}
       {isCipher && <MasterCipherStatusCard eventSlug={eventSlug} status={finaleStatus} />}
 
       {/* Start Here Panel */}

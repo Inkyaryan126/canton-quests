@@ -12,7 +12,7 @@ import CinematicFooter from '@/components/CinematicFooter';
 import QuestRewardBreakdown from '@/components/QuestRewardBreakdown';
 import CommanderTransmission from '@/components/CommanderTransmission';
 import { QuestEvent, Player, QuestSubmission, SubmitProofResult, PublicQuestView, PlayerEventProgress } from '@/lib/types';
-import { cleanQuestTitle, cqImages, getQuestImage, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
+import { cleanQuestTitle, cqImages, getQuestImage, isStandaloneQuestCard, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
 import { triggerQuestRewardSequence, triggerGameMomentSequence, showGameMoment } from '@/lib/game-effects';
 import { shouldAutoShowTransmission, markTransmissionViewed } from '@/lib/transmission-viewed-state';
 import { shouldShowContextualTransmission } from '@/lib/contextual-transmissions';
@@ -323,23 +323,93 @@ export default function QuestDetailPage({
         // doesn't invent a second dedupe mechanism — only the actual
         // rendering (path-flavored text over the Commander transmission
         // template) is new.
-        if (isKnownCantonLaunchSlug(eventSlug) && result.cipherFragmentsAwarded && result.cipherFragmentsAwarded.length > 0) {
-          if (shouldShowContextualTransmission({ trigger: 'fragment_recovered', eventSlug, playerId: player.id, questId: quest.id })) {
-            markTransmissionViewed('fragment_recovered', quest.id, player.id);
-            showFounderCipherMessage({
-              messageId: 'CIPHER_FRAGMENT_FOUND',
-              path: player.selectedStartingPath,
-              playerId: player.id,
-              contextLabel: result.cipherFragmentsAwarded.length > 1 ? `${result.cipherFragmentsAwarded.length} FRAGMENTS` : undefined,
-            });
+        if (isKnownCantonLaunchSlug(eventSlug)) {
+          if (result.threeLocksFragmentAwarded) {
+            const hasAllLocks =
+              result.threeLocksOwned?.mark && result.threeLocksOwned?.code && result.threeLocksOwned?.word;
+            if (hasAllLocks) {
+              if (shouldShowContextualTransmission({ trigger: 'lock_recovered', eventSlug, playerId: player.id, subjectKey: 'all-three-locks' })) {
+                markTransmissionViewed('lock_recovered', 'all-three-locks', player.id);
+                showFounderCipherMessage({
+                  messageId: 'ALL_THREE_LOCKS_RECOVERED',
+                  path: player.selectedStartingPath,
+                  playerId: player.id,
+                });
+              }
+            } else if (shouldShowContextualTransmission({ trigger: 'lock_recovered', eventSlug, playerId: player.id, subjectKey: result.threeLocksFragmentAwarded })) {
+              markTransmissionViewed('lock_recovered', result.threeLocksFragmentAwarded, player.id);
+              showFounderCipherMessage({
+                messageId: 'FOUNDER_LOCK_RECOVERED',
+                path: player.selectedStartingPath,
+                playerId: player.id,
+                contextLabel: `LOCK: ${result.threeLocksFragmentAwarded.toUpperCase()}`,
+              });
+            }
           }
-        }
 
-        if (isKnownCantonLaunchSlug(eventSlug) && result.cipherDistrictsUnlocked && result.cipherDistrictsUnlocked.length > 0) {
-          for (const districtKey of result.cipherDistrictsUnlocked) {
-            const district = FOUNDER_CIPHER_DISTRICTS.find((d) => d.key === districtKey);
-            if (shouldShowContextualTransmission({ trigger: 'district_sigil_unlocked', eventSlug, playerId: player.id, subjectKey: districtKey })) {
-              markTransmissionViewed('district_sigil_unlocked', districtKey, player.id);
+          if (result.cipherFragmentsAwarded && result.cipherFragmentsAwarded.length > 0) {
+            fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`)
+              .then((res) => res.json())
+              .then((data: { cipherProgress?: { totalCollected: number; totalRequired: number; districts?: Array<{ key: string; name: string; status: string; collectedCount: number; requiredCount: number }> } }) => {
+                const cp = data.cipherProgress;
+                const newlyReadyDistrict = cp?.districts?.find(
+                  (d) => d.status === 'ready_to_decode' && d.collectedCount >= d.requiredCount
+                );
+
+                if (
+                  newlyReadyDistrict &&
+                  shouldShowContextualTransmission({
+                    trigger: 'district_ready_to_decode',
+                    eventSlug,
+                    playerId: player.id,
+                    subjectKey: newlyReadyDistrict.key,
+                  })
+                ) {
+                  markTransmissionViewed('district_ready_to_decode', newlyReadyDistrict.key, player.id);
+                  showFounderCipherMessage({
+                    messageId: 'DISTRICT_READY_TO_DECODE',
+                    path: player.selectedStartingPath,
+                    playerId: player.id,
+                    contextLabel: newlyReadyDistrict.name,
+                  });
+                } else if (
+                  cp &&
+                  cp.totalRequired > 0 &&
+                  cp.totalCollected >= cp.totalRequired &&
+                  shouldAutoShowTransmission('fragment_recovered', 'all-fragments-collected', player.id)
+                ) {
+                  markTransmissionViewed('fragment_recovered', 'all-fragments-collected', player.id);
+                  showFounderCipherMessage({
+                    messageId: 'ALL_REQUIRED_FRAGMENTS_FOUND',
+                    path: player.selectedStartingPath,
+                    playerId: player.id,
+                    onContinue: () => router.push(`/events/${eventSlug}/finale`),
+                  });
+                } else if (shouldShowContextualTransmission({ trigger: 'fragment_recovered', eventSlug, playerId: player.id, questId: quest.id })) {
+                  markTransmissionViewed('fragment_recovered', quest.id, player.id);
+                  const isFirst = cp?.totalCollected === 1;
+                  if (isFirst) {
+                    showFounderCipherMessage({
+                      messageId: 'FIRST_CIPHER_FRAGMENT_RECOVERED',
+                      path: player.selectedStartingPath,
+                      playerId: player.id,
+                    });
+                  } else {
+                    showFounderCipherMessage({
+                      messageId: 'CIPHER_FRAGMENT_FOUND',
+                      path: player.selectedStartingPath,
+                      playerId: player.id,
+                      contextLabel: result.cipherFragmentsAwarded && result.cipherFragmentsAwarded.length > 1 ? `${result.cipherFragmentsAwarded.length} FRAGMENTS` : undefined,
+                    });
+                  }
+                }
+              })
+              .catch(() => {});
+          }
+
+          if (result.cipherDistrictsUnlocked && result.cipherDistrictsUnlocked.length > 0) {
+            for (const districtKey of result.cipherDistrictsUnlocked) {
+              const district = FOUNDER_CIPHER_DISTRICTS.find((d) => d.key === districtKey);
               showFounderCipherMessage({
                 messageId: 'DISTRICT_OBJECTIVE_COMPLETE',
                 path: player.selectedStartingPath,
@@ -348,36 +418,6 @@ export default function QuestDetailPage({
               });
             }
           }
-
-          // A district just completed — check whether that was the LAST
-          // one, i.e. every required fragment across all of Canton is now
-          // in hand. Re-fetches the same event endpoint the page already
-          // uses for its own initial load (no new API surface) purely to
-          // read the freshly-updated cipherProgress totals.
-          fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`)
-            .then((res) => res.json())
-            .then((data: { cipherProgress?: { totalCollected: number; totalRequired: number } }) => {
-              const cp = data.cipherProgress;
-              if (
-                cp &&
-                cp.totalRequired > 0 &&
-                cp.totalCollected >= cp.totalRequired &&
-                shouldAutoShowTransmission('fragment_recovered', 'all-fragments-collected', player.id)
-              ) {
-                markTransmissionViewed('fragment_recovered', 'all-fragments-collected', player.id);
-                showFounderCipherMessage({
-                  messageId: 'ALL_REQUIRED_FRAGMENTS_FOUND',
-                  path: player.selectedStartingPath,
-                  playerId: player.id,
-                  // The finale route itself is the single source of truth
-                  // for real access control (locked/ready/solved) — this
-                  // just gets the player there instead of leaving them to
-                  // find it on their own. See app/events/[slug]/finale.
-                  onContinue: () => router.push(`/events/${eventSlug}/finale`),
-                });
-              }
-            })
-            .catch(() => {});
         }
 
         // Check if completing this quest unlocked the next chain quest!
@@ -550,15 +590,34 @@ export default function QuestDetailPage({
 
         {/* Quest Briefing */}
         <section className="glass-panel mb-6 border-amber-500/30 glow-amber overflow-hidden">
-          <figure className="aspect-[16/9] min-h-[220px] max-h-[380px] bg-black overflow-hidden">
-            <Image
-              src={getQuestImage(quest)}
-              alt={`${cleanQuestTitle(quest.title)} location artwork`}
-              priority
-              sizes="(max-width: 768px) 100vw, 768px"
-              className="h-full w-full object-cover"
-            />
-          </figure>
+          {(() => {
+            const questImg = getQuestImage(quest);
+            const isStandalone = isStandaloneQuestCard(questImg);
+            return isStandalone ? (
+              <figure className="w-full bg-[#050607] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+                <div className="relative w-full max-w-[360px] sm:max-w-[400px] aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-cyan-500/30 glow-cyan">
+                  <Image
+                    src={questImg}
+                    alt={`${cleanQuestTitle(quest.title)} standalone quest card`}
+                    fill
+                    priority
+                    sizes="(max-width: 768px) 90vw, 400px"
+                    className="object-contain"
+                  />
+                </div>
+              </figure>
+            ) : (
+              <figure className="aspect-[16/9] min-h-[220px] max-h-[380px] bg-black overflow-hidden">
+                <Image
+                  src={questImg}
+                  alt={`${cleanQuestTitle(quest.title)} location artwork`}
+                  priority
+                  sizes="(max-width: 768px) 100vw, 768px"
+                  className="h-full w-full object-cover"
+                />
+              </figure>
+            );
+          })()}
 
           <div className="p-5 md:p-6 bg-[#050607] border-t border-amber-500/24">
             <div className="flex flex-wrap items-center gap-2 mb-3">

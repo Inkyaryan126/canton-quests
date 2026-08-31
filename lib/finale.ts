@@ -38,18 +38,19 @@ export interface FinaleConfig {
 
 export type FinaleEligibility =
   | { ok: true }
-  | { ok: false; reason: 'insufficient_sigils' | 'watcher_required' | 'not_configured' | 'not_yet_open' | 'closed' | 'event_ended'; message: string };
+  | { ok: false; reason: 'locks_required' | 'insufficient_sigils' | 'watcher_required' | 'not_configured' | 'not_yet_open' | 'closed' | 'event_ended'; message: string };
 
 /**
- * Full eligibility check — sigil count (any order, count only), optional
- * Watcher requirement, the configured open/close window (server time,
+ * Full eligibility check — 3 Founder Locks authorization, decoded sigil count,
+ * optional Watcher requirement, configured open/close window (server time,
  * injectable `now`), and whether the event itself has ended. A finale with
  * no configured answer is never "eligible" to submit against, regardless
- * of sigil count — there's nothing to check the answer against yet.
+ * of locks or sigils.
  */
 export function checkFinaleEligibility(
   config: FinaleConfig | null,
   unlockedSigilCount: number,
+  hasAllThreeLocks: boolean,
   isWatcherEligible: boolean,
   eventEnded: boolean,
   now: Date = new Date()
@@ -67,8 +68,11 @@ export function checkFinaleEligibility(
   if (config.closesAt && new Date(config.closesAt).getTime() <= nowMs) {
     return { ok: false, reason: 'closed', message: 'The Master Cipher window has closed.' };
   }
+  if (!hasAllThreeLocks) {
+    return { ok: false, reason: 'locks_required', message: 'You need all three Founder Locks (THE MARK, THE CODE, THE WORD) to attempt convergence.' };
+  }
   if (unlockedSigilCount < config.requiredSigilCount) {
-    return { ok: false, reason: 'insufficient_sigils', message: `You need ${config.requiredSigilCount} district sigils to attempt convergence — you have ${unlockedSigilCount}.` };
+    return { ok: false, reason: 'insufficient_sigils', message: `You need ${config.requiredSigilCount} decoded district sigils to attempt convergence — you have ${unlockedSigilCount}.` };
   }
   if (config.requiresWatcherEligibility && !isWatcherEligible) {
     return { ok: false, reason: 'watcher_required', message: 'This convergence requires a Watcher signal you have not yet received.' };

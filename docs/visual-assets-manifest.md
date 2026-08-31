@@ -31,6 +31,11 @@ All production assets are located under `public/canton-quests/` with strong type
 | 21 | `footer_endoftrans.png` | `public/canton-quests/footer_endoftrans.png` | `/canton-quests/footer_endoftrans.png` | `CinematicFooter.tsx` | End of Transmission Footer Backdrop | Responsive ambient footer background with gold energy | 1672x941 PNG |
 | 22 | `cq-briefing-transmission.mp4` | `public/canton-quests/cq-briefing-transmission.mp4` | `/canton-quests/cq-briefing-transmission.mp4` | `app/page.tsx`, `app/how-it-works/page.tsx` | Promotional Briefing Video & Modal | Faststart H.264 stream with user audio controls | 1080p MP4 |
 | 23 | `cq-briefing-poster.jpg` | `public/canton-quests/cq-briefing-poster.jpg` | `/canton-quests/cq-briefing-poster.jpg` | `BriefingVideoModal.tsx`, `app/page.tsx`, `app/how-it-works/page.tsx` | Video Poster Frame | High resolution thumbnail frame for video player | 1080p JPG (280 KB) |
+| 24 | `skate_park.png` | `public/canton-quests/quests/challenge/skate_park.png` | `/canton-quests/quests/challenge/skate_park.png` | `lib/marketing-assets.ts`, `ChallengeLanding.tsx` | Challenge Card 01 — Skate Park Check-In | Standalone mission card for 9th Street Skate Park | 1024x1536 PNG |
+| 25 | `the_open_ground.png` | `public/canton-quests/quests/challenge/the_open_ground.png` | `/canton-quests/quests/challenge/the_open_ground.png` | `lib/marketing-assets.ts`, `ChallengeLanding.tsx` | Challenge Card 02 — The Open Ground | Standalone mission card for Challenge Field | 1024x1536 PNG |
+| 26 | `silo.png` | `public/canton-quests/quests/challenge/silo.png` | `/canton-quests/quests/challenge/silo.png` | `lib/marketing-assets.ts`, `ChallengeLanding.tsx` | Challenge Card 03 — The Tower | Standalone mission card for The Tower / Silo | 1024x1536 PNG |
+| 27 | `mother_mural.png` | `public/canton-quests/quests/challenge/mother_mural.png` | `/canton-quests/quests/challenge/mother_mural.png` | `lib/marketing-assets.ts`, `ChallengeLanding.tsx` | Challenge Card 04 — The Mural | Standalone mission card for Mother Goose Land mural wall | 1024x1536 PNG |
+| 28 | `willie.png` | `public/canton-quests/quests/challenge/willie.png` | `/canton-quests/quests/challenge/willie.png` | `lib/marketing-assets.ts`, `ChallengeLanding.tsx` | Challenge Card 05 — Willie the Whale | Standalone mission card for Willie the Whale | 1024x1536 PNG |
 
 ---
 

@@ -99,6 +99,7 @@ export interface CipherDistrictProgressView {
   tokenLabel?: string;
   sigilSymbol?: string;
   tokenUnlockedAt?: string;
+  decodedSentence?: string;
   fragments: CipherFragmentView[];
 }
 

@@ -38,31 +38,37 @@ describe('Any district order works — convergence stage only ever counts', () =
   });
 });
 
-describe('3 sigils required (configurable, defaults to 3)', () => {
-  it('2 sigils is insufficient against the default 3-sigil requirement', () => {
-    const result = checkFinaleEligibility(makeConfig(), 2, false, false);
+describe('3 sigils and 3 locks required', () => {
+  it('2 sigils is insufficient against the default 3-sigil requirement even with 3 locks', () => {
+    const result = checkFinaleEligibility(makeConfig(), 2, true, false, false);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('insufficient_sigils');
   });
 
-  it('exactly 3 sigils satisfies the default requirement', () => {
-    expect(checkFinaleEligibility(makeConfig(), 3, false, false).ok).toBe(true);
+  it('3 sigils without all 3 Founder Locks fails with locks_required', () => {
+    const result = checkFinaleEligibility(makeConfig(), 3, false, false, false);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('locks_required');
   });
 
-  it('a GM-configured lower requirement (e.g. 2) is honored — the count IS configurable', () => {
-    expect(checkFinaleEligibility(makeConfig({ requiredSigilCount: 2 }), 2, false, false).ok).toBe(true);
+  it('exactly 3 sigils AND all 3 Founder Locks satisfies the requirement', () => {
+    expect(checkFinaleEligibility(makeConfig(), 3, true, false, false).ok).toBe(true);
+  });
+
+  it('a GM-configured lower requirement (e.g. 2 sigils) is honored when locks are owned', () => {
+    expect(checkFinaleEligibility(makeConfig({ requiredSigilCount: 2 }), 2, true, false, false).ok).toBe(true);
   });
 });
 
 describe('Premature master-cipher access blocked', () => {
-  it('an unconfigured finale (no answer hash) is never eligible, regardless of sigil count', () => {
-    const result = checkFinaleEligibility(makeConfig({ finalAnswerHash: null }), 3, false, false);
+  it('an unconfigured finale (no answer hash) is never eligible, regardless of sigil count or locks', () => {
+    const result = checkFinaleEligibility(makeConfig({ finalAnswerHash: null }), 3, true, false, false);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('not_configured');
   });
 
-  it('a finale window that has not opened yet blocks access even with enough sigils', () => {
-    const result = checkFinaleEligibility(makeConfig({ opensAt: new Date(Date.now() + 3_600_000).toISOString() }), 3, false, false);
+  it('a finale window that has not opened yet blocks access even with enough sigils and locks', () => {
+    const result = checkFinaleEligibility(makeConfig({ opensAt: new Date(Date.now() + 3_600_000).toISOString() }), 3, true, false, false);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('not_yet_open');
   });
@@ -121,7 +127,7 @@ describe('Duplicate finale submission idempotent', () => {
 
 describe('Ended event blocks inappropriate submissions', () => {
   it('eventEnded=true blocks eligibility even with a fully-configured, open finale and enough sigils', () => {
-    const result = checkFinaleEligibility(makeConfig(), 3, false, true);
+    const result = checkFinaleEligibility(makeConfig(), 3, true, false, true);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('event_ended');
   });
@@ -129,13 +135,13 @@ describe('Ended event blocks inappropriate submissions', () => {
 
 describe('Watcher optional requirement respected', () => {
   it('when requiresWatcherEligibility is false (default), watcher status never matters', () => {
-    expect(checkFinaleEligibility(makeConfig({ requiresWatcherEligibility: false }), 3, false, false).ok).toBe(true);
-    expect(checkFinaleEligibility(makeConfig({ requiresWatcherEligibility: false }), 3, true, false).ok).toBe(true);
+    expect(checkFinaleEligibility(makeConfig({ requiresWatcherEligibility: false }), 3, true, false, false).ok).toBe(true);
+    expect(checkFinaleEligibility(makeConfig({ requiresWatcherEligibility: false }), 3, true, true, false).ok).toBe(true);
   });
 
   it('when requiresWatcherEligibility is true, an ineligible player is blocked and an eligible one passes', () => {
-    const blocked = checkFinaleEligibility(makeConfig({ requiresWatcherEligibility: true }), 3, false, false);
-    const allowed = checkFinaleEligibility(makeConfig({ requiresWatcherEligibility: true }), 3, true, false);
+    const blocked = checkFinaleEligibility(makeConfig({ requiresWatcherEligibility: true }), 3, true, false, false);
+    const allowed = checkFinaleEligibility(makeConfig({ requiresWatcherEligibility: true }), 3, true, true, false);
     expect(blocked.ok).toBe(false);
     if (!blocked.ok) expect(blocked.reason).toBe('watcher_required');
     expect(allowed.ok).toBe(true);

@@ -13,6 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createQuest,
+  decodeLocalCipherDistrict,
   getAchievementsForPlayer,
   getCollectiblesForPlayer,
   getDrawingEntriesForPlayer,
@@ -329,7 +330,7 @@ describe('Quest reward-grant transaction — collectibles', () => {
 });
 
 describe('Quest reward-grant transaction — Three Locks & finale', () => {
-  it('grants a Three Locks fragment, blocks a duplicate fragment grant, and unlocks finale qualification once MARK + CODE + WORD are all owned', () => {
+  it('grants a Three Locks fragment, blocks duplicate grants, does not auto-qualify on locks alone, and unlocks finale when 3 locks + 3 sigils are present', () => {
     const player = newPlayer('three-locks');
 
     const markQuest = makeQuest({ rewardConfig: { threeLocksFragment: { lock: 'mark', collectibleId: 'col-founder-mark' } } });
@@ -349,10 +350,37 @@ describe('Quest reward-grant transaction — Three Locks & finale', () => {
     expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false);
 
     submitPassphrase(player.id, wordQuest);
-    expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(true);
-
     const locks = getCollectiblesForPlayer(player.id).map((c) => c.collectibleId);
     expect(locks).toEqual(expect.arrayContaining(['col-founder-mark', 'col-founder-code', 'col-founder-word']));
+
+    // Three Locks alone do NOT qualify for finale!
+    expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false);
+
+    // Now collect and decode all three district sigils
+    const artsFragments = [
+      makeQuest({ rewardConfig: { cipherFragmentKeys: ['arts-founder-signal'] } }),
+      makeQuest({ rewardConfig: { cipherFragmentKeys: ['arts-painted-witness'] } }),
+      makeQuest({ rewardConfig: { cipherFragmentKeys: ['arts-palace-lantern'] } }),
+    ];
+    const chalFragments = [
+      makeQuest({ rewardConfig: { cipherFragmentKeys: ['challenge-brass-key'] } }),
+      makeQuest({ rewardConfig: { cipherFragmentKeys: ['challenge-helmet-emblem'] } }),
+      makeQuest({ rewardConfig: { cipherFragmentKeys: ['challenge-neon-loop'] } }),
+    ];
+    const secrFragments = [
+      makeQuest({ rewardConfig: { cipherFragmentKeys: ['secret-stone-stair'] } }),
+      makeQuest({ rewardConfig: { cipherFragmentKeys: ['secret-quiet-signal'] } }),
+      makeQuest({ rewardConfig: { cipherFragmentKeys: ['secret-silent-court'] } }),
+    ];
+
+    [...artsFragments, ...chalFragments, ...secrFragments].forEach((q) => submitPassphrase(player.id, q));
+
+    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'arts', sequence: ['A NAME', 'OUTLIVES', 'THE MAN'] });
+    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'challenge', sequence: ['THE WORLD', 'GAVE A MONSTER', 'HIS NAME'] });
+    expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false); // 2 sigils decoded + 3 locks -> still false
+
+    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'secret', sequence: ['THE DEAD', 'KEEP IT', 'AT WEST LAWN'] });
+    expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(true); // 3 sigils decoded + 3 locks -> true!
   });
 });
 

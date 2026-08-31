@@ -112,21 +112,42 @@ export const FOUNDER_CIPHER_MESSAGES: Record<FounderCipherMessageId, FounderCiph
   CIPHER_FRAGMENT_FOUND: {
     id: 'CIPHER_FRAGMENT_FOUND',
     title: 'FRAGMENT RECOVERED',
-    neutral: 'You found a cipher fragment. It has been added to your progress.',
+    neutral: 'You found a cipher fragment. Each district holds a 3-piece record.',
     family: {
       title: 'FRAGMENT RECOVERED',
-      body: 'You found another piece of the mystery. Nice work — keep going, the picture is starting to come together.',
+      body: 'You found another piece of the mystery. Nice work — keep going, the picture is starting to come together. Each district holds three pieces of a record.',
     },
     challenge: {
       title: 'FRAGMENT SECURED',
-      body: 'Fragment secured. That’s one obstacle handled. Keep moving — don’t let up now.',
+      body: 'Fragment secured. Every district has a three-piece record. Find all three in a sector to make it ready to decode.',
     },
     secret: {
       title: 'SIGNAL RECOVERED',
-      body: 'A fragment has surfaced. Its meaning remains concealed for now — its position may matter more than its appearance.',
+      body: 'A fragment has surfaced. The Cipher encodes three pieces per district. Secure all three to assemble the full record.',
     },
     presentation: 'commander-text',
     size: 'short',
+    archiveWorthy: true,
+  },
+
+  FIRST_CIPHER_FRAGMENT_RECOVERED: {
+    id: 'FIRST_CIPHER_FRAGMENT_RECOVERED',
+    title: 'FIRST FRAGMENT RECOVERED',
+    neutral: 'You recovered your first cipher fragment. Each district holds a 3-piece record. Collect all three fragments in a district to assemble its phrase.',
+    family: {
+      title: 'FIRST FRAGMENT RECOVERED',
+      body: 'You found your first cipher fragment! Each district in Canton holds three pieces of a record. Collect all three in any district to get ready to decode its phrase.',
+    },
+    challenge: {
+      title: 'FIRST FRAGMENT SECURED',
+      body: 'First fragment secured. Every district has a three-piece record. Find all three in a sector to make it ready to decode.',
+    },
+    secret: {
+      title: 'FIRST SIGNAL RECOVERED',
+      body: 'First fragment recovered. The Cipher encodes three pieces per district. Secure all three to assemble the full record.',
+    },
+    presentation: 'commander-text',
+    size: 'medium',
     archiveWorthy: true,
   },
 
@@ -150,6 +171,115 @@ export const FOUNDER_CIPHER_MESSAGES: Record<FounderCipherMessageId, FounderCiph
     secret: { body: 'The pattern is incomplete. Continue gathering — premature decoding will only mislead you.' },
     presentation: 'micro',
     size: 'short',
+  },
+
+  DISTRICT_READY_TO_DECODE: {
+    id: 'DISTRICT_READY_TO_DECODE',
+    title: 'DISTRICT READY TO DECODE',
+    neutral: 'You have gathered all 3 fragments for this district. Arrange them in the correct sequence to unlock the district Sigil.',
+    family: {
+      body: 'All three fragments found for this district! Open the decode panel and arrange the phrases in the right order to unlock its Sigil.',
+    },
+    challenge: {
+      body: 'Three fragments secured in this district. The record is complete and ready to decode. Sequence the tiles to claim the Sigil.',
+    },
+    secret: {
+      body: 'All three fragments recovered in this sector. The pattern is assembled — sequence the phrases correctly to unlock the Sigil.',
+    },
+    presentation: 'commander-text',
+    size: 'medium',
+    archiveWorthy: true,
+  },
+
+  DISTRICT_SIGIL_UNLOCKED: {
+    id: 'DISTRICT_SIGIL_UNLOCKED',
+    title: 'DISTRICT SIGIL UNLOCKED',
+    neutral: 'The district phrase has been decoded and verified. The district Sigil is now unlocked.',
+    family: {
+      body: 'You cracked the phrase! The district Sigil is officially unlocked. That’s one step closer to the Master Cipher.',
+    },
+    challenge: {
+      body: 'Sequence verified. District Sigil unlocked. That’s one of three key records in the bag.',
+    },
+    secret: {
+      body: 'The sequence holds. The Sigil has unlocked — the Cipher reveals its record.',
+    },
+    presentation: 'commander-text',
+    size: 'medium',
+    archiveWorthy: true,
+  },
+
+  FOUNDER_LOCK_RECOVERED: {
+    id: 'FOUNDER_LOCK_RECOVERED',
+    title: 'FOUNDER LOCK RECOVERED',
+    neutral: 'You recovered a Founder Lock. Founder Locks provide authorization keys for the Master Cipher.',
+    family: {
+      body: 'You recovered a Founder Lock! Three locks exist across Canton — each one provides authorization for the Master Cipher.',
+    },
+    challenge: {
+      body: 'Founder Lock secured. That’s authorization locked in. You need all three to open the Master Cipher.',
+    },
+    secret: {
+      body: 'A Founder Lock has surfaced. The authorization trail is underway — all three are required to breach the Master Cipher.',
+    },
+    presentation: 'commander-text',
+    size: 'medium',
+    archiveWorthy: true,
+  },
+
+  ALL_THREE_LOCKS_RECOVERED: {
+    id: 'ALL_THREE_LOCKS_RECOVERED',
+    title: 'ALL THREE LOCKS SECURED',
+    neutral: 'You have recovered all three Founder Locks (MARK, CODE, WORD). Authorization is complete. If all three district Sigils are also decoded, the Master Cipher will unlock.',
+    family: {
+      body: 'All three Founder Locks secured: MARK, CODE, and WORD! You have full authorization. Make sure all three district Sigils are decoded to open the Master Cipher.',
+    },
+    challenge: {
+      body: 'All three Founder Locks recovered. Authorization confirmed. The Master Cipher remains sealed until all three district Sigils are decoded.',
+    },
+    secret: {
+      body: 'The Three Locks are complete — MARK, CODE, WORD. Authorization verified. Master Cipher access still requires all three decoded Sigils.',
+    },
+    presentation: 'commander-text',
+    size: 'medium',
+    archiveWorthy: true,
+  },
+
+  ALL_THREE_SIGILS_DECODED: {
+    id: 'ALL_THREE_SIGILS_DECODED',
+    title: 'ALL THREE SIGILS DECODED',
+    neutral: 'All three district Sigils (Arts, Challenge, Secret) have been decoded. The evidence is complete. If all three Founder Locks are also secured, the Master Cipher will unlock.',
+    family: {
+      body: 'Every district Sigil is decoded! The full evidence is assembled. Secure all three Founder Locks to open the Master Cipher.',
+    },
+    challenge: {
+      body: 'All three district Sigils decoded. Evidence complete. If you hold all three Founder Locks, the Master Cipher is yours to attempt.',
+    },
+    secret: {
+      body: 'The three district sentences are resolved. Evidence confirmed. Master Cipher remains sealed without all three Founder Locks.',
+    },
+    presentation: 'commander-text',
+    size: 'medium',
+    archiveWorthy: true,
+  },
+
+  MASTER_CIPHER_AVAILABLE: {
+    id: 'MASTER_CIPHER_AVAILABLE',
+    title: 'MASTER CIPHER AVAILABLE',
+    neutral: 'All 3 Founder Locks and all 3 decoded Sigils have converged. The Master Cipher is now unlocked.',
+    family: {
+      body: 'You did it! 3 Founder Locks and 3 decoded Sigils — all six requirements are met. The Master Cipher is open.',
+    },
+    challenge: {
+      body: 'Convergence achieved: 3 Locks, 3 Sigils. The Master Cipher is active. Enter the final decode.',
+    },
+    secret: {
+      body: 'All six keys have converged — 3 Locks, 3 Sigils. The Master Cipher is unsealed. Proceed to final deduction.',
+    },
+    presentation: 'commander-text',
+    size: 'long',
+    cta: 'OPEN MASTER CIPHER',
+    archiveWorthy: true,
   },
 
   CLUE_DISCOVERED: {

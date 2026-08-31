@@ -20,6 +20,8 @@ import {
   reconcilePlayerScores,
   grantFinaleQualification,
   isPlayerQualifiedForFinale,
+  createQuest,
+  decodeLocalCipherDistrict,
   submitQuestProof,
   getLeaderboardForEvent,
   setCurrentPlayer,
@@ -223,14 +225,50 @@ describe('Canton Quests — Phase 3 Live Weekend Engine', () => {
     expect(pEntry?.totalPoints).toBeGreaterThanOrEqual(250);
   });
 
-  it('8. should manage finale qualifications and wildcards', () => {
+  it('8. should manage finale qualifications and require 3 locks + 3 sigils', () => {
     const events = getEvents();
     const eventId = events[0].id;
     const player = setCurrentPlayer(`WildcardAgent_${Date.now()}`);
 
     expect(isPlayerQualifiedForFinale(player.id, eventId)).toBe(false);
 
-    grantFinaleQualification(eventId, player.id, 'Game Master Wildcard', true);
+    awardCollectible(player.id, 'col-founder-mark', 'Founder Lock: MARK');
+    awardCollectible(player.id, 'col-founder-code', 'Founder Lock: CODE');
+    awardCollectible(player.id, 'col-founder-word', 'Founder Lock: WORD');
+    expect(isPlayerQualifiedForFinale(player.id, eventId)).toBe(false); // 3 locks alone do not qualify
+
+    // Collect 9 fragments across 3 districts
+    const fragmentKeys = [
+      'arts-founder-signal', 'arts-painted-witness', 'arts-palace-lantern',
+      'challenge-brass-key', 'challenge-helmet-emblem', 'challenge-neon-loop',
+      'secret-stone-stair', 'secret-quiet-signal', 'secret-silent-court',
+    ];
+    for (const key of fragmentKeys) {
+      const q = createQuest({
+        eventId,
+        title: `Frag ${key}`,
+        slug: `frag-${key}-${Date.now()}`,
+        description: '',
+        instructions: '',
+        pointValue: 10,
+        difficulty: 'easy',
+        category: 'puzzle',
+        verificationType: 'passphrase',
+        targetCode: 'OK',
+        proofRequirement: '',
+        isFlash: false,
+        status: 'active',
+        sortOrder: 950,
+        rewardConfig: { cipherFragmentKeys: [key] },
+      });
+      submitQuestProof({ playerId: player.id, questId: q.id, eventId, proofType: 'passphrase', submittedContent: 'OK' });
+    }
+
+    // Decode 3 sigils
+    decodeLocalCipherDistrict({ eventId, playerId: player.id, districtKey: 'arts', sequence: ['A NAME', 'OUTLIVES', 'THE MAN'] });
+    decodeLocalCipherDistrict({ eventId, playerId: player.id, districtKey: 'challenge', sequence: ['THE WORLD', 'GAVE A MONSTER', 'HIS NAME'] });
+    decodeLocalCipherDistrict({ eventId, playerId: player.id, districtKey: 'secret', sequence: ['THE DEAD', 'KEEP IT', 'AT WEST LAWN'] });
+
     expect(isPlayerQualifiedForFinale(player.id, eventId)).toBe(true);
   });
 });

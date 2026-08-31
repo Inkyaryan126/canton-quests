@@ -8,19 +8,27 @@ import {
   QuestPath,
 } from './types';
 
-export const FOUNDER_CIPHER_DISTRICTS: Array<{
+export interface DistrictDecodeDefinition {
   key: CipherDistrictKey;
   name: string;
   tokenKey: string;
   tokenLabel: string;
   sigilSymbol: string;
-}> = [
+  canonicalSentence: string;
+  canonicalSequence: string[];
+  canonicalFragmentKeys: string[];
+}
+
+export const FOUNDER_CIPHER_DISTRICTS: DistrictDecodeDefinition[] = [
   {
     key: 'arts',
     name: 'Arts District',
     tokenKey: 'arts-sigil',
     tokenLabel: 'Arts Sigil',
     sigilSymbol: 'ARTS',
+    canonicalSentence: 'A NAME OUTLIVES THE MAN.',
+    canonicalSequence: ['A NAME', 'OUTLIVES', 'THE MAN'],
+    canonicalFragmentKeys: ['arts-founder-signal', 'arts-painted-witness', 'arts-palace-lantern'],
   },
   {
     key: 'challenge',
@@ -28,6 +36,9 @@ export const FOUNDER_CIPHER_DISTRICTS: Array<{
     tokenKey: 'challenge-sigil',
     tokenLabel: 'Challenge Sigil',
     sigilSymbol: 'CHAL',
+    canonicalSentence: 'THE WORLD GAVE A MONSTER HIS NAME.',
+    canonicalSequence: ['THE WORLD', 'GAVE A MONSTER', 'HIS NAME'],
+    canonicalFragmentKeys: ['challenge-brass-key', 'challenge-helmet-emblem', 'challenge-neon-loop'],
   },
   {
     key: 'secret',
@@ -35,6 +46,9 @@ export const FOUNDER_CIPHER_DISTRICTS: Array<{
     tokenKey: 'secret-sigil',
     tokenLabel: 'Secret Sigil',
     sigilSymbol: 'SECR',
+    canonicalSentence: 'THE DEAD KEEP IT AT WEST LAWN.',
+    canonicalSequence: ['THE DEAD', 'KEEP IT', 'AT WEST LAWN'],
+    canonicalFragmentKeys: ['secret-stone-stair', 'secret-quiet-signal', 'secret-silent-court'],
   },
 ];
 
@@ -49,6 +63,41 @@ export function pathToCipherDistrict(path?: QuestPath): CipherDistrictKey | unde
 
 export function getCipherDistrictName(key: CipherDistrictKey): string {
   return DISTRICT_BY_KEY.get(key)?.name || key;
+}
+
+export function getDistrictDecodeDefinition(key: CipherDistrictKey): DistrictDecodeDefinition | undefined {
+  return DISTRICT_BY_KEY.get(key);
+}
+
+function normalizePhrase(text: string): string {
+  return text
+    .trim()
+    .toUpperCase()
+    .replace(/^\[+|\]+$/g, '')
+    .replace(/[.,!?;:]+$/g, '')
+    .trim();
+}
+
+/**
+ * Validates a submitted fragment order for a district. Accepts either the
+ * canonical phrase tile sequence (e.g. ['A NAME', 'OUTLIVES', 'THE MAN'])
+ * or the canonical fragment keys in order.
+ */
+export function verifyDistrictDecodeSequence(districtKey: CipherDistrictKey, sequence: string[]): boolean {
+  const district = DISTRICT_BY_KEY.get(districtKey);
+  if (!district || !Array.isArray(sequence) || sequence.length !== 3) return false;
+
+  const normalizedSubmitted = sequence.map(normalizePhrase);
+  const normalizedCanonicalPhrases = district.canonicalSequence.map(normalizePhrase);
+  const matchesPhrases = normalizedSubmitted.every((val, idx) => val === normalizedCanonicalPhrases[idx]);
+  if (matchesPhrases) return true;
+
+  const normalizedCanonicalKeys = district.canonicalFragmentKeys.map((k) => k.trim().toLowerCase());
+  const submittedLower = sequence.map((k) => k.trim().toLowerCase());
+  const matchesKeys = submittedLower.every((val, idx) => val === normalizedCanonicalKeys[idx]);
+  if (matchesKeys) return true;
+
+  return false;
 }
 
 function emptyCipherProgress(eventId: string, playerId: string): PlayerCipherProgressView {
@@ -73,14 +122,6 @@ function normalizeStatus(value: unknown): CipherDistrictStatus {
 }
 
 function isMissingTable(error: any): boolean {
-  // PostgREST returns two different shapes for "this table doesn't exist
-  // yet" depending on path: a raw Postgres 42P01/"relation ... does not
-  // exist" error, OR (far more common in practice against real, not-yet-
-  // fully-migrated infrastructure) its own schema-cache-miss wording
-  // ("Could not find the table 'public.x' in the schema cache", code
-  // PGRST205) — both must be treated as "gracefully degrade," not "crash
-  // the route." See lib/live-events-db.ts and siblings for the identical
-  // fix applied session-wide; this file was missed in that pass.
   return (
     error?.code === '42P01' ||
     error?.code === 'PGRST205' ||
@@ -93,11 +134,11 @@ async function refreshDistrictProgressDB(
   eventId: string,
   playerId: string,
   districtKey: CipherDistrictKey
-): Promise<{ unlocked: boolean }> {
-  if (!isSupabaseAdminConfigured || !supabaseAdmin) return { unlocked: false };
+): Promise<{ readyToDecode: boolean }> {
+  if (!isSupabaseAdminConfigured || !supabaseAdmin) return { readyToDecode: false };
 
   const district = DISTRICT_BY_KEY.get(districtKey);
-  if (!district) return { unlocked: false };
+  if (!district) return { readyToDecode: false };
 
   const { data: definitions, error: defError } = await supabaseAdmin
     .from('cipher_fragments')
@@ -105,7 +146,7 @@ async function refreshDistrictProgressDB(
     .eq('event_id', eventId)
     .eq('district_key', districtKey);
   if (defError) {
-    if (isMissingTable(defError)) return { unlocked: false };
+    if (isMissingTable(defError)) return { readyToDecode: false };
     throw new Error(`Failed to read cipher fragments: ${defError.message}`);
   }
 
@@ -118,17 +159,15 @@ async function refreshDistrictProgressDB(
     .eq('event_id', eventId)
     .eq('player_id', playerId);
   if (grantError) {
-    if (isMissingTable(grantError)) return { unlocked: false };
+    if (isMissingTable(grantError)) return { readyToDecode: false };
     throw new Error(`Failed to read cipher grants: ${grantError.message}`);
   }
 
   const collectedCount = (grants || []).filter((row: any) => requiredIds.has(row.fragment_id)).length;
-  const nextStatus: CipherDistrictStatus =
-    requiredCount > 0 && collectedCount >= requiredCount ? 'token_unlocked' : collectedCount > 0 ? 'in_progress' : 'locked';
 
   const { data: existing, error: existingError } = await supabaseAdmin
     .from('player_district_cipher_progress')
-    .select('status, token_unlocked_at')
+    .select('status, token_unlocked_at, token_key, token_label, sigil_symbol')
     .eq('event_id', eventId)
     .eq('player_id', playerId)
     .eq('district_key', districtKey)
@@ -137,8 +176,19 @@ async function refreshDistrictProgressDB(
     throw new Error(`Failed to read district cipher progress: ${existingError.message}`);
   }
 
-  const unlockedNow = nextStatus === 'token_unlocked' && existing?.status !== 'token_unlocked';
-  const unlockedAt = existing?.token_unlocked_at || (nextStatus === 'token_unlocked' ? new Date().toISOString() : null);
+  let nextStatus: CipherDistrictStatus;
+  if (existing?.status === 'token_unlocked') {
+    nextStatus = 'token_unlocked';
+  } else if (requiredCount > 0 && collectedCount >= requiredCount) {
+    nextStatus = 'ready_to_decode';
+  } else if (collectedCount > 0) {
+    nextStatus = 'in_progress';
+  } else {
+    nextStatus = 'locked';
+  }
+
+  const tokenUnlocked = nextStatus === 'token_unlocked';
+  const unlockedAt = existing?.token_unlocked_at || (tokenUnlocked ? new Date().toISOString() : null);
 
   const { error: upsertError } = await supabaseAdmin.from('player_district_cipher_progress').upsert(
     {
@@ -148,20 +198,20 @@ async function refreshDistrictProgressDB(
       status: nextStatus,
       collected_count: collectedCount,
       required_count: requiredCount,
-      token_key: nextStatus === 'token_unlocked' ? district.tokenKey : null,
-      token_label: nextStatus === 'token_unlocked' ? district.tokenLabel : null,
-      sigil_symbol: nextStatus === 'token_unlocked' ? district.sigilSymbol : null,
+      token_key: tokenUnlocked ? district.tokenKey : null,
+      token_label: tokenUnlocked ? district.tokenLabel : null,
+      sigil_symbol: tokenUnlocked ? district.sigilSymbol : null,
       token_unlocked_at: unlockedAt,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'event_id,player_id,district_key' }
   );
   if (upsertError) {
-    if (isMissingTable(upsertError)) return { unlocked: false };
+    if (isMissingTable(upsertError)) return { readyToDecode: false };
     throw new Error(`Failed to update district cipher progress: ${upsertError.message}`);
   }
 
-  return { unlocked: unlockedNow };
+  return { readyToDecode: nextStatus === 'ready_to_decode' && existing?.status !== 'ready_to_decode' };
 }
 
 export async function grantCipherFragmentsForQuestRewardDB(params: {
@@ -173,13 +223,14 @@ export async function grantCipherFragmentsForQuestRewardDB(params: {
 }): Promise<{
   newlyGrantedFragmentKeys: string[];
   unlockedDistricts: CipherDistrictKey[];
+  readyToDecodeDistricts: CipherDistrictKey[];
 }> {
   if (!isSupabaseAdminConfigured || !supabaseAdmin || params.fragmentKeys.length === 0) {
-    return { newlyGrantedFragmentKeys: [], unlockedDistricts: [] };
+    return { newlyGrantedFragmentKeys: [], unlockedDistricts: [], readyToDecodeDistricts: [] };
   }
 
   const uniqueKeys = [...new Set(params.fragmentKeys.map((key) => key.trim()).filter(Boolean))];
-  if (uniqueKeys.length === 0) return { newlyGrantedFragmentKeys: [], unlockedDistricts: [] };
+  if (uniqueKeys.length === 0) return { newlyGrantedFragmentKeys: [], unlockedDistricts: [], readyToDecodeDistricts: [] };
 
   const { data: fragments, error } = await supabaseAdmin
     .from('cipher_fragments')
@@ -187,7 +238,7 @@ export async function grantCipherFragmentsForQuestRewardDB(params: {
     .eq('event_id', params.eventId)
     .in('fragment_key', uniqueKeys);
   if (error) {
-    if (isMissingTable(error)) return { newlyGrantedFragmentKeys: [], unlockedDistricts: [] };
+    if (isMissingTable(error)) return { newlyGrantedFragmentKeys: [], unlockedDistricts: [], readyToDecodeDistricts: [] };
     throw new Error(`Failed to resolve cipher fragments: ${error.message}`);
   }
 
@@ -207,20 +258,142 @@ export async function grantCipherFragmentsForQuestRewardDB(params: {
         touchedDistricts.add(fragment.district_key as CipherDistrictKey);
         continue;
       }
-      if (isMissingTable(insertError)) return { newlyGrantedFragmentKeys, unlockedDistricts: [] };
+      if (isMissingTable(insertError)) return { newlyGrantedFragmentKeys, unlockedDistricts: [], readyToDecodeDistricts: [] };
       throw new Error(`Failed to grant cipher fragment: ${insertError.message}`);
     }
     newlyGrantedFragmentKeys.push(fragment.fragment_key);
     touchedDistricts.add(fragment.district_key as CipherDistrictKey);
   }
 
-  const unlockedDistricts: CipherDistrictKey[] = [];
+  const readyToDecodeDistricts: CipherDistrictKey[] = [];
   for (const districtKey of touchedDistricts) {
     const result = await refreshDistrictProgressDB(params.eventId, params.playerId, districtKey);
-    if (result.unlocked) unlockedDistricts.push(districtKey);
+    if (result.readyToDecode) readyToDecodeDistricts.push(districtKey);
   }
 
-  return { newlyGrantedFragmentKeys, unlockedDistricts };
+  // Under Founder's Cipher rules, fragment accumulation NEVER automatically unlocks district sigils.
+  return { newlyGrantedFragmentKeys, unlockedDistricts: [], readyToDecodeDistricts };
+}
+
+export interface DistrictDecodeResult {
+  success: boolean;
+  correct?: boolean;
+  status?: CipherDistrictStatus;
+  tokenLabel?: string;
+  sigilSymbol?: string;
+  decodedSentence?: string;
+  error?: string;
+  alreadyUnlocked?: boolean;
+}
+
+/**
+ * Server-authoritative district cipher decode submission.
+ * Enforces authenticated player scope, required fragment collection,
+ * tile sequence verification, idempotency, and prevents extra reward inflation.
+ */
+export async function decodeDistrictCipherDB(params: {
+  eventId: string;
+  playerId: string;
+  districtKey: CipherDistrictKey;
+  sequence: string[];
+}): Promise<DistrictDecodeResult> {
+  if (!isSupabaseAdminConfigured || !supabaseAdmin) {
+    return { success: false, error: 'Database is not configured for remote decode.' };
+  }
+
+  const district = DISTRICT_BY_KEY.get(params.districtKey);
+  if (!district) {
+    return { success: false, error: 'Unknown district.' };
+  }
+
+  const { data: definitions, error: defError } = await supabaseAdmin
+    .from('cipher_fragments')
+    .select('id, is_required')
+    .eq('event_id', params.eventId)
+    .eq('district_key', params.districtKey);
+  if (defError) {
+    throw new Error(`Failed to read cipher fragments: ${defError.message}`);
+  }
+
+  const requiredIds = new Set((definitions || []).filter((row: any) => row.is_required !== false).map((row: any) => row.id));
+  const requiredCount = requiredIds.size;
+
+  const { data: grants, error: grantError } = await supabaseAdmin
+    .from('player_cipher_fragments')
+    .select('fragment_id')
+    .eq('event_id', params.eventId)
+    .eq('player_id', params.playerId);
+  if (grantError) {
+    throw new Error(`Failed to read player cipher grants: ${grantError.message}`);
+  }
+
+  const collectedCount = (grants || []).filter((row: any) => requiredIds.has(row.fragment_id)).length;
+  if (requiredCount === 0 || collectedCount < requiredCount) {
+    return {
+      success: false,
+      error: `You must collect all ${requiredCount} district fragments before attempting to decode.`,
+    };
+  }
+
+  const { data: existing } = await supabaseAdmin
+    .from('player_district_cipher_progress')
+    .select('status, token_unlocked_at, token_label, sigil_symbol')
+    .eq('event_id', params.eventId)
+    .eq('player_id', params.playerId)
+    .eq('district_key', params.districtKey)
+    .maybeSingle();
+
+  if (existing?.status === 'token_unlocked') {
+    return {
+      success: true,
+      correct: true,
+      alreadyUnlocked: true,
+      status: 'token_unlocked',
+      tokenLabel: existing.token_label || district.tokenLabel,
+      sigilSymbol: existing.sigil_symbol || district.sigilSymbol,
+      decodedSentence: district.canonicalSentence,
+    };
+  }
+
+  const isCorrect = verifyDistrictDecodeSequence(params.districtKey, params.sequence);
+  if (!isCorrect) {
+    return {
+      success: false,
+      correct: false,
+      error: 'Incorrect fragment sequence. Rearrange the phrases and try again.',
+    };
+  }
+
+  const nowIso = new Date().toISOString();
+  const { error: upsertError } = await supabaseAdmin.from('player_district_cipher_progress').upsert(
+    {
+      event_id: params.eventId,
+      player_id: params.playerId,
+      district_key: params.districtKey,
+      status: 'token_unlocked',
+      collected_count: collectedCount,
+      required_count: requiredCount,
+      token_key: district.tokenKey,
+      token_label: district.tokenLabel,
+      sigil_symbol: district.sigilSymbol,
+      token_unlocked_at: nowIso,
+      updated_at: nowIso,
+    },
+    { onConflict: 'event_id,player_id,district_key' }
+  );
+
+  if (upsertError) {
+    throw new Error(`Failed to record district decode: ${upsertError.message}`);
+  }
+
+  return {
+    success: true,
+    correct: true,
+    status: 'token_unlocked',
+    tokenLabel: district.tokenLabel,
+    sigilSymbol: district.sigilSymbol,
+    decodedSentence: district.canonicalSentence,
+  };
 }
 
 export async function getPlayerCipherProgressDB(
@@ -282,8 +455,18 @@ export async function getPlayerCipherProgressDB(
     const requiredCount = districtDefinitions.filter((row: any) => row.is_required !== false).length;
     const collectedCount = fragments.filter((fragment) => fragment.collected).length;
     const persisted = progressByDistrict.get(district.key) as any;
-    const inferredStatus: CipherDistrictStatus =
-      requiredCount > 0 && collectedCount >= requiredCount ? 'token_unlocked' : collectedCount > 0 ? 'in_progress' : 'locked';
+
+    let inferredStatus: CipherDistrictStatus;
+    if (persisted?.status === 'token_unlocked') {
+      inferredStatus = 'token_unlocked';
+    } else if (requiredCount > 0 && collectedCount >= requiredCount) {
+      inferredStatus = 'ready_to_decode';
+    } else if (collectedCount > 0) {
+      inferredStatus = 'in_progress';
+    } else {
+      inferredStatus = 'locked';
+    }
+
     const status = normalizeStatus(persisted?.status || inferredStatus);
     const tokenUnlocked = status === 'token_unlocked';
     return {
@@ -295,6 +478,7 @@ export async function getPlayerCipherProgressDB(
       tokenLabel: tokenUnlocked ? persisted?.token_label || district.tokenLabel : undefined,
       sigilSymbol: tokenUnlocked ? persisted?.sigil_symbol || district.sigilSymbol : undefined,
       tokenUnlockedAt: tokenUnlocked ? persisted?.token_unlocked_at || undefined : undefined,
+      decodedSentence: tokenUnlocked ? district.canonicalSentence : undefined,
       fragments,
     };
   });

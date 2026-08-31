@@ -87,6 +87,10 @@ import { checkProximity, formatDistance } from './geo';
 import { evaluateProofIntegrity } from './proof-integrity';
 import { sanitizeTextContent } from './spectator-engine';
 import { isProfileIdentityComplete } from './player-command-center';
+import {
+  FOUNDER_CIPHER_DISTRICTS,
+  verifyDistrictDecodeSequence,
+} from './founders-cipher';
 
 const STORAGE_KEYS = {
   CURRENT_PLAYER: 'canton_quests_current_player',
@@ -117,6 +121,7 @@ const STORAGE_KEYS = {
   REWARD_GRANTS: 'canton_quests_reward_grants',
   EVENT_PLAYERS: 'canton_quests_event_players',
   CIPHER_FRAGMENT_GRANTS: 'canton_quests_cipher_fragment_grants',
+  CIPHER_DISTRICT_PROGRESS: 'canton_quests_cipher_district_progress',
 };
 
 const inMemoryStore = new Map<string, any>();
@@ -1185,15 +1190,14 @@ export function grantFinaleQualification(
 
 export function isPlayerQualifiedForFinale(playerId: string, eventId: string): boolean {
   initializeGameEngine();
-  const quals = getStoredItem<FinaleQualification[]>(STORAGE_KEYS.FINALE_QUALIFICATIONS, []);
-  if (quals.some((q) => q.eventId === eventId && q.playerId === playerId)) return true;
+  const ownedCollectibles = new Set(getCollectiblesForPlayer(playerId).map((pc) => pc.collectibleId));
+  const hasAllLocks = THREE_LOCKS_COLLECTIBLE_IDS.every((id) => ownedCollectibles.has(id));
+  if (!hasAllLocks) return false;
 
-  const player = getAllPlayers().find((p) => p.id === playerId);
-  if (player && player.totalXp >= 750) return true;
-
-  const submissions = getSubmissionsForPlayer(playerId, eventId);
-  const verifiedCount = submissions.filter((s) => s.status === 'verified').length;
-  return verifiedCount >= 5;
+  const hasAllSigils = (['arts', 'challenge', 'secret'] as const).every((districtKey) =>
+    isLocalCipherDistrictTokenUnlocked(playerId, eventId, districtKey)
+  );
+  return hasAllSigils;
 }
 
 export function calculateQuestState(
@@ -2512,13 +2516,107 @@ export function getLocalCipherFragmentGrants(playerId: string, eventId: string):
   );
 }
 
+export interface LocalDistrictCipherProgress {
+  eventId: string;
+  playerId: string;
+  districtKey: 'arts' | 'challenge' | 'secret';
+  status: 'locked' | 'in_progress' | 'ready_to_decode' | 'token_unlocked';
+  tokenUnlockedAt?: string;
+}
+
+export function getLocalDistrictCipherProgress(
+  playerId: string,
+  eventId: string,
+  districtKey: 'arts' | 'challenge' | 'secret'
+): LocalDistrictCipherProgress | undefined {
+  return getStoredItem<LocalDistrictCipherProgress[]>(STORAGE_KEYS.CIPHER_DISTRICT_PROGRESS, []).find(
+    (p) => p.playerId === playerId && p.eventId === eventId && p.districtKey === districtKey
+  );
+}
+
 export function isLocalCipherDistrictTokenUnlocked(
   playerId: string,
   eventId: string,
   districtKey: 'arts' | 'challenge' | 'secret'
 ): boolean {
+  const p = getLocalDistrictCipherProgress(playerId, eventId, districtKey);
+  return p?.status === 'token_unlocked';
+}
+
+export function isLocalCipherDistrictReadyToDecode(
+  playerId: string,
+  eventId: string,
+  districtKey: 'arts' | 'challenge' | 'secret'
+): boolean {
+  if (isLocalCipherDistrictTokenUnlocked(playerId, eventId, districtKey)) return false;
   const owned = new Set(getLocalCipherFragmentGrants(playerId, eventId).map((grant) => grant.fragmentKey));
-  return LOCAL_CIPHER_REQUIRED_BY_DISTRICT[districtKey].every((fragmentKey) => owned.has(fragmentKey));
+  const required = LOCAL_CIPHER_REQUIRED_BY_DISTRICT[districtKey];
+  return required.length > 0 && required.every((fragmentKey) => owned.has(fragmentKey));
+}
+
+export function decodeLocalCipherDistrict(params: {
+  eventId: string;
+  playerId: string;
+  districtKey: 'arts' | 'challenge' | 'secret';
+  sequence: string[];
+}): {
+  success: boolean;
+  correct?: boolean;
+  status?: 'token_unlocked';
+  tokenLabel?: string;
+  sigilSymbol?: string;
+  decodedSentence?: string;
+  error?: string;
+  alreadyUnlocked?: boolean;
+} {
+  const district = FOUNDER_CIPHER_DISTRICTS.find((d) => d.key === params.districtKey);
+  if (!district) return { success: false, error: 'Unknown district' };
+
+  if (isLocalCipherDistrictTokenUnlocked(params.playerId, params.eventId, params.districtKey)) {
+    return {
+      success: true,
+      correct: true,
+      alreadyUnlocked: true,
+      status: 'token_unlocked',
+      tokenLabel: district.tokenLabel,
+      sigilSymbol: district.sigilSymbol,
+      decodedSentence: district.canonicalSentence,
+    };
+  }
+
+  const owned = new Set(getLocalCipherFragmentGrants(params.playerId, params.eventId).map((grant) => grant.fragmentKey));
+  const required = LOCAL_CIPHER_REQUIRED_BY_DISTRICT[params.districtKey];
+  const hasAll = required.every((k) => owned.has(k));
+  if (!hasAll) {
+    return { success: false, error: 'District fragments are incomplete.' };
+  }
+
+  const isCorrect = verifyDistrictDecodeSequence(params.districtKey, params.sequence);
+  if (!isCorrect) {
+    return { success: false, correct: false, error: 'Incorrect fragment sequence. Rearrange the phrases and try again.' };
+  }
+
+  const progressList = getStoredItem<LocalDistrictCipherProgress[]>(STORAGE_KEYS.CIPHER_DISTRICT_PROGRESS, []);
+  const nextProgress = progressList.filter(
+    (p) => !(p.eventId === params.eventId && p.playerId === params.playerId && p.districtKey === params.districtKey)
+  );
+  nextProgress.push({
+    eventId: params.eventId,
+    playerId: params.playerId,
+    districtKey: params.districtKey,
+    status: 'token_unlocked',
+    tokenUnlockedAt: new Date().toISOString(),
+  });
+  setStoredItem(STORAGE_KEYS.CIPHER_DISTRICT_PROGRESS, nextProgress);
+
+  return {
+    success: true,
+    correct: true,
+    status: 'token_unlocked',
+    tokenLabel: district.tokenLabel,
+    sigilSymbol: district.sigilSymbol,
+    decodedSentence: district.canonicalSentence,
+  };
 }
 
 function grantLocalCipherFragments(params: {
@@ -2527,7 +2625,7 @@ function grantLocalCipherFragments(params: {
   questId: string;
   submissionId: string;
   fragmentKeys: string[];
-}): { newlyGrantedFragmentKeys: string[]; unlockedDistricts: Array<'arts' | 'challenge' | 'secret'> } {
+}): { newlyGrantedFragmentKeys: string[]; unlockedDistricts: Array<'arts' | 'challenge' | 'secret'>; readyToDecodeDistricts: Array<'arts' | 'challenge' | 'secret'> } {
   const existing = getStoredItem<LocalCipherFragmentGrant[]>(STORAGE_KEYS.CIPHER_FRAGMENT_GRANTS, []);
   const next = [...existing];
   const newlyGrantedFragmentKeys: string[] = [];
@@ -2556,11 +2654,35 @@ function grantLocalCipherFragments(params: {
   setStoredItem(STORAGE_KEYS.CIPHER_FRAGMENT_GRANTS, next);
 
   const owned = new Set(next.filter((grant) => grant.eventId === params.eventId && grant.playerId === params.playerId).map((grant) => grant.fragmentKey));
-  const unlockedDistricts = [...touchedDistricts].filter((districtKey) =>
-    LOCAL_CIPHER_REQUIRED_BY_DISTRICT[districtKey].every((fragmentKey) => owned.has(fragmentKey))
-  );
+  const progressList = getStoredItem<LocalDistrictCipherProgress[]>(STORAGE_KEYS.CIPHER_DISTRICT_PROGRESS, []);
+  const nextProgress = [...progressList];
+  const readyToDecodeDistricts: Array<'arts' | 'challenge' | 'secret'> = [];
 
-  return { newlyGrantedFragmentKeys, unlockedDistricts };
+  for (const districtKey of touchedDistricts) {
+    const isComplete = LOCAL_CIPHER_REQUIRED_BY_DISTRICT[districtKey].every((k) => owned.has(k));
+    const existingIndex = nextProgress.findIndex((p) => p.eventId === params.eventId && p.playerId === params.playerId && p.districtKey === districtKey);
+    const existingStatus = existingIndex >= 0 ? nextProgress[existingIndex].status : 'locked';
+
+    if (existingStatus !== 'token_unlocked') {
+      const nextStatus = isComplete ? 'ready_to_decode' : 'in_progress';
+      if (existingIndex >= 0) {
+        nextProgress[existingIndex].status = nextStatus;
+      } else {
+        nextProgress.push({
+          eventId: params.eventId,
+          playerId: params.playerId,
+          districtKey,
+          status: nextStatus,
+        });
+      }
+      if (isComplete && existingStatus !== 'ready_to_decode') {
+        readyToDecodeDistricts.push(districtKey);
+      }
+    }
+  }
+  setStoredItem(STORAGE_KEYS.CIPHER_DISTRICT_PROGRESS, nextProgress);
+
+  return { newlyGrantedFragmentKeys, unlockedDistricts: [], readyToDecodeDistricts };
 }
 
 /**
@@ -2791,7 +2913,7 @@ function applyQuestRewardGrants(
     };
     const hasAllThreeLocks = THREE_LOCKS_COLLECTIBLE_IDS.every((id) => ownedIds.has(id));
     if (hasAllThreeLocks) {
-      const finaleGranted = recordRewardGrant({
+      recordRewardGrant({
         eventId,
         playerId,
         questId: quest.id,
@@ -2799,9 +2921,6 @@ function applyQuestRewardGrants(
         rewardType: 'FINALE_PROGRESS',
         rewardKey: 'three_locks_complete',
       });
-      if (finaleGranted) {
-        grantFinaleQualification(eventId, playerId, "Collected all three Founder's Locks: MARK, CODE, WORD");
-      }
     }
   }
 
@@ -2831,7 +2950,7 @@ function applyQuestRewardGrants(
   }
 
   if (unlocks.countsTowardFinale) {
-    const granted = recordRewardGrant({
+    recordRewardGrant({
       eventId,
       playerId,
       questId: quest.id,
@@ -2839,9 +2958,6 @@ function applyQuestRewardGrants(
       rewardType: 'FINALE_PROGRESS',
       rewardKey: quest.id,
     });
-    if (granted) {
-      grantFinaleQualification(eventId, playerId, `Completed qualifying quest: ${quest.title}`);
-    }
   }
 
   const newlyAwarded = evaluatePlayerAchievements(playerId, eventId);

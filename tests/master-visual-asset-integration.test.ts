@@ -72,6 +72,11 @@ describe('Canton Quests — Master Visual Asset Package Integration Suite', () =
     expect(cqImages.monumentCinematic).toBe('/canton-quests/monument.png');
     expect(cqImages.promoVideo).toBe('/canton-quests/cq-briefing-transmission.mp4');
     expect(cqImages.promoVideoPoster).toBe('/canton-quests/cq-briefing-poster.jpg');
+    expect(cqImages.challengeSkatePark).toBe('/canton-quests/quests/challenge/skate_park.png');
+    expect(cqImages.challengeOpenGround).toBe('/canton-quests/quests/challenge/the_open_ground.png');
+    expect(cqImages.challengeTower).toBe('/canton-quests/quests/challenge/silo.png');
+    expect(cqImages.challengeMural).toBe('/canton-quests/quests/challenge/mother_mural.png');
+    expect(cqImages.challengeWillie).toBe('/canton-quests/quests/challenge/willie.png');
   });
 
   it('4. verifies PATH_OPTIONS in ThreePathSelector maps each path to its authentic district', () => {

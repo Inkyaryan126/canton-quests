@@ -16,6 +16,7 @@ import { showFounderCipherMessage, getFounderCipherMessage } from '@/lib/gamepla
 
 const LOCKED_REASON_TITLE: Record<string, string> = {
   not_configured: 'MASTER CIPHER OFFLINE',
+  locks_required: 'FOUNDER LOCKS REQUIRED',
   insufficient_sigils: 'MASTER CIPHER LOCKED',
   watcher_required: 'MASTER CIPHER LOCKED',
   not_yet_open: 'MASTER CIPHER NOT YET OPEN',
@@ -391,7 +392,16 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
           )}
         </section>
 
-        {cipherProgress && <CipherFragmentsPanel progress={cipherProgress} />}
+        {cipherProgress && (
+          <CipherFragmentsPanel
+            progress={cipherProgress}
+            eventSlug={eventSlug}
+            onDecodeSuccess={() => {
+              fetchFinaleStatus();
+              fetchEvent();
+            }}
+          />
+        )}
 
         {/* MASTER CIPHER / SOLUTION ENTRY / SOLVED SUMMARY */}
         {solved ? (

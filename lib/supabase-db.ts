@@ -1282,7 +1282,7 @@ export async function awardQuestRewardsDB(params: {
     };
     const hasAllThreeLocks = THREE_LOCKS_COLLECTIBLE_IDS.every((id) => ownedSlugs.has(resolveCollectibleSlug(id)));
     if (hasAllThreeLocks) {
-      const finaleGranted = await insertRewardGrantDB({
+      await insertRewardGrantDB({
         eventId,
         playerId,
         questId: quest.id,
@@ -1290,9 +1290,6 @@ export async function awardQuestRewardsDB(params: {
         rewardType: 'FINALE_PROGRESS',
         rewardKey: 'three_locks_complete',
       });
-      if (finaleGranted) {
-        await grantFinaleQualificationDB(eventId, playerId, "Collected all three Founder's Locks: MARK, CODE, WORD");
-      }
     }
   }
 
@@ -1322,7 +1319,7 @@ export async function awardQuestRewardsDB(params: {
   }
 
   if (unlocks.countsTowardFinale) {
-    const granted = await insertRewardGrantDB({
+    await insertRewardGrantDB({
       eventId,
       playerId,
       questId: quest.id,
@@ -1330,9 +1327,6 @@ export async function awardQuestRewardsDB(params: {
       rewardType: 'FINALE_PROGRESS',
       rewardKey: quest.id,
     });
-    if (granted) {
-      await grantFinaleQualificationDB(eventId, playerId, `Completed qualifying quest: ${quest.title}`);
-    }
   }
 
   let newAchievements: Array<{ id: string; title: string; description: string; icon?: string }> = [];

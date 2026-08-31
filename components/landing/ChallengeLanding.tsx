@@ -25,7 +25,7 @@ import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import FastPlayerOnboardForm from '@/components/FastPlayerOnboardForm';
 import { ACQUISITION_ENTRY_HREF } from '@/lib/acquisition-landing-content';
-import { cqImages } from '@/lib/marketing-assets';
+import { cqImages, challengeSectorCards } from '@/lib/marketing-assets';
 
 export default function ChallengeLanding() {
   return (
@@ -154,6 +154,49 @@ export default function ChallengeLanding() {
                 Real-time scoreboard recalculation tracking all verified field agents across Canton.
               </p>
             </div>
+          </div>
+        </section>
+
+        {/* CHALLENGE SECTOR ROUTE CARDS (01 - 05) */}
+        <section className="cq-challenge-cards-section" aria-labelledby="challenge-route-cards">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <span className="text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">
+                CHALLENGE SECTOR ROUTE
+              </span>
+              <h2 id="challenge-route-cards" className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+                5 CANONICAL FIELD MISSION CARDS
+              </h2>
+            </div>
+            <span className="text-xs font-mono text-cyan-300 bg-cyan-950/60 border border-cyan-500/40 px-3 py-1 rounded-full font-bold">
+              ROUTE SEQUENCE: 01 → 05
+            </span>
+          </div>
+
+          <p className="text-gray-300 text-sm mt-2 max-w-3xl leading-relaxed">
+            Follow the Challenge Sector path from the 9th Street Skate Park to the historic Mother Goose Land grounds.
+            Each standalone mission card establishes on-site coordinates and field verification.
+          </p>
+
+          <div className="cq-challenge-cards-grid">
+            {challengeSectorCards.map((card) => (
+              <div key={card.number} className="cq-challenge-card-item">
+                <div className="cq-challenge-card-image-wrap">
+                  <Image
+                    src={card.image}
+                    alt={`${card.number} — ${card.title} (${card.location})`}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 20vw"
+                    className="object-contain"
+                  />
+                </div>
+                <div className="cq-challenge-card-meta">
+                  <span className="cq-challenge-card-meta-num">{card.number}</span>
+                  <span className="cq-challenge-card-meta-loc" title={card.location}>{card.location}</span>
+                  <span className="cq-challenge-card-meta-xp">+{card.rewardXp} XP</span>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 

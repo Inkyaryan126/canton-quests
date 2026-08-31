@@ -939,4 +939,61 @@ Each entry follows the standard ADR structure:
   - The Next.js architecture does not compile Tailwind CSS. Writing Tailwind utility classes creates silent no-op strings in the DOM, causing images to render at full natural dimensions (e.g. 1254px avatars) and breaking layout containers in production.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-045] 2026-08-30: Challenge Sector Standalone Quest Cards Integration & Route Architecture
+
+- **Decision**:
+  1. **Standalone 2:3 Quest Cards Integration**:
+     - Integrated the two new standalone mission cards alongside existing Challenge sector cards under `public/canton-quests/quests/challenge/`:
+       - `01 — SKATE PARK`: `public/canton-quests/quests/challenge/skate_park.png` (9th Street Skate Park)
+       - `02 — THE OPEN GROUND`: `public/canton-quests/quests/challenge/the_open_ground.png` (Large Field / Challenge Field)
+       - `03 — THE TOWER`: `public/canton-quests/quests/challenge/silo.png` (Mother Goose Land Tower)
+       - `04 — THE MURAL`: `public/canton-quests/quests/challenge/mother_mural.png` (Mother Goose Land Mural Wall)
+       - `05 — WILLIE THE WHALE`: `public/canton-quests/quests/challenge/willie.png` (Willie the Whale)
+     - Strongly typed all 5 card asset paths in `lib/marketing-assets.ts` (`cqImages.challengeSkatePark`, `cqImages.challengeOpenGround`, `cqImages.challengeTower`, `cqImages.challengeMural`, `cqImages.challengeWillie`).
+  2. **Canonical 5-Mission Route Order & Data Alignment**:
+     - Preserved the exact 5-mission route order (01 Skate Park -> 02 Open Ground -> 03 Tower -> 04 Mural -> 05 Willie).
+     - Connected `SEED_LOCATIONS` (`loc-challenge-field`, `loc-challenge-tower`, `loc-mother-goose-land`, `loc-9th-street`) and `SEED_QUESTS` (`qst-9th-street-opening`, `qst-challenge-open-ground`, `qst-challenge-the-tower`, `qst-challenge-the-mural`, `qst-challenge-blue-signal`) with matching title, location, description, and 100 XP rewards.
+     - Preserved all existing quest IDs, prerequisite chains (C1–C4), validation mechanics, and database relationships.
+  3. **Full-Card Aspect Ratio Fidelity & No-Tailwind Custom CSS**:
+     - Updated `getQuestImage()` to map quests by slug and location.
+     - Updated quest detail page (`app/events/[slug]/quests/[questId]/page.tsx`) to detect standalone cards via `isStandaloneQuestCard()` and render them at authentic 2:3 aspect ratio with `object-contain`, preventing clipping or stretching on desktop and mobile.
+     - Created scoped `.cq-challenge-cards-*` custom CSS in `app/globals.css` and integrated the 5-card sequence showcase into `components/landing/ChallengeLanding.tsx` adhering to Rule 21.
+- **Reason**:
+  - Provides a cohesive, high-fidelity visual presentation of the Challenge Sector physical route, ensuring every card displays its standalone artwork and metadata cleanly across all viewport sizes.
+- **Status**: **ACCEPTED**
+
+---
+
+### [ADR-046] 2026-08-31: Founder's Cipher Phase 2 Engine Reconciliation & Manual District Decode Architecture
+
+- **Decision**:
+  1. **Four-State District Cipher Lifecycle**:
+     - Standardized the district cipher lifecycle across both Supabase and local storage engine:
+       - `0 fragments`: `locked`
+       - `1–2 fragments`: `in_progress`
+       - `3 fragments`: `ready_to_decode`
+       - `Manual Sequence Verified`: `token_unlocked`
+     - The third fragment collection transition sets district status strictly to `ready_to_decode` and **NEVER** automatically unlocks the district Sigil.
+  2. **Authoritative Manual District Decode (`/api/game/cipher/decode`)**:
+     - Introduced server-authoritative manual decode endpoint (`decodeDistrictCipherDB` / `decodeLocalCipherDistrict`) where players submit their 3-tile fragment sequence.
+     - Enforces authenticated player session, event scoping, verification of 3 owned fragments, tile sequence checking against canonical district phrases, and idempotent Sigil unlocks.
+     - Canonical district phrases:
+       - **Family / Arts**: `"A NAME OUTLIVES THE MAN."` (`['A NAME', 'OUTLIVES', 'THE MAN']` -> Arts Sigil)
+       - **Challenge**: `"THE WORLD GAVE A MONSTER HIS NAME."` (`['THE WORLD', 'GAVE A MONSTER', 'HIS NAME']` -> Challenge Sigil)
+       - **Secret**: `"THE DEAD KEEP IT AT WEST LAWN."` (`['THE DEAD', 'KEEP IT', 'AT WEST LAWN']` -> Secret Sigil)
+  3. **Unified Master Cipher Gate (3 Locks + 3 Decoded Sigils)**:
+     - Gated Master Cipher submission (`lib/finale.ts:checkFinaleEligibility`, `lib/finale-db.ts`) behind the exact canonical rule: **3 Founder Locks** (`THE MARK`, `THE CODE`, `THE WORD`) **AND** **3 Decoded District Sigils**.
+     - Completely removed legacy shortcuts (XP $\ge 750$, 5+ verified quests, locks-only bypass, GM wildcard auto-grant) from Master Cipher qualification logic.
+  4. **Dynamic Commander Messaging & State Events**:
+     - Registered path-aware Commander state messages for `FIRST_CIPHER_FRAGMENT_RECOVERED`, `DISTRICT_READY_TO_DECODE`, `DISTRICT_SIGIL_UNLOCKED`, `FOUNDER_LOCK_RECOVERED`, `ALL_THREE_LOCKS_RECOVERED`, `ALL_THREE_SIGILS_DECODED`, `MASTER_CIPHER_AVAILABLE`, `CIPHER_SOLVED`, and `MISSION_COMPLETE`.
+  5. **Additive Migration Safety**:
+     - Created additive migration `supabase/migrations/20260831120000_founders_cipher_phase2_manual_decode_reconciliation.sql` (Status: `PREPARED ONLY`, not applied remotely).
+- **Reason**:
+  - Restores player puzzle agency and enforces the approved Phase 1 Founder's Cipher game architecture, eliminating premature automated unlocks and rogue engine bypasses while preserving nonlinear 14-quest independence and the 1-entry-per-quest drawing promise.
+- **Status**: **ACCEPTED**
+
+
+
 

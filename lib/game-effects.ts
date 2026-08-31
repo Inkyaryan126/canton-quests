@@ -202,6 +202,8 @@ export type CommanderTransmissionTrigger =
   | 'path_selection'
   | 'path_selected'
   | 'fragment_recovered'
+  | 'lock_recovered'
+  | 'district_ready_to_decode'
   | 'district_sigil_unlocked'
   | 'xp_awarded'
   | 'drawing_entry_awarded'
