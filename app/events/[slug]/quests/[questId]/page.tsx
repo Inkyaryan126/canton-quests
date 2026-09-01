@@ -327,6 +327,13 @@ export default function QuestDetailPage({
           if (result.threeLocksFragmentAwarded) {
             const hasAllLocks =
               result.threeLocksOwned?.mark && result.threeLocksOwned?.code && result.threeLocksOwned?.word;
+            const lockCount = [
+              result.threeLocksOwned?.mark,
+              result.threeLocksOwned?.code,
+              result.threeLocksOwned?.word,
+            ].filter(Boolean).length;
+            const lockOrdinal = lockCount === 1 ? '1st' : lockCount === 2 ? '2nd' : '3rd';
+
             if (hasAllLocks) {
               if (shouldShowContextualTransmission({ trigger: 'lock_recovered', eventSlug, playerId: player.id, subjectKey: 'all-three-locks' })) {
                 markTransmissionViewed('lock_recovered', 'all-three-locks', player.id);
@@ -342,7 +349,8 @@ export default function QuestDetailPage({
                 messageId: 'FOUNDER_LOCK_RECOVERED',
                 path: player.selectedStartingPath,
                 playerId: player.id,
-                contextLabel: `LOCK: ${result.threeLocksFragmentAwarded.toUpperCase()}`,
+                lockCount,
+                contextLabel: `${lockOrdinal.toUpperCase()} LOCK: ${result.threeLocksFragmentAwarded.toUpperCase()} (${lockCount}/3)`,
               });
             }
           }
@@ -407,15 +415,18 @@ export default function QuestDetailPage({
               .catch(() => {});
           }
 
-          if (result.cipherDistrictsUnlocked && result.cipherDistrictsUnlocked.length > 0) {
-            for (const districtKey of result.cipherDistrictsUnlocked) {
+          if (result.readyToDecodeDistricts && result.readyToDecodeDistricts.length > 0) {
+            for (const districtKey of result.readyToDecodeDistricts) {
               const district = FOUNDER_CIPHER_DISTRICTS.find((d) => d.key === districtKey);
-              showFounderCipherMessage({
-                messageId: 'DISTRICT_OBJECTIVE_COMPLETE',
-                path: player.selectedStartingPath,
-                playerId: player.id,
-                contextLabel: district?.name,
-              });
+              if (shouldShowContextualTransmission({ trigger: 'district_ready_to_decode', eventSlug, playerId: player.id, subjectKey: districtKey })) {
+                markTransmissionViewed('district_ready_to_decode', districtKey, player.id);
+                showFounderCipherMessage({
+                  messageId: 'DISTRICT_READY_TO_DECODE',
+                  path: player.selectedStartingPath,
+                  playerId: player.id,
+                  contextLabel: district?.name,
+                });
+              }
             }
           }
         }
@@ -492,9 +503,9 @@ export default function QuestDetailPage({
             if (allThreeOwned) {
               lockMoments.push({
                 type: 'three-locks-complete',
-                headline: "FOUNDER'S CIPHER COMPLETE",
+                headline: 'AUTHORIZATION KEYS SECURED',
                 primaryText: 'THREE LOCKS COMPLETE',
-                secondaryText: 'MARK · CODE · WORD — all three fragments recovered.',
+                secondaryText: 'MARK · CODE · WORD — authorization complete. Decode all 3 district Sigils to unlock Master Cipher.',
                 pathColor: 'amber',
               });
             }

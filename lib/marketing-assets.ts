@@ -74,6 +74,18 @@ export const cqImages = {
   challengeTower: `${CQ_ASSET_PATH}/quests/challenge/silo.png`,
   challengeMural: `${CQ_ASSET_PATH}/quests/challenge/mother_mural.png`,
   challengeWillie: `${CQ_ASSET_PATH}/quests/challenge/willie.png`,
+
+  // Family District Standalone Quest Cards (1024x1536 PNG) — Phase 3A
+  familyBell: `${CQ_ASSET_PATH}/quests/family/bell.png`,
+  familyCantonSign: `${CQ_ASSET_PATH}/quests/family/canton.png`,
+  familyFootball: `${CQ_ASSET_PATH}/quests/family/football.png`,
+  familyOcto: `${CQ_ASSET_PATH}/quests/family/octo.png`,
+  familyPalace: `${CQ_ASSET_PATH}/quests/family/palace.png`,
+
+  // Secret District Standalone Quest Cards (1024x1536 PNG) — Phase 3B
+  secretFlame: `${CQ_ASSET_PATH}/quests/secret/flame.png`,
+  secretGoldenMark: `${CQ_ASSET_PATH}/quests/secret/the golden mark.png`,
+  secretWater: `${CQ_ASSET_PATH}/quests/secret/water.png`,
 };
 
 export interface ChallengeSectorCardDef {
@@ -177,6 +189,18 @@ const questImageBySlug: Record<string, string> = {
   'challenge-storybook-witness': cqImages.challengeMural,
   'challenge-what-survived': cqImages.challengeWillie,
   'challenge-the-lost-page': cqImages.challengeMural,
+
+  // Family District Quests (Phase 3A)
+  'bell-cipher': cqImages.familyBell,
+  'canton-sign-capture': cqImages.familyCantonSign,
+  'draft-lineup': cqImages.familyFootball,
+
+  // Phase 3B
+  'kraken-wall': cqImages.familyOcto,
+  'palace-stars': cqImages.familyPalace,
+  'eternal-flame': cqImages.secretFlame,
+  'golden-mark-cipher': cqImages.secretGoldenMark,
+  'spring-water-shelter': cqImages.secretWater,
 };
 
 const questImageByLocation: Record<string, string> = {

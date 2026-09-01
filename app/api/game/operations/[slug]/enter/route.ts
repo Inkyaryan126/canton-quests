@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
-import { getEventBySlugDB, getOrCreateEventParticipationDB, upsertPlayerDB } from '@/lib/supabase-db';
+import {
+  awardAchievementDB,
+  getAchievementsForPlayerDB,
+  getEventBySlugDB,
+  getOrCreateEventParticipationDB,
+  upsertPlayerDB,
+} from '@/lib/supabase-db';
 import { VALID_STARTING_PATHS } from '@/lib/player-command-center';
-import { StartingPath } from '@/lib/types';
+import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
+import { PlayerAchievement, StartingPath } from '@/lib/types';
 
 /**
  * POST /api/game/operations/[slug]/enter
@@ -54,12 +61,32 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     const participation = await getOrCreateEventParticipationDB(event.id, currentPlayer.id, path);
     const needsPath = Boolean(event.requiresPath) && !VALID_STARTING_PATHS.includes(currentPlayer.selectedStartingPath as StartingPath);
 
+    // Pre-launch badges — real, earnable the moment their actual
+    // precondition is met, never backdated. Both are scoped to known
+    // Canton Quests launches only (not every Operation, e.g. the
+    // path-free Fair QR Hunt has no "path chosen" moment to earn).
+    const newAchievements: PlayerAchievement[] = [];
+    if (isKnownCantonLaunchSlug(params.slug)) {
+      const earned = await getAchievementsForPlayerDB(currentPlayer.id);
+      const earnedSlugs = new Set(earned.map((pa) => pa.achievementSlug));
+
+      if (!earnedSlugs.has('first-to-arrive')) {
+        const granted = await awardAchievementDB(currentPlayer.id, 'first-to-arrive', event.id, 'Entered the Mission and confirmed Player Identity');
+        if (granted) newAchievements.push(granted);
+      }
+      if (path && !earnedSlugs.has('path-chosen')) {
+        const granted = await awardAchievementDB(currentPlayer.id, 'path-chosen', event.id, `Chose the ${path} starting path`);
+        if (granted) newAchievements.push(granted);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       event,
       participation,
       needsPath,
       player: currentPlayer,
+      newAchievements,
     });
   } catch (error: any) {
     console.error('[API /game/operations/[slug]/enter] Server error:', error);

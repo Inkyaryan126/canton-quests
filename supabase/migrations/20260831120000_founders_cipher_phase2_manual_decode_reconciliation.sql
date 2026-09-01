@@ -61,7 +61,7 @@ INSERT INTO public.finale_config (
   requires_watcher_eligibility,
   master_cipher_clue_pieces,
   final_answer_hash,
-  final_destinationReveal,
+  final_destination_reveal,
   false_finale_enabled,
   false_finale_answer_hash,
   false_finale_reveal_text
@@ -78,7 +78,7 @@ VALUES (
   ],
   -- SHA-256 hash of "FRANKENSTEIN"
   'sha256:02ca322303c73708e0da832f91dfeb8ebfe47f4fc39a04a3ad820b9dc0745582',
-  'Convergence Complete. The Founder’s Cipher has been solved. Report to Centennial Plaza Founder Obelisk for live verification.',
+  'Convergence Complete. The Founder’s Cipher has been solved. Location Resolved: West Lawn Cemetery — Frankenstein Family Monument.',
   false,
   null,
   null
@@ -87,6 +87,12 @@ ON CONFLICT (event_id) DO UPDATE SET
   required_sigil_count = 3,
   master_cipher_clue_pieces = EXCLUDED.master_cipher_clue_pieces,
   final_answer_hash = EXCLUDED.final_answer_hash,
-  final_destinationReveal = EXCLUDED.final_destinationReveal;
+  final_destination_reveal = EXCLUDED.final_destination_reveal;
+
+-- 5. Support event-scoped collectibles provenance
+ALTER TABLE public.player_collectibles
+  ADD COLUMN IF NOT EXISTS event_id UUID REFERENCES public.events(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_player_collectibles_event ON public.player_collectibles(player_id, event_id);
 
 -- End of migration

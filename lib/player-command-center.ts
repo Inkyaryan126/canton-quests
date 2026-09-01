@@ -20,6 +20,9 @@ export const CANONICAL_BADGE_ICON_PATHS: Record<string, string> = {
   'triple-threat': '/canton-quests/badges/3daysavior.png',
   nomad: '/canton-quests/badges/finisher.png',
   'day-one-king': '/canton-quests/badges/first_step.png',
+  'first-to-arrive': '/canton-quests/badges/cq_badge_060.png',
+  'path-chosen': '/canton-quests/badges/cq_badge_014.png',
+  'field-ready': '/canton-quests/badges/cq_badge_009.png',
 };
 export const DEFAULT_BADGE_ICON_PATH = '/canton-quests/badges/first_step.png';
 

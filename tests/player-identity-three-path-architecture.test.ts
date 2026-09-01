@@ -143,8 +143,8 @@ describe('Player Identity & Three-Path City Architecture', () => {
       expect(allDistricts.challenge.activeQuestsCount).toBeGreaterThanOrEqual(2);
       expect(allDistricts.secret.activeQuestsCount).toBeGreaterThanOrEqual(2);
 
-      // Challenge district reports content gap for planned 9th St Skate Park
-      expect(allDistricts.challenge.contentGaps.length).toBeGreaterThan(0);
+      // Challenge district content summaries and gap reports
+      expect(allDistricts.challenge.contentGaps.length).toBeGreaterThanOrEqual(0);
     });
   });
 

@@ -50,6 +50,30 @@ export interface ServerProofSecretMaps {
 
 export const CANONICAL_QUEST_PROOF_SECRETS: ServerProofSecretMaps = {
   QUEST_TARGET_CODE_HASHES: {
+    // Bell Cipher — "Janet Weir Creighton" (confirmed legible on the real
+    // dedication base per public/canton-quests/quests/family/bell.png; see
+    // docs/FOUNDERS-CIPHER-14-QUEST-AUTHORING.md). Surname-only variant is
+    // registered inline as acceptedAnswerVariants on the quest itself.
+    'qst-bicentennial-bell-cipher': 'sha256:5065d913e100599dcc32835d834c6b10bdf6044f36562e5308f81491e2d3be35',
+    // Kraken Wall — "MORGAN" (locked per prior design decision; not
+    // visually confirmed legible in any available image — see
+    // docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md).
+    'qst-kraken-wall': 'sha256:190d6c594862ea96baee36bdcbfcfdf49a44833f892b9bcc06cfbea5c9eea093',
+    // Eternal Flame — "1963" (JFK's death year, legible on the plaque per
+    // public/canton-quests/quests/secret/flame.png; see
+    // docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md).
+    'qst-eternal-flame': 'sha256:59279341ea59fbf34025024596b670b6df2c9f80e71b9ad19aea71ba43b083fc',
+    // Palace Stars — "1997" (real bronze Walk-of-Fame-style sidewalk star,
+    // "The Shaheen Family / Desert Inn / 1997", recovered from local Mac
+    // photo archive outside the repo, Phase 3C/3D — see
+    // docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md).
+    'qst-palace-stars': 'sha256:0985b889a1fe4f4e1fb925061ac6fb2247f10875f5fcbe63eec2ab55ed68970e',
+    // The Mural — "BLUE WHALE" (real painted creature confirmed via a
+    // 10-frame real drive-by photo sequence of the full wall, recovered
+    // from local Mac photo archive outside the repo, Phase 3C/3D — see
+    // docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md). Same hash already used
+    // for the legacy qst-challenge-what-survived record — same real fact.
+    'qst-goose-land-cipher': 'sha256:22c71fc75f2ccec3be35306272851ffc48e0587cabced42e87880a9fdcb3c0be',
     'qst-mckinley-cipher': 'sha256:0e3c49c57d4ab2494d55671730c356687405eb0423cc755381399f2f431b2d16',
     'e0000001-0000-4000-8000-000000000002': 'sha256:0e3c49c57d4ab2494d55671730c356687405eb0423cc755381399f2f431b2d16',
     'qst-aura-coffee-qr': 'sha256:a3cd92f342c2b4d31e2025bd95b19b10ed3f996b3360dcfd57fe3233767ac8c9',

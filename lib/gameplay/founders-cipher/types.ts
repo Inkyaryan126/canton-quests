@@ -65,7 +65,8 @@ export type FounderCipherMessageId =
   | 'CIPHER_SOLVED'
   | 'FINALE_UNLOCKED'
   | 'FINAL_SOLUTION_CORRECT'
-  | 'MISSION_COMPLETE';
+  | 'MISSION_COMPLETE'
+  | 'PALACE_SIGNAL_ANOMALY';
 
 /** How much room a message needs — drives which presentation level renders it. See section 10/4 of the design brief. */
 export type MessagePresentation = 'micro' | 'commander-text' | 'archive' | 'video';

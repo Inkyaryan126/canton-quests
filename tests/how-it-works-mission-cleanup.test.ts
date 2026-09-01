@@ -135,6 +135,24 @@ describe('/how-it-works — generic platform guidance still renders', () => {
     expect(howItWorksSource).toContain('(FinalQuestNumber mod totalValidEntries) + 1');
     expect(howItWorksSource).not.toContain('totalFinishers');
   });
+
+  it('presents a clear, player-friendly 7-step drawing flow with technical specification accessible via disclosure', () => {
+    expect(howItWorksSource).toContain('Build the Final Quest Number');
+    expect(howItWorksSource).toContain('Match the ticket length');
+    expect(howItWorksSource).toContain('Read the number in sections');
+    expect(howItWorksSource).toContain('Ignore numbers outside the ticket pool');
+    expect(howItWorksSource).toContain('Check prize eligibility');
+    expect(howItWorksSource).toContain('If needed, scan backward');
+    expect(howItWorksSource).toContain('Guaranteed fallback');
+
+    expect(howItWorksSource).toMatch(/created from the Mission(\\)?['']s final verified totals/i);
+    expect(howItWorksSource).toMatch(/Count how many digits are in the total number of valid entries/i);
+    expect(howItWorksSource).toMatch(/read the Final Quest Number in overlapping groups of that many digits/i);
+    expect(howItWorksSource).toMatch(/a result such as 809 is skipped because ticket 809 does not exist/i);
+    expect(howItWorksSource).toMatch(/continue to the next valid ticket until an eligible winner is found/i);
+    expect(howItWorksSource).toMatch(/the Final Quest Number is reversed and the same process is repeated/i);
+    expect(howItWorksSource).toMatch(/published fallback formula converts the Final Quest Number into a valid ticket position/i);
+  });
 });
 
 describe('Founder\'s Cipher Mission-specific components still work in their own routes', () => {

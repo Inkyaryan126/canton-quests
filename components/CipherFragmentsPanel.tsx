@@ -11,10 +11,21 @@ function statusLabel(status: CipherDistrictProgressView['status']): string {
   return 'No signal';
 }
 
+interface DecodeSuccessData {
+  districtKey: CipherDistrictKey;
+  tokenLabel: string;
+  sigilSymbol: string;
+  decodedSentence: string;
+  unlockedSigilCount?: number;
+  allSigilsUnlocked?: boolean;
+  hasAllThreeLocks?: boolean;
+  masterCipherAvailable?: boolean;
+}
+
 interface CipherFragmentsPanelProps {
   progress?: PlayerCipherProgressView | null;
   eventSlug?: string;
-  onDecodeSuccess?: () => void;
+  onDecodeSuccess?: (result?: DecodeSuccessData) => void;
 }
 
 export default function CipherFragmentsPanel({
@@ -82,7 +93,7 @@ export default function CipherFragmentsPanel({
         `Sigil Unlocked! Decoded sentence: "${data.decodedSentence || ''}"`
       );
       if (onDecodeSuccess) {
-        onDecodeSuccess();
+        onDecodeSuccess(data);
       }
       setTimeout(() => {
         setActiveDecodingDistrict(null);

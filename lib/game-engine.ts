@@ -816,7 +816,12 @@ export function redeemSecretCode(
   };
 }
 
-export function awardCollectible(playerId: string, collectibleId: string, source: string = 'quest'): Collectible | undefined {
+export function awardCollectible(
+  playerId: string,
+  collectibleId: string,
+  source: string = 'quest',
+  eventId?: string
+): Collectible | undefined {
   initializeGameEngine();
   const catalog = getStoredItem<Collectible[]>(STORAGE_KEYS.COLLECTIBLES, SEED_COLLECTIBLES);
   const playerCols = getStoredItem<PlayerCollectible[]>(STORAGE_KEYS.PLAYER_COLLECTIBLES, []);
@@ -824,7 +829,9 @@ export function awardCollectible(playerId: string, collectibleId: string, source
   const item = catalog.find((c) => c.id === collectibleId || c.slug === collectibleId);
   if (!item) return undefined;
 
-  const alreadyHas = playerCols.some((pc) => pc.playerId === playerId && pc.collectibleId === item.id);
+  const alreadyHas = playerCols.some(
+    (pc) => pc.playerId === playerId && pc.collectibleId === item.id && (!eventId || !pc.eventId || pc.eventId === eventId)
+  );
   if (!alreadyHas) {
     const newRecord: PlayerCollectible = {
       id: `pcol-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -832,6 +839,7 @@ export function awardCollectible(playerId: string, collectibleId: string, source
       collectibleId: item.id,
       earnedAt: new Date().toISOString(),
       source,
+      eventId,
       collectible: item,
     };
     setStoredItem(STORAGE_KEYS.PLAYER_COLLECTIBLES, [...playerCols, newRecord]);
@@ -848,13 +856,13 @@ export function awardCollectible(playerId: string, collectibleId: string, source
   return item;
 }
 
-export function getCollectiblesForPlayer(playerId: string): PlayerCollectible[] {
+export function getCollectiblesForPlayer(playerId: string, eventId?: string): PlayerCollectible[] {
   initializeGameEngine();
   const playerCols = getStoredItem<PlayerCollectible[]>(STORAGE_KEYS.PLAYER_COLLECTIBLES, []);
   const catalog = getStoredItem<Collectible[]>(STORAGE_KEYS.COLLECTIBLES, SEED_COLLECTIBLES);
 
   return playerCols
-    .filter((pc) => pc.playerId === playerId)
+    .filter((pc) => pc.playerId === playerId && (!eventId || !pc.eventId || pc.eventId === eventId))
     .map((pc) => ({
       ...pc,
       collectible: catalog.find((c) => c.id === pc.collectibleId),
@@ -1188,11 +1196,56 @@ export function grantFinaleQualification(
   return newQual;
 }
 
+export function getPlayerThreeLocks(
+  playerId: string,
+  eventId?: string
+): { mark: boolean; code: boolean; word: boolean; hasAll: boolean } {
+  initializeGameEngine();
+  const keys = new Set<string>();
+
+  if (eventId) {
+    // 1. Check reward_grants for event-scoped lock provenance
+    const grants = getStoredItem<RewardGrant[]>(STORAGE_KEYS.REWARD_GRANTS, []);
+    const eventGrants = grants.filter(
+      (g) => g.playerId === playerId && g.eventId === eventId && (g.rewardType === 'THREE_LOCKS_FRAGMENT' || g.rewardType === 'COLLECTIBLE_UNLOCK')
+    );
+    for (const g of eventGrants) {
+      if (g.rewardKey) keys.add(g.rewardKey);
+    }
+
+    // 2. Check player collectibles with eventId
+    const playerCols = getStoredItem<PlayerCollectible[]>(STORAGE_KEYS.PLAYER_COLLECTIBLES, []);
+    for (const pc of playerCols) {
+      if (pc.playerId === playerId && pc.eventId === eventId) {
+        keys.add(pc.collectibleId);
+        if (pc.collectible?.slug) keys.add(pc.collectible.slug);
+      }
+    }
+  } else {
+    // Fallback if no eventId passed
+    const owned = getCollectiblesForPlayer(playerId);
+    for (const pc of owned) {
+      keys.add(pc.collectibleId);
+      if (pc.collectible?.slug) keys.add(pc.collectible.slug);
+    }
+  }
+
+  const mark = keys.has('col-founder-mark') || keys.has('founder-mark');
+  const code = keys.has('col-founder-code') || keys.has('founder-code');
+  const word = keys.has('col-founder-word') || keys.has('founder-word');
+
+  return {
+    mark,
+    code,
+    word,
+    hasAll: mark && code && word,
+  };
+}
+
 export function isPlayerQualifiedForFinale(playerId: string, eventId: string): boolean {
   initializeGameEngine();
-  const ownedCollectibles = new Set(getCollectiblesForPlayer(playerId).map((pc) => pc.collectibleId));
-  const hasAllLocks = THREE_LOCKS_COLLECTIBLE_IDS.every((id) => ownedCollectibles.has(id));
-  if (!hasAllLocks) return false;
+  const locks = getPlayerThreeLocks(playerId, eventId);
+  if (!locks.hasAll) return false;
 
   const hasAllSigils = (['arts', 'challenge', 'secret'] as const).every((districtKey) =>
     isLocalCipherDistrictTokenUnlocked(playerId, eventId, districtKey)
@@ -1536,7 +1589,7 @@ export const PROFILE_COMPLETION_XP = 100;
  * state and is a safe no-op if already granted or not yet qualified. Never
  * awards a drawing entry.
  */
-export function evaluateAndGrantProfileCompletionReward(playerId: string): { newlyGranted: boolean; xpAwarded: number } {
+export function evaluateAndGrantProfileCompletionReward(playerId: string): { newlyGranted: boolean; xpAwarded: number; newAchievement?: PlayerAchievement } {
   initializeGameEngine();
   const player = getAllPlayers().find((p) => p.id === playerId);
   if (!player || !isProfileIdentityComplete(player)) {
@@ -1562,7 +1615,9 @@ export function evaluateAndGrantProfileCompletionReward(playerId: string): { new
     description: 'Player identity complete — avatar selected',
   });
 
-  return { newlyGranted: true, xpAwarded: PROFILE_COMPLETION_XP };
+  const newAchievement = awardAchievement(playerId, 'field-ready', SEED_EVENT.id, 'Player identity complete — avatar selected');
+
+  return { newlyGranted: true, xpAwarded: PROFILE_COMPLETION_XP, newAchievement };
 }
 
 export function getEvents(): QuestEvent[] {
@@ -2286,6 +2341,8 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   let threeLocksOwnedResult: { mark: boolean; code: boolean; word: boolean } | undefined;
   let cipherFragmentsAwarded: string[] | undefined;
   let cipherDistrictsUnlocked: Array<'arts' | 'challenge' | 'secret'> | undefined;
+  let readyToDecodeDistricts: Array<'arts' | 'challenge' | 'secret'> | undefined;
+  let isFirstCipherFragment: boolean | undefined;
   let oldRank: number | undefined = undefined;
   let newRank: number | undefined = undefined;
   let newAchievements: Array<{
@@ -2329,6 +2386,8 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     threeLocksOwnedResult = grant.threeLocksOwned;
     cipherFragmentsAwarded = grant.cipherFragmentsAwarded;
     cipherDistrictsUnlocked = grant.cipherDistrictsUnlocked;
+    readyToDecodeDistricts = grant.readyToDecodeDistricts;
+    isFirstCipherFragment = grant.isFirstCipherFragment;
     newSubmission.awardedPoints = awardedPoints;
     newSubmission.drawingEntriesAwarded = drawingEntriesAwarded;
     setStoredItem(STORAGE_KEYS.SUBMISSIONS, updatedSubmissions);
@@ -2366,6 +2425,8 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     threeLocksOwned: threeLocksOwnedResult,
     cipherFragmentsAwarded,
     cipherDistrictsUnlocked,
+    readyToDecodeDistricts,
+    isFirstCipherFragment,
     flags: reviewFlags,
     oldRank,
     newRank,
@@ -2566,6 +2627,10 @@ export function decodeLocalCipherDistrict(params: {
   tokenLabel?: string;
   sigilSymbol?: string;
   decodedSentence?: string;
+  unlockedSigilCount?: number;
+  allSigilsUnlocked?: boolean;
+  hasAllThreeLocks?: boolean;
+  masterCipherAvailable?: boolean;
   error?: string;
   alreadyUnlocked?: boolean;
 } {
@@ -2573,6 +2638,13 @@ export function decodeLocalCipherDistrict(params: {
   if (!district) return { success: false, error: 'Unknown district' };
 
   if (isLocalCipherDistrictTokenUnlocked(params.playerId, params.eventId, params.districtKey)) {
+    const unlockedSigilCount = (['arts', 'challenge', 'secret'] as const).filter((k) =>
+      isLocalCipherDistrictTokenUnlocked(params.playerId, params.eventId, k)
+    ).length;
+    const locks = getPlayerThreeLocks(params.playerId, params.eventId);
+    const allSigilsUnlocked = unlockedSigilCount >= 3;
+    const masterCipherAvailable = allSigilsUnlocked && locks.hasAll;
+
     return {
       success: true,
       correct: true,
@@ -2581,6 +2653,10 @@ export function decodeLocalCipherDistrict(params: {
       tokenLabel: district.tokenLabel,
       sigilSymbol: district.sigilSymbol,
       decodedSentence: district.canonicalSentence,
+      unlockedSigilCount,
+      allSigilsUnlocked,
+      hasAllThreeLocks: locks.hasAll,
+      masterCipherAvailable,
     };
   }
 
@@ -2609,6 +2685,13 @@ export function decodeLocalCipherDistrict(params: {
   });
   setStoredItem(STORAGE_KEYS.CIPHER_DISTRICT_PROGRESS, nextProgress);
 
+  const unlockedSigilCount = (['arts', 'challenge', 'secret'] as const).filter((k) =>
+    isLocalCipherDistrictTokenUnlocked(params.playerId, params.eventId, k)
+  ).length;
+  const locks = getPlayerThreeLocks(params.playerId, params.eventId);
+  const allSigilsUnlocked = unlockedSigilCount >= 3;
+  const masterCipherAvailable = allSigilsUnlocked && locks.hasAll;
+
   return {
     success: true,
     correct: true,
@@ -2616,6 +2699,10 @@ export function decodeLocalCipherDistrict(params: {
     tokenLabel: district.tokenLabel,
     sigilSymbol: district.sigilSymbol,
     decodedSentence: district.canonicalSentence,
+    unlockedSigilCount,
+    allSigilsUnlocked,
+    hasAllThreeLocks: locks.hasAll,
+    masterCipherAvailable,
   };
 }
 
@@ -2625,8 +2712,18 @@ function grantLocalCipherFragments(params: {
   questId: string;
   submissionId: string;
   fragmentKeys: string[];
-}): { newlyGrantedFragmentKeys: string[]; unlockedDistricts: Array<'arts' | 'challenge' | 'secret'>; readyToDecodeDistricts: Array<'arts' | 'challenge' | 'secret'> } {
+}): {
+  newlyGrantedFragmentKeys: string[];
+  unlockedDistricts: Array<'arts' | 'challenge' | 'secret'>;
+  readyToDecodeDistricts: Array<'arts' | 'challenge' | 'secret'>;
+  isFirstCipherFragment: boolean;
+} {
   const existing = getStoredItem<LocalCipherFragmentGrant[]>(STORAGE_KEYS.CIPHER_FRAGMENT_GRANTS, []);
+  const priorPlayerGrants = existing.filter(
+    (grant) => grant.eventId === params.eventId && grant.playerId === params.playerId
+  );
+  const isFirstCipherFragment = priorPlayerGrants.length === 0;
+
   const next = [...existing];
   const newlyGrantedFragmentKeys: string[] = [];
   const touchedDistricts = new Set<'arts' | 'challenge' | 'secret'>();
@@ -2682,7 +2779,12 @@ function grantLocalCipherFragments(params: {
   }
   setStoredItem(STORAGE_KEYS.CIPHER_DISTRICT_PROGRESS, nextProgress);
 
-  return { newlyGrantedFragmentKeys, unlockedDistricts: [], readyToDecodeDistricts };
+  return {
+    newlyGrantedFragmentKeys,
+    unlockedDistricts: [],
+    readyToDecodeDistricts,
+    isFirstCipherFragment: isFirstCipherFragment && newlyGrantedFragmentKeys.length > 0,
+  };
 }
 
 /**
@@ -2726,6 +2828,8 @@ function applyQuestRewardGrants(
   threeLocksOwned?: { mark: boolean; code: boolean; word: boolean };
   cipherFragmentsAwarded?: string[];
   cipherDistrictsUnlocked?: Array<'arts' | 'challenge' | 'secret'>;
+  readyToDecodeDistricts?: Array<'arts' | 'challenge' | 'secret'>;
+  isFirstCipherFragment?: boolean;
   newAchievements: Array<{
     id: string;
     title: string;
@@ -2884,7 +2988,7 @@ function applyQuestRewardGrants(
       rewardKey: collectibleId,
     });
     if (granted) {
-      const col = awardCollectible(playerId, collectibleId, `Quest reward: ${quest.title}`);
+      const col = awardCollectible(playerId, collectibleId, `Quest reward: ${quest.title}`, eventId);
       if (col && !grantedCollectible) grantedCollectible = col;
     }
   }
@@ -2900,19 +3004,18 @@ function applyQuestRewardGrants(
       rewardKey: collectibleId,
     });
     if (granted) {
-      const col = awardCollectible(playerId, collectibleId, `Founder's Lock: ${lock.toUpperCase()}`);
+      const col = awardCollectible(playerId, collectibleId, `Founder's Lock: ${lock.toUpperCase()}`, eventId);
       if (col && !grantedCollectible) grantedCollectible = col;
       threeLocksFragmentAwarded = lock;
     }
 
-    const ownedIds = new Set(getCollectiblesForPlayer(playerId).map((pc) => pc.collectibleId));
+    const locks = getPlayerThreeLocks(playerId, eventId);
     threeLocksOwned = {
-      mark: ownedIds.has('col-founder-mark'),
-      code: ownedIds.has('col-founder-code'),
-      word: ownedIds.has('col-founder-word'),
+      mark: locks.mark,
+      code: locks.code,
+      word: locks.word,
     };
-    const hasAllThreeLocks = THREE_LOCKS_COLLECTIBLE_IDS.every((id) => ownedIds.has(id));
-    if (hasAllThreeLocks) {
+    if (locks.hasAll) {
       recordRewardGrant({
         eventId,
         playerId,
@@ -2937,6 +3040,8 @@ function applyQuestRewardGrants(
 
   let cipherFragmentsAwarded: string[] = [];
   let cipherDistrictsUnlocked: Array<'arts' | 'challenge' | 'secret'> = [];
+  let readyToDecodeDistricts: Array<'arts' | 'challenge' | 'secret'> = [];
+  let isFirstCipherFragment: boolean = false;
   if (unlocks.cipherFragmentKeys.length > 0) {
     const cipherGrant = grantLocalCipherFragments({
       eventId,
@@ -2947,6 +3052,8 @@ function applyQuestRewardGrants(
     });
     cipherFragmentsAwarded = cipherGrant.newlyGrantedFragmentKeys;
     cipherDistrictsUnlocked = cipherGrant.unlockedDistricts;
+    readyToDecodeDistricts = cipherGrant.readyToDecodeDistricts;
+    isFirstCipherFragment = cipherGrant.isFirstCipherFragment;
   }
 
   if (unlocks.countsTowardFinale) {
@@ -2977,6 +3084,8 @@ function applyQuestRewardGrants(
     threeLocksOwned,
     cipherFragmentsAwarded,
     cipherDistrictsUnlocked,
+    readyToDecodeDistricts,
+    isFirstCipherFragment,
     newAchievements,
   };
 }

@@ -311,14 +311,19 @@ describe('Quest reward-grant transaction — collectibles', () => {
     expect(owned.length).toBe(1);
   });
 
-  it("the qst-watchers-silent-court seed quest's structured reward actually grants THE WORD", () => {
+  it('legacy containment: the qst-watchers-silent-court seed quest no longer carries a THE WORD reward', () => {
+    // Phase 3A containment: this legacy quest previously granted col-founder-word
+    // directly (bypassing the canonical Bell Cipher source). Its rewardConfig
+    // was removed so it can no longer act as an alternate route to THE WORD.
     const seedQuest = SEED_QUESTS.find((q) => q.id === 'qst-watchers-silent-court');
-    expect(seedQuest?.rewardConfig?.collectibleUnlockIds).toContain('col-founder-word');
+    expect(seedQuest?.rewardConfig).toBeUndefined();
+  });
 
-    // Exercise the same resolver + grant path this seed quest will hit in
-    // production, using an isolated single-step fixture (the real seed quest
-    // is multi_step, which is exercised end-to-end by its own content tests).
-    const player = newPlayer('silent-court');
+  it('the canonical qst-bicentennial-bell-cipher seed quest is the sole THE WORD source and its structured reward actually grants it', () => {
+    const seedQuest = SEED_QUESTS.find((q) => q.id === 'qst-bicentennial-bell-cipher');
+    expect(seedQuest?.rewardConfig?.threeLocksFragment).toEqual({ lock: 'word', collectibleId: 'col-founder-word' });
+
+    const player = newPlayer('bell-cipher-word');
     const quest = makeQuest({
       rewardConfig: seedQuest!.rewardConfig,
     });

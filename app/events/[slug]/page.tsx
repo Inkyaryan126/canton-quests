@@ -194,6 +194,26 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
           setAuthenticatedPlayer(data.player);
         }
 
+        // Pre-launch badges ("First to Arrive" / "Path Chosen") — the
+        // server only ever returns these on a genuinely new grant (see
+        // app/api/game/operations/[slug]/enter/route.ts), so this never
+        // re-fires on a returning player. Queued via the normal GameMoment
+        // queue, so it never collides with the path-selection video below.
+        if (Array.isArray(data.newAchievements)) {
+          for (const pa of data.newAchievements) {
+            const ach = pa?.achievement;
+            if (!ach) continue;
+            showGameMoment({
+              type: 'achievement',
+              achievementId: ach.slug,
+              title: ach.name,
+              description: ach.description,
+              icon: ach.badgeSymbol || '🏅',
+              category: ach.category,
+            });
+          }
+        }
+
         // Path-selection Commander video (6/7/8) — only after a genuine,
         // successful, authoritative path save (never inferred from a
         // client-side selection before the server confirms it), and only
@@ -994,7 +1014,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
 
       {/* Player Progress Stat Bar */}
       {progress && currentPlayer && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className={`grid grid-cols-2 gap-3 mb-6 ${isCipher ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
           <div className="glass-card p-3 text-center border-amber-500/30">
             <span className="text-[10px] font-mono text-gray-400 uppercase block">Your XP Score</span>
             <span className="font-display font-extrabold text-2xl text-amber-400">
@@ -1016,12 +1036,18 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
             </span>
           </div>
 
-          <div className="glass-card p-3 text-center">
-            <span className="text-[10px] font-mono text-gray-400 uppercase block">Finale Status</span>
-            <span className="font-display font-extrabold text-xs text-purple-300 block truncate pt-1 uppercase">
-              {progress.isQualifiedForFinale ? '🏆 QUALIFIED' : 'PENDING'}
-            </span>
-          </div>
+          {/* isQualifiedForFinale is a legacy completedQuestIds.length > 0 stat,
+              not real Founder's Cipher Master Cipher eligibility (that's the
+              accurate MasterCipherStatusCard rendered above). Showing it for
+              Cipher events falsely reads "QUALIFIED" after a single quest. */}
+          {!isCipher && (
+            <div className="glass-card p-3 text-center">
+              <span className="text-[10px] font-mono text-gray-400 uppercase block">Finale Status</span>
+              <span className="font-display font-extrabold text-xs text-purple-300 block truncate pt-1 uppercase">
+                {progress.isQualifiedForFinale ? '🏆 QUALIFIED' : 'PENDING'}
+              </span>
+            </div>
+          )}
         </div>
       )}
 

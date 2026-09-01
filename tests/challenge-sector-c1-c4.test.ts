@@ -182,32 +182,36 @@ describe('C4 — The Lost Page: prerequisite chain and single CODE grant', () =>
     expect(result.success).toBe(false);
   });
 
-  it('awards CODE exactly once for the full C1->C2->C3->C4 chain, never twice', () => {
+  it('legacy containment (Phase 3E): completing the full C1->C2->C3->C4 chain grants ordinary XP but NEVER col-founder-code — THE CODE\'s sole intended source is The Tower, not this draft chain', () => {
     const player = newPlayer('c4-full-chain');
     const result = completeChainRemotely(player.id);
 
     expect(result.success).toBe(true);
     expect(result.awardedPoints).toBe(300);
-    expect(result.collectibleAwarded?.id).toBe('col-founder-code');
+    expect(result.collectibleAwarded).toBeUndefined();
+    expect(result.threeLocksFragmentAwarded).toBeUndefined();
 
     const codeOwned = getCollectiblesForPlayer(player.id).filter((c) => c.collectibleId === 'col-founder-code');
-    expect(codeOwned.length).toBe(1);
+    expect(codeOwned).toHaveLength(0);
 
     // GM re-approval of the same submission (simulating a duplicate/concurrent
-    // request) must never grant a second CODE fragment.
+    // request) must never grant anything new either.
     reviewSubmission(result.submission.id, 'verified');
     const codeOwnedAfterRetry = getCollectiblesForPlayer(player.id).filter((c) => c.collectibleId === 'col-founder-code');
-    expect(codeOwnedAfterRetry.length).toBe(1);
+    expect(codeOwnedAfterRetry).toHaveLength(0);
   });
 });
 
-describe('CODE uses the real Three Locks progression', () => {
+describe('Three Locks + three Sigils gate the finale (CODE via an isolated fixture — Phase 3E: the real C1-C4 chain no longer grants any Lock, see containment test above)', () => {
   it('MARK + CODE + WORD grant all three locks; finale requires all 3 locks AND all 3 decoded sigils', () => {
     const player = newPlayer('three-locks-code');
 
-    // Grant MARK via a fixture quest carrying the exact same threeLocksFragment
-    // shape used by production content (qst-centennial-discovery), then
-    // complete the real Challenge chain for CODE.
+    // Grant MARK and CODE via fixture quests carrying the exact same
+    // threeLocksFragment shape used by production content (matching the
+    // pattern already used for WORD below) — CODE's real canonical source
+    // is The Tower (not yet implemented; see
+    // docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md), so a fixture stands in
+    // for it here rather than relying on the now-contained C1-C4 chain.
     const markFixture = createQuest({
       ...C1,
       title: 'MARK fixture',
@@ -221,10 +225,26 @@ describe('CODE uses the real Three Locks progression', () => {
 
     expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false);
 
+    // Still exercise the real C1->C2->C3->C4 chain mechanically (proves it
+    // completes cleanly) — but per the containment test above, it grants no
+    // Lock, so CODE is granted via an isolated fixture instead.
     const chainResult = completeChainRemotely(player.id);
-    expect(chainResult.collectibleAwarded?.id).toBe('col-founder-code');
-    expect(chainResult.threeLocksFragmentAwarded).toBe('code');
-    expect(chainResult.threeLocksOwned).toEqual({ mark: true, code: true, word: false });
+    expect(chainResult.success).toBe(true);
+    expect(chainResult.collectibleAwarded).toBeUndefined();
+
+    const codeFixture = createQuest({
+      ...C1,
+      title: 'CODE fixture',
+      slug: `code-fixture-${Date.now()}`,
+      targetCode: 'CODEFIXTURE',
+      acceptedAnswerVariants: undefined,
+      prerequisiteQuestId: undefined,
+      rewardConfig: { threeLocksFragment: { lock: 'code', collectibleId: 'col-founder-code' } },
+    });
+    const codeResult = submitQuestProof({ playerId: player.id, questId: codeFixture.id, eventId: EVENT_ID, proofType: 'passphrase', submittedContent: 'CODEFIXTURE' });
+    expect(codeResult.collectibleAwarded?.id).toBe('col-founder-code');
+    expect(codeResult.threeLocksFragmentAwarded).toBe('code');
+    expect(codeResult.threeLocksOwned).toEqual({ mark: true, code: true, word: false });
 
     // WORD still outstanding — checked at the fragment-ownership level
     const owned = getCollectiblesForPlayer(player.id).map((c) => c.collectibleId);

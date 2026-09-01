@@ -90,6 +90,7 @@ export async function POST(request: Request) {
       player: finalPlayer,
       profileCompletionReward: profileCompletionResult.newlyGranted,
       profileCompletionXp: profileCompletionResult.xpAwarded,
+      newAchievement: profileCompletionResult.newAchievement,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to upload profile image.';
@@ -141,6 +142,7 @@ export async function DELETE(request: Request) {
       player: finalPlayer,
       profileCompletionReward: profileCompletionResult.newlyGranted,
       profileCompletionXp: profileCompletionResult.xpAwarded,
+      newAchievement: profileCompletionResult.newAchievement,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to remove profile image.';

@@ -174,11 +174,14 @@ describe('Quest reward template (lib/quest-rewards.ts)', () => {
     expect(getQuestRewardSummary(quest!).hasBonusContent).toBe(true);
   });
 
-  it('demo data: the Silent Court quest defines its Three Locks fragment as structured reward data', () => {
+  it('legacy containment: the Silent Court quest no longer grants THE WORD (or any Founder Cipher reward) — Bell Cipher is the sole canonical source', () => {
     const quest = SEED_QUESTS.find((q) => q.id === 'qst-watchers-silent-court');
     expect(quest).toBeDefined();
     const unlocks = getUnlockSummary(quest!);
-    expect(unlocks.collectibleIds).toContain('col-founder-word');
-    expect(unlocks.threeLocksFragment).toEqual({ lock: 'word', collectibleId: 'col-founder-word' });
+    expect(unlocks.collectibleIds).not.toContain('col-founder-word');
+    expect(unlocks.threeLocksFragment).toBeUndefined();
+
+    const bellQuest = SEED_QUESTS.find((q) => q.id === 'qst-bicentennial-bell-cipher');
+    expect(bellQuest?.rewardConfig?.threeLocksFragment).toEqual({ lock: 'word', collectibleId: 'col-founder-word' });
   });
 });

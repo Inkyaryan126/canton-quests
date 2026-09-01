@@ -91,7 +91,7 @@ function makeFinaleConfig(overrides: Partial<FinaleConfig> = {}): FinaleConfig {
     requiresWatcherEligibility: false,
     masterCipherCluePieces: ['Fragment clue 1', 'Fragment clue 2'],
     finalAnswerHash: `sha256:${proofDigest('FRANKENSTEIN')}`,
-    finalDestinationReveal: 'Proceed to Centennial Plaza Founder Obelisk.',
+    finalDestinationReveal: 'Proceed to West Lawn Cemetery — Frankenstein Family Monument.',
     opensAt: null,
     closesAt: null,
     falseFinaleEnabled: false,
@@ -328,9 +328,9 @@ describe("Founder's Cipher Phase 2 Engine Reconciliation", () => {
 
   it('Requirement 12: All 3 Locks + all 3 decoded Sigils unlock Master Cipher', () => {
     const player = newAgent('req12');
-    awardCollectible(player.id, 'col-founder-mark', 'Lock MARK');
-    awardCollectible(player.id, 'col-founder-code', 'Lock CODE');
-    awardCollectible(player.id, 'col-founder-word', 'Lock WORD');
+    awardCollectible(player.id, 'col-founder-mark', 'Lock MARK', EVENT_ID);
+    awardCollectible(player.id, 'col-founder-code', 'Lock CODE', EVENT_ID);
+    awardCollectible(player.id, 'col-founder-word', 'Lock WORD', EVENT_ID);
 
     // Award all 9 fragments
     const allFrags = [
@@ -344,15 +344,62 @@ describe("Founder's Cipher Phase 2 Engine Reconciliation", () => {
     }
 
     // Decode all 3 districts
-    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'arts', sequence: ['A NAME', 'OUTLIVES', 'THE MAN'] });
-    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'challenge', sequence: ['THE WORLD', 'GAVE A MONSTER', 'HIS NAME'] });
-    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'secret', sequence: ['THE DEAD', 'KEEP IT', 'AT WEST LAWN'] });
+    const d1 = decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'arts', sequence: ['A NAME', 'OUTLIVES', 'THE MAN'] });
+    expect(d1.unlockedSigilCount).toBe(1);
+    expect(d1.allSigilsUnlocked).toBe(false);
+    expect(d1.masterCipherAvailable).toBe(false);
+
+    const d2 = decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'challenge', sequence: ['THE WORLD', 'GAVE A MONSTER', 'HIS NAME'] });
+    expect(d2.unlockedSigilCount).toBe(2);
+    expect(d2.allSigilsUnlocked).toBe(false);
+    expect(d2.masterCipherAvailable).toBe(false);
+
+    const d3 = decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'secret', sequence: ['THE DEAD', 'KEEP IT', 'AT WEST LAWN'] });
+    expect(d3.unlockedSigilCount).toBe(3);
+    expect(d3.allSigilsUnlocked).toBe(true);
+    expect(d3.hasAllThreeLocks).toBe(true);
+    expect(d3.masterCipherAvailable).toBe(true);
 
     expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(true);
 
     const config = makeFinaleConfig();
     const eligibility = checkFinaleEligibility(config, 3, true, false, false);
     expect(eligibility.ok).toBe(true);
+  });
+
+  it('Requirement 12b: Founder Locks earned in Event A do NOT qualify for Event B', () => {
+    const player = newAgent('req12b');
+    const otherEvent = createEventWizard({
+      cityId: SEED_EVENT.cityId,
+      title: 'Other Lock Event',
+      slug: `other-lock-event-${Date.now()}`,
+      description: 'Other lock event.',
+      status: 'active',
+      currentPhase: 'day_1',
+      isPaused: false,
+    });
+
+    // Player earns locks in otherEvent only
+    awardCollectible(player.id, 'col-founder-mark', 'Lock MARK', otherEvent.id);
+    awardCollectible(player.id, 'col-founder-code', 'Lock CODE', otherEvent.id);
+    awardCollectible(player.id, 'col-founder-word', 'Lock WORD', otherEvent.id);
+
+    // Player decodes all 3 sigils in EVENT_ID
+    const allFrags = [
+      'arts-founder-signal', 'arts-painted-witness', 'arts-palace-lantern',
+      'challenge-brass-key', 'challenge-helmet-emblem', 'challenge-neon-loop',
+      'secret-stone-stair', 'secret-quiet-signal', 'secret-silent-court',
+    ];
+    for (const key of allFrags) {
+      const q = makeTestQuest({ rewardConfig: { cipherFragmentKeys: [key] } });
+      submitQuestProof({ playerId: player.id, questId: q.id, eventId: EVENT_ID, proofType: 'passphrase', submittedContent: 'PHASE2_ANSWER' });
+    }
+    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'arts', sequence: ['A NAME', 'OUTLIVES', 'THE MAN'] });
+    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'challenge', sequence: ['THE WORLD', 'GAVE A MONSTER', 'HIS NAME'] });
+    decodeLocalCipherDistrict({ eventId: EVENT_ID, playerId: player.id, districtKey: 'secret', sequence: ['THE DEAD', 'KEEP IT', 'AT WEST LAWN'] });
+
+    // Player is NOT qualified for EVENT_ID finale because locks belong to otherEvent
+    expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false);
   });
 
   it('Requirement 13: Wrong Master Cipher answer does not complete mission', () => {
@@ -366,7 +413,7 @@ describe("Founder's Cipher Phase 2 Engine Reconciliation", () => {
     const outcome = evaluateFinaleSubmission(config, { falseFinaleSolvedAt: null, completedAt: null }, 'FRANKENSTEIN');
     expect(outcome.stage).toBe('completed');
     if (outcome.stage === 'completed') {
-      expect(outcome.destinationReveal).toBe('Proceed to Centennial Plaza Founder Obelisk.');
+      expect(outcome.destinationReveal).toBe('Proceed to West Lawn Cemetery — Frankenstein Family Monument.');
     }
   });
 

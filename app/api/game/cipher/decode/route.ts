@@ -65,10 +65,15 @@ export async function POST(request: Request) {
         success: true,
         correct: true,
         status: result.status,
+        districtKey,
         tokenLabel: result.tokenLabel,
         sigilSymbol: result.sigilSymbol,
         decodedSentence: result.decodedSentence,
         alreadyUnlocked: result.alreadyUnlocked,
+        unlockedSigilCount: result.unlockedSigilCount,
+        allSigilsUnlocked: result.allSigilsUnlocked,
+        hasAllThreeLocks: result.hasAllThreeLocks,
+        masterCipherAvailable: result.masterCipherAvailable,
       });
     }
 
@@ -96,10 +101,15 @@ export async function POST(request: Request) {
       success: true,
       correct: true,
       status: localResult.status,
+      districtKey,
       tokenLabel: localResult.tokenLabel,
       sigilSymbol: localResult.sigilSymbol,
       decodedSentence: localResult.decodedSentence,
       alreadyUnlocked: localResult.alreadyUnlocked,
+      unlockedSigilCount: localResult.unlockedSigilCount,
+      allSigilsUnlocked: localResult.allSigilsUnlocked,
+      hasAllThreeLocks: localResult.hasAllThreeLocks,
+      masterCipherAvailable: localResult.masterCipherAvailable,
     });
   } catch (error: any) {
     console.error('[API /game/cipher/decode] POST error:', error);

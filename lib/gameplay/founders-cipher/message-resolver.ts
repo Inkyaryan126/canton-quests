@@ -11,8 +11,21 @@
 import { StartingPath } from '@/lib/types';
 import { showGameMoment, GameMomentOptions } from '@/lib/game-effects';
 import { logFounderCipherMessage } from './message-log';
-import { FOUNDER_CIPHER_MESSAGES } from './messages';
+import { FOUNDER_CIPHER_MESSAGES, FOUNDER_LOCK_ORDINAL_MESSAGES } from './messages';
 import { FounderCipherMessageId, ResolvedFounderCipherMessage } from './types';
+
+export type FounderLockOrdinal = 'first' | 'second' | 'third';
+
+export function getFounderLockOrdinal(count?: number): FounderLockOrdinal | null {
+  if (count === 1) return 'first';
+  if (count === 2) return 'second';
+  if (count === 3) return 'third';
+  return null;
+}
+
+export interface ResolveFounderCipherMessageOptions {
+  lockCount?: number;
+}
 
 /**
  * Resolves a canonical message for a given player path. If the path is
@@ -21,9 +34,42 @@ import { FounderCipherMessageId, ResolvedFounderCipherMessage } from './types';
  */
 export function getFounderCipherMessage(
   messageId: FounderCipherMessageId,
-  path: StartingPath | null | undefined
+  path: StartingPath | null | undefined,
+  options?: ResolveFounderCipherMessageOptions
 ): ResolvedFounderCipherMessage {
   const message = FOUNDER_CIPHER_MESSAGES[messageId];
+
+  // Dynamic first/second/third Founder Lock message resolution
+  if (messageId === 'FOUNDER_LOCK_RECOVERED' && options?.lockCount) {
+    const ordinal = getFounderLockOrdinal(options.lockCount);
+    if (ordinal && FOUNDER_LOCK_ORDINAL_MESSAGES[ordinal]) {
+      const ordinalData = FOUNDER_LOCK_ORDINAL_MESSAGES[ordinal];
+      if (!path || (path !== 'family' && path !== 'challenge' && path !== 'secret')) {
+        return {
+          id: message.id,
+          title: ordinalData.title,
+          body: ordinalData.neutral,
+          cta: message.cta,
+          presentation: message.presentation,
+          size: message.size,
+          path: null,
+          archiveWorthy: Boolean(message.archiveWorthy),
+        };
+      }
+
+      const flavor = ordinalData[path];
+      return {
+        id: message.id,
+        title: ordinalData.title,
+        body: flavor.body,
+        cta: message.cta,
+        presentation: message.presentation,
+        size: message.size,
+        path,
+        archiveWorthy: Boolean(message.archiveWorthy),
+      };
+    }
+  }
 
   if (!path || (path !== 'family' && path !== 'challenge' && path !== 'secret')) {
     return {
@@ -54,9 +100,10 @@ export function getFounderCipherMessage(
 /** Convenience: resolve straight from a Player-shaped object's selectedStartingPath. */
 export function getFounderCipherMessageForPlayer(
   messageId: FounderCipherMessageId,
-  player: { selectedStartingPath?: StartingPath } | null | undefined
+  player: { selectedStartingPath?: StartingPath } | null | undefined,
+  options?: ResolveFounderCipherMessageOptions
 ): ResolvedFounderCipherMessage {
-  return getFounderCipherMessage(messageId, player?.selectedStartingPath ?? null);
+  return getFounderCipherMessage(messageId, player?.selectedStartingPath ?? null, options);
 }
 
 export interface ShowFounderCipherMessageParams {
@@ -66,6 +113,8 @@ export interface ShowFounderCipherMessageParams {
   playerId?: string;
   /** A short, real, in-context label appended to the resolved title — e.g. the actual district name ("ARTS DISTRICT") or quest title. The canonical copy stays generic/reusable; this is how one call site can still say something concrete without a bespoke message entry per district/quest. */
   contextLabel?: string;
+  /** Actual number of recovered Founder Locks (1, 2, 3) to enable dynamic first/second/third wording */
+  lockCount?: number;
   onContinue?: () => void;
   gameMomentOptions?: GameMomentOptions;
 }
@@ -84,7 +133,7 @@ export interface ShowFounderCipherMessageParams {
  * report for which trigger uses which presentation level.
  */
 export function showFounderCipherMessage(params: ShowFounderCipherMessageParams): string {
-  const resolved = getFounderCipherMessage(params.messageId, params.path);
+  const resolved = getFounderCipherMessage(params.messageId, params.path, { lockCount: params.lockCount });
   if (params.playerId) {
     logFounderCipherMessage(params.playerId, resolved);
   }

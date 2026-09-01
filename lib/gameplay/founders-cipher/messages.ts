@@ -538,4 +538,73 @@ export const FOUNDER_CIPHER_MESSAGES: Record<FounderCipherMessageId, FounderCiph
     onceOnly: true,
     archiveWorthy: true,
   },
+
+  // Palace's optional Watcher signal anomaly (Phase 3D). Registered here as
+  // content only — no engine trigger wires this yet (no existing hook fires
+  // a message keyed to one specific quest's completion outside the
+  // fragment/Lock system, and Palace grants neither). A future pass can
+  // call showFounderCipherMessage({ messageId: 'PALACE_SIGNAL_ANOMALY', ... })
+  // from the quest-completion handler once that hook exists. Per design:
+  // fires only after a successful Palace completion, never blocks it,
+  // never grants a fragment or Lock, never explains what "Watchers" means,
+  // and never assumes any other quest's completion order.
+  PALACE_SIGNAL_ANOMALY: {
+    id: 'PALACE_SIGNAL_ANOMALY',
+    title: 'SIGNAL ANOMALY',
+    neutral: 'Record confirmed. Hold — a second source just returned the same signal. That should not be possible.',
+    family: {
+      body: 'Record confirmed. Hold on... I\'m reading the same return from somewhere else. That\'s not supposed to happen.',
+    },
+    challenge: {
+      body: 'Record confirmed. Hold. I\'ve got the same return coming from a second source. That shouldn\'t be possible.',
+    },
+    secret: {
+      body: 'Record confirmed. Hold — a second source just echoed the same signal back. That is not supposed to happen.',
+    },
+    presentation: 'commander-text',
+    size: 'short',
+    onceOnly: true,
+  },
 };
+
+export const FOUNDER_LOCK_ORDINAL_MESSAGES = {
+  first: {
+    title: 'FIRST FOUNDER LOCK RECOVERED',
+    neutral: 'You recovered your first Founder Lock (1 of 3). Three locks exist across Canton to provide authorization keys for the Master Cipher.',
+    family: {
+      body: 'You recovered your first Founder Lock! That’s 1 of 3 across Canton — each one provides authorization for the Master Cipher.',
+    },
+    challenge: {
+      body: 'First Founder Lock secured (1 of 3). Authorization sequence initiated. You need all three to open the Master Cipher.',
+    },
+    secret: {
+      body: 'The first Founder Lock has surfaced (1 of 3). The authorization trail is underway — all three are required to breach the Master Cipher.',
+    },
+  },
+  second: {
+    title: 'SECOND FOUNDER LOCK RECOVERED',
+    neutral: 'You recovered your second Founder Lock (2 of 3). One lock remains before authorization is complete.',
+    family: {
+      body: 'You recovered your second Founder Lock! That’s 2 of 3 secured. Just one more lock to complete authorization for the Master Cipher.',
+    },
+    challenge: {
+      body: 'Second Founder Lock secured (2 of 3). Two down, one remaining. Keep pushing to complete Master Cipher authorization.',
+    },
+    secret: {
+      body: 'The second Founder Lock has surfaced (2 of 3). Only one key remains concealed before Master Cipher authorization is whole.',
+    },
+  },
+  third: {
+    title: 'THIRD FOUNDER LOCK RECOVERED',
+    neutral: 'You recovered your third Founder Lock (3 of 3). All three locks are now secured. Authorization is complete.',
+    family: {
+      body: 'You recovered your third Founder Lock! All 3 of 3 secured! You have full authorization. Make sure all three district Sigils are decoded to open the Master Cipher.',
+    },
+    challenge: {
+      body: 'Third Founder Lock secured (3 of 3). Full authorization locked in. The Master Cipher remains sealed until all three district Sigils are decoded.',
+    },
+    secret: {
+      body: 'The third Founder Lock has surfaced (3 of 3). The Three Locks are complete. Master Cipher access still requires all three decoded Sigils.',
+    },
+  },
+} as const;

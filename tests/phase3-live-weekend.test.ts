@@ -232,9 +232,9 @@ describe('Canton Quests — Phase 3 Live Weekend Engine', () => {
 
     expect(isPlayerQualifiedForFinale(player.id, eventId)).toBe(false);
 
-    awardCollectible(player.id, 'col-founder-mark', 'Founder Lock: MARK');
-    awardCollectible(player.id, 'col-founder-code', 'Founder Lock: CODE');
-    awardCollectible(player.id, 'col-founder-word', 'Founder Lock: WORD');
+    awardCollectible(player.id, 'col-founder-mark', 'Founder Lock: MARK', eventId);
+    awardCollectible(player.id, 'col-founder-code', 'Founder Lock: CODE', eventId);
+    awardCollectible(player.id, 'col-founder-word', 'Founder Lock: WORD', eventId);
     expect(isPlayerQualifiedForFinale(player.id, eventId)).toBe(false); // 3 locks alone do not qualify
 
     // Collect 9 fragments across 3 districts

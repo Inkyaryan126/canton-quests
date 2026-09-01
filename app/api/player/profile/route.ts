@@ -130,6 +130,7 @@ export async function POST(request: Request) {
       message: 'Profile updated successfully.',
       profileCompletionReward: profileCompletionResult.newlyGranted,
       profileCompletionXp: profileCompletionResult.xpAwarded,
+      newAchievement: profileCompletionResult.newAchievement,
     });
   } catch (error: any) {
     return NextResponse.json(

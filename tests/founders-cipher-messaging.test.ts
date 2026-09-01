@@ -148,9 +148,21 @@ describe('6/7. Message copy is centralized; Founder\'s Cipher gameplay moments r
     expect(questPageSource).toContain("from '@/lib/gameplay/founders-cipher/message-resolver'");
     expect(questPageSource).toContain("showFounderCipherMessage({");
     expect(questPageSource).toMatch(/messageId: 'QUEST_STARTED'/);
+    expect(questPageSource).toMatch(/messageId: 'FIRST_CIPHER_FRAGMENT_RECOVERED'/);
     expect(questPageSource).toMatch(/messageId: 'CIPHER_FRAGMENT_FOUND'/);
-    expect(questPageSource).toMatch(/messageId: 'DISTRICT_OBJECTIVE_COMPLETE'/);
+    expect(questPageSource).toMatch(/messageId: 'DISTRICT_READY_TO_DECODE'/);
+    expect(questPageSource).toMatch(/messageId: 'FOUNDER_LOCK_RECOVERED'/);
+    expect(questPageSource).toMatch(/messageId: 'ALL_THREE_LOCKS_RECOVERED'/);
     expect(questPageSource).toMatch(/messageId: 'ALL_REQUIRED_FRAGMENTS_FOUND'/);
+  });
+
+  it('the finale page wires DISTRICT_SIGIL_UNLOCKED, ALL_THREE_SIGILS_DECODED, and MASTER_CIPHER_AVAILABLE on manual decode', () => {
+    const finaleSource = readSource('app/events/[slug]/finale/page.tsx');
+    expect(finaleSource).toContain("from '@/lib/gameplay/founders-cipher/message-resolver'");
+    expect(finaleSource).toContain("showFounderCipherMessage({");
+    expect(finaleSource).toContain("'MASTER_CIPHER_AVAILABLE'");
+    expect(finaleSource).toContain("'ALL_THREE_SIGILS_DECODED'");
+    expect(finaleSource).toContain("'DISTRICT_SIGIL_UNLOCKED'");
   });
 
   it('the Mission hub page retrieves MISSION_BRIEFING from the same centralized resolver after Cold Open', () => {
@@ -161,7 +173,7 @@ describe('6/7. Message copy is centralized; Founder\'s Cipher gameplay moments r
 
   it('nothing outside lib/gameplay/founders-cipher/messages.ts defines a FOUNDER_CIPHER_MESSAGES-shaped registry', () => {
     // Guards against a second, scattered copy of this registry appearing elsewhere.
-    const files = ['app/events/[slug]/page.tsx', 'app/events/[slug]/quests/[questId]/page.tsx'];
+    const files = ['app/events/[slug]/page.tsx', 'app/events/[slug]/quests/[questId]/page.tsx', 'app/events/[slug]/finale/page.tsx'];
     for (const file of files) {
       expect(readSource(file)).not.toContain('FOUNDER_CIPHER_MESSAGES');
     }
@@ -169,9 +181,15 @@ describe('6/7. Message copy is centralized; Founder\'s Cipher gameplay moments r
 });
 
 describe('8. Critical messages can be preserved in Transmissions where intended', () => {
-  it('archiveWorthy is set on the narratively-important messages this pass wires (fragment found, district complete, all fragments, mission briefing) and NOT on pure micro feedback', () => {
+  it('archiveWorthy is set on the narratively-important progression messages (first fragment, ready to decode, sigil unlocked, lock recovered, all locks, all sigils, master cipher available) and NOT on pure micro feedback', () => {
+    expect(FOUNDER_CIPHER_MESSAGES.FIRST_CIPHER_FRAGMENT_RECOVERED.archiveWorthy).toBe(true);
     expect(FOUNDER_CIPHER_MESSAGES.CIPHER_FRAGMENT_FOUND.archiveWorthy).toBe(true);
-    expect(FOUNDER_CIPHER_MESSAGES.DISTRICT_OBJECTIVE_COMPLETE.archiveWorthy).toBe(true);
+    expect(FOUNDER_CIPHER_MESSAGES.DISTRICT_READY_TO_DECODE.archiveWorthy).toBe(true);
+    expect(FOUNDER_CIPHER_MESSAGES.DISTRICT_SIGIL_UNLOCKED.archiveWorthy).toBe(true);
+    expect(FOUNDER_CIPHER_MESSAGES.FOUNDER_LOCK_RECOVERED.archiveWorthy).toBe(true);
+    expect(FOUNDER_CIPHER_MESSAGES.ALL_THREE_LOCKS_RECOVERED.archiveWorthy).toBe(true);
+    expect(FOUNDER_CIPHER_MESSAGES.ALL_THREE_SIGILS_DECODED.archiveWorthy).toBe(true);
+    expect(FOUNDER_CIPHER_MESSAGES.MASTER_CIPHER_AVAILABLE.archiveWorthy).toBe(true);
     expect(FOUNDER_CIPHER_MESSAGES.ALL_REQUIRED_FRAGMENTS_FOUND.archiveWorthy).toBe(true);
     expect(FOUNDER_CIPHER_MESSAGES.MISSION_BRIEFING.archiveWorthy).toBe(true);
     expect(FOUNDER_CIPHER_MESSAGES.XP_AWARDED.archiveWorthy).toBeFalsy();
@@ -193,11 +211,11 @@ describe('8. Critical messages can be preserved in Transmissions where intended'
       expect(log[0].id).toBe('CIPHER_FRAGMENT_FOUND');
       expect(log[0].path).toBe('secret');
 
-      const resolvedSecond = getFounderCipherMessage('DISTRICT_OBJECTIVE_COMPLETE', 'secret');
+      const resolvedSecond = getFounderCipherMessage('DISTRICT_SIGIL_UNLOCKED', 'secret');
       logFounderCipherMessage('plr-log-test', resolvedSecond);
       const updated = getFounderCipherMessageLog('plr-log-test');
       expect(updated).toHaveLength(2);
-      expect(updated[0].id).toBe('DISTRICT_OBJECTIVE_COMPLETE'); // most recent first
+      expect(updated[0].id).toBe('DISTRICT_SIGIL_UNLOCKED'); // most recent first
     } finally {
       removeLocalStorageShim();
     }
@@ -295,5 +313,39 @@ describe('11. Commander template renders without overflowing mobile layouts', ()
   it('text scales down for LONG messages rather than being force-fit at the SHORT size', () => {
     expect(componentSource).toMatch(/short:\s*'text-base sm:text-lg/);
     expect(componentSource).toMatch(/long:\s*'text-xs sm:text-sm/);
+  });
+});
+
+describe('12. Dynamic first / second / third Founder Lock ordinal messaging', () => {
+  it('resolves dynamic 1st, 2nd, 3rd ordinal copy based on actual recovered lock count', () => {
+    const firstMsg = getFounderCipherMessage('FOUNDER_LOCK_RECOVERED', 'family', { lockCount: 1 });
+    expect(firstMsg.title).toBe('FIRST FOUNDER LOCK RECOVERED');
+    expect(firstMsg.body).toContain('1 of 3');
+
+    const secondMsg = getFounderCipherMessage('FOUNDER_LOCK_RECOVERED', 'challenge', { lockCount: 2 });
+    expect(secondMsg.title).toBe('SECOND FOUNDER LOCK RECOVERED');
+    expect(secondMsg.body).toContain('2 of 3');
+
+    const thirdMsg = getFounderCipherMessage('FOUNDER_LOCK_RECOVERED', 'secret', { lockCount: 3 });
+    expect(thirdMsg.title).toBe('THIRD FOUNDER LOCK RECOVERED');
+    expect(thirdMsg.body).toContain('3 of 3');
+  });
+
+  it('preserves path-specific tone across ordinal lock states', () => {
+    const family2 = getFounderCipherMessage('FOUNDER_LOCK_RECOVERED', 'family', { lockCount: 2 });
+    const challenge2 = getFounderCipherMessage('FOUNDER_LOCK_RECOVERED', 'challenge', { lockCount: 2 });
+    const secret2 = getFounderCipherMessage('FOUNDER_LOCK_RECOVERED', 'secret', { lockCount: 2 });
+
+    expect(family2.body).not.toBe(challenge2.body);
+    expect(challenge2.body).not.toBe(secret2.body);
+    expect(family2.body).toContain('2 of 3');
+    expect(challenge2.body).toContain('2 of 3');
+    expect(secret2.body).toContain('2 of 3');
+  });
+
+  it('falls back safely to generic lock recovered copy when lockCount is omitted', () => {
+    const genericMsg = getFounderCipherMessage('FOUNDER_LOCK_RECOVERED', 'family');
+    expect(genericMsg.title).toBe('FOUNDER LOCK RECOVERED');
+    expect(genericMsg.body).toMatch(/Three locks exist across Canton/i);
   });
 });

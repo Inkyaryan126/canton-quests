@@ -396,9 +396,22 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
           <CipherFragmentsPanel
             progress={cipherProgress}
             eventSlug={eventSlug}
-            onDecodeSuccess={() => {
+            onDecodeSuccess={(decodeResult) => {
               fetchFinaleStatus();
               fetchEvent();
+              if (decodeResult) {
+                const messageId = decodeResult.masterCipherAvailable
+                  ? 'MASTER_CIPHER_AVAILABLE'
+                  : decodeResult.allSigilsUnlocked
+                  ? 'ALL_THREE_SIGILS_DECODED'
+                  : 'DISTRICT_SIGIL_UNLOCKED';
+                showFounderCipherMessage({
+                  messageId,
+                  path,
+                  playerId: authenticatedPlayer?.id,
+                  contextLabel: decodeResult.tokenLabel,
+                });
+              }
             }}
           />
         )}

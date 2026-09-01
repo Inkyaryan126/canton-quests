@@ -227,7 +227,12 @@ describe('Profile Completion Incentive', () => {
     updatePlayerProfile(player.id, { selectedStartingPath: 'family', avatarPresetKey: '1' });
 
     const first = evaluateAndGrantProfileCompletionReward(player.id);
-    expect(first).toEqual({ newlyGranted: true, xpAwarded: 100 });
+    expect(first.newlyGranted).toBe(true);
+    expect(first.xpAwarded).toBe(100);
+    // The "Field Ready" pre-launch badge piggybacks on this same moment —
+    // see lib/seed-data.ts SEED_ACHIEVEMENTS and the migration
+    // 20260831010000_prelaunch_badges.sql.
+    expect(first.newAchievement?.achievementSlug).toBe('field-ready');
 
     const second = evaluateAndGrantProfileCompletionReward(player.id);
     expect(second).toEqual({ newlyGranted: false, xpAwarded: 0 });

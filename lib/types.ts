@@ -945,6 +945,8 @@ export interface SubmitProofResult {
   threeLocksOwned?: { mark: boolean; code: boolean; word: boolean };
   cipherFragmentsAwarded?: string[];
   cipherDistrictsUnlocked?: CipherDistrictKey[];
+  readyToDecodeDistricts?: CipherDistrictKey[];
+  isFirstCipherFragment?: boolean;
 }
 
 export interface LiveAnnouncement {
@@ -996,6 +998,7 @@ export interface PlayerCollectible {
   collectibleId: string;
   earnedAt: string;
   source: string;
+  eventId?: string;
   collectible?: Collectible;
 }
 

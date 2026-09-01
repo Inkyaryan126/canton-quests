@@ -94,13 +94,41 @@ const leaderboardRules = [
 ];
 
 const drawingRules = [
-  { title: 'Build the number', text: 'The Final Quest Number is built from frozen Mission totals, but it is not the winning ticket.', Icon: Hash },
-  { title: 'Set the window', text: 'N is the total valid tickets. W is the number of digits in N. With 356 tickets, W = 3.', Icon: Ticket },
-  { title: 'Scan forward', text: 'Read overlapping W-digit windows from left to right, moving forward one digit at a time.', Icon: Compass },
-  { title: 'Validate tickets', text: 'With 356 tickets, 809 is invalid because it exceeds 356. 092 is valid, so it points to ticket #92. Leading zeros are allowed.', Icon: CheckCircle2 },
-  { title: 'Keep scanning', text: 'If a valid ticket belongs to someone ineligible for that specific prize, do not restart or reroll. Continue to the next overlapping window.', Icon: ShieldCheck },
-  { title: 'Reverse scan', text: 'If the entire forward scan produces no eligible winner, reverse the Final Quest Number and scan again with the same rules.', Icon: ArrowRight },
-  { title: 'Modulo fallback', text: 'If neither scan produces an eligible winner, use (FinalQuestNumber mod totalValidEntries) + 1.', Icon: ArrowRight },
+  {
+    title: 'Build the Final Quest Number',
+    text: 'The Final Quest Number is created from the Mission\'s final verified totals. It helps determine the winner, but it is not itself a ticket number.',
+    Icon: Hash,
+  },
+  {
+    title: 'Match the ticket length',
+    text: 'Count how many digits are in the total number of valid entries. If there are 356 valid entries, winning ticket numbers use 3 digits.',
+    Icon: Ticket,
+  },
+  {
+    title: 'Read the number in sections',
+    text: 'Starting from the left, read the Final Quest Number in overlapping groups of that many digits, moving forward one digit at a time.',
+    Icon: Compass,
+  },
+  {
+    title: 'Ignore numbers outside the ticket pool',
+    text: 'With 356 valid entries, a result such as 809 is skipped because ticket 809 does not exist. A result such as 092 means ticket 92.',
+    Icon: CheckCircle2,
+  },
+  {
+    title: 'Check prize eligibility',
+    text: 'If the selected ticket is not eligible for that specific prize, continue to the next valid ticket until an eligible winner is found.',
+    Icon: ShieldCheck,
+  },
+  {
+    title: 'If needed, scan backward',
+    text: 'If the forward scan does not produce an eligible winner, the Final Quest Number is reversed and the same process is repeated.',
+    Icon: ArrowRight,
+  },
+  {
+    title: 'Guaranteed fallback',
+    text: 'If neither scan produces an eligible winner, the published fallback formula converts the Final Quest Number into a valid ticket position.',
+    Icon: ArrowRight,
+  },
 ];
 
 export default function HowItWorksPage() {
@@ -315,7 +343,7 @@ export default function HowItWorksPage() {
           </p>
         </section>
 
-        {/* FINAL QUEST NUMBER */}
+        {/* FINAL QUEST NUMBER / DRAWING METHOD */}
         <section className="cq-page-section">
           <div className="cq-section-heading">
             <div>
@@ -324,29 +352,65 @@ export default function HowItWorksPage() {
             </div>
           </div>
           <p>
-            When a Mission uses the Final Quest Number method, the drawing begins from the frozen valid ticket pool:
-            totalPlayers = qualified players, totalValidEntries = valid drawing tickets, and totalCompletedQuests =
-            verified Quest completions.
+            When a Mission concludes, winner selection follows an open, predictable process that anyone can verify.
+            The system creates a single Final Quest Number from the Mission&apos;s final verified totals, then reads
+            through that number to locate the winning ticket.
           </p>
-          <p>
-            <strong>
-              FINAL QUEST NUMBER = (totalPlayers × totalValidEntries × totalCompletedQuests) × 311420151417215192019
-            </strong>
-          </p>
-          <p>
-            The Final Quest Number is not the winning ticket. It becomes the number stream used to locate the winning
-            ticket.
-          </p>
-          <div className="cq-step-grid">
+          <div className="cq-drawing-step-grid">
             {drawingRules.map(({ title, text, Icon }, index) => (
-              <article key={title}>
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <Icon size={30} aria-hidden="true" />
+              <article key={title} className="cq-drawing-step-card">
+                <div className="cq-drawing-step-card-header">
+                  <span className="cq-drawing-step-num">{String(index + 1).padStart(2, '0')}</span>
+                  <Icon size={24} aria-hidden="true" />
+                </div>
                 <h3>{title}</h3>
                 <p>{text}</p>
               </article>
             ))}
           </div>
+
+          <details className="cq-tech-details">
+            <summary className="cq-tech-summary">
+              <span>SEE THE EXACT CALCULATION &amp; AUDIT SPECIFICATION</span>
+              <span className="cq-tech-summary-toggle">TECHNICAL SPECIFICATION ▾</span>
+            </summary>
+            <div className="cq-tech-content">
+              <p>
+                When a Mission uses the Final Quest Number method, the drawing begins from the frozen valid ticket pool:
+                totalPlayers = qualified players, totalValidEntries = valid drawing tickets, and totalCompletedQuests =
+                verified Quest completions.
+              </p>
+              <div className="cq-tech-formula">
+                <strong>FINAL QUEST NUMBER</strong> = (totalPlayers × totalValidEntries × totalCompletedQuests) × 311420151417215192019
+              </div>
+              <p>
+                The Final Quest Number is not the winning ticket. It becomes the deterministic number stream used to locate the winning ticket:
+              </p>
+              <ol className="cq-tech-list">
+                <li>
+                  <strong>Window Width (W)</strong>: N is the total valid tickets. W is the number of digits in N. With 356 tickets, W = 3.
+                </li>
+                <li>
+                  <strong>Forward Sliding Window Scan</strong>: Read overlapping W-digit windows from left to right, moving forward one digit at a time.
+                </li>
+                <li>
+                  <strong>Ticket Validation &amp; Leading Zeros</strong>: With 356 tickets, 809 is invalid because it exceeds 356. 092 is valid, so it points to ticket #92. Leading zeros are allowed.
+                </li>
+                <li>
+                  <strong>Prize Eligibility Filter</strong>: If a valid ticket belongs to someone ineligible for that specific prize, do not restart or reroll. Continue to the next overlapping window.
+                </li>
+                <li>
+                  <strong>Reverse Scan Fallback</strong>: If the entire forward scan produces no eligible winner, reverse the Final Quest Number and scan again with the same rules.
+                </li>
+                <li>
+                  <strong>Deterministic Modulo Fallback</strong>: If neither scan produces an eligible winner, use (FinalQuestNumber mod totalValidEntries) + 1. If that player is already a primary prize winner, step through modulo space to the next eligible ticket.
+                </li>
+              </ol>
+              <p>
+                <strong>Zero Administrator Discretion:</strong> All parameters are permanently frozen upon ledger lock. Anyone with the published SHA-256 snapshot can reproduce and audit the exact calculation.
+              </p>
+            </div>
+          </details>
         </section>
       </main>
 

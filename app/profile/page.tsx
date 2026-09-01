@@ -19,7 +19,7 @@ import {
 import { useRouter } from 'next/navigation';
 import CinematicNav from '@/components/CinematicNav';
 import CinematicFooter from '@/components/CinematicFooter';
-import { Achievement, Player } from '@/lib/types';
+import { Achievement, Player, PlayerAchievement } from '@/lib/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import PlayerCard from '@/components/PlayerCard';
 import PlayerAvatar from '@/components/PlayerAvatar';
@@ -85,7 +85,12 @@ function getErrorMessage(error: unknown, fallback: string) {
  * server confirms a genuinely new grant (payload.profileCompletionReward),
  * never inferred client-side from the form state.
  */
-function announceProfileCompletion(payload: { profileCompletionReward?: boolean; profileCompletionXp?: number; player?: Player }) {
+function announceProfileCompletion(payload: {
+  profileCompletionReward?: boolean;
+  profileCompletionXp?: number;
+  player?: Player;
+  newAchievement?: PlayerAchievement;
+}) {
   if (!payload.profileCompletionReward) return;
   showGameMoment({
     type: 'reward-token',
@@ -96,6 +101,20 @@ function announceProfileCompletion(payload: { profileCompletionReward?: boolean;
     xpAmount: payload.profileCompletionXp || 100,
     cta: 'VIEW PLAYER FILE',
   });
+
+  // A real, permanent badge alongside the XP — queued right after so it
+  // never overlaps the reward-token moment above.
+  const ach = payload.newAchievement?.achievement;
+  if (ach) {
+    showGameMoment({
+      type: 'achievement',
+      achievementId: ach.slug,
+      title: ach.name,
+      description: ach.description,
+      icon: ach.badgeSymbol || '🏅',
+      category: ach.category,
+    });
+  }
 }
 
 export default function ProfilePage() {

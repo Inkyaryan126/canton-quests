@@ -138,11 +138,15 @@ describe('Canton Quests — Tactical Sound System & Event Map', () => {
         const fileBuffer = readFileSync(filePath);
         expect(fileBuffer.length).toBeGreaterThan(1000);
 
-        // Verify standard RIFF/WAVE header
-        const riffHeader = fileBuffer.subarray(0, 4).toString('ascii');
-        const waveHeader = fileBuffer.subarray(8, 12).toString('ascii');
-        expect(riffHeader).toBe('RIFF');
-        expect(waveHeader).toBe('WAVE');
+        // Verify standard RIFF/WAVE header for wav files
+        if (config.src.endsWith('.wav')) {
+          const riffHeader = fileBuffer.subarray(0, 4).toString('ascii');
+          const waveHeader = fileBuffer.subarray(8, 12).toString('ascii');
+          expect(riffHeader).toBe('RIFF');
+          expect(waveHeader).toBe('WAVE');
+        } else {
+          expect(fileBuffer.length).toBeGreaterThan(100);
+        }
       });
     });
 

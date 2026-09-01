@@ -59,7 +59,7 @@ describe('Launch-readiness remediation', () => {
       expect(dbSource).toContain("rpc('increment_drawing_entries'");
       // Both RPC calls live inside awardQuestRewardsDB, which requires supabaseAdmin (service-role).
       const fnStart = dbSource.indexOf('export async function awardQuestRewardsDB');
-      const fnBody = dbSource.slice(fnStart, fnStart + 900);
+      const fnBody = dbSource.slice(fnStart, fnStart + 1500);
       expect(fnBody).toContain('if (!isSupabaseConfigured || !supabaseAdmin)');
       expect(fnBody).toContain("throw new Error('awardQuestRewardsDB requires Supabase service-role configuration.')");
     });

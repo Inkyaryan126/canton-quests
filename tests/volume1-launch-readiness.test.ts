@@ -30,7 +30,7 @@ describe('Volume 1 launch readiness seed data', () => {
     const proofTypes = new Set(SEED_QUESTS.map((quest) => quest.verificationType));
     expect(Array.from(proofTypes)).toEqual(expect.arrayContaining(['checkin', 'qr', 'passphrase', 'photo', 'video', 'multi_step']));
     expect(SEED_QUESTS.some((quest) => quest.prerequisiteQuestId)).toBe(true);
-    expect(SEED_QUESTS.some((quest) => quest.isSecret && quest.difficulty === 'epic')).toBe(true);
+    expect(SEED_QUESTS.some((quest) => (quest.category === 'secret' || quest.isSecret) && quest.difficulty === 'epic')).toBe(true);
   });
 
   it('keeps public quest serialization free of hidden verification and GM data', () => {
@@ -49,16 +49,15 @@ describe('Volume 1 launch readiness seed data', () => {
 
   it('rejects direct proof submission to locked prerequisite-chain quests', () => {
     const player = setCurrentPlayer('Volume1_Prereq_Guard', '🔒');
-    const secretQuest = SEED_QUESTS.find((item) => item.id === 'qst-secret-cipher-77');
-    expect(secretQuest?.prerequisiteQuestId).toBe('qst-onesto-brass-motto');
+    const lockedQuest = SEED_QUESTS.find((item) => item.id === 'qst-watchers-silent-court');
+    expect(lockedQuest?.prerequisiteQuestId).toBe('qst-watchers-first');
 
     const result = submitQuestProof({
       playerId: player.id,
-      questId: secretQuest!.id,
+      questId: lockedQuest!.id,
       eventId: SEED_EVENT.id,
-      proofType: 'multi_step',
-      submittedContent: 'CYPHER-77',
-      stepIndex: 0,
+      proofType: 'photo',
+      submittedContent: 'https://example.com/test.jpg',
     });
 
     expect(result.success).toBe(false);
@@ -76,10 +75,10 @@ describe('Volume 1 launch readiness seed data', () => {
     expect(quest?.drawingEntryReward).toBeGreaterThan(0);
     expect(quest?.safetyNotes).toMatch(/Daylight only/i);
     expect(quest?.safetyNotes).toMatch(/No touching, climbing/i);
-    expect(quest?.safetyNotes).toMatch(/trespassing/i);
+    expect(quest?.safetyNotes).toMatch(/nighttime access/i);
     expect(quest?.location?.openingHours).toMatch(/Posted visitor hours/i);
     expect(quest?.location?.openingHours).not.toMatch(/Human verification required/i);
-    expect(quest?.gmNotes).toMatch(/exact monument coordinates/i);
+    expect(quest?.gmNotes).toMatch(/surname spelling/i);
   });
 
   it('configures the higher-difficulty secret chain as ordered public steps without public answers', () => {

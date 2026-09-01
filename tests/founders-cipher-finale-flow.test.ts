@@ -38,9 +38,16 @@ describe('Finale route exists and is wired into navigation', () => {
     expect(headerSource).toMatch(/Master Cipher/);
   });
 
-  it('the Mission hub renders a Master Cipher status card, distinct from the legacy isQualifiedForFinale stat', () => {
+  it('the Mission hub renders the real Master Cipher status card, and hides the legacy isQualifiedForFinale stat for Cipher events', () => {
     expect(hubSource).toMatch(/MasterCipherStatusCard/);
-    expect(hubSource).toMatch(/isQualifiedForFinale/); // legacy stat still present, untouched
+    // isQualifiedForFinale is a legacy completedQuestIds.length > 0 stat that
+    // is NOT wired to real Founder's Cipher eligibility — it must never
+    // render unconditionally on a Cipher event page, only behind !isCipher,
+    // so it can never contradict the accurate MasterCipherStatusCard above it.
+    const idx = hubSource.indexOf('progress.isQualifiedForFinale');
+    expect(idx).toBeGreaterThan(-1);
+    const before = hubSource.slice(Math.max(0, idx - 400), idx);
+    expect(before).toMatch(/\{!isCipher &&/);
   });
 
   it('the ALL_REQUIRED_FRAGMENTS_FOUND moment now navigates the player into the finale route', () => {

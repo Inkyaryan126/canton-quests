@@ -197,6 +197,90 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     accessNotes: 'Open public park ground. Daylight hours recommended.',
     openingHours: 'Dawn - Dusk',
   },
+  // The following three locations are real, evidence-backed Canton landmarks
+  // (per docs/FOUNDERS-CIPHER-14-QUEST-AUTHORING.md) with no confirmed street
+  // address or GPS coordinates anywhere in the repository yet. Per project
+  // rule, exact address/GPS/hours are never invented — each is left unset
+  // pending a real site walk, matching the existing loc-west-lawn-frankenstein
+  // precedent (real name, no fabricated geo data).
+  {
+    id: 'loc-bicentennial-bell',
+    cityId: SEED_CITY.id,
+    name: 'Bicentennial Bell',
+    locationNotes: 'FIELD VERIFICATION REQUIRED: exact street address and GPS coordinates not yet confirmed. Do not invent — confirm via site walk before printing final clue cards.',
+    isPartner: false,
+    accessNotes: 'FIELD VERIFICATION REQUIRED.',
+    openingHours: 'FIELD VERIFICATION REQUIRED.',
+  },
+  {
+    id: 'loc-canton-sign',
+    cityId: SEED_CITY.id,
+    name: 'Canton Sign Sculpture',
+    locationNotes: 'FIELD VERIFICATION REQUIRED: exact street address and GPS coordinates not yet confirmed. Do not invent — confirm via site walk before printing final clue cards.',
+    isPartner: false,
+    accessNotes: 'FIELD VERIFICATION REQUIRED.',
+    openingHours: 'FIELD VERIFICATION REQUIRED.',
+  },
+  {
+    id: 'loc-nfl-draft-plaza',
+    cityId: SEED_CITY.id,
+    name: 'NFL Draft Plaza (1936 NFL Draft Statues)',
+    locationNotes: 'FIELD VERIFICATION REQUIRED: exact street address and GPS coordinates not yet confirmed. Do not invent — confirm via site walk before printing final clue cards.',
+    isPartner: false,
+    accessNotes: 'FIELD VERIFICATION REQUIRED.',
+    openingHours: 'FIELD VERIFICATION REQUIRED.',
+  },
+  // Phase 3B locations — real, evidence-backed landmark names (per
+  // docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md), no fabricated address/GPS.
+  {
+    id: 'loc-octopus-mural',
+    cityId: SEED_CITY.id,
+    name: 'Octopus Mural (Kraken Wall)',
+    locationNotes: 'FIELD VERIFICATION REQUIRED: exact street address and GPS coordinates not yet confirmed. Do not invent — confirm via site walk before printing final clue cards.',
+    isPartner: false,
+    accessNotes: 'FIELD VERIFICATION REQUIRED.',
+    openingHours: 'FIELD VERIFICATION REQUIRED.',
+  },
+  {
+    id: 'loc-eternal-flame',
+    cityId: SEED_CITY.id,
+    name: 'John F. Kennedy Memorial Fountain (Eternal Flame)',
+    locationNotes: 'FIELD VERIFICATION REQUIRED: exact street address and GPS coordinates not yet confirmed. Do not invent — confirm via site walk before printing final clue cards.',
+    isPartner: false,
+    accessNotes: 'FIELD VERIFICATION REQUIRED.',
+    openingHours: 'FIELD VERIFICATION REQUIRED.',
+  },
+  {
+    id: 'loc-golden-mark',
+    cityId: SEED_CITY.id,
+    name: 'The Golden Mark (Canton Road)',
+    locationNotes: 'FIELD VERIFICATION REQUIRED: exact street address and GPS coordinates not yet confirmed. Do not invent — confirm via site walk before printing final clue cards.',
+    isPartner: false,
+    accessNotes: 'FIELD VERIFICATION REQUIRED.',
+    openingHours: 'FIELD VERIFICATION REQUIRED.',
+  },
+  {
+    id: 'loc-spring-water-shelter',
+    cityId: SEED_CITY.id,
+    name: 'Spring Water Shelter (Fort Hill Park)',
+    locationNotes: 'FIELD VERIFICATION REQUIRED: exact street address and GPS coordinates not yet confirmed. Do not invent — confirm via site walk before printing final clue cards.',
+    isPartner: false,
+    accessNotes: 'FIELD VERIFICATION REQUIRED.',
+    openingHours: 'FIELD VERIFICATION REQUIRED.',
+  },
+  {
+    id: 'loc-palace-stars',
+    cityId: SEED_CITY.id,
+    name: 'Canton Palace Theatre (Star Motif)',
+    address: '605 Market Ave N, Canton, OH 44702',
+    latitude: 40.8012,
+    longitude: -81.3748,
+    locationNotes: 'Same real address as loc-music-hall. The star motif itself is unconfirmed — see docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md.',
+    isPartner: true,
+    radiusMeters: 50,
+    accessNotes: 'Marquee visible from sidewalk 24/7.',
+    openingHours: '24/7 Outdoor Access',
+  },
 ];
 
 export const SEED_EVENT: QuestEvent = {
@@ -397,6 +481,38 @@ export const SEED_ACHIEVEMENTS: Achievement[] = [
     category: 'path',
     rarity: 'legendary',
     district: 'secret',
+  },
+  // Pre-launch badges — earnable from onboarding alone, before a Mission's
+  // official start. Each one fires the moment its real precondition is met
+  // (see app/api/game/operations/[slug]/enter/route.ts and
+  // evaluateAndGrantProfileCompletionRewardDB in lib/supabase-db.ts) rather
+  // than being backdated or granted for free.
+  {
+    id: 'ach-first-to-arrive',
+    slug: 'first-to-arrive',
+    name: 'First to Arrive',
+    description: 'Entered a Canton Quests Mission and confirmed your permanent Player Identity — even before the Mission opened.',
+    badgeSymbol: '🚩',
+    category: 'exploration',
+    rarity: 'common',
+  },
+  {
+    id: 'ach-path-chosen',
+    slug: 'path-chosen',
+    name: 'Path Chosen',
+    description: 'Chose your starting path — Family, Challenge, or Secret — and locked it into your permanent Player Identity.',
+    badgeSymbol: '🧭',
+    category: 'path',
+    rarity: 'common',
+  },
+  {
+    id: 'ach-field-ready',
+    slug: 'field-ready',
+    name: 'Field Ready',
+    description: 'Completed your Player Identity setup with a real avatar. Geared up and ready for the field.',
+    badgeSymbol: '🥾',
+    category: 'exploration',
+    rarity: 'common',
   },
 ];
 
@@ -640,13 +756,12 @@ export const SEED_QUESTS: Quest[] = [
     requireLocationVerification: true,
     safetyNotes: 'Use public sidewalks and plaza areas. Do not enter closed event setups, stages, or restricted maintenance areas.',
     gmNotes: 'Field verify plaza access on launch weekend and place opening signage where it does not obstruct pedestrian flow.',
-    // First of the Founder's Three Locks quests — see qst-onesto-brass-motto
-    // (THE CODE) and qst-watchers-silent-court (THE WORD) for the other two.
-    rewardConfig: {
-      collectibleUnlockIds: ['col-founder-token', 'col-founder-mark'],
-      threeLocksFragment: { lock: 'mark', collectibleId: 'col-founder-mark' },
-      cipherFragmentKeys: ['arts-founder-signal'],
-    },
+    // LEGACY CONTAINMENT (Phase 3A, per docs/FOUNDERS-CIPHER-LEGACY-QUEST-CONTAINMENT-PLAN.md):
+    // this was the legacy THE MARK source and also granted the [A NAME]
+    // fragment now canonically sourced from qst-canton-sign-capture. Reward
+    // capability removed so this record can no longer act as an alternate
+    // route to a canonical Lock or District Evidence fragment. History,
+    // status, and ordinary XP/drawing-entry fields are left untouched.
   },
   {
     id: 'qst-mckinley-cipher',
@@ -673,8 +788,12 @@ export const SEED_QUESTS: Quest[] = [
     requireLocationVerification: true,
     safetyNotes: 'Daylight recommended. Stairs may be slick; players do not need to climb quickly or leave public paths.',
     gmNotes: 'Existing server hash expects the verified four-digit answer. Reconfirm plaque wording and target marker before printing clue cards.',
+    // Canonical Monument Park (Phase 3A): grants the Secret District [KEEP IT]
+    // fragment (secret-quiet-signal, per lib/founders-cipher.ts's canonical
+    // district ordering). Previously wired to secret-stone-stair ([THE DEAD])
+    // — a legacy key mismatch corrected during Phase 3A implementation.
     rewardConfig: {
-      cipherFragmentKeys: ['secret-stone-stair'],
+      cipherFragmentKeys: ['secret-quiet-signal'],
     },
   },
   {
@@ -699,10 +818,7 @@ export const SEED_QUESTS: Quest[] = [
     sortOrder: 3,
     createdAt: '2026-08-01T00:00:00Z',
     safetyNotes: 'Stay on sidewalks, keep storefront entrances clear, and watch traffic when crossing downtown streets.',
-    gmNotes: 'Manual review should verify the mural is visible and the proof appears original to the event window.',
-    rewardConfig: {
-      cipherFragmentKeys: ['arts-painted-witness'],
-    },
+    gmNotes: 'Manual review should verify the mural is visible and the proof appears original to the event window. Legacy quest superseded by qst-nfl-draft-lineup for fragment arts-painted-witness.',
   },
   {
     id: 'qst-aura-coffee-qr',
@@ -752,10 +868,7 @@ export const SEED_QUESTS: Quest[] = [
     sortOrder: 5,
     createdAt: '2026-08-01T00:00:00Z',
     safetyNotes: 'Partner permission required. Family-friendly hours only; no alcohol purchase or adult-only access may be required.',
-    gmNotes: 'Partner-ready slot. Confirm venue name, hours, minor policy, and exact proof backdrop before activation.',
-    rewardConfig: {
-      cipherFragmentKeys: ['challenge-neon-loop'],
-    },
+    gmNotes: 'Partner-ready slot. Confirm venue name, hours, minor policy, and exact proof backdrop before activation. LEGACY CONTAINMENT (Phase 3E): previously granted challenge-neon-loop ([HIS NAME]), duplicating the canonical Willie the Whale (qst-willie-the-whale) fragment source. Reward capability removed — this quest is already status: inactive, but reward wiring is stripped too since status alone does not block direct submission for non-Fair quests.',
   },
   {
     id: 'qst-palace-theatre-year',
@@ -779,10 +892,7 @@ export const SEED_QUESTS: Quest[] = [
     sortOrder: 6,
     createdAt: '2026-08-01T00:00:00Z',
     safetyNotes: 'Stay on public sidewalks and keep theatre entrances clear. No ticket purchase is required.',
-    gmNotes: 'Existing server hash expects the verified four-digit answer. Reconfirm marker text before launch.',
-    rewardConfig: {
-      cipherFragmentKeys: ['arts-palace-lantern'],
-    },
+    gmNotes: 'Existing server hash expects the verified four-digit answer. Reconfirm marker text before launch. LEGACY CONTAINMENT (Phase 3E): previously granted arts-palace-lantern ([THE MAN]), duplicating the canonical Kraken Wall (qst-kraken-wall) fragment source. Reward capability removed — this quest may remain playable for its own real 1927-year trivia, but no longer grants any canonical Founder\'s Cipher fragment.',
   },
   {
     id: 'qst-market-square-flash',
@@ -849,12 +959,102 @@ export const SEED_QUESTS: Quest[] = [
     createdAt: '2026-08-01T00:00:00Z',
     safetyNotes: 'Public sidewalk view only. Do not enter private residential or lobby areas unless invited by posted public access.',
     gmNotes: 'Reconfirm visible clue target and public viewing boundary before launch.',
-    // Second of the Founder's Three Locks quests — see qst-centennial-discovery
-    // (THE MARK) and qst-watchers-silent-court (THE WORD) for the other two.
+    // LEGACY CONTAINMENT (Phase 3A, per docs/FOUNDERS-CIPHER-LEGACY-QUEST-CONTAINMENT-PLAN.md):
+    // this was the legacy THE CODE source and also granted [THE WORLD]
+    // (challenge-brass-key). Neither is sourced by a Phase 3A quest yet, but
+    // reward capability is removed now — consistent with the other four
+    // named legacy records — so this cannot become an alternate route once
+    // the real CODE source (The Tower) is implemented in a later phase.
+  },
+  // ---------------------------------------------------------------------
+  // Canonical 14-Quest Roster — Phase 3A (READY quests)
+  // Per docs/FOUNDERS-CIPHER-14-QUEST-AUTHORING.md. Clue copy reproduced
+  // verbatim from the authoring document's CLUE COPY / PLAYER HOOK fields.
+  // ---------------------------------------------------------------------
+  {
+    id: 'qst-bicentennial-bell-cipher',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-bicentennial-bell',
+    location: SEED_LOCATIONS[13],
+    title: 'Bell Cipher',
+    slug: 'bell-cipher',
+    description: "A city this old rings with more than one voice. Somewhere in the Arts District, Canton keeps a bell that still remembers who put it there.",
+    instructions: "Find the Bicentennial Bell and enter the mayor's name engraved on the base.",
+    pointValue: 200,
+    xpReward: 200,
+    drawingEntryReward: 1,
+    difficulty: 'medium',
+    category: 'puzzle',
+    startingPath: 'family',
+    verificationType: 'passphrase',
+    // Real, legible answer confirmed directly from the finished quest card
+    // (public/canton-quests/quests/family/bell.png): the dedication base
+    // reads "Janet Weir Creighton, Mayor, City of Canton" clearly. Hash
+    // registered in lib/quest-proof-secrets.ts; surname alone also accepted.
+    acceptedAnswerVariants: ['sha256:0cc4e7efc8d045ab39f6534127ce54bc9cc00f67e7f6726cf682198884d3208f'], // CREIGHTON
+    proofRequirement: "Enter the mayor's name engraved on the Bicentennial Bell's dedication base.",
+    isFlash: false,
+    status: 'active',
+    sortOrder: 21,
+    createdAt: '2026-08-31T00:00:00Z',
+    safetyNotes: 'FIELD VERIFICATION REQUIRED: exact standing position and whether the base text is legible from a public path without stepping onto restricted plaza infrastructure has not been confirmed on-site.',
+    gmNotes: 'SOURCE PHOTO CONFIRMATION: dedication text is clearly legible on the finished card art (bell.png). A field photo of the real physical plaque is still recommended to confirm exact spelling/wording before printing final clue cards. Founder Lock quest — grants THE WORD.',
     rewardConfig: {
-      collectibleUnlockIds: ['col-founder-code'],
-      threeLocksFragment: { lock: 'code', collectibleId: 'col-founder-code' },
-      cipherFragmentKeys: ['challenge-brass-key'],
+      threeLocksFragment: { lock: 'word', collectibleId: 'col-founder-word' },
+    },
+  },
+  {
+    id: 'qst-canton-sign-capture',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-canton-sign',
+    location: SEED_LOCATIONS[14],
+    title: 'Canton Sign Capture',
+    slug: 'canton-sign-capture',
+    description: 'Canton spells its own name in the open. Prove you found it.',
+    instructions: 'Take a selfie at the Canton sign and upload it to complete the mission.',
+    pointValue: 150,
+    xpReward: 150,
+    drawingEntryReward: 1,
+    difficulty: 'easy',
+    category: 'creative',
+    startingPath: 'family',
+    verificationType: 'photo',
+    proofRequirement: 'Upload a photo of yourself (or your callsign card) at the Canton sign sculpture.',
+    isFlash: false,
+    status: 'active',
+    sortOrder: 22,
+    createdAt: '2026-08-31T00:00:00Z',
+    safetyNotes: 'FIELD VERIFICATION REQUIRED: exact standing position and any roadway proximity have not been confirmed on-site.',
+    gmNotes: 'Grants District Evidence fragment [A NAME]. Manual review should verify the sign is visible in frame.',
+    rewardConfig: {
+      cipherFragmentKeys: ['arts-founder-signal'],
+    },
+  },
+  {
+    id: 'qst-nfl-draft-lineup',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-nfl-draft-plaza',
+    location: SEED_LOCATIONS[15],
+    title: 'Draft Lineup',
+    slug: 'draft-lineup',
+    description: "Before the Hall of Fame, before the highlight reels, there was a first line. It's still crouched here, waiting for the snap.",
+    instructions: 'Find the 1936 draft statues and snap a photo from the line of scrimmage.',
+    pointValue: 175,
+    xpReward: 175,
+    drawingEntryReward: 1,
+    difficulty: 'medium',
+    category: 'creative',
+    startingPath: 'family',
+    verificationType: 'photo',
+    proofRequirement: 'Upload a photo taken from the line-of-scrimmage angle of the 1936 NFL Draft statue installation.',
+    isFlash: false,
+    status: 'active',
+    sortOrder: 23,
+    createdAt: '2026-08-31T00:00:00Z',
+    safetyNotes: 'FIELD VERIFICATION REQUIRED: exact plaza address, pedestrian access, and whether the line-of-scrimmage framing requires stepping onto grass/restricted turf have not been confirmed on-site.',
+    gmNotes: 'Grants District Evidence fragment [OUTLIVES]. Manual review should verify the framing matches the authored line-of-scrimmage angle. Distinct real landmark from loc-hof-trail (qst-hof-legend-qr) — do not conflate.',
+    rewardConfig: {
+      cipherFragmentKeys: ['arts-painted-witness'],
     },
   },
   {
@@ -881,10 +1081,7 @@ export const SEED_QUESTS: Quest[] = [
     requireQrAndLocation: true,
     radiusMeters: 75,
     safetyNotes: 'Use marked pedestrian routes and daylight hours. Do not cross traffic outside crosswalks.',
-    gmNotes: 'Human verification required for exact placement, permission, QR weatherproofing, and pedestrian safety.',
-    rewardConfig: {
-      cipherFragmentKeys: ['challenge-helmet-emblem'],
-    },
+    gmNotes: 'Human verification required for exact placement, permission, QR weatherproofing, and pedestrian safety. LEGACY CONTAINMENT (Phase 3E): previously granted challenge-helmet-emblem ([GAVE A MONSTER]), duplicating the canonical Open Ground (qst-challenge-open-ground) fragment source. Reward capability removed.',
   },
   // Secret Path — West Lawn Archive: Chapter 1
   {
@@ -915,9 +1112,12 @@ export const SEED_QUESTS: Quest[] = [
       'Daylight only. Confirm cemetery hours before visiting. Stay on paved or gravel paths. No touching, climbing, rubbing, decorating, moving items, loud behavior, nighttime access, or interference with graves, markers, visitors, or staff.',
     gmNotes:
       'MUST complete site walk before launch: (1) confirm Frankenstein monument exact location and surname spelling, (2) confirm cemetery public visitor hours, (3) confirm photography rules. Chapter 1 of the West Lawn Archive chain.',
-    rewardConfig: {
-      cipherFragmentKeys: ['secret-quiet-signal'],
-    },
+    // LEGACY CONTAINMENT (Phase 3A, per docs/FOUNDERS-CIPHER-LEGACY-QUEST-CONTAINMENT-PLAN.md):
+    // this legacy record granted [KEEP IT] (secret-quiet-signal) — the same
+    // fragment now canonically sourced from Monument Park (qst-mckinley-cipher).
+    // Reward capability removed. Frankenstein/West Lawn remains the final
+    // physical objective AFTER the Master Cipher, never an alternate route
+    // to a canonical fragment or the finale itself.
   },
   // Secret Path — West Lawn Archive: Chapter 2
   {
@@ -1037,15 +1237,15 @@ export const SEED_QUESTS: Quest[] = [
     safetyNotes:
       'Daylight only. Confirm cemetery hours. Stay on paved or gravel paths. No touching, climbing, rubbing, or disturbing grave markers.',
     gmNotes:
-      'MUST complete site walk: (1) confirm Miller monument and inscription, (2) confirm Black monument and symbol, (3) confirm Meyer monument and letter/initial. Set server passphrase hashes. rewardConfig below defines the col-founder-word (THE WORD) grant, issued automatically on verified completion.',
-    // Third of the Founder's Three Locks quests — see qst-centennial-discovery
-    // (THE MARK) and qst-onesto-brass-motto (THE CODE) for the other two.
-    rewardConfig: {
-      collectibleUnlockIds: ['col-founder-word'],
-      threeLocksFragment: { lock: 'word', collectibleId: 'col-founder-word' },
-      cipherFragmentKeys: ['secret-silent-court'],
-      countsTowardFinale: true,
-    },
+      'MUST complete site walk: (1) confirm Miller monument and inscription, (2) confirm Black monument and symbol, (3) confirm Meyer monument and letter/initial. Set server passphrase hashes.',
+    // LEGACY CONTAINMENT (Phase 3A, per docs/FOUNDERS-CIPHER-LEGACY-QUEST-CONTAINMENT-PLAN.md):
+    // this was the legacy THE WORD source (now canonically Bell Cipher) and
+    // also granted [AT WEST LAWN] (secret-silent-court) plus the legacy
+    // countsTowardFinale bypass flag. All Founder's Cipher reward capability
+    // removed so THE WORD is never obtainable from both Bell Cipher and this
+    // record. The prerequisiteQuestId chain (banned for the canonical 14) is
+    // left exactly as-is — this record was never part of the canonical
+    // roster and existing prerequisite-gating test coverage depends on it.
   },
   // Secret Path — West Lawn Archive: Chapter 4 Bonus
   {
@@ -1261,7 +1461,12 @@ export const SEED_QUESTS: Quest[] = [
     id: 'qst-9th-street-opening',
     eventId: SEED_EVENT.id,
     locationId: 'loc-9th-street',
-    location: undefined,
+    // Phase 3A fix: loc-9th-street already carries real coordinates in
+    // SEED_LOCATIONS, but this quest object left `location` unset, which
+    // validateLocationProof (lib/game-engine.ts) treats as "authoritative
+    // quest location is missing" and hard-rejects every GPS check-in —
+    // this quest could never actually be completed by a real player.
+    location: SEED_LOCATIONS[10],
     title: 'The 9th Street Signal',
     slug: '9th-street-opening',
     description: 'The Challenge path starts here. Show up. Check in. The grid opens.',
@@ -1289,7 +1494,8 @@ export const SEED_QUESTS: Quest[] = [
     id: 'qst-challenge-open-ground',
     eventId: SEED_EVENT.id,
     locationId: 'loc-challenge-field',
-    location: undefined,
+    // Phase 3A fix: same location-missing gap as qst-9th-street-opening above.
+    location: SEED_LOCATIONS[11],
     title: 'THE OPEN GROUND',
     slug: 'challenge-open-ground',
     description: 'Cross into the open ground. Your next Challenge signal is waiting somewhere beyond the pavement.',
@@ -1311,34 +1517,45 @@ export const SEED_QUESTS: Quest[] = [
     requireLocationVerification: true,
     safetyNotes: 'Public park field. Daylight hours recommended. Watch footing on grass.',
     gmNotes: 'Challenge sector route location #2 (Large Field / The Open Ground).',
+    // Canonical Open Ground (Phase 3A): grants the Challenge District
+    // [GAVE A MONSTER] fragment.
+    rewardConfig: {
+      cipherFragmentKeys: ['challenge-helmet-emblem'],
+    },
   },
-  // Challenge Sector #3 — THE TOWER (Silo Landmark)
+  // Challenge Sector #3 — THE TOWER (Silo Landmark) — Canonical Quest #7 (Founder Lock: THE CODE)
   {
     id: 'qst-challenge-the-tower',
     eventId: SEED_EVENT.id,
     locationId: 'loc-challenge-tower',
-    location: undefined,
+    location: SEED_LOCATIONS[12],
     title: 'The Tower',
     slug: 'challenge-the-tower',
-    description: 'Find the strange tower standing over the old grounds. Get close enough to confirm the landmark.',
+    description:
+      'Find the strange tower standing over the old grounds. It was not built in one piece — count what holds it up.',
     instructions:
-      'Locate the storybook silo tower in Mother Goose Land and check in to register the landmark signal.',
+      'Locate the storybook silo tower in Mother Goose Land and inspect its structure. (Puzzle pending — no answer is configured yet.)',
     pointValue: 100,
     xpReward: 100,
     drawingEntryReward: 1,
     difficulty: 'easy',
     category: 'observation',
     startingPath: 'challenge',
-    verificationType: 'checkin',
-    proofRequirement: 'Field check-in at The Tower.',
+    verificationType: 'passphrase',
+    proofRequirement:
+      'PENDING — no verification configured until the tower structure is photographed from all angles to confirm countable tiers or openings.',
     isFlash: false,
-    status: 'active',
+    status: 'draft',
     sortOrder: 19,
     createdAt: '2026-08-01T00:00:00Z',
     radiusMeters: 60,
     requireLocationVerification: true,
     safetyNotes: 'Public park area. Do not attempt to climb or enter the tower structure.',
-    gmNotes: 'Challenge sector route location #3 (The Tower / Silo).',
+    gmNotes:
+      'STAGED — The Tower (silo landmark at Mother Goose Land) is the canonical source for Founder Lock THE CODE. A single photo angle (public/canton-quests/quests/challenge/silo.png) shows a smooth cylindrical tower with no countable tiers or bands. Full-height photos from additional angles are needed to confirm a real countable structural feature before an answer hash is registered. Kept fail-closed (status: draft, no answer hash).',
+    rewardConfig: {
+      threeLocksFragment: { lock: 'code', collectibleId: 'col-founder-code' },
+    },
   },
   // Challenge Sector #4 — THE MURAL (Mural Wall)
   {
@@ -1360,25 +1577,33 @@ export const SEED_QUESTS: Quest[] = [
     verificationType: 'checkin',
     proofRequirement: 'Field check-in at Mother Goose Land mural wall.',
     isFlash: false,
-    status: 'active',
+    // Phase 3B: this bare check-in duplicated qst-goose-land-cipher (same
+    // physical wall) — "Do NOT ship both." qst-goose-land-cipher carries the
+    // real, authored lower-right-character mechanic and is now the sole
+    // canonical Mural record (staged, answer pending real photo evidence).
+    // Retained, not deleted — see docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md.
+    status: 'inactive',
     sortOrder: 20,
     createdAt: '2026-08-01T00:00:00Z',
     radiusMeters: 60,
     requireLocationVerification: true,
     safetyNotes: 'Open public park. Daylight hours only. Do not touch or mark the mural.',
-    gmNotes: 'Challenge sector route location #4 (Mother Goose Land mural wall).',
+    gmNotes: 'Superseded by qst-goose-land-cipher (Phase 3B canonical Mural consolidation). Challenge sector route location #4 (Mother Goose Land mural wall).',
   },
-  // Challenge Path — Mother Goose Land (Historical Cipher)
+  // Challenge Path — Mother Goose Land (Historical Cipher) — canonical THE MURAL
   {
     id: 'qst-goose-land-cipher',
     eventId: SEED_EVENT.id,
     locationId: 'loc-mother-goose-land',
-    location: undefined,
-    title: 'The Goose Land Cipher',
+    // Phase 3B fix: real coordinates already exist in SEED_LOCATIONS under
+    // this locationId; this quest object had left `location` unset.
+    location: SEED_LOCATIONS[8],
+    title: 'The Mural',
     slug: 'goose-land-cipher',
-    description: "Canton's most nostalgic landmark is hiding a word in the mural wall. It has always been there.",
+    description:
+      'Stories crowd this wall — bears, pigs, mice, pumpkins, things that belong in fields and forests.',
     instructions:
-      'Go to Mother Goose Land at 714 12th St NW. Find the large illustrated mural wall. The answer is embedded in the mural — not written as a label, but depicted as an image. What is the character in the lower right section of the wall holding? Enter that single word. Lowercase, no spaces.',
+      'Go to Mother Goose Land at 714 12th St NW. Find the large illustrated mural wall. One creature on it belongs somewhere much deeper than the rest. Find the one that should be surrounded by water. What is it?',
     pointValue: 175,
     xpReward: 175,
     drawingEntryReward: 1,
@@ -1386,14 +1611,29 @@ export const SEED_QUESTS: Quest[] = [
     category: 'observation',
     startingPath: 'challenge',
     verificationType: 'passphrase',
-    proofRequirement: 'Enter the single word for the depicted object in the mural.',
+    // Established project convention (see qst-challenge-blue-signal) accepts
+    // the bare creature name as a synonym alongside the full descriptive
+    // answer — reused here as the one accepted variant, per instruction.
+    acceptedAnswerVariants: ['sha256:c1e524f5325e090e0c4b6d2025b3b73eb6ea4608bd1f42c55d580db5480eaeac'], // WHALE
+    proofRequirement: 'Enter the name of the out-of-place creature painted on the mural — the one that belongs in water, not the forest.',
     isFlash: false,
+    // IMPLEMENTED (Phase 3D): real evidence recovered from local Mac photo
+    // archive outside the repo — a 10-frame real drive-by photo sequence of
+    // the full wall (see docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md, Phase
+    // 3C/3D addenda) confirms a real, painted large blue whale exists on
+    // this wall alongside the bear/pig/mice/pumpkin storybook cast. The
+    // clue no longer uses the unresolved "lower-right character holding
+    // what" framing (still unverified — no single wide reference frame
+    // exists) — replaced with a clue built on the now-confirmed whale.
     status: 'active',
     sortOrder: 16,
     createdAt: '2026-08-01T00:00:00Z',
-    radiusMeters: 60,
     safetyNotes: 'Open public park. Daylight hours only. Respect any seasonal closures or maintenance areas.',
-    gmNotes: 'MUST confirm on site before launch: (1) visit the mural wall and verify exact detail + single-word answer, (2) set server passphrase hash, (3) confirm park is accessible on event weekend, (4) confirm seasonal operating status.',
+    gmNotes:
+      'Real answer BLUE WHALE confirmed via real photo evidence, not the legacy lower-right-character clue (still unresolved, abandoned for this quest). qst-challenge-the-mural (bare check-in duplicate of the same wall) remains status: inactive — do not reactivate. qst-challenge-blue-signal (legacy draft quest that first recorded the BLUE WHALE answer) remains status: draft/legacy — its evidence supports this canonical record but the record itself is not revived. See docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md.',
+    rewardConfig: {
+      cipherFragmentKeys: ['challenge-brass-key'],
+    },
   },
   // ---------------------------------------------------------------------------
   // Challenge Sector — "THE STORYBOOK SECTOR" (C1-C4)
@@ -1624,12 +1864,20 @@ export const SEED_QUESTS: Quest[] = [
     // prerequisite schema support exists, and none is needed here).
     prerequisiteQuestId: 'qst-challenge-what-survived',
     unlockConditionType: 'prerequisite',
+    // LEGACY CONTAINMENT (Phase 3E, per docs/FOUNDERS-CIPHER-LEGACY-QUEST-CONTAINMENT-PLAN.md):
+    // this draft C1-C4 chain quest previously granted col-founder-code via
+    // BOTH collectibleUnlockIds and threeLocksFragment (either alone is
+    // sufficient — getPlayerThreeLocks/getPlayerThreeLocksDB detect Lock
+    // ownership from plain collectible ownership, not just the
+    // threeLocksFragment reward type), plus the legacy countsTowardFinale
+    // bypass flag. THE CODE's sole intended canonical source is The Tower
+    // (qst-challenge-the-tower), not yet implemented — do not award THE
+    // CODE through any other quest. Ordinary XP rewards (baseXp,
+    // fieldCheckInBonusXp) are left intact; this chain was never part of
+    // the canonical 14 and is not being reactivated.
     rewardConfig: {
       baseXp: 300,
       fieldCheckInBonusXp: 150,
-      collectibleUnlockIds: ['col-founder-code'],
-      threeLocksFragment: { lock: 'code', collectibleId: 'col-founder-code' },
-      countsTowardFinale: true,
       // STORYBOOK_SURVIVOR badge intentionally omitted — see gmNotes: no
       // 'storybook-survivor' (or similarly-slugged) achievement exists in
       // SEED_ACHIEVEMENTS/the achievements catalog, and inventing one here
@@ -1637,7 +1885,7 @@ export const SEED_QUESTS: Quest[] = [
     },
     commanderTransmission: {
       type: 'VIDEO',
-      message: "That's not just another answer. You recovered CODE. One of three locks is now in your hands.",
+      message: "That's not just another answer. You found the lost page.",
       mediaKey: 'commander/challenge-code-recovered.mp4',
       fallbackType: 'PHOTO_MESSAGE',
     },
@@ -1672,6 +1920,189 @@ export const SEED_QUESTS: Quest[] = [
     unlockConditionType: 'manual',
     safetyNotes: 'Finale prompt must never require rushing, trespassing, unsafe driving, or nighttime cemetery access.',
     gmNotes: 'Keep inactive until finale operations are staffed. Confirm drawing ledger status before awarding final entries.',
+  },
+  // ---------------------------------------------------------------------
+  // Canonical 14-Quest Roster — Phase 3B
+  // Per docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md. IMPLEMENTED quests have a
+  // real registered answer hash and status: 'active'. STAGED quests have
+  // status: 'draft' (hidden from players — see calculateQuestState in
+  // lib/game-engine.ts) and carry no registered answer hash until real
+  // photo evidence resolves them.
+  // ---------------------------------------------------------------------
+  {
+    id: 'qst-kraken-wall',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-octopus-mural',
+    location: SEED_LOCATIONS[16],
+    title: 'Kraken Wall',
+    slug: 'kraken-wall',
+    description: 'Track down the giant tentacle mural and capture the creature in a photo.',
+    instructions: "Track down the giant tentacle mural and capture the creature in a photo. Then look closer — somewhere in the paint, the artist signed their work. Read the name and enter it below.",
+    pointValue: 175,
+    xpReward: 175,
+    drawingEntryReward: 1,
+    difficulty: 'medium',
+    category: 'observation',
+    startingPath: 'family',
+    // A photo-then-passphrase multi_step design was tried and reverted: a
+    // GM approving the photo step immediately completed the whole quest and
+    // granted the fragment without the passphrase step ever being checked
+    // (no existing multi_step quest in this codebase mixes a GM-reviewed
+    // photo step with a later auto-verified step, so this interaction was
+    // untested and proved unsafe). Single passphrase verification avoids
+    // that gap entirely — the photo requirement is preserved as a
+    // description/proofRequirement instruction, verified by the same
+    // manual-review discipline GMs already apply to every field quest.
+    verificationType: 'passphrase',
+    proofRequirement: 'Photograph the tentacle mural, then enter the artist surname signed into the artwork.',
+    isFlash: false,
+    status: 'active',
+    sortOrder: 24,
+    createdAt: '2026-08-31T00:00:00Z',
+    safetyNotes: 'FIELD VERIFICATION REQUIRED: exact address and whether the signature is legible from public sidewalk without entering the alley/lot the mural faces have not been confirmed on-site.',
+    gmNotes: 'LOCKED per prior design decision: real answer is MORGAN (artist surname). Neither available image (octo.png card art nor octopus-mural.jpg, which is cinematic/AI art, not a real photo) visually confirms a legible "MORGAN" signature — see docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md. Implemented per explicit instruction not to withhold the locked answer for a weak image. A field photo of the real signature is still recommended before printing final clue cards.',
+    rewardConfig: {
+      cipherFragmentKeys: ['arts-palace-lantern'],
+    },
+  },
+  {
+    id: 'qst-eternal-flame',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-eternal-flame',
+    location: SEED_LOCATIONS[17],
+    title: 'The Eternal Flame',
+    slug: 'eternal-flame',
+    description: 'Some flames are lit to make sure a promise never goes dark.',
+    instructions: 'Find the John F. Kennedy Memorial and read the dedication plaque at its base. Enter the four-digit year marking when he died — not his birth year.',
+    pointValue: 100,
+    xpReward: 100,
+    drawingEntryReward: 1,
+    difficulty: 'easy',
+    category: 'observation',
+    startingPath: 'secret',
+    verificationType: 'passphrase',
+    proofRequirement: 'Enter the four-digit year on the plaque marking his death.',
+    isFlash: false,
+    status: 'active',
+    sortOrder: 25,
+    createdAt: '2026-08-31T00:00:00Z',
+    safetyNotes: 'FIELD VERIFICATION REQUIRED: exact address, hours, and nighttime access appropriateness for an "eternal flame" fixture have not been confirmed on-site.',
+    gmNotes: 'Real, legible plaque text confirmed directly from the finished quest card (public/canton-quests/quests/secret/flame.png): "JOHN F. KENNEDY MEMORIAL FOUNTAIN... BORN MAY 29, 1917 — DIED NOVEMBER 22, 1963." The middle dedication line is illegible at available resolution; the name/title/dates are clear. A field photo of the real plaque is still recommended before printing final clue cards.',
+    rewardConfig: {
+      cipherFragmentKeys: ['secret-stone-stair'],
+    },
+  },
+  {
+    id: 'qst-willie-the-whale',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-mother-goose-land',
+    location: SEED_LOCATIONS[8],
+    title: 'Willie the Whale',
+    slug: 'willie-the-whale',
+    description: "Willie's been holding his ground at Mother Goose Land longer than most of downtown has existed. Up close, there's more to him than the silhouette from a distance.",
+    instructions: "Find Willie. Don't just photograph him from a distance — get close enough to frame the round opening on his side (not the mouth entrance) clearly in your photo.",
+    pointValue: 100,
+    xpReward: 100,
+    drawingEntryReward: 1,
+    difficulty: 'easy',
+    category: 'observation',
+    startingPath: 'challenge',
+    verificationType: 'photo',
+    proofRequirement: "Upload a close-up photo clearly showing the round opening on Willie's side.",
+    isFlash: false,
+    status: 'active',
+    sortOrder: 26,
+    createdAt: '2026-08-31T00:00:00Z',
+    safetyNotes: 'Open public park. Daylight hours recommended. Do not climb on or enter the structure beyond its designed walk-in mouth entrance.',
+    gmNotes: 'Real, distinctive round dark opening (porthole/blowhole) visible on Willie\'s flank in public/canton-quests/quests/challenge/willie.png, a photorealistic (non-cinematic-overlay) image — confirms a genuine close-observable feature beyond his general silhouette. Only one side is visible in the available photo, so a count-based mechanic is not evidenced; framed-photo proof is used instead. Manual GM review confirms the feature is actually in frame.',
+    rewardConfig: {
+      cipherFragmentKeys: ['challenge-neon-loop'],
+    },
+  },
+  // --- STAGED FAIL-CLOSED (Phase 3B): mechanic is canonical, exact answer
+  // is not yet resolvable from any available image. status: 'draft' keeps
+  // each hidden from players. No answer hash is registered for any of
+  // these in lib/quest-proof-secrets.ts. See
+  // docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md for exactly what's missing.
+  {
+    id: 'qst-palace-stars',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-palace-stars',
+    location: SEED_LOCATIONS[20],
+    title: 'Palace Stars',
+    slug: 'palace-stars',
+    description: "The Palace isn't the only name written into this block.",
+    instructions:
+      'Look down. Find the bronze star honoring The Shaheen Family and the Desert Inn. The year beneath that name is your confirmation. Enter the four-digit year.',
+    pointValue: 100,
+    xpReward: 100,
+    drawingEntryReward: 1,
+    difficulty: 'medium',
+    category: 'observation',
+    startingPath: 'family',
+    verificationType: 'passphrase',
+    proofRequirement: 'Enter the four-digit year cast into the bronze sidewalk star honoring The Shaheen Family / Desert Inn.',
+    isFlash: false,
+    status: 'active',
+    sortOrder: 27,
+    createdAt: '2026-08-31T00:00:00Z',
+    safetyNotes: 'Public sidewalk, no ticket purchase required (per loc-music-hall, the same real building). FIELD VERIFICATION REQUIRED: exact star position relative to the Palace entrance and pedestrian-traffic conditions have not been confirmed on-site.',
+    gmNotes:
+      'IMPLEMENTED (Phase 3D) from real local-Mac field photography recovered outside the repo (see docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md, Phase 3C/3D addenda) — real bronze "Walk of Fame"-style stars embedded in the public sidewalk on the same block as the Palace Theatre marquee. The Shaheen Family / Desert Inn star was chosen as the target because its name and year are both fully legible and the star sits fully within frame in the source photo, unlike the partially-cropped alternatives. Four independently-photographed stars all read 1997; this specific star was not the only one confirming that year, so the answer is corroborated, not a single-source read. No required Cipher Fragment, no Founder Lock — carries the optional Palace Watcher signal anomaly (see PALACE_SIGNAL_ANOMALY in lib/gameplay/founders-cipher/messages.ts), content-registered only, not yet wired to a trigger.',
+  },
+  {
+    id: 'qst-golden-mark',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-golden-mark',
+    location: SEED_LOCATIONS[18],
+    title: 'The Golden Mark',
+    slug: 'golden-mark-cipher',
+    description: 'A curious symbol stands along the way. Some say it marks a meeting point — for those who know.',
+    instructions: 'Find the golden sculpture pair on Canton Road and read the plaque in front of it. (Puzzle pending — no answer is configured yet.)',
+    pointValue: 100,
+    xpReward: 100,
+    drawingEntryReward: 1,
+    difficulty: 'medium',
+    category: 'observation',
+    startingPath: 'secret',
+    verificationType: 'passphrase',
+    proofRequirement: 'PENDING — no verification configured until the plaque is photographed legibly.',
+    isFlash: false,
+    status: 'draft',
+    sortOrder: 28,
+    createdAt: '2026-08-31T00:00:00Z',
+    safetyNotes: 'FIELD VERIFICATION REQUIRED: proximity to traffic/parking at the Canton Road sculpture has not been confirmed on-site.',
+    gmNotes: 'STAGED — the stone plaque is visible but entirely illegible in the only available image (public/canton-quests/quests/secret/the golden mark.png). This quest is the sole intended Founder Lock (THE MARK) source — do NOT restore qst-centennial-discovery as an alternate MARK source. See docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md for the exact photo needed.',
+    rewardConfig: {
+      threeLocksFragment: { lock: 'mark', collectibleId: 'col-founder-mark' },
+    },
+  },
+  {
+    id: 'qst-spring-water-shelter',
+    eventId: SEED_EVENT.id,
+    locationId: 'loc-spring-water-shelter',
+    location: SEED_LOCATIONS[19],
+    title: 'Spring Water Shelter',
+    slug: 'spring-water-shelter',
+    description: 'A quiet place to pause and listen. Fresh water flows here — and so might the answers.',
+    instructions: "Find the stone shelter at Fort Hill Park and inspect its real support structure. (Puzzle pending — no answer is configured yet.)",
+    pointValue: 100,
+    xpReward: 100,
+    drawingEntryReward: 1,
+    difficulty: 'medium',
+    category: 'observation',
+    startingPath: 'secret',
+    verificationType: 'passphrase',
+    proofRequirement: 'PENDING — no verification configured until the shelter structure is photographed unobstructed.',
+    isFlash: false,
+    status: 'draft',
+    sortOrder: 29,
+    createdAt: '2026-08-31T00:00:00Z',
+    safetyNotes: 'FIELD VERIFICATION REQUIRED: parking-area/pedestrian proximity has not been confirmed on-site.',
+    gmNotes: 'STAGED — the only available photo (public/canton-quests/quests/secret/water.png) has a parked car obscuring part of the front boulder row, and no angle clearly resolves a countable pillar/beam feature. See docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md for the exact photo needed.',
+    rewardConfig: {
+      cipherFragmentKeys: ['secret-silent-court'],
+    },
   },
 ];
 

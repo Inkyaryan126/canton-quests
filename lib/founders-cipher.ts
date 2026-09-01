@@ -224,13 +224,22 @@ export async function grantCipherFragmentsForQuestRewardDB(params: {
   newlyGrantedFragmentKeys: string[];
   unlockedDistricts: CipherDistrictKey[];
   readyToDecodeDistricts: CipherDistrictKey[];
+  isFirstCipherFragment: boolean;
 }> {
   if (!isSupabaseAdminConfigured || !supabaseAdmin || params.fragmentKeys.length === 0) {
-    return { newlyGrantedFragmentKeys: [], unlockedDistricts: [], readyToDecodeDistricts: [] };
+    return { newlyGrantedFragmentKeys: [], unlockedDistricts: [], readyToDecodeDistricts: [], isFirstCipherFragment: false };
   }
 
   const uniqueKeys = [...new Set(params.fragmentKeys.map((key) => key.trim()).filter(Boolean))];
-  if (uniqueKeys.length === 0) return { newlyGrantedFragmentKeys: [], unlockedDistricts: [], readyToDecodeDistricts: [] };
+  if (uniqueKeys.length === 0) return { newlyGrantedFragmentKeys: [], unlockedDistricts: [], readyToDecodeDistricts: [], isFirstCipherFragment: false };
+
+  const { data: priorGrants } = await supabaseAdmin
+    .from('player_cipher_fragments')
+    .select('id')
+    .eq('event_id', params.eventId)
+    .eq('player_id', params.playerId)
+    .limit(1);
+  const isFirstCipherFragment = !priorGrants || priorGrants.length === 0;
 
   const { data: fragments, error } = await supabaseAdmin
     .from('cipher_fragments')
@@ -238,7 +247,7 @@ export async function grantCipherFragmentsForQuestRewardDB(params: {
     .eq('event_id', params.eventId)
     .in('fragment_key', uniqueKeys);
   if (error) {
-    if (isMissingTable(error)) return { newlyGrantedFragmentKeys: [], unlockedDistricts: [], readyToDecodeDistricts: [] };
+    if (isMissingTable(error)) return { newlyGrantedFragmentKeys: [], unlockedDistricts: [], readyToDecodeDistricts: [], isFirstCipherFragment: false };
     throw new Error(`Failed to resolve cipher fragments: ${error.message}`);
   }
 
@@ -258,7 +267,7 @@ export async function grantCipherFragmentsForQuestRewardDB(params: {
         touchedDistricts.add(fragment.district_key as CipherDistrictKey);
         continue;
       }
-      if (isMissingTable(insertError)) return { newlyGrantedFragmentKeys, unlockedDistricts: [], readyToDecodeDistricts: [] };
+      if (isMissingTable(insertError)) return { newlyGrantedFragmentKeys, unlockedDistricts: [], readyToDecodeDistricts: [], isFirstCipherFragment: false };
       throw new Error(`Failed to grant cipher fragment: ${insertError.message}`);
     }
     newlyGrantedFragmentKeys.push(fragment.fragment_key);
@@ -272,7 +281,12 @@ export async function grantCipherFragmentsForQuestRewardDB(params: {
   }
 
   // Under Founder's Cipher rules, fragment accumulation NEVER automatically unlocks district sigils.
-  return { newlyGrantedFragmentKeys, unlockedDistricts: [], readyToDecodeDistricts };
+  return {
+    newlyGrantedFragmentKeys,
+    unlockedDistricts: [],
+    readyToDecodeDistricts,
+    isFirstCipherFragment: isFirstCipherFragment && newlyGrantedFragmentKeys.length > 0,
+  };
 }
 
 export interface DistrictDecodeResult {
@@ -282,6 +296,10 @@ export interface DistrictDecodeResult {
   tokenLabel?: string;
   sigilSymbol?: string;
   decodedSentence?: string;
+  unlockedSigilCount?: number;
+  allSigilsUnlocked?: boolean;
+  hasAllThreeLocks?: boolean;
+  masterCipherAvailable?: boolean;
   error?: string;
   alreadyUnlocked?: boolean;
 }
@@ -344,6 +362,39 @@ export async function decodeDistrictCipherDB(params: {
     .maybeSingle();
 
   if (existing?.status === 'token_unlocked') {
+    const { data: allProgress } = await supabaseAdmin
+      .from('player_district_cipher_progress')
+      .select('status')
+      .eq('event_id', params.eventId)
+      .eq('player_id', params.playerId);
+    const unlockedSigilCount = (allProgress || []).filter((r: any) => r.status === 'token_unlocked').length;
+    const allSigilsUnlocked = unlockedSigilCount >= 3;
+
+    const { data: lockGrants } = await supabaseAdmin
+      .from('reward_grants')
+      .select('reward_key')
+      .eq('event_id', params.eventId)
+      .eq('player_id', params.playerId)
+      .in('reward_type', ['THREE_LOCKS_FRAGMENT', 'COLLECTIBLE_UNLOCK']);
+    const lockKeys = new Set((lockGrants || []).map((g: any) => (g.reward_key || '').toLowerCase()));
+    const { data: cols } = await supabaseAdmin
+      .from('player_collectibles')
+      .select('collectible_id, event_id, collectibles(id, slug)')
+      .eq('player_id', params.playerId);
+    if (cols) {
+      for (const row of cols as any[]) {
+        if (row.event_id === params.eventId) {
+          if (row.collectibles?.slug) lockKeys.add(row.collectibles.slug.toLowerCase());
+          if (row.collectibles?.id) lockKeys.add(row.collectibles.id.toLowerCase());
+          if (row.collectible_id) lockKeys.add(row.collectible_id.toLowerCase());
+        }
+      }
+    }
+    const mark = lockKeys.has('col-founder-mark') || lockKeys.has('founder-mark');
+    const code = lockKeys.has('col-founder-code') || lockKeys.has('founder-code');
+    const word = lockKeys.has('col-founder-word') || lockKeys.has('founder-word');
+    const hasAllThreeLocks = mark && code && word;
+
     return {
       success: true,
       correct: true,
@@ -352,6 +403,10 @@ export async function decodeDistrictCipherDB(params: {
       tokenLabel: existing.token_label || district.tokenLabel,
       sigilSymbol: existing.sigil_symbol || district.sigilSymbol,
       decodedSentence: district.canonicalSentence,
+      unlockedSigilCount,
+      allSigilsUnlocked,
+      hasAllThreeLocks,
+      masterCipherAvailable: allSigilsUnlocked && hasAllThreeLocks,
     };
   }
 
@@ -386,6 +441,39 @@ export async function decodeDistrictCipherDB(params: {
     throw new Error(`Failed to record district decode: ${upsertError.message}`);
   }
 
+  const { data: allProgress } = await supabaseAdmin
+    .from('player_district_cipher_progress')
+    .select('status')
+    .eq('event_id', params.eventId)
+    .eq('player_id', params.playerId);
+  const unlockedSigilCount = (allProgress || []).filter((r: any) => r.status === 'token_unlocked').length;
+  const allSigilsUnlocked = unlockedSigilCount >= 3;
+
+  const { data: lockGrants } = await supabaseAdmin
+    .from('reward_grants')
+    .select('reward_key')
+    .eq('event_id', params.eventId)
+    .eq('player_id', params.playerId)
+    .in('reward_type', ['THREE_LOCKS_FRAGMENT', 'COLLECTIBLE_UNLOCK']);
+  const lockKeys = new Set((lockGrants || []).map((g: any) => (g.reward_key || '').toLowerCase()));
+  const { data: cols } = await supabaseAdmin
+    .from('player_collectibles')
+    .select('collectible_id, event_id, collectibles(id, slug)')
+    .eq('player_id', params.playerId);
+  if (cols) {
+    for (const row of cols as any[]) {
+      if (row.event_id === params.eventId) {
+        if (row.collectibles?.slug) lockKeys.add(row.collectibles.slug.toLowerCase());
+        if (row.collectibles?.id) lockKeys.add(row.collectibles.id.toLowerCase());
+        if (row.collectible_id) lockKeys.add(row.collectible_id.toLowerCase());
+      }
+    }
+  }
+  const mark = lockKeys.has('col-founder-mark') || lockKeys.has('founder-mark');
+  const code = lockKeys.has('col-founder-code') || lockKeys.has('founder-code');
+  const word = lockKeys.has('col-founder-word') || lockKeys.has('founder-word');
+  const hasAllThreeLocks = mark && code && word;
+
   return {
     success: true,
     correct: true,
@@ -393,6 +481,10 @@ export async function decodeDistrictCipherDB(params: {
     tokenLabel: district.tokenLabel,
     sigilSymbol: district.sigilSymbol,
     decodedSentence: district.canonicalSentence,
+    unlockedSigilCount,
+    allSigilsUnlocked,
+    hasAllThreeLocks,
+    masterCipherAvailable: allSigilsUnlocked && hasAllThreeLocks,
   };
 }
 

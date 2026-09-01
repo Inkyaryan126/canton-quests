@@ -77,31 +77,49 @@ async function getUnlockedSigilCountDB(eventId: string, playerId: string): Promi
   return (data || []).filter((r: any) => r.status === 'token_unlocked').length;
 }
 
-async function getPlayerThreeLocksDB(playerId: string): Promise<{ mark: boolean; code: boolean; word: boolean; hasAll: boolean }> {
+async function getPlayerThreeLocksDB(
+  eventId: string,
+  playerId: string
+): Promise<{ mark: boolean; code: boolean; word: boolean; hasAll: boolean }> {
   if (!isSupabaseAdminConfigured || !supabaseAdmin) {
     return { mark: false, code: false, word: false, hasAll: false };
   }
-  const { data, error } = await supabaseAdmin
+
+  const keys = new Set<string>();
+
+  // 1. Check reward_grants for event-scoped lock provenance
+  const { data: grants } = await supabaseAdmin
+    .from('reward_grants')
+    .select('reward_key')
+    .eq('event_id', eventId)
+    .eq('player_id', playerId)
+    .in('reward_type', ['THREE_LOCKS_FRAGMENT', 'COLLECTIBLE_UNLOCK']);
+
+  if (grants) {
+    for (const g of grants) {
+      if (g.reward_key) keys.add(g.reward_key.toLowerCase());
+    }
+  }
+
+  // 2. Check player_collectibles table where event_id matches
+  const { data: cols } = await supabaseAdmin
     .from('player_collectibles')
-    .select('collectible_id, collectibles(id, slug)')
+    .select('collectible_id, event_id, collectibles(id, slug)')
     .eq('player_id', playerId);
-  if (error || !data) {
-    return { mark: false, code: false, word: false, hasAll: false };
+
+  if (cols) {
+    for (const row of cols as any[]) {
+      if (row.event_id === eventId) {
+        if (row.collectibles?.slug) keys.add(row.collectibles.slug.toLowerCase());
+        if (row.collectibles?.id) keys.add(row.collectibles.id.toLowerCase());
+        if (row.collectible_id) keys.add(row.collectible_id.toLowerCase());
+      }
+    }
   }
 
-  const ids = new Set<string>();
-  const slugs = new Set<string>();
-  for (const row of data as any[]) {
-    if (row.collectible_id) ids.add(row.collectible_id);
-    const slug = row.collectibles?.slug;
-    if (slug) slugs.add(slug);
-    const id = row.collectibles?.id;
-    if (id) ids.add(id);
-  }
-
-  const mark = ids.has('col-founder-mark') || slugs.has('founder-mark') || slugs.has('col-founder-mark');
-  const code = ids.has('col-founder-code') || slugs.has('founder-code') || slugs.has('col-founder-code');
-  const word = ids.has('col-founder-word') || slugs.has('founder-word') || slugs.has('col-founder-word');
+  const mark = keys.has('col-founder-mark') || keys.has('founder-mark') || keys.has('mark');
+  const code = keys.has('col-founder-code') || keys.has('founder-code') || keys.has('code');
+  const word = keys.has('col-founder-word') || keys.has('founder-word') || keys.has('word');
 
   return {
     mark,
@@ -143,7 +161,7 @@ export async function getPlayerFinaleStatusDB(eventId: string, playerId: string)
   const [config, unlockedSigilCount, threeLocks, event, watcherStatus, progress] = await Promise.all([
     getFinaleConfigDB(eventId),
     getUnlockedSigilCountDB(eventId, playerId),
-    getPlayerThreeLocksDB(playerId),
+    getPlayerThreeLocksDB(eventId, playerId),
     getEventByIdDB(eventId),
     getWatcherStatusDB(eventId, playerId),
     getPlayerFinaleProgressDB(eventId, playerId),
@@ -189,7 +207,7 @@ export async function submitFinaleAnswerDB(eventId: string, playerId: string, su
   const [config, unlockedSigilCount, threeLocks, event, watcherStatus, progress] = await Promise.all([
     getFinaleConfigDB(eventId),
     getUnlockedSigilCountDB(eventId, playerId),
-    getPlayerThreeLocksDB(playerId),
+    getPlayerThreeLocksDB(eventId, playerId),
     getEventByIdDB(eventId),
     getWatcherStatusDB(eventId, playerId),
     getPlayerFinaleProgressDB(eventId, playerId),

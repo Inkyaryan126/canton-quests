@@ -782,6 +782,7 @@ export async function getCollectiblesForPlayerDB(playerId: string): Promise<Play
   return data.map((row: any) => ({
     id: row.id,
     playerId: row.player_id,
+    eventId: row.event_id,
     collectibleId: row.collectible_id,
     earnedAt: row.earned_at,
     source: row.source,
@@ -806,15 +807,16 @@ function resolveCollectibleSlug(collectibleIdOrSlug: string): string {
 export async function awardCollectibleDB(
   playerId: string,
   collectibleIdOrSlug: string,
-  source: string = 'quest'
+  source: string = 'quest',
+  eventId?: string
 ): Promise<Collectible | undefined> {
   if (!isSupabaseConfigured || !supabaseAdmin) {
-    return localEngine.awardCollectible(playerId, collectibleIdOrSlug, source);
+    return localEngine.awardCollectible(playerId, collectibleIdOrSlug, source, eventId);
   }
   const slug = resolveCollectibleSlug(collectibleIdOrSlug);
 
   const { data: item } = await supabaseAdmin.from('collectibles').select('*').eq('slug', slug).maybeSingle();
-  if (!item) return localEngine.awardCollectible(playerId, collectibleIdOrSlug, source);
+  if (!item) return localEngine.awardCollectible(playerId, collectibleIdOrSlug, source, eventId);
 
   const { data: existing } = await supabaseAdmin
     .from('player_collectibles')
@@ -828,6 +830,7 @@ export async function awardCollectibleDB(
       player_id: playerId,
       collectible_id: item.id,
       source,
+      ...(eventId ? { event_id: eventId } : {}),
     });
   }
 
@@ -934,7 +937,7 @@ export async function insertRewardGrantDB(entry: {
  */
 export async function evaluateAndGrantProfileCompletionRewardDB(
   playerId: string
-): Promise<{ newlyGranted: boolean; xpAwarded: number }> {
+): Promise<{ newlyGranted: boolean; xpAwarded: number; newAchievement?: PlayerAchievement }> {
   if (!isSupabaseConfigured || !supabaseAdmin) {
     return localEngine.evaluateAndGrantProfileCompletionReward(playerId);
   }
@@ -991,7 +994,13 @@ export async function evaluateAndGrantProfileCompletionRewardDB(
     .eq('id', playerId);
   if (updateError) throw new Error(`Failed to update player XP: ${updateError.message}`);
 
-  return { newlyGranted: true, xpAwarded };
+  // "Field Ready" pre-launch badge — piggybacks on this same identity-
+  // complete moment. Idempotent on its own via player_achievements'
+  // UNIQUE(player_id, achievement_slug), so this is safe even though the
+  // XP grant above already gates on isNewGrant.
+  const newAchievement = await awardAchievementDB(playerId, 'field-ready', event.id, 'Player identity complete — avatar selected');
+
+  return { newlyGranted: true, xpAwarded, newAchievement };
 }
 
 const THREE_LOCKS_COLLECTIBLE_IDS = ['col-founder-mark', 'col-founder-code', 'col-founder-word'];
@@ -1029,6 +1038,8 @@ export async function awardQuestRewardsDB(params: {
   threeLocksOwned?: { mark: boolean; code: boolean; word: boolean };
   cipherFragmentsAwarded?: string[];
   cipherDistrictsUnlocked?: Array<'arts' | 'challenge' | 'secret'>;
+  readyToDecodeDistricts?: Array<'arts' | 'challenge' | 'secret'>;
+  isFirstCipherFragment?: boolean;
   newAchievements: Array<{ id: string; title: string; description: string; icon?: string }>;
 }> {
   if (!isSupabaseConfigured || !supabaseAdmin) {
@@ -1252,7 +1263,7 @@ export async function awardQuestRewardsDB(params: {
       rewardKey: collectibleId,
     });
     if (granted) {
-      const col = await awardCollectibleDB(playerId, collectibleId, `Quest reward: ${quest.title}`);
+      const col = await awardCollectibleDB(playerId, collectibleId, `Quest reward: ${quest.title}`, eventId);
       if (col && !grantedCollectible) grantedCollectible = col;
     }
   }
@@ -1268,19 +1279,30 @@ export async function awardQuestRewardsDB(params: {
       rewardKey: collectibleId,
     });
     if (granted) {
-      const col = await awardCollectibleDB(playerId, collectibleId, `Founder's Lock: ${lock.toUpperCase()}`);
+      const col = await awardCollectibleDB(playerId, collectibleId, `Founder's Lock: ${lock.toUpperCase()}`, eventId);
       if (col && !grantedCollectible) grantedCollectible = col;
       threeLocksFragmentAwarded = lock;
     }
 
-    const owned = await getCollectiblesForPlayerDB(playerId);
-    const ownedSlugs = new Set(owned.map((pc) => pc.collectible?.slug).filter(Boolean));
-    threeLocksOwned = {
-      mark: ownedSlugs.has(resolveCollectibleSlug('col-founder-mark')),
-      code: ownedSlugs.has(resolveCollectibleSlug('col-founder-code')),
-      word: ownedSlugs.has(resolveCollectibleSlug('col-founder-word')),
-    };
-    const hasAllThreeLocks = THREE_LOCKS_COLLECTIBLE_IDS.every((id) => ownedSlugs.has(resolveCollectibleSlug(id)));
+    const { data: lockGrants } = await db
+      .from('reward_grants')
+      .select('reward_key')
+      .eq('event_id', eventId)
+      .eq('player_id', playerId)
+      .in('reward_type', ['THREE_LOCKS_FRAGMENT', 'COLLECTIBLE_UNLOCK']);
+    const lockKeys = new Set((lockGrants || []).map((g: any) => (g.reward_key || '').toLowerCase()));
+    const playerCols = await getCollectiblesForPlayerDB(playerId);
+    for (const row of playerCols) {
+      if (row.eventId === eventId) {
+        if (row.collectible?.slug) lockKeys.add(row.collectible.slug.toLowerCase());
+        if (row.collectibleId) lockKeys.add(row.collectibleId.toLowerCase());
+      }
+    }
+    const mark = lockKeys.has('col-founder-mark') || lockKeys.has('founder-mark');
+    const code = lockKeys.has('col-founder-code') || lockKeys.has('founder-code');
+    const word = lockKeys.has('col-founder-word') || lockKeys.has('founder-word');
+    threeLocksOwned = { mark, code, word };
+    const hasAllThreeLocks = mark && code && word;
     if (hasAllThreeLocks) {
       await insertRewardGrantDB({
         eventId,
@@ -1306,6 +1328,8 @@ export async function awardQuestRewardsDB(params: {
 
   let cipherFragmentsAwarded: string[] = [];
   let cipherDistrictsUnlocked: Array<'arts' | 'challenge' | 'secret'> = [];
+  let readyToDecodeDistricts: Array<'arts' | 'challenge' | 'secret'> = [];
+  let isFirstCipherFragment: boolean = false;
   if (unlocks.cipherFragmentKeys.length > 0) {
     const cipherGrant = await grantCipherFragmentsForQuestRewardDB({
       eventId,
@@ -1316,6 +1340,8 @@ export async function awardQuestRewardsDB(params: {
     });
     cipherFragmentsAwarded = cipherGrant.newlyGrantedFragmentKeys;
     cipherDistrictsUnlocked = cipherGrant.unlockedDistricts;
+    readyToDecodeDistricts = cipherGrant.readyToDecodeDistricts;
+    isFirstCipherFragment = cipherGrant.isFirstCipherFragment;
   }
 
   if (unlocks.countsTowardFinale) {
@@ -1353,6 +1379,8 @@ export async function awardQuestRewardsDB(params: {
     threeLocksOwned,
     cipherFragmentsAwarded,
     cipherDistrictsUnlocked,
+    readyToDecodeDistricts,
+    isFirstCipherFragment,
     newAchievements,
   };
 }
@@ -2239,6 +2267,8 @@ export async function submitQuestProofDB(
     let threeLocksOwned: { mark: boolean; code: boolean; word: boolean } | undefined;
     let cipherFragmentsAwarded: string[] | undefined;
     let cipherDistrictsUnlocked: Array<'arts' | 'challenge' | 'secret'> | undefined;
+    let readyToDecodeDistricts: Array<'arts' | 'challenge' | 'secret'> | undefined;
+    let isFirstCipherFragment: boolean | undefined;
 
     if (verification.status === 'verified') {
       try {
@@ -2264,6 +2294,8 @@ export async function submitQuestProofDB(
         threeLocksOwned = grant.threeLocksOwned;
         cipherFragmentsAwarded = grant.cipherFragmentsAwarded;
         cipherDistrictsUnlocked = grant.cipherDistrictsUnlocked;
+        readyToDecodeDistricts = grant.readyToDecodeDistricts;
+        isFirstCipherFragment = grant.isFirstCipherFragment;
       } catch (grantErr: any) {
         // Reward granting failed partway through — unwind every row keyed to
         // this submission (score/drawing/audit ledger + the submission
@@ -2308,6 +2340,8 @@ export async function submitQuestProofDB(
       threeLocksOwned,
       cipherFragmentsAwarded,
       cipherDistrictsUnlocked,
+      readyToDecodeDistricts,
+      isFirstCipherFragment,
     };
   } catch (err: any) {
     console.error('submitQuestProofDB error:', err);
