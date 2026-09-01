@@ -1081,8 +1081,28 @@ Each entry follows the standard ADR structure:
   - The live feed was erroneously displaying 4 districts containing legacy/stale labels (`Central Market District`, `Hall of Fame Village Zone`). Replacing the hardcoded arrays across both client and server layers fixes the source of truth, aligns live spectator telemetry with canonical player paths (`family`, `challenge`, `secret`), and prevents future UI drift.
 - **Status**: **ACCEPTED**
 
+---
 
+### [ADR-050] 2026-09-01: Founder's Cipher Production Gameplay Reconciliation (`canton-weekend-1`)
 
-
+- **Decision**:
+  1. **Schema Catchup & Dynamic Event Resolution**:
+     - Safely applied `20260828120000_founders_cipher_district_fragments.sql` to establish `cipher_fragments`, `player_cipher_fragments`, and `player_district_cipher_progress` tables with RLS and indexes.
+     - Refactored `20260831120000_founders_cipher_phase2_manual_decode_reconciliation.sql` to dynamically resolve `event_id` from `public.events WHERE slug = 'canton-weekend-1'` (replacing hardcoded UUIDs).
+     - Ensured `requires_watcher_eligibility = false` in `finale_config` for Founder's Cipher so normal players are never blocked by unconfigured watcher checks.
+     - Synchronized canonical 9 fragment definitions and updated `finale_config.final_answer_hash` to the verified SHA-256 of `FRANKENSTEIN` (`sha256:cb230b66b39057eab0e681e01c457544fce740e98d172cc7fd41e51803c9ea47`).
+  2. **Canonical 14-Quest Production Sync & Legacy Preservation**:
+     - Safely marked the 15 legacy quests (`e0000001-...-0001` through `0015`) and 4 legacy draft quests as `status = 'inactive'` with `legacy-` slug prefixes, preserving all existing historical foreign keys and score ledger references without deletion.
+     - Synchronized the authoritative 14 canonical quests (`bell-cipher`, `canton-sign-capture`, `draft-lineup`, `kraken-wall`, `palace-stars`, `9th-street-opening`, `challenge-open-ground`, `challenge-the-tower`, `goose-land-cipher`, `willie-the-whale`, `mckinley-monument-year`, `eternal-flame`, `golden-mark-cipher`, `spring-water-shelter`) with stable UUIDs, authoritative SHA-256 target codes, accepted answer variants, and complete `reward_config` fragment/lock mappings.
+     - Synchronized the 3 Founder Lock collectibles (`col-founder-mark`, `col-founder-code`, `col-founder-word`) and updated `Mother Goose Land` coordinates (`40.8055, -81.3866`) in `public.locations`.
+  3. **Backend Proof & Review Hardening**:
+     - Fixed `submitQuestProofDB` in `lib/supabase-db.ts` to automatically fall back to `quest.verificationType` when `params.proofType` is omitted, eliminating not-null submission constraint errors.
+     - Hardened `reviewSubmissionDB` in `lib/supabase-db.ts` to query `quest_submissions` directly and resolve `quest` by `sub.quest_id` if foreign key expansion is omitted by the PostgREST schema cache.
+  4. **Pre-Launch Integrity & Verification**:
+     - Preserved the canonical public launch gate (September 11, 2026 at 18:00 UTC) with zero artificial bypasses for public traffic.
+     - Executed a complete digital end-to-end verification simulation against the live Supabase instance validating quest completion $\rightarrow$ fragment granting $\rightarrow$ tile decoding $\rightarrow$ 3 district sigils $\rightarrow$ 3 Founder Locks $\rightarrow$ convergence authorization $\rightarrow$ `FRANKENSTEIN` solution $\rightarrow$ destination reveal.
+- **Reason**:
+  - Reconciles the Founder's Cipher production schema and canonical 14-quest roster against the live Supabase instance so the digital game spine (quest → fragment → district → Founder Lock → Master Cipher → destination reveal) is provably correct end-to-end before players ever touch it.
+- **Status**: **ACCEPTED**
 
 
