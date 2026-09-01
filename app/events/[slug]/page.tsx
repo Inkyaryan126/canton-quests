@@ -9,6 +9,7 @@ import PlayerIdentityBar from '@/components/PlayerIdentityBar';
 import QuestCard from '@/components/QuestCard';
 import Leaderboard from '@/components/Leaderboard';
 import CantonMapWrapper from '@/components/CantonMapWrapper';
+import SectorMapWrapper from '@/components/SectorMapWrapper';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
 import MobileStartBar from '@/components/MobileStartBar';
 import CinematicFooter from '@/components/CinematicFooter';
@@ -1196,7 +1197,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
 
       {/* TAB 2: CANTON MAP */}
       {activeTab === 'map' && (
-        <section className="space-y-4 animate-fade-in">
+        <section className="space-y-6 animate-fade-in">
           <CantonMapWrapper
             quests={quests}
             eventSlug={event.slug}
@@ -1206,6 +1207,9 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
             userLon={userLon}
             onLocateMe={requestLocation}
           />
+
+          {/* Cipher Mission Live Tactical Sector Map & Telemetry HUD */}
+          <SectorMapWrapper />
         </section>
       )}
 

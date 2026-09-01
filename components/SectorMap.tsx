@@ -106,9 +106,40 @@ export default function SectorMap({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const zoneMarkersRef = useRef<Record<string, L.Marker>>({});
 
-  // React State for Activity Ticker and Clock
+  // Local state for feed & polling when feed prop is omitted
+  const [internalFeed, setInternalFeed] = useState<PublicGameFeedItem[]>(feed || []);
   const [tickerItems, setTickerItems] = useState<TickerEntry[]>([]);
   const [clockString, setClockString] = useState<string>('--:--:--');
+
+  useEffect(() => {
+    if (feed !== undefined) {
+      setInternalFeed(feed);
+    }
+  }, [feed]);
+
+  useEffect(() => {
+    if (feed !== undefined) return;
+
+    let isMounted = true;
+    const fetchFeed = async () => {
+      try {
+        const res = await fetch('/api/game/spectator?action=feed');
+        const data = await res.json();
+        if (isMounted && data.success && Array.isArray(data.feed)) {
+          setInternalFeed(data.feed);
+        }
+      } catch {
+        // Silently handle
+      }
+    };
+
+    fetchFeed();
+    const interval = setInterval(fetchFeed, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [feed]);
 
   // Trigger pulse animation on a specific zone marker
   const triggerZonePulse = useCallback((zoneId: string) => {
@@ -229,8 +260,8 @@ export default function SectorMap({
   useEffect(() => {
     if (allowSimulatedDemoData) return;
 
-    if (feed && feed.length > 0) {
-      const mapped: TickerEntry[] = feed.slice(0, 8).map((item) => {
+    if (internalFeed && internalFeed.length > 0) {
+      const mapped: TickerEntry[] = internalFeed.slice(0, 8).map((item) => {
         const zoneId = resolveZoneId(item.districtName);
         const glyph = item.isHost ? '📡' : item.urgency === 'flash' ? '⚡' : item.urgency === 'urgent' ? '🚨' : '◆';
         const who = item.isHost
@@ -267,7 +298,7 @@ export default function SectorMap({
     } else {
       setTickerItems([]);
     }
-  }, [feed, allowSimulatedDemoData, triggerZonePulse]);
+  }, [internalFeed, allowSimulatedDemoData, triggerZonePulse]);
 
   // Live HUD 24-hour clock
   useEffect(() => {
@@ -731,7 +762,7 @@ export default function SectorMap({
           <div className="panel">
             <div className="panel-head">
               <span>PUBLIC FIELD INTEL</span>
-              <b>{feed && feed.length > 0 ? `${feed.length} DISPATCHES` : 'STANDBY'}</b>
+              <b>{internalFeed && internalFeed.length > 0 ? `${internalFeed.length} DISPATCHES` : 'STANDBY'}</b>
             </div>
 
             {tickerItems.length === 0 ? (
@@ -775,7 +806,7 @@ export default function SectorMap({
             <div className="lbl">Active Sectors</div>
           </div>
           <div className="stat">
-            <div className="num">{feed?.length ?? 0}</div>
+            <div className="num">{internalFeed?.length ?? 0}</div>
             <div className="lbl">Public Dispatches</div>
           </div>
         </div>

@@ -318,6 +318,8 @@ Find the silo/tower, inspect its physical structure, and extract a real countabl
 
 **CONFIDENCE**: **HIGH** on location; **LOCKED** on physical-observation-as-mechanic per this decision; **UNRESOLVED** on the exact structural feature/count, pending source photo.
 
+**PHASE 3E UPDATE**: Full local photo archive re-searched exhaustively (repo assets, git history, ~/Desktop, ~/Downloads, ~/Pictures, ~/Documents, iCloud Drive) — no new tower photo found. The single most likely site-visit window is a real, unexplained 28-minute gap in the Aug 27 downtown session where 20 consecutive frame numbers (IMG_5697 through IMG_5716) do not exist in any exported/derivative form (08:38:29 → 09:06:38). That range is only reachable via a manual scroll through the Apple Photos app itself, which was intentionally not opened at the database/internals level this pass. Quest remains STAGED FAIL-CLOSED — still no invented count, no implementation.
+
 **WHY THIS QUEST IS FUN**: It's the most visually strange landmark in the whole set — a fairy-tale tower with no obvious explanation — and turning "look at it" into "count what's actually holding it up" gives a Founder Lock the deliberate-observation weight it deserves, instead of handing it out for simple arrival.
 
 ---
@@ -581,6 +583,8 @@ Find the golden sculpture pair on Canton Road and read the plaque in front of it
 
 **CONFIDENCE**: **HIGH** on location (fully resolved — a real, specific, described landmark, correctly *not* 9th Street); **UNKNOWN** on the exact plaque answer.
 
+**PHASE 3E UPDATE**: Highest-priority target of the exhaustive re-search (repo assets, git history, ~/Desktop, ~/Downloads, ~/Pictures, ~/Documents, iCloud Drive; keyword sweep for "golden," "canton road," "plaque," "sculpture"). No new image found — the one keyword hit (`My Music/Golden Trilock Logo.jpeg`) is an unrelated logo asset, not field evidence, and was not used. As with The Tower, the Aug 27 downtown session's IMG_5697–IMG_5716 gap (08:38:29–09:06:38, 20 missing frame numbers, Apple Photos only) remains the single most likely place this photo exists but is unreachable without a manual in-app search. No plaque text was guessed or OCR'd from any low-resolution source. Quest remains STAGED FAIL-CLOSED.
+
 **WHY THIS QUEST IS FUN**: A striking, unexplained piece of public art that most people drive past without a second look — exactly the "hidden in plain sight" mystery-district feeling the Secret path is supposed to deliver, and it resolves what was previously the single least-evidenced quest in the entire 14.
 
 ---
@@ -627,6 +631,8 @@ Find the stone shelter at Fort Hill Park, inspect its real structural supports/o
 
 **CONFIDENCE**: **HIGH** on location (fully resolved — a real, named park and structure); **LOCKED** on structural-observation-as-mechanic per this decision; **UNRESOLVED** on the exact detail/answer, pending source photo.
 
+**PHASE 3E UPDATE**: Re-searched exhaustively alongside the other two remaining quests (repo assets, git history, ~/Desktop, ~/Downloads, ~/Pictures, ~/Documents, iCloud Drive; keyword sweep for "spring water," "shelter," "springhouse," "fort hill," "pavilion"). No new image found, and no detail was read from a photo blocked by a parked vehicle. Same Aug 27 IMG_5697–IMG_5716 gap applies as the most likely, currently-inaccessible source. Quest remains STAGED FAIL-CLOSED.
+
 **WHY THIS QUEST IS FUN**: It's the quietest quest in the set by design — a real, calm, overlooked structure that rewards the player for slowing down and actually looking at what holds it together, right before the Secret sentence completes and points them, deliberately, at West Lawn.
 
 ---
@@ -647,13 +653,13 @@ Find the stone shelter at Fort Hill Park, inspect its real structural supports/o
 
 **Replay/shareability**: Draft Lineup, Kraken Wall, and Willie the Whale remain the most visually shareable moments. Monument Park's real stairway climb adds a strong "I did the whole thing" shareable moment unique to the Secret path.
 
-**Likely player confusion**: Largest remaining risk is the six quests whose exact answer is pending a source photo (Palace, The Mural, The Tower, Willie, Golden Mark, Spring Water Shelter) — if implementation writes clue copy ahead of the real photo evidence, there's real risk of shipping an unverifiable or wrong answer. None of these should move to code until their photo is in hand. Kraken Wall's combination proof type (photo + passphrase) still needs very clear UI/copy so players don't submit only the photo and think they're done.
+**Likely player confusion**: [PHASE 3E: Palace, The Mural, and Willie the Whale were subsequently photo-verified and implemented in Phase 3B/3D — no longer pending.] Largest remaining risk is the three quests whose exact answer is still pending a source photo (The Tower, Golden Mark, Spring Water Shelter) — if implementation writes clue copy ahead of the real photo evidence, there's real risk of shipping an unverifiable or wrong answer. None of these should move to code until their photo is in hand. Kraken Wall's combination proof type (photo + passphrase) still needs very clear UI/copy so players don't submit only the photo and think they're done.
 
 **Order independence**: Fully preserved. Every quest is authored as a standalone field action with no reference to completing another field quest first. Higher-level gates (3 Locks + 3 Sigils + manual district decode) remain the only progression requirement.
 
 **Physical safety**: No quest in this document asserts a safety fact not already evidenced. Monument Park's real stairway climb is now flagged as the most physically demanding quest in the set. Every quest still carries "FIELD VERIFICATION REQUIRED" wherever access, hours, traffic, or accessibility hasn't been confirmed.
 
-**Clue fairness**: Bell Cipher and Monument Park (McKinley/1897) are fair now — real clue copy already exists and points the player to exactly the right place. Palace, The Mural, The Tower, Willie, Golden Mark, and Spring Water Shelter are **not yet fair** — each now has a real mechanic locked, but the exact answer is pending a source photo, so their clue copy cannot be finalized (and should not be printed) until that photo confirms what's actually there.
+**Clue fairness**: Bell Cipher and Monument Park (McKinley/1897) are fair now — real clue copy already exists and points the player to exactly the right place. [PHASE 3E: Palace, The Mural, and Willie the Whale are now also fair — implemented with real, photo-verified answers.] The Tower, Golden Mark, and Spring Water Shelter are **not yet fair** — each has a real mechanic locked, but the exact answer is pending a source photo, so their clue copy cannot be finalized (and should not be printed) until that photo confirms what's actually there.
 
 **Spoiler leakage**: None introduced here. The Secret district's three fragments (`[THE DEAD]`, `[KEEP IT]`, `[AT WEST LAWN]`) still combine into "THE DEAD KEEP IT AT WEST LAWN" only once all three are collected. Nothing in this pass reveals West Lawn or Frankenstein earlier than that gate.
 
@@ -719,3 +725,22 @@ None. All three prior open decisions (Monument Park, Palace, Mural/Tower/Willie/
 None besides the document above. No other file in the repository was modified.
 
 **NO GAMEPLAY CODE IMPLEMENTED. NO MIGRATION APPLIED. NO PRODUCTION DEPLOYED.**
+
+---
+
+# PHASE 3E ADDENDUM — EXHAUSTIVE RE-SEARCH + LEGACY CONTAINMENT
+
+**Re-search outcome (The Tower / The Golden Mark / Spring Water Shelter)**: All local evidence sources were re-searched exhaustively this pass (repo assets, git history, `~/Desktop`, `~/Downloads`, `~/Pictures`, `~/Documents`, iCloud Drive, sibling Canton Quests photo folders) for these three specifically. No new usable photo was found for any of them. The search converged on one concrete lead: the Aug 27 downtown session has a clean, isolated gap of 20 consecutive missing frame numbers (IMG_5697 through IMG_5716, spanning a real 08:38:29 → 09:06:38 travel window) that is not present in any exported/derivative form in `~/Downloads` and is therefore only reachable by manually scrolling the Apple Photos app itself — which was intentionally not opened at the database/internals level this pass (Spotlight/`mdls` metadata only, per instruction). No count, plaque text, or structural detail was invented or OCR'd from a low-resolution source for any of the three. All three remain **STAGED FAIL-CLOSED**, unchanged in mechanic from the "Nearly Locked" state above — see per-quest "PHASE 3E UPDATE" notes inline in QUEST 7 / QUEST 13 / QUEST 14 for full detail.
+
+**Unrelated but real discovery — legacy fragment/Lock duplication contained**: The Phase 3E audit test suite (`tests/founders-cipher-phase3e-final-three-audit.test.ts`) surfaced 4 previously-undiscovered legacy quests still granting canonical fragment/Lock keys outside the 14-quest canon, all now contained (reward capability stripped, `gmNotes` documenting why):
+- `qst-palace-theatre-year` was duplicating `arts-palace-lantern` ([THE MAN]) — canonical source is Kraken Wall.
+- `qst-hof-legend-qr` was duplicating `challenge-helmet-emblem` ([GAVE A MONSTER]) — canonical source is The Open Ground.
+- `qst-arcade-high-score-video` was duplicating `challenge-neon-loop` ([HIS NAME]) — canonical source is Willie the Whale.
+- `qst-challenge-the-lost-page` (the draft C1→C4 "Storybook Sector" chain's final step) was granting Founder Lock **THE CODE** via both `threeLocksFragment` and a separate `collectibleUnlockIds` entry, plus a stray `countsTowardFinale: true` flag — none of which should exist, since THE CODE's sole intended source is The Tower (not yet implemented).
+
+This means 9 legacy quests are now fully contained in total (5 from prior phases + these 4). See `docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md`'s Phase 3E Addendum for full mechanism detail, and `tests/challenge-sector-c1-c4.test.ts` / `tests/founders-cipher-phase3e-final-three-audit.test.ts` for the regression coverage.
+
+## Files Changed (Phase 3E)
+`lib/seed-data.ts`, `tests/challenge-sector-c1-c4.test.ts`, `tests/founders-cipher-phase3e-final-three-audit.test.ts` (new), `docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md`, this document.
+
+**NO NEW GAMEPLAY MECHANIC IMPLEMENTED FOR TOWER / GOLDEN MARK / SPRING WATER SHELTER. NO MIGRATION APPLIED THIS PASS. NO PRODUCTION DEPLOYED BY THIS SESSION.**

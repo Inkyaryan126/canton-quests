@@ -7,6 +7,7 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import PageHeader from '@/components/PageHeader';
 import PlayerAvatar from '@/components/PlayerAvatar';
+import FairLiveMapWrapper from '@/components/FairLiveMapWrapper';
 import {
   computeFairDashboardProgress,
   FairOperationPhase,
@@ -108,6 +109,8 @@ export default function FairQrHuntDashboard() {
             ) : (
               <PlayerStatusPanel data={data} />
             )}
+
+            <FairLiveMapWrapper />
 
             <CoreHuntGrid quests={data.quests} claimedQuestIds={data.claimedQuestIds || []} />
 

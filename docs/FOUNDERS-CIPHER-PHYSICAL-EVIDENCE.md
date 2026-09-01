@@ -1,4 +1,4 @@
-# FOUNDER'S CIPHER — PHYSICAL EVIDENCE DOCUMENT (Phase 3B)
+# FOUNDER'S CIPHER — PHYSICAL EVIDENCE DOCUMENT (Phase 3E)
 
 Exhaustive visual-evidence audit for the 8 remaining canonical quests. Every image below was opened and personally inspected this pass, not inferred from filename.
 
@@ -199,5 +199,15 @@ Exhaustive secondary inspection of all local directories (`~/Downloads`, `~/Desk
    - Status: **STAGED FAIL-CLOSED** (`status: 'draft'`, `location: SEED_LOCATIONS[19]`, passphrase verification, reward wired to `secret-silent-court`, zero answer hash registered).
    - Field Evidence Needed from Dustin: An unobstructed, vehicle-free wide photo of the full perimeter boulder row along the front of the shelter, plus photos showing all four sides to clearly count roof support pillars.
 
-All 14 canonical quests now have an unambiguous, audited 1-to-1 mapping in the engine, with 11 live-ready and 3 staged fail-closed pending Dustin's on-site field photography. Verified by 44 tests in `tests/founders-cipher-phase3e-final-three-audit.test.ts`.
+**Where the search actually landed**: the two real-camera photo sessions already known from Phase 3C (Aug 22 cemetery walk + West Park mural; Aug 27 downtown Palace/stars walk) were re-inspected end-to-end, plus every remaining date-range image across `~/Desktop`, `~/Downloads`, `~/Pictures`, `~/Documents`, and iCloud Drive was re-searched by keyword (tower, silo, golden, canton road, plaque, spring water, shelter, fort hill, mother goose) — zero new hits. One specific, concrete finding: the Aug 27 downtown session has a single gap — frame numbers `IMG_5697` through `IMG_5716` (20 consecutive numbers) do not exist in `~/Downloads` in any format, spanning a real 28-minute travel gap (08:38:29–09:06:38) between the last confirmed downtown frame and the next one after. This is the single most likely window for a Tower/Golden Mark/Spring Water Shelter site visit, but those frames were evidently never exported to Downloads — they would only exist inside `Photos Library.photoslibrary` itself, which per explicit instruction was not dug into at the database level. This is the concrete basis for the **APPLE PHOTOS MANUAL SEARCH REQUIRED** recommendation below, rather than a generic "check your phone."
+
+**Unrelated but real discovery — legacy fragment/Lock duplication contained**: while auditing that every canonical fragment/Lock key maps to exactly one quest anywhere in the seed roster (not just the canonical 14), four previously-uncontained legacy quests were found still wired to grant canonical keys, creating live duplicate-source risk:
+- `qst-palace-theatre-year` ("The Palace Lantern Date," `status: active`) was still granting `arts-palace-lantern` ([THE MAN]) — duplicating Kraken Wall.
+- `qst-hof-legend-qr` ("The Helmet Trail Emblem," `status: active`) was still granting `challenge-helmet-emblem` ([GAVE A MONSTER]) — duplicating The Open Ground.
+- `qst-arcade-high-score-video` ("The Neon Victory Loop," `status: inactive`) was still granting `challenge-neon-loop` ([HIS NAME]) — duplicating Willie the Whale.
+- `qst-challenge-the-lost-page` (C4 of the draft Storybook Sector chain, `status: draft`) was still granting **THE CODE** via both `threeLocksFragment` and a separate `collectibleUnlockIds: ['col-founder-code']` path (either alone is sufficient — `getPlayerThreeLocks`/`getPlayerThreeLocksDB` detect Lock ownership from plain collectible ownership, not just the `threeLocksFragment` reward type), plus the legacy `countsTowardFinale` bypass flag.
+
+None of these four are among the 5 previously-named legacy quests (`qst-centennial-discovery`, `qst-onesto-brass-motto`, `qst-watchers-silent-court`, `qst-secret-cipher-77`, `qst-frankenstein-west-lawn`) — they were missed in earlier containment passes because they predate the canonical-14 redesign and happen to reuse the same fragment-key naming scheme. All four had their canonical reward-granting fields stripped this pass (ordinary XP/drawing-entry rewards left intact); none were deactivated or deleted. See `lib/seed-data.ts` for the exact diffs (`LEGACY CONTAINMENT (Phase 3E)` comments) and `tests/challenge-sector-c1-c4.test.ts` for the updated containment proof.
+
+All 14 canonical quests now have an unambiguous, audited 1-to-1 mapping in the engine, with 11 live-ready and 3 staged fail-closed pending Dustin's on-site field photography. Verified by 44 tests in `tests/founders-cipher-phase3e-final-three-audit.test.ts` plus the updated `tests/challenge-sector-c1-c4.test.ts`.
 

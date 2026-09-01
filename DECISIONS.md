@@ -994,6 +994,34 @@ Each entry follows the standard ADR structure:
   - Restores player puzzle agency and enforces the approved Phase 1 Founder's Cipher game architecture, eliminating premature automated unlocks and rogue engine bypasses while preserving nonlinear 14-quest independence and the 1-entry-per-quest drawing promise.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-047] 2026-08-31: Mission-Specific Live Radar Maps & Stark County Fair Live Map Architecture
+
+- **Decision**:
+  1. **Strict Mission Scoping for Live Radar Maps**:
+     - Scoped the Canton Tactical Sector Map (`components/SectorMap.tsx` / `SectorMapWrapper.tsx`) strictly to the Founder's Cipher mission (`canton-launch-weekend` / `/events/[slug]`).
+     - Embedded `SectorMapWrapper` inside the MAP tab on `/events/[slug]` alongside the node scanner `CantonMapWrapper`, providing downtown Canton sector radar rings (Downtown, McKinley, South Side) and real-time field dispatch telemetry directly within the Cipher mission hub.
+  2. **Dedicated Stark County Fair Live Map (`components/FairLiveMap.tsx` & `FairLiveMapWrapper.tsx`)**:
+     - Built a dedicated client-side Leaflet radar map centered on the Stark County Fairgrounds campus (`[40.8038, -81.3995]`, 305 Wertz Ave SW, Canton, OH) with zoom 16.2.
+     - Configured 4 canonical fairground sector zones (`FAIR_SECTOR_ZONES`):
+       - `grandstand`: Grandstand & Track Area (`40.8060, -81.3992`, 110m, `#ff3b3b`)
+       - `midway`: Midway & Carnival Plaza (`40.8042, -81.3975`, 120m, `#ffcf3f`)
+       - `exhibition`: Exhibition & Agri Pavilion (`40.8025, -81.4012`, 130m, `#00f0ff`)
+       - `food_row`: South Gate & Food Row (`40.8014, -81.3988`, 110m, `#10b981`)
+     - Implemented `resolveFairZoneId` parser for live Signal claims (`fair-core-01` to `fair-core-20`, daily bonuses, keywords).
+     - Integrated live dispatches activity ticker with dynamic zone pulse animations, 24-hour Canton local HUD clock, live active agents/spectators count, and standalone feed polling (10-second interval).
+  3. **Mission Isolation Across Spectator and Event Dashboards**:
+     - Integrated `FairLiveMapWrapper` directly onto the Fair QR Hunt dashboard (`app/events/fair-qr-hunt/page.tsx`).
+     - Updated spectator watch page (`app/watch/page.tsx`) to dynamically switch between `FairLiveMapWrapper` (when watching `fair-qr-hunt`) and `SectorMapWrapper` (when watching the Founder's Cipher mission or general operations).
+  4. **Accessibility & No-Tailwind Custom CSS Compliance**:
+     - Enforced `@media (prefers-reduced-motion: reduce)` overrides across all continuous animations (radar sweep, blinks, pulse rings) in both maps.
+     - Used scoped custom styling (`.cq-fair-map-root`) with zero Tailwind classes, complying strictly with Rule 21.
+- **Reason**:
+  - The spectator and event surfaces previously showed downtown Canton districts for all events. Building a dedicated Stark County Fairgrounds radar map provides authentic, real-world fairground telemetry for the Fair QR Hunt while isolating the downtown cipher map strictly to the Founder's Cipher mission.
+- **Status**: **ACCEPTED**
+
+
 
 
 

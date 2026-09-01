@@ -13,6 +13,7 @@ import DistrictActivityView, { DistrictInfo } from '@/components/spectator/Distr
 import CommunityStatsBar from '@/components/spectator/CommunityStatsBar';
 import EnterGameModal from '@/components/spectator/EnterGameModal';
 import SectorMapWrapper from '@/components/SectorMapWrapper';
+import FairLiveMapWrapper from '@/components/FairLiveMapWrapper';
 import {
   PublicAudienceEvent,
   PublicAudienceEventOption,
@@ -523,12 +524,20 @@ function WatchPageContent() {
           isSystemDisabled={isSystemDisabled}
         />
 
-        {/* Canton Citywide Live Sector Map & Telemetry HUD */}
-        <SectorMapWrapper
-          feed={feed}
-          activeSpectatorCount={activeSpectatorCount}
-          districts={districts}
-        />
+        {/* Live Mission Tactical Sector Map & Telemetry HUD */}
+        {requestedEventSlug === 'fair-qr-hunt' || activeEventTitle.toLowerCase().includes('fair') ? (
+          <FairLiveMapWrapper
+            feed={feed}
+            activeSpectatorCount={activeSpectatorCount}
+            districts={districts}
+          />
+        ) : (
+          <SectorMapWrapper
+            feed={feed}
+            activeSpectatorCount={activeSpectatorCount}
+            districts={districts}
+          />
+        )}
 
         {/* Canton Citywide District Activity View */}
         <DistrictActivityView districts={districts} />
