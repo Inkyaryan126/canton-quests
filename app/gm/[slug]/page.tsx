@@ -378,36 +378,73 @@ export default function GameMasterControlRoom() {
 
         {/* 6. QUEST OPERATIONS */}
         <Section title="Quest Operations">
-          <p className="text-stone-400">{pendingSubmissions.length} pending approval{pendingSubmissions.length === 1 ? '' : 's'}</p>
-          <div className="space-y-2 max-h-80 overflow-y-auto">
-            {pendingSubmissions.map((s) => (
-              <div key={s.submissionId} className="p-2 bg-stone-900 rounded-lg space-y-1">
-                <div className="font-bold">{s.questTitle}</div>
-                <div className="text-stone-400 font-mono">{s.proofType} · {new Date(s.submittedAt).toLocaleString()}</div>
-                <div className="flex gap-2">
-                  <button
-                    className="text-emerald-400 text-[10px] font-bold"
-                    onClick={async () => {
-                      await fetch('/api/game/admin/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ submissionId: s.submissionId, status: 'verified' }) });
-                      notify('Approved');
-                      refreshAll();
-                    }}
-                  >
-                    APPROVE
-                  </button>
-                  <button
-                    className="text-red-400 text-[10px] font-bold"
-                    onClick={async () => {
-                      await fetch('/api/game/admin/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ submissionId: s.submissionId, status: 'rejected', feedback: 'Reviewed by Game Master' }) });
-                      notify('Rejected');
-                      refreshAll();
-                    }}
-                  >
-                    REJECT
-                  </button>
+          <p className="text-stone-400 font-mono text-xs">{pendingSubmissions.length} pending approval{pendingSubmissions.length === 1 ? '' : 's'}</p>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {pendingSubmissions.length === 0 && (
+              <p className="text-stone-500 font-mono text-xs py-2">No pending photo or manual submissions.</p>
+            )}
+            {pendingSubmissions.map((s) => {
+              const photoSrc = s.proofUrl || (s.submittedContent && (s.submittedContent.startsWith('http') || s.submittedContent.startsWith('/')) ? s.submittedContent : null);
+              return (
+                <div key={s.submissionId} className="p-3 bg-stone-900 border border-stone-800 rounded-xl space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-sm text-white">{s.questTitle}</div>
+                      <div className="text-amber-400 font-mono text-xs">
+                        {s.playerDisplayName ? `Agent: ${s.playerDisplayName}` : `Player: ${s.playerId}`}
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 bg-stone-800 text-stone-300 font-mono text-[10px] rounded uppercase shrink-0">
+                      {s.proofType}
+                    </span>
+                  </div>
+
+                  {photoSrc && (
+                    <div className="relative w-full max-h-48 overflow-hidden rounded-lg border border-stone-700 bg-black">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photoSrc}
+                        alt="Submitted proof"
+                        style={{ width: '100%', height: 'auto', maxHeight: '192px', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                      />
+                    </div>
+                  )}
+
+                  {s.submittedContent && !photoSrc && (
+                    <div className="p-2 bg-black/50 border border-stone-800 rounded text-stone-300 font-mono text-xs break-words">
+                      {s.submittedContent}
+                    </div>
+                  )}
+
+                  <div className="text-stone-500 font-mono text-[10px]">
+                    Submitted: {new Date(s.submittedAt).toLocaleTimeString()} · {new Date(s.submittedAt).toLocaleDateString()}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      className="min-h-[44px] px-3 py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-mono text-xs font-bold uppercase rounded-lg transition-transform"
+                      onClick={async () => {
+                        await fetch('/api/game/admin/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ submissionId: s.submissionId, status: 'verified' }) });
+                        notify(`Approved: ${s.questTitle}`);
+                        refreshAll();
+                      }}
+                    >
+                      ✓ APPROVE
+                    </button>
+                    <button
+                      className="min-h-[44px] px-3 py-2 bg-red-900/80 hover:bg-red-800 active:scale-[0.98] text-red-200 font-mono text-xs font-bold uppercase rounded-lg border border-red-700/50 transition-transform"
+                      onClick={async () => {
+                        await fetch('/api/game/admin/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ submissionId: s.submissionId, status: 'rejected', feedback: 'Reviewed by Game Master' }) });
+                        notify(`Rejected: ${s.questTitle}`);
+                        refreshAll();
+                      }}
+                    >
+                      ✕ REJECT
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Section>
 

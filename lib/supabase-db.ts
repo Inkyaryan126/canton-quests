@@ -2198,7 +2198,7 @@ export async function submitQuestProofDB(
       quest_id: trustedParams.questId,
       player_id: trustedPlayerId,
       event_id: trustedParams.eventId,
-      proof_type: trustedParams.proofType,
+      proof_type: trustedParams.proofType || quest.verificationType || 'checkin',
       submitted_content: trustedParams.submittedContent,
       proof_url: trustedParams.proofUrl,
       status: verification.status,
@@ -2681,7 +2681,7 @@ export async function reviewSubmissionDB(
 
   const { data: sub } = await supabaseAdmin
     .from('quest_submissions')
-    .select('*, quest:quests(*)')
+    .select('*')
     .eq('id', submissionId)
     .maybeSingle();
 
@@ -2726,10 +2726,10 @@ export async function reviewSubmissionDB(
 
   if (newStatus === 'verified') {
     const rawQuest = Array.isArray(sub.quest) ? sub.quest[0] : sub.quest;
+    const quest = rawQuest ? mapQuestFromDB(rawQuest) : (sub.quest_id ? await getQuestByIdDB(sub.quest_id) : null);
 
     try {
-      if (rawQuest) {
-        const quest = mapQuestFromDB(rawQuest);
+      if (quest) {
         const grant = await awardQuestRewardsDB({
           quest,
           eventId: sub.event_id,

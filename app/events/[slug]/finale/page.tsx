@@ -416,7 +416,14 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
           />
         )}
 
-        {/* MASTER CIPHER / SOLUTION ENTRY / SOLVED SUMMARY */}
+        {/* MASTER CIPHER / SOLUTION ENTRY / SOLVED SUMMARY
+            LAUNCH-READINESS NOTE:
+            Decision required after field verification: determine whether West Lawn
+            is a mandatory final physical checkpoint (e.g. photo/GPS/QR at the
+            monument) or an epilogue destination / story resolution.
+            Do not mandate physical travel until cemetery operating hours, public access,
+            safe routes, and monument visibility are verified on-site.
+        */}
         {solved ? (
           <section className="mb-6 border border-emerald-400/40 bg-emerald-950/15 p-6 sm:p-8 text-center space-y-4">
             <ShieldCheck size={36} className="mx-auto text-emerald-300" />

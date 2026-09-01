@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -133,6 +133,174 @@ export default function QuestDetailPage({
       cancelled = true;
     };
   }, [eventSlug, questId]);
+
+  const isPollingRef = useRef(false);
+  const hasFiredApprovalRef = useRef(false);
+
+  // Auto-polling for pending submissions (photo/manual review quests)
+  useEffect(() => {
+    if (!player || !quest || !eventSlug) return;
+    const isPending = existingSubmission?.status === 'pending' || submissionResult?.submission?.status === 'pending';
+    if (!isPending) return;
+
+    let isMounted = true;
+    const intervalId = setInterval(async () => {
+      if (isPollingRef.current || !isMounted) return;
+      isPollingRef.current = true;
+
+      try {
+        const res = await fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!isMounted) return;
+
+        const currentProgress: PlayerEventProgress | undefined = data.progress;
+        if (!currentProgress) return;
+
+        // Case 1: GM Approved the submission!
+        if (currentProgress.completedQuestIds?.includes(quest.id)) {
+          if (!hasFiredApprovalRef.current) {
+            hasFiredApprovalRef.current = true;
+            clearInterval(intervalId);
+
+            const xp = quest.xpReward || quest.pointValue || 100;
+            const entries = quest.drawingEntryReward || 1;
+            const updatedSub: QuestSubmission = {
+              id: existingSubmission?.id || `progress-${quest.id}`,
+              questId: quest.id,
+              playerId: player.id,
+              eventId: event?.id || '',
+              proofType: quest.verificationType,
+              status: 'verified',
+              awardedPoints: xp,
+              drawingEntriesAwarded: entries,
+              submittedAt: existingSubmission?.submittedAt || new Date().toISOString(),
+            };
+
+            setExistingSubmission(updatedSub);
+            setSubmissionResult({
+              success: true,
+              submission: updatedSub,
+              awardedPoints: xp,
+              drawingEntriesAwarded: entries,
+              message: 'Submission approved by Game Master.',
+              isQuestFullyCompleted: true,
+            });
+
+            // Trigger full reward sequence and token moments
+            const nextInChain = allEventQuests.find((q) => q.prerequisiteQuestId === quest.id);
+            triggerQuestRewardSequence({
+              questId: quest.id,
+              questTitle: quest.title,
+              xpAwarded: xp,
+              verificationType: quest.verificationType,
+              unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,
+              unlockedQuestUrl: nextInChain ? `/events/${eventSlug}/quests/${nextInChain.id}` : undefined,
+              drawingEntriesAwarded: entries,
+              isChainComplete: Boolean(quest.prerequisiteQuestId && !nextInChain),
+              chainTitle: quest.title,
+            });
+
+            showGameMoment({
+              type: 'reward-token',
+              kind: 'entry-token',
+              headline: quest.title,
+              secondaryText: 'Locked into the official prize drawing.',
+              entryCount: entries,
+            });
+
+            // Founder Lock reward check
+            if (quest.rewardConfig?.threeLocksFragment) {
+              const lock = quest.rewardConfig.threeLocksFragment.lock;
+              showFounderCipherMessage({
+                messageId: 'FOUNDER_LOCK_RECOVERED',
+                path: player.selectedStartingPath,
+                playerId: player.id,
+                contextLabel: `${lock.toUpperCase()} LOCK`,
+              });
+            }
+
+            // Cipher Fragment reward check
+            if (quest.rewardConfig?.cipherFragmentKeys && quest.rewardConfig.cipherFragmentKeys.length > 0) {
+              const cp = data.cipherProgress;
+              const newlyReadyDistrict = cp?.districts?.find(
+                (d: any) => d.status === 'ready_to_decode' && d.collectedCount >= d.requiredCount
+              );
+
+              if (newlyReadyDistrict && shouldShowContextualTransmission({ trigger: 'district_ready_to_decode', eventSlug, playerId: player.id, subjectKey: newlyReadyDistrict.key })) {
+                markTransmissionViewed('district_ready_to_decode', newlyReadyDistrict.key, player.id);
+                showFounderCipherMessage({
+                  messageId: 'DISTRICT_READY_TO_DECODE',
+                  path: player.selectedStartingPath,
+                  playerId: player.id,
+                  contextLabel: newlyReadyDistrict.name,
+                });
+              } else if (cp && cp.totalRequired > 0 && cp.totalCollected >= cp.totalRequired && shouldAutoShowTransmission('fragment_recovered', 'all-fragments-collected', player.id)) {
+                markTransmissionViewed('fragment_recovered', 'all-fragments-collected', player.id);
+                showFounderCipherMessage({
+                  messageId: 'ALL_REQUIRED_FRAGMENTS_FOUND',
+                  path: player.selectedStartingPath,
+                  playerId: player.id,
+                  onContinue: () => router.push(`/events/${eventSlug}/finale`),
+                });
+              } else if (shouldShowContextualTransmission({ trigger: 'fragment_recovered', eventSlug, playerId: player.id, questId: quest.id })) {
+                markTransmissionViewed('fragment_recovered', quest.id, player.id);
+                const isFirst = cp?.totalCollected === 1;
+                showFounderCipherMessage({
+                  messageId: isFirst ? 'FIRST_CIPHER_FRAGMENT_RECOVERED' : 'CIPHER_FRAGMENT_FOUND',
+                  path: player.selectedStartingPath,
+                  playerId: player.id,
+                });
+              }
+            }
+
+            setFeedback({
+              type: 'quest_completed',
+              title: 'QUEST APPROVED & SOLVED!',
+              message: 'Game Master verified your submission. Rewards and progress unlocked.',
+              pointsAwarded: xp,
+              unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,
+              unlockedQuestUrl: nextInChain ? `/events/${eventSlug}/quests/${nextInChain.id}` : undefined,
+            });
+          }
+        } else if (
+          currentProgress.pendingSubmissionQuestIds &&
+          !currentProgress.pendingSubmissionQuestIds.includes(quest.id)
+        ) {
+          // Case 2: Rejected or retry requested
+          clearInterval(intervalId);
+          setExistingSubmission((prev) => (prev ? { ...prev, status: 'retry_requested' } : null));
+          setSubmissionResult(null);
+          setFeedback({
+            type: 'quest_completed',
+            title: 'SUBMISSION UPDATE',
+            message: 'Game Master requested a retry on your photo submission. Please review the instructions and submit again.',
+            pointsAwarded: 0,
+          });
+        }
+      } catch {
+        // Network error during poll - retry next tick
+      } finally {
+        isPollingRef.current = false;
+      }
+    }, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [
+    existingSubmission?.status,
+    existingSubmission?.id,
+    existingSubmission?.submittedAt,
+    submissionResult?.submission?.status,
+    player,
+    quest,
+    eventSlug,
+    event?.id,
+    allEventQuests,
+    router,
+  ]);
 
   // Auto-show the sector intro (once per player) or, failing that, this
   // quest's own intro transmission — never both, and never a repeat once

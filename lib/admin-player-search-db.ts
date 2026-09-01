@@ -73,6 +73,7 @@ export interface AdminPendingSubmission {
   questId: string;
   questTitle: string;
   playerId: string;
+  playerDisplayName?: string;
   proofType: string;
   submittedContent?: string;
   proofUrl?: string;
@@ -82,7 +83,8 @@ export interface AdminPendingSubmission {
 /** Quest Operations section: every currently-pending submission for this event, most recent first, capped for a live GM view. */
 export async function getPendingSubmissionsDB(eventId: string, limit: number = 50): Promise<AdminPendingSubmission[]> {
   if (!isSupabaseAdminConfigured || !supabaseAdmin) return [];
-  const { data, error } = await supabaseAdmin
+  const admin = supabaseAdmin;
+  const { data, error } = await admin
     .from('quest_submissions')
     .select('id, quest_id, player_id, proof_type, submitted_content, proof_url, submitted_at')
     .eq('event_id', eventId)
@@ -92,17 +94,27 @@ export async function getPendingSubmissionsDB(eventId: string, limit: number = 5
   if (error || !data) return [];
 
   const questCache = new Map<string, string>();
+  const playerCache = new Map<string, string>();
   return Promise.all(
     data.map(async (row: any) => {
       if (!questCache.has(row.quest_id)) {
         const quest = await getQuestByIdDB(row.quest_id).catch(() => undefined);
-        questCache.set(row.quest_id, quest?.title || 'Unknown Mission');
+        questCache.set(row.quest_id, quest?.title || 'Unknown Quest');
+      }
+      if (!playerCache.has(row.player_id)) {
+        const { data: pData } = await admin
+          .from('players')
+          .select('display_name')
+          .eq('id', row.player_id)
+          .maybeSingle();
+        playerCache.set(row.player_id, pData?.display_name || row.player_id);
       }
       return {
         submissionId: row.id,
         questId: row.quest_id,
         questTitle: questCache.get(row.quest_id)!,
         playerId: row.player_id,
+        playerDisplayName: playerCache.get(row.player_id),
         proofType: row.proof_type,
         submittedContent: row.submitted_content || undefined,
         proofUrl: row.proof_url || undefined,

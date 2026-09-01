@@ -1105,4 +1105,31 @@ Each entry follows the standard ADR structure:
   - Reconciles the Founder's Cipher production schema and canonical 14-quest roster against the live Supabase instance so the digital game spine (quest → fragment → district → Founder Lock → Master Cipher → destination reveal) is provably correct end-to-end before players ever touch it.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-051] 2026-09-01: Founder's Cipher Phase 2B Launch Polish & Auto-Polling
+
+- **Decision**:
+  1. **Instruction Copy & Developer Placeholder Cleanup**:
+     - Removed all developer/placeholder wording (`Puzzle pending — no answer is configured yet.`) from `challenge-the-tower`, `golden-mark-cipher`, and `spring-water-shelter` across `lib/seed-data.ts` and the live Supabase production database.
+     - Implemented provisional, field-safe riddle copy that prompts observation without exposing unverified answers or dates in player-facing text.
+     - Flagged `The Tower` (`1957`), `The Golden Mark` (`1805`), and `Spring Water Shelter` (`SPRING`) for mandatory on-site physical confirmation.
+  2. **Pending Photo Submission Auto-Polling**:
+     - Implemented a lightweight 10-second polling lifecycle in `app/events/[slug]/quests/[questId]/page.tsx` that activates ONLY while a player has a pending manual review submission.
+     - Automatically terminates polling immediately upon status transition (`verified` or `retry_requested`) or component unmount, with in-flight request guards.
+     - Upon approval, fires the full reward sequence (`triggerQuestRewardSequence`, entry token modal, Three Locks / Cipher Fragment reveals, Commander messages, and feedback update) exactly once.
+  3. **GM Mobile Operations Polish**:
+     - Enhanced `/gm/[slug]` Section 6 (Quest Operations) with photo proof image rendering, agent callsign display, and touch-friendly $\ge 44\text{px}$ action buttons with responsive layouts.
+  4. **West Lawn Endgame Semantic Preservation**:
+     - Preserved existing digital completion semantics upon solving `FRANKENSTEIN` while logging an explicit post-field verification decision gate regarding mandatory physical checkpoint vs. epilogue destination.
+- **Reason**:
+  - Ensures a seamless, bug-free, and polished field experience for real players and game masters on launch day.
+- **Status**: **ACCEPTED**
+
+
+
+
+
+
+
 
