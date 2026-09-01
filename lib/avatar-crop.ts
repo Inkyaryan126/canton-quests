@@ -28,8 +28,9 @@ export function getAvatarCropStyle(zoom?: number | null, x?: number | null, y?: 
   const safeZoom = clampAvatarCropZoom(zoom);
   const safeX = clampAvatarCropAxis(x);
   const safeY = clampAvatarCropAxis(y);
+  const zoomPercent = Math.round(safeZoom * 10000) / 100;
   return {
-    backgroundSize: `${safeZoom * 100}%`,
+    backgroundSize: `${zoomPercent}%`,
     backgroundPosition: `${safeX}% ${safeY}%`,
     backgroundRepeat: 'no-repeat',
   };

@@ -34,14 +34,30 @@ export function getAvatarPresetPath(key?: string) {
 
 /**
  * Resolves the avatar URL a player's chosen key should actually render.
- * A player with a custom uploaded photo selected only resolves to it while
- * that upload still exists; otherwise falls back to the numbered preset.
+ * Priority order:
+ * 1. Real player's resolved custom profile image (/api/player/${id}/avatar)
+ * 2. Seeded demo data:image avatar_url (data:image/...)
+ * 3. Numbered avatar preset (/canton-quests/${key}.png)
+ * 4. Generic fallback preset (/canton-quests/1.png)
  */
-export function resolveAvatarUrl(player: Pick<Player, 'id' | 'avatarPresetKey' | 'profileImagePath'>) {
+export function resolveAvatarUrl(player: {
+  id?: string;
+  avatarPresetKey?: string | null;
+  profileImagePath?: string | null;
+  avatarUrl?: string | null;
+  acquisitionSource?: string | null;
+}): string {
   if (player.avatarPresetKey === CUSTOM_AVATAR_KEY && player.profileImagePath) {
     return `/api/player/${player.id}/avatar`;
   }
-  return getAvatarPresetPath(player.avatarPresetKey);
+  if (
+    player.acquisitionSource === 'seeded_demo' &&
+    player.avatarUrl &&
+    player.avatarUrl.startsWith('data:image/')
+  ) {
+    return player.avatarUrl;
+  }
+  return getAvatarPresetPath(player.avatarPresetKey || undefined);
 }
 
 export const VALID_STARTING_PATHS: readonly StartingPath[] = ['family', 'challenge', 'secret'];
@@ -50,10 +66,22 @@ export function hasValidStartingPath(player: Pick<Player, 'selectedStartingPath'
   return VALID_STARTING_PATHS.includes(player.selectedStartingPath as StartingPath);
 }
 
-/** True for a valid numbered preset, or a custom avatar that has an actual uploaded image behind it. */
-export function hasValidAvatar(player: Pick<Player, 'avatarPresetKey' | 'profileImagePath'>): boolean {
+/** True for a valid numbered preset, a custom avatar with an uploaded image, or a seeded demo player with a data:image avatar. */
+export function hasValidAvatar(player: {
+  avatarPresetKey?: string | null;
+  profileImagePath?: string | null;
+  avatarUrl?: string | null;
+  acquisitionSource?: string | null;
+}): boolean {
   if (player.avatarPresetKey === CUSTOM_AVATAR_KEY) {
     return Boolean(player.profileImagePath);
+  }
+  if (
+    player.acquisitionSource === 'seeded_demo' &&
+    player.avatarUrl &&
+    player.avatarUrl.startsWith('data:image/')
+  ) {
+    return true;
   }
   return PLAYER_AVATAR_PRESETS.includes(player.avatarPresetKey as (typeof PLAYER_AVATAR_PRESETS)[number]);
 }
@@ -77,7 +105,12 @@ export function hasValidAvatar(player: Pick<Player, 'avatarPresetKey' | 'profile
  * genuinely new completions from this point forward earn the live reward.
  */
 export function isProfileIdentityComplete(
-  player: Pick<Player, 'avatarPresetKey' | 'profileImagePath'>
+  player: {
+    avatarPresetKey?: string | null;
+    profileImagePath?: string | null;
+    avatarUrl?: string | null;
+    acquisitionSource?: string | null;
+  }
 ): boolean {
   return hasValidAvatar(player);
 }

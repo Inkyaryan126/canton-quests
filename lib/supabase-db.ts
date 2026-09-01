@@ -2381,7 +2381,7 @@ export async function getPlayerRosterDB(search?: string): Promise<PublicRosterEn
   let query = db
     .from('players')
     .select(
-      'id, display_name, avatar_preset_key, profile_image_path, profile_image_crop_zoom, profile_image_crop_x, profile_image_crop_y, selected_starting_path, level, created_at'
+      'id, display_name, avatar_preset_key, profile_image_path, avatar_url, acquisition_source, profile_image_crop_zoom, profile_image_crop_x, profile_image_crop_y, selected_starting_path, level, created_at'
     )
     .order('created_at', { ascending: true });
 
@@ -2395,7 +2395,13 @@ export async function getPlayerRosterDB(search?: string): Promise<PublicRosterEn
   return data.map((row: any) => ({
     id: row.id,
     displayName: row.display_name,
-    avatarUrl: resolveAvatarUrl({ id: row.id, avatarPresetKey: row.avatar_preset_key, profileImagePath: row.profile_image_path }),
+    avatarUrl: resolveAvatarUrl({
+      id: row.id,
+      avatarPresetKey: row.avatar_preset_key,
+      profileImagePath: row.profile_image_path,
+      avatarUrl: row.avatar_url,
+      acquisitionSource: row.acquisition_source,
+    }),
     profileImageCropZoom: row.profile_image_crop_zoom,
     profileImageCropX: row.profile_image_crop_x,
     profileImageCropY: row.profile_image_crop_y,

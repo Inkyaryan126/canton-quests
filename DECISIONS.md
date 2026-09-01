@@ -1126,6 +1126,30 @@ Each entry follows the standard ADR structure:
   - Ensures a seamless, bug-free, and polished field experience for real players and game masters on launch day.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-052] 2026-09-01: Seeded Demo Roster Profile Photo Resolution & Safe Fallback
+
+- **Decision**:
+  1. **Seeded Demo Photo Resolution**:
+     - Updated `resolveAvatarUrl` (and `hasValidAvatar` / `isProfileIdentityComplete`) in `lib/player-command-center.ts` to allow players with `acquisitionSource === 'seeded_demo'` and `avatarUrl` starting with `data:image/` to resolve their face image data URI directly.
+     - Updated `getPlayerRosterDB` in `lib/supabase-db.ts` to select `avatar_url` and `acquisition_source` from the `players` table in Supabase and pass them into `resolveAvatarUrl`.
+  2. **Strict Roster Image Resolution Hierarchy**:
+     - 1. Real player's resolved custom profile image (`/api/player/${id}/avatar` when `avatarPresetKey === 'custom'` and `profileImagePath` is present).
+     - 2. Seeded demo player's data:image `avatarUrl` (only when `acquisitionSource === 'seeded_demo'` and `avatarUrl.startsWith('data:image/')`).
+     - 3. Numbered avatar preset (`/canton-quests/${key}.png`).
+     - 4. Generic fallback preset (`/canton-quests/1.png`).
+  3. **Privacy & Security Guarantees**:
+     - Normal real users cannot inject `data:image/` URLs to bypass storage or profile validation (`acquisitionSource !== 'seeded_demo'`).
+     - Private account fields (`email`, `userId` / `user_id`, `profileImagePath` / `profile_image_path`) are never exposed in the public roster payload.
+     - The private `player-profile-images` storage bucket remains private with signed URL authorization.
+  4. **Crop & Zoom Preservation**:
+     - Public roster continues to return and honor `profileImageCropZoom`, `profileImageCropX`, and `profileImageCropY` for all players, including the 8 seeded demo faces (`RavenNorth`, `NikoCanton`, `AshCoded`, `MasonR`, `BreeNorthside`, `KJ_330`, `ToriTracks`, `JayceOnFoot`), rendering via `<PlayerAvatar>` and `getAvatarCropStyle`.
+- **Reason**:
+  - The 8 seeded demo roster players have generated face images stored as base64 data URIs in `players.avatar_url` with `profile_image_path = NULL`. Because `getPlayerRosterDB` previously only selected preset keys and profile image paths, the public roster fell back to preset icons instead of displaying their demo face portraits.
+- **Status**: **ACCEPTED**
+
+
 
 
 
