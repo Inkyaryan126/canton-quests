@@ -16,6 +16,11 @@ import {
   AudienceTargetType,
 } from './types';
 import * as localEngine from './spectator-engine';
+import {
+  FOUNDER_CIPHER_CANONICAL_DISTRICTS,
+  isFairOperation,
+  isFounderCipherOperation,
+} from './spectator-districts';
 
 export async function registerOrUpdateSpectatorSessionDB(params: {
   sessionTokenHash: string;
@@ -1077,7 +1082,122 @@ export async function getSpectatorSessionCountDB(eventId: string): Promise<numbe
 }
 
 export async function getDistrictActivityDB(eventId: string): Promise<localEngine.DistrictActivity[]> {
-  return localEngine.getDistrictActivity(eventId);
+  if (!supabaseModule.isSupabaseConfigured || !supabaseModule.supabaseAdmin) {
+    return localEngine.getDistrictActivity(eventId);
+  }
+
+  try {
+    const isInputUUID = UUID_RE.test(eventId);
+    let eventSlug: string | undefined;
+    let resolvedEventId = eventId;
+
+    if (isInputUUID) {
+      const { data: ev } = await supabaseModule.supabaseAdmin
+        .from('events')
+        .select('id, slug')
+        .eq('id', eventId)
+        .maybeSingle();
+      eventSlug = ev?.slug;
+    } else {
+      eventSlug = eventId;
+      const { data: ev } = await supabaseModule.supabaseAdmin
+        .from('events')
+        .select('id, slug')
+        .eq('slug', eventId)
+        .maybeSingle();
+      if (ev?.id) resolvedEventId = ev.id;
+    }
+
+    // 1. Fair QR Hunt Operation
+    if (isFairOperation(eventSlug || eventId)) {
+      return localEngine.getDistrictActivity(eventId);
+    }
+
+    // 2. Future / Unrelated Operation: do not inherit Founder's Cipher
+    if (!isFounderCipherOperation(eventSlug || eventId)) {
+      return [];
+    }
+
+    // 3. Founder's Cipher: Query real authoritative event_players, quests, and public_game_feed
+    const [epRes, questRes, feedRes] = await Promise.all([
+      supabaseModule.supabaseAdmin
+        .from('event_players')
+        .select('path, player_id, players(selected_starting_path)')
+        .eq('event_id', resolvedEventId),
+      supabaseModule.supabaseAdmin
+        .from('quests')
+        .select('id, starting_path, status')
+        .eq('event_id', resolvedEventId)
+        .eq('status', 'active'),
+      supabaseModule.supabaseAdmin
+        .from('public_game_feed')
+        .select('headline, body, district_name')
+        .eq('event_id', resolvedEventId)
+        .eq('is_public_feed_eligible', true)
+        .order('published_at', { ascending: false })
+        .limit(50),
+    ]);
+
+    const playerCounts: Record<'family' | 'challenge' | 'secret', number> = {
+      family: 0,
+      challenge: 0,
+      secret: 0,
+    };
+    for (const row of epRes.data || []) {
+      const rawPath = (row.path || (row.players as any)?.selected_starting_path || '').toLowerCase();
+      if (rawPath === 'family') playerCounts.family++;
+      else if (rawPath === 'challenge') playerCounts.challenge++;
+      else if (rawPath === 'secret') playerCounts.secret++;
+    }
+
+    const questCounts: Record<'family' | 'challenge' | 'secret', number> = {
+      family: 0,
+      challenge: 0,
+      secret: 0,
+    };
+    for (const q of questRes.data || []) {
+      const rawPath = (q.starting_path || '').toLowerCase();
+      if (rawPath === 'family') questCounts.family++;
+      else if (rawPath === 'challenge') questCounts.challenge++;
+      else if (rawPath === 'secret') questCounts.secret++;
+    }
+
+    const feedItems = feedRes.data || [];
+
+    return FOUNDER_CIPHER_CANONICAL_DISTRICTS.map((cfg) => {
+      const matchingFeed = feedItems.filter((item) => {
+        if (item.district_name && item.district_name.toLowerCase().includes(cfg.path)) return true;
+        const text = `${item.headline || ''} ${item.body || ''}`.toLowerCase();
+        // West Lawn is post-master-cipher finale destination, never count it toward Secret district
+        if (cfg.path === 'secret' && (text.includes('west lawn') || text.includes('frankenstein'))) {
+          return false;
+        }
+        return cfg.keywords.some((kw) => text.includes(kw));
+      });
+
+      const uniqueFeedActors = new Set(matchingFeed.map((i) => (i.headline || '').split(' ')[0])).size;
+      const agentCount = Math.max(playerCounts[cfg.path], uniqueFeedActors);
+      const activeQuestsCount = questCounts[cfg.path] + matchingFeed.length;
+
+      let activityLevel: localEngine.DistrictActivity['activityLevel'] = 'NO ACTIVITY';
+      if (agentCount >= 5 || matchingFeed.length >= 5) activityLevel = 'HIGH';
+      else if (agentCount >= 2 || matchingFeed.length >= 2) activityLevel = 'MODERATE';
+      else if (agentCount >= 1 || matchingFeed.length >= 1) activityLevel = 'QUIET';
+
+      return {
+        id: cfg.id,
+        name: cfg.name,
+        landmark: cfg.landmark,
+        activityLevel,
+        agentCount,
+        activeQuestsCount,
+        path: cfg.path,
+      };
+    });
+  } catch (error) {
+    console.error('[spectator-db] getDistrictActivityDB error, falling back to localEngine:', error);
+    return localEngine.getDistrictActivity(eventId);
+  }
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

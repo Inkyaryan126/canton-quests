@@ -1676,6 +1676,30 @@ export function getOrCreateEventParticipation(
   return created;
 }
 
+export function getLocalEventPlayerPaths(eventId: string): Record<'family' | 'challenge' | 'secret', number> {
+  initializeGameEngine();
+  const rows = getStoredItem<EventParticipation[]>(STORAGE_KEYS.EVENT_PLAYERS, []);
+  const counts: Record<'family' | 'challenge' | 'secret', number> = { family: 0, challenge: 0, secret: 0 };
+  for (const r of rows) {
+    if (r.eventId === eventId && r.path && counts[r.path as 'family' | 'challenge' | 'secret'] !== undefined) {
+      counts[r.path as 'family' | 'challenge' | 'secret']++;
+    }
+  }
+  return counts;
+}
+
+export function getLocalActiveQuestsByPath(eventId: string): Record<'family' | 'challenge' | 'secret', number> {
+  initializeGameEngine();
+  const quests = getQuestsForEvent(eventId);
+  const counts: Record<'family' | 'challenge' | 'secret', number> = { family: 0, challenge: 0, secret: 0 };
+  for (const q of quests) {
+    if (q.status === 'active' && q.startingPath && counts[q.startingPath as 'family' | 'challenge' | 'secret'] !== undefined) {
+      counts[q.startingPath as 'family' | 'challenge' | 'secret']++;
+    }
+  }
+  return counts;
+}
+
 export function createEvent(eventData: Omit<QuestEvent, 'id' | 'createdAt'>): QuestEvent {
   return createEventWizard(eventData);
 }

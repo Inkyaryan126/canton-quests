@@ -10,7 +10,7 @@ interface CommunityStatsBarProps {
 export default function CommunityStatsBar({
   totalVotes,
   activeSpectatorCount = 0,
-  activeDistrictCount = 4,
+  activeDistrictCount = 3,
   feedCount = 0,
 }: CommunityStatsBarProps) {
   return (

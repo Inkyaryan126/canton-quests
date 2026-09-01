@@ -508,7 +508,7 @@ function WatchPageContent() {
         <CommunityStatsBar
           totalVotes={totalVotesCast}
           activeSpectatorCount={activeSpectatorCount}
-          activeDistrictCount={districts.length || 4}
+          activeDistrictCount={districts.length || (requestedEventSlug === 'fair-qr-hunt' ? 4 : 3)}
           feedCount={feed.length}
         />
 

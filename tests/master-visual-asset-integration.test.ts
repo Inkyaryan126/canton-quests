@@ -90,12 +90,12 @@ describe('Canton Quests — Master Visual Asset Package Integration Suite', () =
   });
 
   it('5. verifies destination cards accurately showcase real Canton geography and landmarks', () => {
-    const titles = destinationCards.map((d) => d.title);
-    expect(titles).toContain('Centennial Plaza');
-    expect(titles).toContain('Palace Theatre');
-    expect(titles).toContain('Mother Goose Land');
-    expect(titles).toContain('McKinley Monument');
-    expect(titles).toContain('West Lawn Cemetery');
+    const districts = destinationCards.map((d) => d.district);
+    expect(districts).toContain('Centennial Plaza');
+    expect(districts.some((d) => d.includes('Palace'))).toBe(true);
+    expect(districts).toContain('Mother Goose Land');
+    expect(districts.some((d) => d.includes('McKinley'))).toBe(true);
+    expect(districts).toContain('Monument Park');
   });
 
   it('6. verifies web-optimized streamable video exists and is under 60MB with faststart enabled', () => {

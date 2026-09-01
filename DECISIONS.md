@@ -1053,6 +1053,34 @@ Each entry follows the standard ADR structure:
   - Guarantees complete transparency and trust in Canton Quests' winner selection math. Any player, spectator, or auditor can stand on `/how-it-works` after a drawing, read every number Canton Quests used, multiply them independently, obtain the identical Final Quest Number, and trace through Steps 02–07 to independently verify the winning ticket.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-049] 2026-09-01: Founder's Cipher Canonical 3-District Live Feed & Event-Scoped Spectator Architecture
+
+- **Decision**:
+  1. **Canonical 3-District Model for Founder's Cipher**:
+     - Standardized the source of truth in `lib/spectator-districts.ts` (`FOUNDER_CIPHER_CANONICAL_DISTRICTS`) to exactly THREE player districts matching canonical player starting paths:
+       - **Family**: `Family (Arts District)` (`id: 'dist-family'`, `path: 'family'`, landmark: `Centennial Plaza & Downtown Arts Corridor`)
+       - **Challenge**: `Challenge (Mother Goose Land)` (`id: 'dist-challenge'`, `path: 'challenge'`, landmark: `Mother Goose Land & 9th St Skate Park`)
+       - **Secret**: `Secret (Monument Park)` (`id: 'dist-secret'`, `path: 'secret'`, landmark: `McKinley National Memorial & Monument Park`)
+  2. **Elimination of Legacy 4-District Drift & Filler Zones**:
+     - Removed legacy `Central Market District` and `Hall of Fame Village Zone` from the spectator engine and UI.
+     - Confirmed that West Lawn is strictly the post-master-cipher finale destination and is NEVER rendered as a player district or fourth bucket.
+  3. **Authoritative Event Scoping**:
+     - Implemented `isFounderCipherOperation` and `isFairOperation` in `lib/spectator-districts.ts` to scope district data strictly per Operation.
+     - Founder's Cipher receives the 3 canonical districts.
+     - Fair QR Hunt (`fair-qr-hunt`) retains its 4 fairground zones (`Grandstand & Track Area`, `Midway & Carnival Plaza`, `Exhibition & Agri Pavilion`, `South Gate & Food Row`).
+     - Future or unknown Operations return empty district arrays (`[]`) so they never inherit Founder's Cipher paths accidentally.
+  4. **Strict Activity Reconciled to `event_players.path`**:
+     - Both in-memory (`lib/spectator-engine.ts`) and Supabase (`lib/spectator-db.ts:getDistrictActivityDB`) now query actual player path registrations (`event_players.path` / `players.selected_starting_path`), active quests per path, and public game feed dispatches.
+     - Activity data is strictly partitioned: Family activity reads only Family players, Challenge reads only Challenge players, and Secret reads only Secret players (with West Lawn filtered out).
+  5. **UI & Responsive Layout Optimization**:
+     - Updated `components/spectator/DistrictActivityView.tsx` to render a balanced 3-column layout (`grid-cols-1 sm:grid-cols-3`) on desktop and 1 column on mobile, with path-themed accent borders and badges (Family: Amber, Challenge: Crimson, Secret: Purple).
+     - Updated fallback default in `components/spectator/CommunityStatsBar.tsx` and `app/watch/page.tsx` from 4 to 3 active districts for Founder's Cipher.
+- **Reason**:
+  - The live feed was erroneously displaying 4 districts containing legacy/stale labels (`Central Market District`, `Hall of Fame Village Zone`). Replacing the hardcoded arrays across both client and server layers fixes the source of truth, aligns live spectator telemetry with canonical player paths (`family`, `challenge`, `secret`), and prevents future UI drift.
+- **Status**: **ACCEPTED**
+
 
 
 

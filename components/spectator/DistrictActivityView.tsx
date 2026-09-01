@@ -1,53 +1,30 @@
 'use client';
 
-export interface DistrictInfo {
-  id: string;
-  name: string;
-  landmark: string;
-  activityLevel: 'HIGH' | 'MODERATE' | 'QUIET' | 'NO ACTIVITY';
-  agentCount: number;
-  activeQuestsCount: number;
-}
+import {
+  DistrictInfo,
+  FOUNDER_CIPHER_CANONICAL_DISTRICTS,
+} from '@/lib/spectator-districts';
+
+export type { DistrictInfo };
 
 interface DistrictActivityViewProps {
   districts?: DistrictInfo[];
 }
 
 export default function DistrictActivityView({ districts = [] }: DistrictActivityViewProps) {
-  const displayDistricts = districts.length > 0 ? districts : [
-    {
-      id: 'dist-arts',
-      name: 'Downtown Arts Corridor',
-      landmark: 'Centennial Plaza & Palace Theatre',
-      activityLevel: 'NO ACTIVITY' as const,
-      agentCount: 0,
-      activeQuestsCount: 0,
-    },
-    {
-      id: 'dist-market',
-      name: 'Central Market District',
-      landmark: '4th Street Shops & Food Hub',
-      activityLevel: 'NO ACTIVITY' as const,
-      agentCount: 0,
-      activeQuestsCount: 0,
-    },
-    {
-      id: 'dist-mckinley',
-      name: 'McKinley Monument Zone',
-      landmark: 'McKinley National Memorial & Park',
-      activityLevel: 'NO ACTIVITY' as const,
-      agentCount: 0,
-      activeQuestsCount: 0,
-    },
-    {
-      id: 'dist-hof',
-      name: 'Hall of Fame Village Zone',
-      landmark: 'Stadium Plaza & Campus',
-      activityLevel: 'NO ACTIVITY' as const,
-      agentCount: 0,
-      activeQuestsCount: 0,
-    },
-  ];
+  const displayDistricts: DistrictInfo[] =
+    districts.length > 0
+      ? districts
+      : FOUNDER_CIPHER_CANONICAL_DISTRICTS.map((d) => ({
+          id: d.id,
+          name: d.name,
+          landmark: d.landmark,
+          activityLevel: 'NO ACTIVITY' as const,
+          agentCount: 0,
+          activeQuestsCount: 0,
+          path: d.path,
+        }));
+
   return (
     <div className="glass-panel p-5 rounded-2xl border border-cyan-500/20 space-y-4">
       <div className="flex items-center justify-between gap-2 border-b border-gray-800 pb-3">
@@ -67,22 +44,33 @@ export default function DistrictActivityView({ districts = [] }: DistrictActivit
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {displayDistricts.map((dist) => {
           const isHigh = dist.activityLevel === 'HIGH';
           const isMod = dist.activityLevel === 'MODERATE';
           const isQuiet = dist.activityLevel === 'QUIET';
 
+          // Path-specific styling accents
+          const isChallenge = dist.path === 'challenge' || dist.id.includes('challenge');
+          const isSecret = dist.path === 'secret' || dist.id.includes('secret');
+          const isFamily = dist.path === 'family' || dist.id.includes('family');
+
+          const pathAccentClass = isHigh
+            ? isChallenge
+              ? 'border-red-500/50 bg-red-950/20'
+              : isSecret
+              ? 'border-purple-500/50 bg-purple-950/20'
+              : 'border-amber-500/50 bg-amber-950/20'
+            : isMod
+            ? 'border-cyan-500/40 bg-cyan-950/15'
+            : isQuiet
+            ? 'border-emerald-500/30 bg-emerald-950/10'
+            : 'border-gray-800 bg-obsidian/60';
+
           return (
             <div
               key={dist.id}
-              className={`p-4 rounded-xl border space-y-2 transition-all ${
-                isHigh
-                  ? 'border-amber-500/50 bg-amber-950/20'
-                  : isMod
-                  ? 'border-cyan-500/40 bg-cyan-950/15'
-                  : 'border-gray-800 bg-obsidian/60'
-              }`}
+              className={`p-4 rounded-xl border space-y-2 transition-all ${pathAccentClass}`}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="font-bold text-xs md:text-sm text-white">
@@ -92,13 +80,25 @@ export default function DistrictActivityView({ districts = [] }: DistrictActivit
                 <span
                   className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
                     isHigh
-                      ? 'bg-amber-500 text-black'
+                      ? isChallenge
+                        ? 'bg-red-500 text-white'
+                        : isSecret
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-amber-500 text-black'
                       : isMod
                       ? 'bg-cyan-400 text-black'
-                      : 'bg-gray-800 text-gray-300'
+                      : isQuiet
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-gray-800 text-gray-400'
                   }`}
                 >
-                  {isHigh ? '🔥 HIGH ACTIVITY' : isMod ? '⚡ MODERATE' : '🟢 QUIET'}
+                  {isHigh
+                    ? '🔥 HIGH ACTIVITY'
+                    : isMod
+                    ? '⚡ MODERATE'
+                    : isQuiet
+                    ? '🟢 QUIET'
+                    : '⚪ NO ACTIVITY'}
                 </span>
               </div>
 

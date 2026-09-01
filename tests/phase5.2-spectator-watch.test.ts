@@ -939,7 +939,15 @@ describe('Phase 5.2 Public Watch Spectator Experience Test Suite', () => {
       seedDefaultSpectatorData('evt-district-test');
 
       const districts = getDistrictActivity('evt-district-test');
-      expect(districts.length).toBe(4);
+      expect(districts.length).toBe(3);
+
+      const names = districts.map((d) => d.name);
+      expect(names.some((n) => n.includes('Family'))).toBe(true);
+      expect(names.some((n) => n.includes('Challenge'))).toBe(true);
+      expect(names.some((n) => n.includes('Secret'))).toBe(true);
+      expect(names.some((n) => n.toLowerCase().includes('west lawn'))).toBe(false);
+      expect(names.some((n) => n.toLowerCase().includes('hall of fame'))).toBe(false);
+      expect(names.some((n) => n.toLowerCase().includes('central market'))).toBe(false);
 
       districts.forEach((d) => {
         expect(d).toHaveProperty('id');

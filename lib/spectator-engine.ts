@@ -27,7 +27,16 @@ import {
   createBonusWindow,
   triggerFlashQuest,
   createSecretCode,
+  getLocalEventPlayerPaths,
+  getLocalActiveQuestsByPath,
 } from './game-engine';
+import {
+  DistrictActivity,
+  FOUNDER_CIPHER_CANONICAL_DISTRICTS,
+  FAIR_QR_HUNT_DISTRICT_CONFIGS,
+  isFairOperation,
+  isFounderCipherOperation,
+} from './spectator-districts';
 
 export const SPECTATOR_COOKIE_NAME = 'cg_spec_token';
 export const PLAYER_COOKIE_NAME = 'cg_player_token';
@@ -1408,9 +1417,9 @@ export function seedDefaultSpectatorData(eventId: string = 'default-event'): voi
       id: 'feed-demo-3',
       eventId,
       feedType: 'flash_quest',
-      headline: 'Flash Quest activated in Central Market District!',
-      body: '15-minute timed bonus objective opened for all active field agents.',
-      districtName: 'Central Market District',
+      headline: 'Flash Quest activated in Mother Goose Land!',
+      body: '15-minute timed bonus objective opened for all active field agents in Mother Goose Land.',
+      districtName: 'Mother Goose Land',
       urgency: 'flash',
       isHost: false,
       isRetracted: false,
@@ -1423,9 +1432,9 @@ export function seedDefaultSpectatorData(eventId: string = 'default-event'): voi
       id: 'feed-demo-4',
       eventId,
       feedType: 'quest_completion',
-      headline: 'Agent Cipher-9 checked in near McKinley Monument',
+      headline: 'Agent Cipher-9 checked in near Monument Park',
       body: 'Verified arrival at historic monument steps.',
-      districtName: 'McKinley Monument Zone',
+      districtName: 'Monument Park',
       urgency: 'info',
       isHost: false,
       isRetracted: false,
@@ -1438,71 +1447,80 @@ export function seedDefaultSpectatorData(eventId: string = 'default-event'): voi
   publicFeedStore.push(...feedItems);
 }
 
-export interface DistrictActivity {
-  id: string;
-  name: string;
-  landmark: string;
-  activityLevel: 'HIGH' | 'MODERATE' | 'QUIET' | 'NO ACTIVITY';
-  agentCount: number;
-  activeQuestsCount: number;
-}
+export type { DistrictActivity } from './spectator-districts';
 
 export function getSpectatorSessionCount(_eventId?: string): number {
   return spectatorSessionsStore.length;
 }
 
 export function getDistrictActivity(eventId: string = 'default-event'): DistrictActivity[] {
+  // 1. Fair QR Hunt Operation
+  if (isFairOperation(eventId)) {
+    const feed = getPublicGameFeed(eventId);
+    return FAIR_QR_HUNT_DISTRICT_CONFIGS.map((d) => {
+      const matchingItems = feed.filter((item) => {
+        if (item.districtName && item.districtName.toLowerCase().includes(d.keywords[0])) return true;
+        const combinedText = `${item.headline} ${item.body}`.toLowerCase();
+        return d.keywords.some((kw) => combinedText.includes(kw));
+      });
+
+      const uniqueActors = new Set(matchingItems.map((i) => i.headline.split(' ')[0])).size;
+      const activeQuestsCount = matchingItems.length;
+
+      let activityLevel: DistrictActivity['activityLevel'] = 'NO ACTIVITY';
+      if (uniqueActors >= 5) activityLevel = 'HIGH';
+      else if (uniqueActors >= 2) activityLevel = 'MODERATE';
+      else if (uniqueActors >= 1) activityLevel = 'QUIET';
+
+      return {
+        id: d.id,
+        name: d.name,
+        landmark: d.landmark,
+        activityLevel,
+        agentCount: uniqueActors,
+        activeQuestsCount,
+      };
+    });
+  }
+
+  // 2. Not Founder's Cipher (unknown future Operation)
+  if (!isFounderCipherOperation(eventId)) {
+    return [];
+  }
+
+  // 3. Founder's Cipher: Exactly 3 Canonical Districts (Family, Challenge, Secret)
   const feed = getPublicGameFeed(eventId);
+  const localPlayerCounts = getLocalEventPlayerPaths(eventId);
+  const localQuestCounts = getLocalActiveQuestsByPath(eventId);
 
-  const districts: Array<{ id: string; name: string; landmark: string; keywords: string[] }> = [
-    {
-      id: 'dist-arts',
-      name: 'Downtown Arts Corridor',
-      landmark: 'Centennial Plaza & Palace Theatre',
-      keywords: ['arts', 'centennial', 'palace'],
-    },
-    {
-      id: 'dist-market',
-      name: 'Central Market District',
-      landmark: '4th Street Shops & Food Hub',
-      keywords: ['market', '4th street', 'food'],
-    },
-    {
-      id: 'dist-mckinley',
-      name: 'McKinley Monument Zone',
-      landmark: 'McKinley National Memorial & Park',
-      keywords: ['mckinley', 'monument', 'memorial'],
-    },
-    {
-      id: 'dist-hof',
-      name: 'Hall of Fame Village Zone',
-      landmark: 'Stadium Plaza & Campus',
-      keywords: ['hall of fame', 'stadium', 'village'],
-    },
-  ];
-
-  return districts.map((d) => {
+  return FOUNDER_CIPHER_CANONICAL_DISTRICTS.map((d) => {
     const matchingItems = feed.filter((item) => {
-      if (item.districtName && item.districtName.toLowerCase().includes(d.keywords[0])) return true;
+      if (item.districtName && item.districtName.toLowerCase().includes(d.path)) return true;
       const combinedText = `${item.headline} ${item.body}`.toLowerCase();
+      // West Lawn is post-master-cipher finale destination, never count it toward Secret district
+      if (d.path === 'secret' && (combinedText.includes('west lawn') || combinedText.includes('frankenstein'))) {
+        return false;
+      }
       return d.keywords.some((kw) => combinedText.includes(kw));
     });
 
     const uniqueActors = new Set(matchingItems.map((i) => i.headline.split(' ')[0])).size;
-    const activeQuestsCount = matchingItems.length;
+    const agentCount = Math.max(localPlayerCounts[d.path], uniqueActors);
+    const activeQuestsCount = localQuestCounts[d.path] + matchingItems.length;
 
     let activityLevel: DistrictActivity['activityLevel'] = 'NO ACTIVITY';
-    if (uniqueActors >= 5) activityLevel = 'HIGH';
-    else if (uniqueActors >= 2) activityLevel = 'MODERATE';
-    else if (uniqueActors >= 1) activityLevel = 'QUIET';
+    if (agentCount >= 5 || matchingItems.length >= 5) activityLevel = 'HIGH';
+    else if (agentCount >= 2 || matchingItems.length >= 2) activityLevel = 'MODERATE';
+    else if (agentCount >= 1 || matchingItems.length >= 1) activityLevel = 'QUIET';
 
     return {
       id: d.id,
       name: d.name,
       landmark: d.landmark,
       activityLevel,
-      agentCount: uniqueActors,
+      agentCount,
       activeQuestsCount,
+      path: d.path,
     };
   });
 }
