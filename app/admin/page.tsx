@@ -136,6 +136,26 @@ export default function AdminPage() {
   const [visitorData, setVisitorData] = useState<VisitorData | null>(null);
   const [visitorLoading, setVisitorLoading] = useState(false);
 
+  // First-party human traffic analytics (site_visit_events)
+  type LiveAnalyticsData = {
+    period: '1h' | '2h' | '6h' | '24h' | '7d';
+    periods: readonly string[];
+    generatedAt: string;
+    rightNow: { uniqueVisitors: number; pageViews: number; sessions: number; authenticatedPlayers: number };
+    today: { uniqueVisitors: number; pageViews: number; sessions: number; authenticatedPlayers: number; newVisitors: number; returningVisitors: number };
+    traffic: {
+      hourly: { hour: string; uniqueVisitors: number; pageViews: number }[];
+      topPages: { value: string; count: number }[];
+      topReferrers: { value: string; count: number }[];
+      topCampaigns: { value: string; count: number }[];
+    };
+    error?: string;
+  };
+  const ANALYTICS_PERIOD_OPTIONS = ['1h', '2h', '6h', '24h', '7d'] as const;
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<(typeof ANALYTICS_PERIOD_OPTIONS)[number]>('2h');
+  const [liveAnalytics, setLiveAnalytics] = useState<LiveAnalyticsData | null>(null);
+  const [liveAnalyticsLoading, setLiveAnalyticsLoading] = useState(false);
+
   const refreshData = useCallback(() => {
     if (!isAdminAuthenticated) {
       setEvents([]);
@@ -208,6 +228,21 @@ export default function AdminPage() {
       .catch(() => setVisitorData(null))
       .finally(() => setVisitorLoading(false));
   }, [isAdminAuthenticated, activeTab, visitorRange]);
+
+  useEffect(() => {
+    if (!isAdminAuthenticated || activeTab !== 'visitors') return;
+    const loadLiveAnalytics = () => {
+      setLiveAnalyticsLoading(true);
+      fetch(`/api/admin/analytics?period=${analyticsPeriod}`)
+        .then((r) => r.json())
+        .then((d) => setLiveAnalytics(d))
+        .catch(() => setLiveAnalytics(null))
+        .finally(() => setLiveAnalyticsLoading(false));
+    };
+    loadLiveAnalytics();
+    const iv = setInterval(loadLiveAnalytics, 30000);
+    return () => clearInterval(iv);
+  }, [isAdminAuthenticated, activeTab, analyticsPeriod]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -580,6 +615,195 @@ export default function AdminPage() {
             {/* ── VISITORS ── */}
             {activeTab === 'visitors' && (
               <div className="space-y-8">
+
+                {/* ── Live Traffic (site_visit_events — first-party human analytics) ── */}
+                <div className="space-y-6 pb-8 border-b border-stone-800">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <p className="text-[10px] text-stone-500 uppercase tracking-widest mb-1">First-Party Analytics</p>
+                      <h2 className="text-lg font-black text-white uppercase tracking-tight">Live Traffic</h2>
+                    </div>
+                    <div className="flex gap-1.5 bg-stone-950 border border-stone-800 rounded-xl p-1">
+                      {ANALYTICS_PERIOD_OPTIONS.map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => setAnalyticsPeriod(p)}
+                          className={`px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                            analyticsPeriod === p ? 'bg-amber-500 text-black' : 'text-stone-400 hover:text-white'
+                          }`}
+                        >
+                          {p.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {liveAnalyticsLoading && !liveAnalytics && (
+                    <div className="flex items-center justify-center py-16">
+                      <div className="flex items-center gap-3 text-stone-400">
+                        <Activity size={18} className="animate-spin" />
+                        <span className="text-sm font-mono">Loading live traffic...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {!liveAnalyticsLoading && liveAnalytics?.error === 'table_missing' && (
+                    <div className="p-6 bg-amber-950/40 border border-amber-700/50 rounded-2xl">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle size={20} className="text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-bold text-amber-300 mb-1">site_visit_events table not yet created</p>
+                          <p className="text-sm text-stone-400">Run the migration <code className="text-emerald-300">supabase/migrations/20260901000000_site_visit_events_analytics.sql</code> against your Supabase project.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!liveAnalyticsLoading && liveAnalytics?.error === 'no_db' && (
+                    <div className="p-6 bg-stone-900 border border-stone-700 rounded-2xl text-center">
+                      <Radio size={32} className="text-stone-600 mx-auto mb-2" />
+                      <p className="text-stone-400 text-sm">Supabase is not configured. Live traffic requires a live database.</p>
+                    </div>
+                  )}
+
+                  {liveAnalytics && !liveAnalytics.error && (
+                    <div className="space-y-6">
+                      {/* RIGHT NOW */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Zap size={13} className="text-amber-400" />
+                          <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold">
+                            Right Now &middot; last {analyticsPeriod.toUpperCase()}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {[
+                            { label: 'Unique Visitors', value: liveAnalytics.rightNow.uniqueVisitors, Icon: Users, color: 'text-cyan-400' },
+                            { label: 'Page Views', value: liveAnalytics.rightNow.pageViews, Icon: TrendingUp, color: 'text-amber-400' },
+                            { label: 'Sessions', value: liveAnalytics.rightNow.sessions, Icon: Radio, color: 'text-emerald-400' },
+                            { label: 'Authenticated Players', value: liveAnalytics.rightNow.authenticatedPlayers, Icon: Shield, color: 'text-purple-400' },
+                          ].map(({ label, value, Icon, color }) => (
+                            <div key={label} className="p-4 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-[10px] text-stone-500 uppercase tracking-widest">{label}</p>
+                                <Icon size={14} className={color} />
+                              </div>
+                              <p className={`font-black text-2xl ${color}`}>{value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* TODAY */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Compass size={13} className="text-amber-400" />
+                          <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold">Today</p>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                          {[
+                            { label: 'Unique Visitors', value: liveAnalytics.today.uniqueVisitors, color: 'text-cyan-400' },
+                            { label: 'Page Views', value: liveAnalytics.today.pageViews, color: 'text-amber-400' },
+                            { label: 'Sessions', value: liveAnalytics.today.sessions, color: 'text-emerald-400' },
+                            { label: 'Authenticated', value: liveAnalytics.today.authenticatedPlayers, color: 'text-purple-400' },
+                            { label: 'New Visitors', value: liveAnalytics.today.newVisitors, color: 'text-lime-400' },
+                            { label: 'Returning', value: liveAnalytics.today.returningVisitors, color: 'text-orange-400' },
+                          ].map(({ label, value, color }) => (
+                            <div key={label} className="p-4 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                              <p className="text-[10px] text-stone-500 uppercase tracking-widest mb-2">{label}</p>
+                              <p className={`font-black text-xl ${color}`}>{value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* TRAFFIC */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="p-5 bg-stone-950/60 border border-stone-800 rounded-2xl lg:col-span-2">
+                          <div className="flex items-center gap-2 mb-4">
+                            <BarChart2 size={14} className="text-amber-400" />
+                            <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold">Hourly Traffic &middot; Last 24H</p>
+                          </div>
+                          {liveAnalytics.traffic.hourly.length === 0 ? (
+                            <p className="text-sm text-stone-500">No human traffic recorded in the last 24 hours.</p>
+                          ) : (
+                            (() => {
+                              const max = Math.max(...liveAnalytics.traffic.hourly.map((h) => h.uniqueVisitors), 1);
+                              return (
+                                <div className="flex items-end gap-1 h-28 overflow-x-auto pb-2">
+                                  {liveAnalytics.traffic.hourly.map(({ hour, uniqueVisitors }) => {
+                                    const heightPct = Math.max((uniqueVisitors / max) * 100, uniqueVisitors > 0 ? 4 : 0);
+                                    const label = new Date(hour).toLocaleTimeString(undefined, { hour: 'numeric' });
+                                    return (
+                                      <div key={hour} className="flex flex-col items-center gap-1 shrink-0" style={{ width: 22 }}>
+                                        <div
+                                          className="w-3.5 rounded-t bg-amber-500/70"
+                                          style={{ height: `${heightPct}%`, minHeight: uniqueVisitors > 0 ? 2 : 0 }}
+                                          title={`${label}: ${uniqueVisitors} visitor(s)`}
+                                        />
+                                        <span className="text-[8px] text-stone-600 rotate-0">{label}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()
+                          )}
+                        </div>
+
+                        <div className="p-5 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                          <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold mb-3">Top Pages</p>
+                          {liveAnalytics.traffic.topPages.length === 0 ? (
+                            <p className="text-sm text-stone-500">No page views yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {liveAnalytics.traffic.topPages.map(({ value, count }) => (
+                                <div key={value} className="flex items-center justify-between text-xs">
+                                  <span className="text-stone-300 font-mono truncate mr-3">{value}</span>
+                                  <span className="text-amber-400 font-bold shrink-0">{count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="p-5 bg-stone-950/60 border border-stone-800 rounded-2xl">
+                          <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold mb-3">Top Referrers</p>
+                          {liveAnalytics.traffic.topReferrers.length === 0 ? (
+                            <p className="text-sm text-stone-500">No referrer data yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {liveAnalytics.traffic.topReferrers.map(({ value, count }) => (
+                                <div key={value} className="flex items-center justify-between text-xs">
+                                  <span className="text-stone-300 font-mono truncate mr-3">{value}</span>
+                                  <span className="text-cyan-400 font-bold shrink-0">{count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {liveAnalytics.traffic.topCampaigns.length > 0 && (
+                          <div className="p-5 bg-stone-950/60 border border-stone-800 rounded-2xl lg:col-span-2">
+                            <p className="text-[11px] text-stone-400 uppercase tracking-widest font-bold mb-3">Top Campaigns / QR Sources</p>
+                            <div className="space-y-2">
+                              {liveAnalytics.traffic.topCampaigns.map(({ value, count }) => (
+                                <div key={value} className="flex items-center justify-between text-xs">
+                                  <span className="text-stone-300 font-mono truncate mr-3">{value}</span>
+                                  <span className="text-emerald-400 font-bold shrink-0">{count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-[10px] text-stone-600 font-mono">
+                        Updated {new Date(liveAnalytics.generatedAt).toLocaleTimeString()} &middot; auto-refreshes every 30s &middot; unique visitors = distinct cq_vid, bots excluded
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 {/* Range selector */}
                 <div className="flex items-center justify-between flex-wrap gap-3">

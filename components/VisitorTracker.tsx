@@ -5,18 +5,24 @@ import { usePathname } from 'next/navigation';
 
 export default function VisitorTracker() {
   const pathname = usePathname();
-  const firedRef = useRef<Set<string>>(new Set());
+  // Tracks only the most recently fired pathname (not a permanent set) so
+  // React StrictMode's dev-only double-invoke of this effect (mount ->
+  // cleanup -> mount again, same pathname both times) is deduped, while a
+  // genuine later revisit of a path already seen earlier in the session
+  // (e.g. Home -> Quests -> Home) still fires — a permanent Set would
+  // silently drop that second, real page view.
+  const lastTrackedPathRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Don't track admin routes
     if (pathname.startsWith('/admin')) return;
-    // Don't track twice for same path in this session
-    if (firedRef.current.has(pathname)) return;
-    firedRef.current.add(pathname);
+    if (lastTrackedPathRef.current === pathname) return;
+    lastTrackedPathRef.current = pathname;
 
     const payload = {
       page: pathname,
       referrer: typeof document !== 'undefined' ? document.referrer : '',
+      search: typeof window !== 'undefined' ? window.location.search : '',
     };
 
     // Use sendBeacon when available (non-blocking, survives page unload)
