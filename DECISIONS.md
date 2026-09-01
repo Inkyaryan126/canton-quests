@@ -1021,6 +1021,39 @@ Each entry follows the standard ADR structure:
   - The spectator and event surfaces previously showed downtown Canton districts for all events. Building a dedicated Stark County Fairgrounds radar map provides authentic, real-world fairground telemetry for the Fair QR Hunt while isolating the downtown cipher map strictly to the Founder's Cipher mission.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-048] 2026-08-31: Authoritative Final Quest Number Verification Engine & Transparent Drawing Presentation
+
+- **Decision**:
+  1. **Rewrite Step 01 with Explicit Inputs & Plain English Definitions**:
+     - Explicitly named the permanent Canton Quests number in full: `311420151417215192019`.
+     - Explicitly displayed the 4-variable formula:
+       `311420151417215192019 × totalPlayers × totalValidEntries × totalCompletedQuests = FinalQuestNumber`.
+     - Defined all three Mission totals in plain English:
+       - `totalPlayers`: Total qualified players who entered and participated in the Mission.
+       - `totalValidEntries`: Total valid prize drawing tickets earned across all qualified players.
+       - `totalCompletedQuests`: Total verified quest completions submitted across the Mission.
+     - Prohibited and completely eliminated `totalFinishers` from the formula and verification surfaces.
+  2. **Mount Prominent `FinalQuestVerifierPanel` Component**:
+     - Built `components/drawing/FinalQuestVerifierPanel.tsx` directly beneath Step 01 on `/how-it-works`.
+     - Supports live mission selection, displays real authoritative numbers from the drawing ledger, provides copy actions for the substituted equation and the Final Quest Number, and formats responsive monospaced displays.
+  3. **Strict State Differentiation: Live vs Frozen Ledger**:
+     - Active Missions: Display `CURRENT — NOT FINAL` with live telemetry indicator and explanatory note that numbers update in real-time until drawing ledger is locked upon Mission conclusion.
+     - Closed/Locked Missions: Display `FINAL VERIFIED TOTALS` with immutable cryptographic SHA-256 snapshot hash and locked timestamp.
+     - Immutable Historical Drawing Receipts: Loads historical receipts from published prizes if a drawing has completed, guaranteeing that any subsequent database activity never alters the numbers used in past drawings.
+  4. **BigInt Arbitrary-Precision Calculation Engine**:
+     - Created `lib/final-quest-verifier.ts` executing all multiplications using native JavaScript `BigInt` (`311420151417215192019n * BigInt(p) * BigInt(e) * BigInt(q)`), completely avoiding standard JavaScript floating-point truncation.
+  5. **Mobile Responsiveness & Strict No-Tailwind Custom CSS**:
+     - Responsive wrapping using `word-break: break-all;` on long 21+ digit numbers and BigInt products.
+     - Pure scoped `.cq-verifier-*` and `.cq-drawing-step-01-*` styles in `app/globals.css` adhering strictly to Rule 21.
+  6. **Zero Regression on Steps 02–07**:
+     - Steps 02 through 07 remain intact with precise wording connecting Step 01 to Step 02.
+- **Reason**:
+  - Guarantees complete transparency and trust in Canton Quests' winner selection math. Any player, spectator, or auditor can stand on `/how-it-works` after a drawing, read every number Canton Quests used, multiply them independently, obtain the identical Final Quest Number, and trace through Steps 02–07 to independently verify the winning ticket.
+- **Status**: **ACCEPTED**
+
+
 
 
 

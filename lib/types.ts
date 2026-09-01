@@ -783,6 +783,7 @@ export interface PublicDrawingPageData {
   canonicalSnapshot?: CanonicalSnapshot | null;
   totalQualifiedEntries: number;
   totalQualifiedPlayers: number;
+  totalCompletedQuests?: number;
   publicPlayerEntries: PublicPlayerDrawingEntry[];
   publishedPrizes: PublicPrizeDrawResult[];
   publishedAt: string | null;

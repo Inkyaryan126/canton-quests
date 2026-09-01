@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   getEventBySlugDB,
+  getEventByIdDB,
   getPublicDrawingPageDataDB,
   getAuthenticatedPlayerDrawingQualificationDB,
 } from '@/lib/supabase-db';
@@ -14,16 +15,13 @@ export async function GET(
 ) {
   try {
     const slug = params.slug;
-    const event = await getEventBySlugDB(slug);
+    let event = await getEventBySlugDB(slug);
+
+    if (!event && isKnownCantonLaunchSlug(slug)) {
+      event = (await getEventBySlugDB('canton-weekend-1')) || (await getEventByIdDB('b0000001-0000-4000-8000-000000000001'));
+    }
 
     if (!event) {
-      if (isKnownCantonLaunchSlug(slug)) {
-        return NextResponse.json({
-          isPreLaunch: true,
-          eventSlug: slug,
-          message: 'The official Canton Quests prize drawing opens with the September 11 event.',
-        });
-      }
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 

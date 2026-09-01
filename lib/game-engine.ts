@@ -4340,6 +4340,9 @@ export function getPublicDrawingPageData(eventId: string): PublicDrawingPageData
     finalQuestReceipt: d.auditMetadata?.finalQuestReceipt,
   }));
 
+  const submissions = getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
+  const totalCompletedQuests = submissions.filter((s) => s.eventId === realEventId && s.status === 'verified').length;
+
   const ledgerLockStatus: DrawingStatus = lock ? lock.status : 'open';
   const firstPublished = publishedDraws[0];
 
@@ -4355,6 +4358,7 @@ export function getPublicDrawingPageData(eventId: string): PublicDrawingPageData
     canonicalSnapshot: lock && lock.canonicalSnapshot ? lock.canonicalSnapshot : null,
     totalQualifiedEntries: projection.totalEntriesAcrossAllPlayers,
     totalQualifiedPlayers: projection.playerEntries.length,
+    totalCompletedQuests,
     publicPlayerEntries: projection.playerEntries,
     publishedPrizes,
     publishedAt: firstPublished ? firstPublished.publishedAt || null : null,

@@ -84,6 +84,7 @@ import {
 } from './supabase-auth';
 import { grantCipherFragmentsForQuestRewardDB } from './founders-cipher';
 import { getActiveLiveEventMultiplierDB, getActiveLiveEventsDB, incrementLiveEventProgressDB } from './live-events-db';
+import { isKnownCantonLaunchSlug } from './launch-status';
 
 const DRAWABLE_LEDGER_STATUSES: DrawingStatus[] = ['locked', 'drawn'];
 const PUBLISHABLE_LEDGER_STATUSES: DrawingStatus[] = ['drawn'];
@@ -3320,13 +3321,26 @@ export async function getPublicDrawingPageDataDB(eventId: string): Promise<Publi
     return localEngine.getPublicDrawingPageData(eventId);
   }
 
-  const { data: event } = await supabaseAdmin
-    .from('events')
-    .select('id, title')
-    .or(`id.eq.${eventId},slug.eq.${eventId}`)
-    .maybeSingle();
+  const isInputUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
+  let eventQuery = supabaseAdmin.from('events').select('id, title');
+  if (isInputUUID) {
+    eventQuery = eventQuery.or(`id.eq.${eventId},slug.eq.${eventId}`);
+  } else {
+    eventQuery = eventQuery.eq('slug', eventId);
+  }
+  let { data: event } = await eventQuery.maybeSingle();
+
+  if (!event && isKnownCantonLaunchSlug(eventId)) {
+    const { data: launchEvent } = await supabaseAdmin
+      .from('events')
+      .select('id, title')
+      .or('id.eq.b0000001-0000-4000-8000-000000000001,slug.eq.canton-weekend-1')
+      .maybeSingle();
+    if (launchEvent) event = launchEvent;
+  }
+
   const realEventId = event ? event.id : eventId;
-  const eventTitle = event ? event.title : 'Canton Quests Event';
+  const eventTitle = event ? event.title : "Canton Quests: Volume 1 - The Founder's Cipher";
 
   const { data: lockRow } = await supabaseAdmin
     .from('drawing_ledger_locks')
@@ -3365,6 +3379,23 @@ export async function getPublicDrawingPageDataDB(eventId: string): Promise<Publi
     finalQuestReceipt: row.audit_metadata?.finalQuestReceipt,
   }));
 
+  const { data: questSubmissions } = await supabaseAdmin
+    .from('quest_submissions')
+    .select('id')
+    .eq('event_id', realEventId)
+    .eq('status', 'verified');
+
+  const totalCompletedQuests = (questSubmissions || []).length;
+
+  const { count: eventPlayersCount } = await supabaseAdmin
+    .from('event_players')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_id', realEventId);
+
+  const totalQualifiedPlayers = publicPlayerEntries.length > 0
+    ? publicPlayerEntries.length
+    : (eventPlayersCount || 0);
+
   const ledgerLockStatus: DrawingStatus = (lockRow?.status as DrawingStatus) || 'open';
   const firstPublished = publishedRows && publishedRows.length > 0 ? publishedRows[0] : null;
 
@@ -3380,7 +3411,8 @@ export async function getPublicDrawingPageDataDB(eventId: string): Promise<Publi
     snapshotHash: lockRow?.snapshot_hash || null,
     canonicalSnapshot: lockRow?.canonical_snapshot || null,
     totalQualifiedEntries,
-    totalQualifiedPlayers: publicPlayerEntries.length,
+    totalQualifiedPlayers,
+    totalCompletedQuests,
     publicPlayerEntries,
     publishedPrizes,
     publishedAt: firstPublished ? firstPublished.published_at || null : null,

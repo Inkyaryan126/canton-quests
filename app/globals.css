@@ -5738,4 +5738,829 @@ code, pre, .font-mono {
   }
 }
 
+/* ==========================================================================
+   CANTON QUESTS — STEP 01 & FINAL QUEST VERIFIER PANEL STYLES
+   ========================================================================== */
+
+.cq-drawing-step-01-card {
+  min-height: auto;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  border-color: rgba(240, 201, 120, 0.45);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(217, 164, 76, 0.16), transparent 60%),
+    rgba(13, 15, 16, 0.96);
+}
+
+.cq-step-formula-callout {
+  margin: 1rem 0;
+  padding: 0.9rem 1.15rem;
+  background: rgba(5, 6, 7, 0.95);
+  border: 1px solid rgba(240, 201, 120, 0.4);
+  box-shadow: inset 0 0 12px rgba(217, 164, 76, 0.08);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #f0c978;
+  word-break: break-all;
+}
+
+.cq-step-inputs-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.85rem;
+  margin: 1.15rem 0;
+}
+
+.cq-step-input-item {
+  background: rgba(10, 12, 14, 0.9);
+  border: 1px solid rgba(217, 164, 76, 0.22);
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cq-step-input-tag {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: rgba(240, 201, 120, 0.85);
+  text-transform: uppercase;
+}
+
+.cq-step-input-name {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #ffffff;
+  word-break: break-all;
+}
+
+.cq-step-input-item p {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #cfc7b8;
+  margin: 0;
+}
+
+.cq-step-note {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #a8a090;
+  margin-top: 0.5rem;
+}
+
+/* VERIFIER PANEL CONTAINER */
+.cq-verifier-panel {
+  margin: 1.75rem 0 2rem 0;
+  padding: 1.5rem;
+  border: 1px solid rgba(217, 164, 76, 0.35);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(217, 164, 76, 0.1), transparent 65%),
+    rgba(10, 12, 14, 0.96);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+
+.cq-verifier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(217, 164, 76, 0.2);
+  padding-bottom: 1.15rem;
+  margin-bottom: 1rem;
+}
+
+.cq-verifier-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.cq-verifier-icon-badge {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(217, 164, 76, 0.15);
+  border: 1px solid rgba(217, 164, 76, 0.45);
+  color: #f0c978;
+  flex-shrink: 0;
+}
+
+.cq-verifier-kicker {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: #f0c978;
+  text-transform: uppercase;
+  display: block;
+}
+
+.cq-verifier-heading {
+  font-family: var(--font-display, sans-serif);
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  margin: 0.15rem 0 0 0;
+  text-transform: uppercase;
+}
+
+.cq-verifier-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cq-verifier-mission-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cq-verifier-select-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #d6cbb8;
+}
+
+.cq-verifier-select {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: 800;
+  background: rgba(5, 6, 7, 0.95);
+  border: 1px solid rgba(217, 164, 76, 0.4);
+  color: #f0c978;
+  padding: 0.35rem 0.65rem;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.cq-verifier-select:focus-visible {
+  outline: none;
+  border-color: #f0c978;
+}
+
+.cq-verifier-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.7rem;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+.cq-verifier-status-frozen {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  color: #34d399;
+}
+
+.cq-verifier-status-current {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  color: #fbbf24;
+}
+
+.cq-verifier-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.9);
+  animation: cqVerifierPulse 1.5s infinite;
+}
+
+@keyframes cqVerifierPulse {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+.cq-verifier-intro {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #cfc7b8;
+  margin: 0 0 1.25rem 0;
+}
+
+/* 4 METRICS GRID */
+.cq-verifier-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.cq-verifier-metric-card {
+  background: rgba(5, 6, 7, 0.88);
+  border: 1px solid rgba(217, 164, 76, 0.22);
+  padding: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.cq-verifier-metric-card-constant {
+  border-color: rgba(240, 201, 120, 0.45);
+  background: linear-gradient(180deg, rgba(217, 164, 76, 0.12), rgba(5, 6, 7, 0.94));
+}
+
+.cq-verifier-metric-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.cq-verifier-metric-tag {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: rgba(240, 201, 120, 0.85);
+  text-transform: uppercase;
+}
+
+.cq-verifier-pill-fixed {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 0.1rem 0.4rem;
+  border-radius: 2px;
+}
+
+.cq-verifier-metric-sym {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #9ca3af;
+}
+
+.cq-verifier-metric-num {
+  font-family: var(--font-display, sans-serif);
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1.1;
+  word-break: break-all;
+}
+
+.cq-verifier-metric-num-mono {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.98rem;
+  font-weight: 900;
+  color: #f0c978;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+}
+
+.cq-verifier-metric-desc {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #a8a090;
+  margin: 0;
+}
+
+/* CALCULATION & EQUATION BOX */
+.cq-verifier-calc-box {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(217, 164, 76, 0.32);
+  padding: 1.15rem;
+  margin-bottom: 1.25rem;
+}
+
+.cq-verifier-calc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.55rem;
+}
+
+.cq-verifier-calc-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #f0c978;
+  text-transform: uppercase;
+}
+
+.cq-verifier-copy-btn {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.35rem 0.65rem;
+  background: rgba(217, 164, 76, 0.12);
+  border: 1px solid rgba(217, 164, 76, 0.32);
+  color: #f0c978;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 2px;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.cq-verifier-copy-btn:hover {
+  background: rgba(217, 164, 76, 0.25);
+  color: #ffffff;
+  border-color: rgba(240, 201, 120, 0.6);
+}
+
+.cq-verifier-copy-btn-prominent {
+  background: rgba(240, 201, 120, 0.18);
+  border-color: rgba(240, 201, 120, 0.5);
+  color: #ffffff;
+}
+
+.cq-verifier-equation-text {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85rem;
+  color: #e5e7eb;
+  background: rgba(10, 12, 14, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.75rem 0.9rem;
+  word-break: break-all;
+  margin-bottom: 0.85rem;
+}
+
+.cq-verifier-result-wrap {
+  background: linear-gradient(180deg, rgba(217, 164, 76, 0.15), rgba(15, 17, 20, 0.98));
+  border: 1px solid rgba(240, 201, 120, 0.6);
+  box-shadow: 0 0 16px rgba(217, 164, 76, 0.12);
+  padding: 1rem;
+}
+
+.cq-verifier-result-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.45rem;
+}
+
+.cq-verifier-result-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #f0c978;
+  text-transform: uppercase;
+}
+
+.cq-verifier-result-display {
+  background: rgba(5, 6, 7, 0.95);
+  border: 1px solid rgba(240, 201, 120, 0.35);
+  padding: 0.85rem 1rem;
+  word-break: break-all;
+}
+
+.cq-verifier-result-digits {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #fef08a;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  word-break: break-all;
+  display: block;
+}
+
+/* FOOTER & AUDIT PROOF */
+.cq-verifier-footer {
+  border-top: 1px solid rgba(217, 164, 76, 0.18);
+  padding-top: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.cq-verifier-frozen-proof {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  color: #a7f3d0;
+}
+
+.cq-verifier-proof-item strong {
+  color: #f0c978;
+}
+
+.cq-verifier-proof-hash {
+  word-break: break-all;
+}
+
+.cq-verifier-live-note {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: #fde68a;
+}
+
+.cq-verifier-audit-explainer {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.cq-verifier-audit-explainer strong {
+  color: #e5e7eb;
+}
+
+/* =========================================================================
+   OFFICIAL FINAL QUEST CALCULATION & LOCAL CALCULATOR STYLES
+   Rule 21: Pure scoped CQ classes, no Tailwind
+   ========================================================================= */
+
+.cq-verifier-section-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid rgba(217, 164, 76, 0.25);
+  margin-bottom: 1rem;
+}
+
+.cq-verifier-official-banner {
+  background: linear-gradient(90deg, rgba(217, 164, 76, 0.2), rgba(15, 17, 20, 0.95));
+  border-left: 3px solid #f0c978;
+}
+
+.cq-verifier-calc-banner {
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.18), rgba(15, 17, 20, 0.95));
+  border-left: 3px solid #38bdf8;
+}
+
+.cq-verifier-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cq-verifier-official-banner .cq-verifier-banner-left {
+  color: #f0c978;
+}
+
+.cq-verifier-calc-banner .cq-verifier-banner-left {
+  color: #38bdf8;
+}
+
+.cq-verifier-official-section {
+  border: 1px solid rgba(217, 164, 76, 0.35);
+  background: rgba(8, 10, 12, 0.85);
+  padding: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.cq-official-meta-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.15rem;
+}
+
+.cq-official-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cq-official-meta-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+
+.cq-official-meta-value {
+  font-size: 0.88rem;
+  color: #ffffff;
+}
+
+.cq-official-meta-mono {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: #34d399;
+  word-break: break-all;
+}
+
+.cq-official-meta-note {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #fbbf24;
+}
+
+.cq-official-footer-note {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #9ca3af;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cq-official-footer-note p {
+  margin: 0;
+}
+
+/* SECTION 2: LOCAL CALCULATOR */
+.cq-verifier-calculator-section {
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.08), transparent 60%),
+    rgba(6, 9, 12, 0.9);
+  padding: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.cq-calc-reset-btn {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 0.65rem;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 2px;
+  transition: all 150ms ease;
+}
+
+.cq-calc-reset-btn:hover {
+  background: rgba(56, 189, 248, 0.25);
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+.cq-calc-explainer {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #94a3b8;
+  margin-bottom: 1.15rem;
+}
+
+.cq-calc-explainer strong {
+  color: #e2e8f0;
+}
+
+.cq-calc-inputs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.cq-calc-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cq-calc-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #cbd5e1;
+}
+
+.cq-calc-label-tag {
+  font-size: 0.62rem;
+  color: #64748b;
+  font-weight: normal;
+}
+
+.cq-calc-input {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.88rem;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #ffffff;
+  padding: 0.6rem 0.75rem;
+  border-radius: 2px;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.cq-calc-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+}
+
+.cq-calc-input-mono {
+  letter-spacing: 0.05em;
+  color: #f0c978;
+}
+
+.cq-calc-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.cq-calc-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.15rem;
+}
+
+.cq-calc-submit-btn {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 0.65rem 1.25rem;
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  border: 1px solid #38bdf8;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 2px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+  transition: all 150ms ease;
+}
+
+.cq-calc-submit-btn:hover {
+  background: linear-gradient(135deg, #0369a1, #075985);
+  border-color: #7dd3fc;
+  box-shadow: 0 4px 18px rgba(2, 132, 199, 0.5);
+  transform: translateY(-1px);
+}
+
+.cq-calc-reset-action-btn {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.65rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 2px;
+  transition: all 150ms ease;
+}
+
+.cq-calc-reset-action-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.cq-calc-result-panel {
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  padding: 1rem;
+}
+
+.cq-calc-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.45rem;
+}
+
+.cq-calc-result-title {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #38bdf8;
+  text-transform: uppercase;
+}
+
+.cq-calc-user-edited-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  padding: 0.15rem 0.45rem;
+  border-radius: 2px;
+}
+
+.cq-calc-result-equation {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  color: #94a3b8;
+  background: rgba(10, 12, 14, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.75rem;
+  word-break: break-all;
+}
+
+.cq-calc-result-value-box {
+  background: rgba(5, 6, 7, 0.95);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  padding: 0.85rem 1rem;
+}
+
+.cq-calc-result-value-digits {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #7dd3fc;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
+  word-break: break-all;
+  display: block;
+}
+
+@media (max-width: 640px) {
+  .cq-verifier-panel {
+    padding: 1rem;
+  }
+
+  .cq-verifier-heading {
+    font-size: 1.05rem;
+  }
+
+  .cq-verifier-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cq-calc-inputs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cq-verifier-result-digits {
+    font-size: 1.1rem;
+  }
+
+  .cq-calc-result-value-digits {
+    font-size: 1.05rem;
+  }
+
+  .cq-step-inputs-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+
 

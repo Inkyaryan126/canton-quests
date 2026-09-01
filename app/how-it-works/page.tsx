@@ -28,6 +28,7 @@ import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import { QuestEvent } from '@/lib/types';
 import { cqImages, getActiveEvent } from '@/lib/marketing-assets';
+import FinalQuestVerifierPanel from '@/components/drawing/FinalQuestVerifierPanel';
 
 const steps = [
   {
@@ -96,12 +97,12 @@ const leaderboardRules = [
 const drawingRules = [
   {
     title: 'Build the Final Quest Number',
-    text: 'The Final Quest Number is created from the Mission\'s final verified totals. It helps determine the winner, but it is not itself a ticket number.',
+    text: 'The Final Quest Number is created from the Mission\'s final verified totals by multiplying the permanent Canton Quests number 311420151417215192019 by three verified Mission totals: totalPlayers (qualified participating players), totalValidEntries (valid prize drawing tickets), and totalCompletedQuests (verified quest completions). Formula: 311420151417215192019 × totalPlayers × totalValidEntries × totalCompletedQuests = FinalQuestNumber.',
     Icon: Hash,
   },
   {
     title: 'Match the ticket length',
-    text: 'Count how many digits are in the total number of valid entries. If there are 356 valid entries, winning ticket numbers use 3 digits.',
+    text: 'Count how many digits are in the total number of valid entries (totalValidEntries). If there are 356 valid entries, winning ticket numbers use 3 digits.',
     Icon: Ticket,
   },
   {
@@ -356,11 +357,70 @@ export default function HowItWorksPage() {
             The system creates a single Final Quest Number from the Mission&apos;s final verified totals, then reads
             through that number to locate the winning ticket.
           </p>
+
+          {/* STEP 01: BUILD THE FINAL QUEST NUMBER */}
+          <article className="cq-drawing-step-card cq-drawing-step-01-card">
+            <div className="cq-drawing-step-card-header">
+              <span className="cq-drawing-step-num">01</span>
+              <Hash size={24} aria-hidden="true" />
+            </div>
+            <h3>Build the Final Quest Number</h3>
+            <div className="cq-drawing-step-01-body">
+              <p>
+                The system creates the Final Quest Number by multiplying four objective numbers together:
+                Canton Quests&apos; permanent 21-digit number and three verified Mission totals.
+              </p>
+
+              <div className="cq-step-formula-callout">
+                <code>311420151417215192019 × totalPlayers × totalValidEntries × totalCompletedQuests = FinalQuestNumber</code>
+              </div>
+
+              <div className="cq-step-inputs-list">
+                <div className="cq-step-input-item">
+                  <span className="cq-step-input-tag">PERMANENT CQ NUMBER</span>
+                  <strong className="cq-step-input-name">311420151417215192019</strong>
+                  <p>
+                    A fixed 21-digit constant derived by converting the letters of &ldquo;CANTON QUESTS&rdquo; into numbers (A=1..Z=26: C=3, A=1, N=14, T=20, O=15, N=14, Q=17, U=21, E=5, S=19, T=20, S=19). This number is permanently fixed in code and never changes.
+                  </p>
+                </div>
+
+                <div className="cq-step-input-item">
+                  <span className="cq-step-input-tag">MISSION TOTAL 1</span>
+                  <strong className="cq-step-input-name">totalPlayers</strong>
+                  <p>
+                    The total number of qualified players who registered and participated in the Mission.
+                  </p>
+                </div>
+
+                <div className="cq-step-input-item">
+                  <span className="cq-step-input-tag">MISSION TOTAL 2</span>
+                  <strong className="cq-step-input-name">totalValidEntries</strong>
+                  <p>
+                    The total number of valid prize drawing tickets earned across all qualified players.
+                  </p>
+                </div>
+
+                <div className="cq-step-input-item">
+                  <span className="cq-step-input-tag">MISSION TOTAL 3</span>
+                  <strong className="cq-step-input-name">totalCompletedQuests</strong>
+                  <p>
+                    The total number of verified quest objective completions submitted across the entire Mission.
+                  </p>
+                </div>
+              </div>
+
+              <p className="cq-step-note">
+                This multiplication produces a single, reproducible number stream used to locate the winning ticket. It is not itself a ticket number.
+              </p>
+            </div>
+          </article>
+
+          {/* STEPS 02-07 GRID */}
           <div className="cq-drawing-step-grid">
-            {drawingRules.map(({ title, text, Icon }, index) => (
+            {drawingRules.slice(1).map(({ title, text, Icon }, index) => (
               <article key={title} className="cq-drawing-step-card">
                 <div className="cq-drawing-step-card-header">
-                  <span className="cq-drawing-step-num">{String(index + 1).padStart(2, '0')}</span>
+                  <span className="cq-drawing-step-num">{String(index + 2).padStart(2, '0')}</span>
                   <Icon size={24} aria-hidden="true" />
                 </div>
                 <h3>{title}</h3>
@@ -368,6 +428,9 @@ export default function HowItWorksPage() {
               </article>
             ))}
           </div>
+
+          {/* DIRECTLY ABOVE TECHNICAL SPECIFICATION ACCORDION: OFFICIAL FINAL QUEST CALCULATION PANEL */}
+          <FinalQuestVerifierPanel events={events} />
 
           <details className="cq-tech-details">
             <summary className="cq-tech-summary">
@@ -381,14 +444,14 @@ export default function HowItWorksPage() {
                 verified Quest completions.
               </p>
               <div className="cq-tech-formula">
-                <strong>FINAL QUEST NUMBER</strong> = (totalPlayers × totalValidEntries × totalCompletedQuests) × 311420151417215192019
+                <strong>FINAL QUEST NUMBER</strong>: 311420151417215192019 × totalPlayers × totalValidEntries × totalCompletedQuests = FinalQuestNumber
               </div>
               <p>
                 The Final Quest Number is not the winning ticket. It becomes the deterministic number stream used to locate the winning ticket:
               </p>
               <ol className="cq-tech-list">
                 <li>
-                  <strong>Window Width (W)</strong>: N is the total valid tickets. W is the number of digits in N. With 356 tickets, W = 3.
+                  <strong>Window Width (W)</strong>: N is the total valid tickets (totalValidEntries). W is the number of digits in N. With 356 tickets, W = 3.
                 </li>
                 <li>
                   <strong>Forward Sliding Window Scan</strong>: Read overlapping W-digit windows from left to right, moving forward one digit at a time.

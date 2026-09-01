@@ -31,7 +31,7 @@ describe('/how-it-works — Founder\'s Cipher Mission content is gone', () => {
   });
 
   it('no Founder\'s Cipher cipher-mechanics content', () => {
-    expect(howItWorksSource).not.toMatch(/PERMANENT CQ NUMBER/i);
+    expect(howItWorksSource).not.toMatch(/Master Cipher/i);
     expect(howItWorksSource).not.toMatch(/FOLLOW THE TRAIL/i);
   });
 
@@ -123,7 +123,7 @@ describe('/how-it-works — generic platform guidance still renders', () => {
     expect(howItWorksSource).toContain('totalPlayers = qualified players');
     expect(howItWorksSource).toContain('totalValidEntries = valid drawing tickets');
     expect(howItWorksSource).toContain('totalCompletedQuests =');
-    expect(howItWorksSource).toContain('(totalPlayers × totalValidEntries × totalCompletedQuests) × 311420151417215192019');
+    expect(howItWorksSource).toContain('311420151417215192019 × totalPlayers × totalValidEntries × totalCompletedQuests = FinalQuestNumber');
     expect(howItWorksSource).toMatch(/not the winning ticket/i);
     expect(howItWorksSource).toMatch(/N is the total valid tickets/i);
     expect(howItWorksSource).toMatch(/W is the number of digits in N/i);
