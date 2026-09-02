@@ -21,7 +21,7 @@ import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { getOperationStatus, destinationCards, missionPreviewCards } from '../lib/marketing-assets';
-import { SEED_EVENT, SEED_FAIR_EVENT } from '../lib/seed-data';
+import { SEED_EVENT, SEED_FAIR_EVENT, SEED_MISSING_SIGNAL_EVENT, SEED_MIDNIGHT_LEDGER_EVENT } from '../lib/seed-data';
 import OperationCard from '../components/OperationCard';
 import type { QuestEvent } from '../lib/types';
 
@@ -129,5 +129,39 @@ describe('Mission Directory — Next Mission / Coming Soon ordering', () => {
     expect(nextIdx).toBeGreaterThan(-1);
     expect(comingSoonIdx).toBeGreaterThan(-1);
     expect(nextIdx).toBeLessThan(comingSoonIdx);
+  });
+
+  it('SEED_FAIR_EVENT (Sept 4) sorts before SEED_EVENT (Sept 11) among upcoming Missions on Sept 2', () => {
+    const sept2 = new Date('2026-09-02T12:00:00Z');
+    const upcoming = [SEED_EVENT, SEED_FAIR_EVENT].filter((e) => getOperationStatus(e, sept2) === 'UPCOMING');
+    const sorted = [...upcoming].sort((a, b) => new Date(a.startTime!).getTime() - new Date(b.startTime!).getTime());
+    expect(sorted.map((e) => e.slug)).toEqual(['fair-qr-hunt', 'canton-weekend-1']);
+  });
+});
+
+describe('Mission Directory — archived Mission badge reads MISSION COMPLETE, not ACTIVE/LIVE/UPCOMING', () => {
+  it('The Missing Signal card shows MISSION COMPLETE and no ACTIVE/LIVE/UPCOMING label', () => {
+    const html = ReactDOMServer.renderToString(React.createElement(OperationCard, { event: SEED_MISSING_SIGNAL_EVENT, status: 'ENDED' }));
+    expect(html).toContain('MISSION COMPLETE');
+    expect(html).not.toContain('ACTIVE MISSION');
+    expect(html).not.toContain('LIVE NOW');
+    expect(html).not.toContain('UPCOMING MISSION');
+    expect(html).toContain('VIEW ARCHIVE');
+  });
+
+  it('The Midnight Ledger card shows MISSION COMPLETE and no ACTIVE/LIVE/UPCOMING label', () => {
+    const html = ReactDOMServer.renderToString(React.createElement(OperationCard, { event: SEED_MIDNIGHT_LEDGER_EVENT, status: 'ENDED' }));
+    expect(html).toContain('MISSION COMPLETE');
+    expect(html).not.toContain('ACTIVE MISSION');
+    expect(html).not.toContain('LIVE NOW');
+    expect(html).not.toContain('UPCOMING MISSION');
+    expect(html).toContain('VIEW ARCHIVE');
+  });
+
+  it('a real (non-archive) ended Mission still shows the generic MISSION ENDED label, unaffected', () => {
+    const realEndedEvent = { ...SEED_EVENT, status: 'ended' as const };
+    const html = ReactDOMServer.renderToString(React.createElement(OperationCard, { event: realEndedEvent, status: 'ENDED' }));
+    expect(html).toContain('MISSION ENDED');
+    expect(html).not.toContain('MISSION COMPLETE');
   });
 });

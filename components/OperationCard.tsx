@@ -74,6 +74,10 @@ export default function OperationCard({ event, status, showPathInfo = true }: Op
   const style = STATUS_STYLE[status];
   const isArchiveMission = isWorldbuildingArchiveMission(event.slug);
   const detailHref = isArchiveMission ? `/events/archive/${event.slug}` : `/events/${event.slug}`;
+  // Worldbuilding archive Missions get the exact "MISSION COMPLETE" wording
+  // instead of the generic "MISSION ENDED" — everything else about the
+  // ENDED badge (color/border/bg) is unchanged.
+  const badgeLabel = status === 'ENDED' && isArchiveMission ? 'MISSION COMPLETE' : style.label;
 
   return (
     <article
@@ -86,7 +90,7 @@ export default function OperationCard({ event, status, showPathInfo = true }: Op
           style={{ color: style.color, borderColor: style.border, backgroundColor: style.bg }}
         >
           <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: style.color }} />
-          {style.label}
+          {badgeLabel}
         </span>
         <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wide">{formatOperationDate(event)}</span>
       </div>

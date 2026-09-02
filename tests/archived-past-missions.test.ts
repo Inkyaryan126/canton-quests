@@ -111,7 +111,10 @@ describe('Archived past Missions — Mission Directory presentation', () => {
 
   it('OperationCard renders an archived Mission as prestigious/complete, not disabled, with no fabricated prize amount', () => {
     const html = ReactDOMServer.renderToString(React.createElement(OperationCard, { event: SEED_MISSING_SIGNAL_EVENT, status: 'ENDED' }));
-    expect(html).toContain('MISSION ENDED');
+    expect(html).toContain('MISSION COMPLETE');
+    expect(html).not.toContain('ACTIVE MISSION');
+    expect(html).not.toContain('LIVE NOW');
+    expect(html).not.toContain('UPCOMING MISSION');
     expect(html).toContain('VIEW ARCHIVE');
     expect(html).toContain('href="/events/archive/the-missing-signal"');
     expect(html).not.toContain('disabled');
