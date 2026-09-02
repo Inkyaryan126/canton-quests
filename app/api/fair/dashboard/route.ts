@@ -31,11 +31,20 @@ export async function GET(request: Request) {
     const [board, winners] = await Promise.all([getFairMysteryBoardDB(event.id), getFairMysteryWinnersDB(event.id)]);
     const phase = getFairOperationPhase(event);
 
+    // SECURITY: omit exact aggregate revealed/hidden totals from the public response
+    // to prevent math deduction leaks for remaining unfound Signals.
+    const publicBoard = {
+      signals: board.signals,
+      totalPoolCents: board.totalPoolCents,
+      foundCount: board.foundCount,
+      totalCount: board.totalCount,
+    };
+
     const base = {
       success: true,
       event,
       phase,
-      board,
+      board: publicBoard,
       winners,
     };
 

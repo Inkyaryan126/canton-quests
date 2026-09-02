@@ -109,21 +109,11 @@ export default function FairQrHuntDashboard() {
 
 function MysterySummary({ board }: { board: FairMysteryBoard }) {
   return (
-    <div className="glass-panel p-6 border-emerald-500/30 space-y-4">
+    <div className="glass-panel p-6 border-emerald-500/30 space-y-2">
       <div className="text-center">
         <div className="text-3xl font-black text-white">$300 MYSTERY MONEY HUNT</div>
         <div className="text-sm font-mono text-gray-400 mt-1">
           {board.foundCount} / {board.totalCount} SIGNALS FOUND
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3 text-center font-mono text-xs">
-        <div className="glass-panel p-4 border-emerald-500/30">
-          <div className="text-2xl font-black text-emerald-300">{formatCents(board.revealedCents)}</div>
-          <div className="text-gray-400 mt-1">Revealed</div>
-        </div>
-        <div className="glass-panel p-4 border-cyan-500/30">
-          <div className="text-2xl font-black text-cyan-300">{formatCents(board.hiddenCents)}</div>
-          <div className="text-gray-400 mt-1">Still Hidden</div>
         </div>
       </div>
     </div>

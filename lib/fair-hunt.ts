@@ -174,10 +174,10 @@ export interface FairMysterySignalPublic {
 export interface FairMysteryBoard {
   signals: FairMysterySignalPublic[];
   totalPoolCents: number;
-  /** Sum of found signals' cashCents — safe to publish, reveals nothing about any specific unfound Signal. */
-  revealedCents: number;
-  /** totalPoolCents - revealedCents — the sum of all still-hidden Signals' values, never broken out per-Signal. */
-  hiddenCents: number;
+  /** Admin-only aggregate — omitted from public responses to prevent last-signal math deduction leaks. */
+  revealedCents?: number;
+  /** Admin-only aggregate — omitted from public responses to prevent last-signal math deduction leaks. */
+  hiddenCents?: number;
   foundCount: number;
   totalCount: number;
 }

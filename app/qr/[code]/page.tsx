@@ -12,6 +12,9 @@ type ClaimReason =
   | 'signal_secured'
   | 'signal_already_found'
   | 'not_yet_active'
+  | 'hunt_not_open'
+  | 'hunt_closed'
+  | 'hunt_paused'
   | 'expired'
   | 'inactive'
   | 'not_recognized'
@@ -21,6 +24,7 @@ type ClaimReason =
 interface ClaimResponse {
   success: boolean;
   reason: ClaimReason;
+  code?: string;
   message?: string;
   isBonus?: boolean;
   isFair?: boolean;
@@ -64,7 +68,16 @@ const REASON_COPY: Partial<Record<ClaimReason, { title: string; icon: string }>>
   error: { title: 'SIGNAL ERROR', icon: '⚠️' },
 };
 
-function getWindowCopy(isBonus?: boolean, expired?: boolean): { title: string; body: string } {
+function getWindowCopy(isBonus?: boolean, expired?: boolean, reason?: ClaimReason): { title: string; body: string } {
+  if (reason === 'hunt_not_open') {
+    return { title: 'FAIR QR HUNT NOT OPEN YET', body: 'The $300 Mystery Money Hunt is not officially open yet. Gates open Friday, Sept 4.' };
+  }
+  if (reason === 'hunt_closed') {
+    return { title: 'FAIR QR HUNT CLOSED', body: 'The $300 Mystery Money Hunt has officially ended.' };
+  }
+  if (reason === 'hunt_paused') {
+    return { title: 'FAIR QR HUNT PAUSED', body: 'The Fair QR Hunt is temporarily paused by operations.' };
+  }
   if (isBonus) {
     return expired
       ? { title: 'BONUS WINDOW CLOSED', body: "This daily bonus signal's window has already ended." }
@@ -222,8 +235,8 @@ function ClaimResultPanel({ result }: { result: ClaimResponse }) {
     );
   }
 
-  if (result.reason === 'not_yet_active' || result.reason === 'expired') {
-    const copy = getWindowCopy(result.isBonus, result.reason === 'expired');
+  if (result.reason === 'not_yet_active' || result.reason === 'expired' || result.reason === 'hunt_not_open' || result.reason === 'hunt_closed' || result.reason === 'hunt_paused') {
+    const copy = getWindowCopy(result.isBonus, result.reason === 'expired' || result.reason === 'hunt_closed', result.reason);
     return (
       <div className="glass-panel p-8 w-full border-amber-500/40 text-center space-y-4">
         <div className="text-3xl">⏳</div>

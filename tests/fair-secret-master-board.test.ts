@@ -9,7 +9,7 @@
  * file does not repeat.
  */
 import { describe, expect, it, beforeEach } from 'vitest';
-import { resetGameEngineStore, initializeGameEngine, registerPlayer, updateQuest, getQuestsForEvent } from '../lib/game-engine';
+import { resetGameEngineStore, initializeGameEngine, registerPlayer, updateQuest, getQuestsForEvent, updateEvent } from '../lib/game-engine';
 import { SEED_EVENT, SEED_FAIR_EVENT, SEED_FAIR_QUESTS, SEED_FAIR_MYSTERY_PRIZES } from '../lib/seed-data';
 import { isFairCoreQuest, parseMysterySignalNumber, CORE_QR_COUNT, MYSTERY_TOTAL_POOL_CENTS } from '../lib/fair-hunt';
 import { GET as adminFairQrGet, POST as adminFairQrPost } from '../app/api/admin/fair-qr/route';
@@ -19,6 +19,7 @@ import { FAIR_MAP_CENTER } from '../components/FairLiveMap';
 const GM_HEADERS = { 'x-admin-key': 'canton-gm-2026' };
 
 function widenAllCoreSignalWindows() {
+  updateEvent(SEED_FAIR_EVENT.id, { startTime: undefined, endTime: undefined, status: 'active', isPaused: false });
   for (const quest of SEED_FAIR_QUESTS.filter(isFairCoreQuest)) {
     updateQuest(quest.id, { startsAt: undefined, expiresAt: undefined });
   }

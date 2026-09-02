@@ -1720,14 +1720,22 @@ export function createEvent(eventData: Omit<QuestEvent, 'id' | 'createdAt'>): Qu
   return createEventWizard(eventData);
 }
 
-export function updateEventStatus(eventId: string, status: QuestEvent['status']): QuestEvent | undefined {
+export function updateEvent(eventId: string, patch: Partial<QuestEvent>): QuestEvent | undefined {
   const events = getEvents();
   const event = events.find((e) => e.id === eventId);
   if (!event) return undefined;
 
-  event.status = status;
+  Object.assign(event, patch);
   setStoredItem(STORAGE_KEYS.EVENTS, events);
   return event;
+}
+
+export function getEventById(eventId: string): QuestEvent | undefined {
+  return getEvents().find((e) => e.id === eventId);
+}
+
+export function updateEventStatus(eventId: string, status: QuestEvent['status']): QuestEvent | undefined {
+  return updateEvent(eventId, { status });
 }
 
 export function getQuestsForEvent(eventId: string): Quest[] {
@@ -2525,6 +2533,28 @@ export function claimFairMysterySignal(playerId: string, questId: string): FairM
   }
   if (quest.status !== 'active') {
     return { outcome: 'unavailable', message: 'This Signal is not currently active.' };
+  }
+
+  const nowMs = Date.now();
+  if (quest.startsAt && new Date(quest.startsAt).getTime() > nowMs) {
+    return { outcome: 'unavailable', message: 'The Fair QR Hunt is not open yet.' };
+  }
+  if (quest.expiresAt && new Date(quest.expiresAt).getTime() <= nowMs) {
+    return { outcome: 'unavailable', message: 'The Fair QR Hunt has closed.' };
+  }
+  if (quest.eventId) {
+    const event = getEvents().find((e) => e.id === quest.eventId);
+    if (event) {
+      if (event.isPaused) {
+        return { outcome: 'unavailable', message: event.pauseReason || 'The Fair QR Hunt is temporarily paused.' };
+      }
+      if (event.startTime && new Date(event.startTime).getTime() > nowMs) {
+        return { outcome: 'unavailable', message: 'The Fair QR Hunt is not open yet.' };
+      }
+      if (event.endTime && new Date(event.endTime).getTime() <= nowMs) {
+        return { outcome: 'unavailable', message: 'The Fair QR Hunt has closed.' };
+      }
+    }
   }
 
   const prizeMap = getFairMysteryPrizeMap();

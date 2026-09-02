@@ -20,6 +20,7 @@ import {
   getEventParticipation,
   getPlayerProgress,
   updateQuest,
+  updateEvent,
 } from '../lib/game-engine';
 import { SEED_EVENT, SEED_FAIR_EVENT, SEED_FAIR_QUESTS, SEED_FAIR_MYSTERY_PRIZES, SEED_QUESTS } from '../lib/seed-data';
 import { isFairCoreQuest, MYSTERY_TOTAL_POOL_CENTS, MYSTERY_SIGNAL_COUNT } from '../lib/fair-hunt';
@@ -33,6 +34,7 @@ import { GET as fairDashboardRoute } from '../app/api/fair/dashboard/route';
 // widened to "always available" here so these tests pass regardless of
 // what today's real date happens to be.
 function widenAllCoreSignalWindows() {
+  updateEvent(SEED_FAIR_EVENT.id, { startTime: undefined, endTime: undefined, status: 'active', isPaused: false });
   for (const quest of SEED_FAIR_QUESTS.filter(isFairCoreQuest)) {
     updateQuest(quest.id, { startsAt: undefined, expiresAt: undefined });
   }
@@ -328,21 +330,23 @@ describe('$300 Mystery Money Hunt — public board & security', () => {
     expect(dash.myWinnings.totalCents).toBe(expectedTotal);
   });
 
-  it('12. revealed + hidden money always equals exactly $300, at every stage of the hunt', async () => {
+  it('12. public dashboard never leaks aggregate revealed/hidden money totals (prevents deduction leaks)', async () => {
     registerPlayer({ displayName: 'Auditor', userId: 'usr-auditor' });
 
     const zero = await (await fairDashboardRoute(new Request('http://localhost:3000/api/fair/dashboard'))).json();
-    expect(zero.board.revealedCents + zero.board.hiddenCents).toBe(30000);
-    expect(zero.board.revealedCents).toBe(0);
-    expect(zero.board.hiddenCents).toBe(30000);
+    expect(zero.board).not.toHaveProperty('revealedCents');
+    expect(zero.board).not.toHaveProperty('hiddenCents');
+    expect(zero.board.totalPoolCents).toBe(30000);
+    expect(zero.board.foundCount).toBe(0);
+    expect(zero.board.totalCount).toBe(20);
 
     await qrClaimRoute(claimRequest('usr-auditor', SIGNAL_01.targetCode!));
     const partial = await (await fairDashboardRoute(new Request('http://localhost:3000/api/fair/dashboard'))).json();
-    expect(partial.board.revealedCents + partial.board.hiddenCents).toBe(30000);
-    expect(partial.board.revealedCents).toBeGreaterThan(0);
+    expect(partial.board).not.toHaveProperty('revealedCents');
+    expect(partial.board).not.toHaveProperty('hiddenCents');
+    expect(partial.board.foundCount).toBe(1);
 
-    // Claim every remaining Signal and confirm the invariant still holds
-    // at full completion (revealed === $300, hidden === $0).
+    // Claim every remaining Signal and confirm public board still omits aggregate totals
     let i = 0;
     for (const quest of coreQuests) {
       if (quest.id === SIGNAL_01.id) continue;
@@ -353,8 +357,8 @@ describe('$300 Mystery Money Hunt — public board & security', () => {
       i += 1;
     }
     const full = await (await fairDashboardRoute(new Request('http://localhost:3000/api/fair/dashboard'))).json();
-    expect(full.board.revealedCents).toBe(30000);
-    expect(full.board.hiddenCents).toBe(0);
+    expect(full.board).not.toHaveProperty('revealedCents');
+    expect(full.board).not.toHaveProperty('hiddenCents');
     expect(full.board.foundCount).toBe(20);
   });
 
@@ -389,5 +393,27 @@ describe('$300 Mystery Money Hunt — public board & security', () => {
     expect(data.isAuthenticated).toBe(false);
     expect(data.board.totalCount).toBe(20);
     expect(data.board.totalPoolCents).toBe(30000);
+  });
+
+  it('16. server-side guard blocks claims before event start time with HUNT_NOT_OPEN', async () => {
+    registerPlayer({ displayName: 'EarlyBird', userId: 'usr-early' });
+    updateEvent(SEED_FAIR_EVENT.id, { startTime: '2099-01-01T00:00:00Z', status: 'upcoming' });
+
+    const res = await qrClaimRoute(claimRequest('usr-early', SIGNAL_01.targetCode!));
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.reason).toBe('hunt_not_open');
+    expect(data.code).toBe('HUNT_NOT_OPEN');
+  });
+
+  it('17. server-side guard blocks claims after event end time with HUNT_CLOSED', async () => {
+    registerPlayer({ displayName: 'LateComer', userId: 'usr-late' });
+    updateEvent(SEED_FAIR_EVENT.id, { startTime: '2020-01-01T00:00:00Z', endTime: '2020-01-02T00:00:00Z', status: 'ended' });
+
+    const res = await qrClaimRoute(claimRequest('usr-late', SIGNAL_01.targetCode!));
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.reason).toBe('hunt_closed');
+    expect(data.code).toBe('HUNT_CLOSED');
   });
 });

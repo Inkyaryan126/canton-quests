@@ -55,7 +55,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, reason: 'not_recognized' });
     }
 
-    const isFair = quest.eventId && (await isEventFairQrHunt(quest.eventId));
+    const fairEvent = quest.eventId ? await getFairEventIfApplicable(quest.eventId) : null;
+    const isFair = Boolean(fairEvent);
     const isMysterySignal = quest.category === FAIR_CORE_CATEGORY;
     const isBonus = isFairBonusQuest(quest);
 
@@ -63,8 +64,54 @@ export async function POST(request: Request) {
     // the Fair requires no path, so this never prompts one. Skipped for
     // non-Fair (e.g. Main Operation) quests: that Operation's own entry
     // flow (app/events/[slug]/page.tsx) is the sole path-selection gate.
-    if (isFair) {
+    if (isFair && quest.eventId) {
       await getOrCreateEventParticipationDB(quest.eventId, player.id);
+    }
+
+    // Event-level timing and pause enforcement (SERVER-SIDE)
+    if (isFair && fairEvent) {
+      const nowMs = Date.now();
+      const startMs = fairEvent.startTime ? new Date(fairEvent.startTime).getTime() : 0;
+      const endMs = fairEvent.endTime ? new Date(fairEvent.endTime).getTime() : Infinity;
+
+      if (fairEvent.isPaused) {
+        return NextResponse.json({
+          success: false,
+          reason: 'hunt_paused',
+          code: 'HUNT_PAUSED',
+          message: fairEvent.pauseReason || 'The Fair QR Hunt is temporarily paused.',
+          isBonus,
+          isFair,
+          isMysterySignal,
+          quest: getPublicQuestView(quest),
+        });
+      }
+
+      if (startMs && nowMs < startMs) {
+        return NextResponse.json({
+          success: false,
+          reason: 'hunt_not_open',
+          code: 'HUNT_NOT_OPEN',
+          message: 'The Fair QR Hunt is not open yet.',
+          isBonus,
+          isFair,
+          isMysterySignal,
+          quest: getPublicQuestView(quest),
+        });
+      }
+
+      if (endMs && nowMs > endMs) {
+        return NextResponse.json({
+          success: false,
+          reason: 'hunt_closed',
+          code: 'HUNT_CLOSED',
+          message: 'The Fair QR Hunt has closed.',
+          isBonus,
+          isFair,
+          isMysterySignal,
+          quest: getPublicQuestView(quest),
+        });
+      }
     }
 
     // Pre-classify availability for the claim UI's exact copy — the actual
@@ -75,9 +122,13 @@ export async function POST(request: Request) {
     // unavailable quest actually award anything.
     const availability = getQuestAvailability(quest);
     if (!availability.ok) {
+      const isNotOpen = availability.reason === 'not_yet_active';
+      const isClosed = availability.reason === 'expired';
       return NextResponse.json({
         success: false,
-        reason: availability.reason,
+        reason: isFair && isNotOpen ? 'hunt_not_open' : isFair && isClosed ? 'hunt_closed' : availability.reason,
+        code: isFair && isNotOpen ? 'HUNT_NOT_OPEN' : isFair && isClosed ? 'HUNT_CLOSED' : undefined,
+        message: availability.message,
         isBonus,
         isFair,
         isMysterySignal,
@@ -163,7 +214,8 @@ export async function POST(request: Request) {
   }
 }
 
-async function isEventFairQrHunt(eventId: string): Promise<boolean> {
+async function getFairEventIfApplicable(eventId: string) {
   const fairEvent = await getEventBySlugDB(FAIR_EVENT_SLUG);
-  return Boolean(fairEvent && fairEvent.id === eventId);
+  if (fairEvent && fairEvent.id === eventId) return fairEvent;
+  return null;
 }

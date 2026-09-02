@@ -2468,6 +2468,28 @@ export async function claimFairMysterySignalDB(
     return { outcome: 'unavailable', message: 'This Signal is not currently active.' };
   }
 
+  const nowMs = Date.now();
+  if (quest.startsAt && new Date(quest.startsAt).getTime() > nowMs) {
+    return { outcome: 'unavailable', message: 'The Fair QR Hunt is not open yet.' };
+  }
+  if (quest.expiresAt && new Date(quest.expiresAt).getTime() <= nowMs) {
+    return { outcome: 'unavailable', message: 'The Fair QR Hunt has closed.' };
+  }
+  if (quest.eventId) {
+    const event = await getEventByIdDB(quest.eventId);
+    if (event) {
+      if (event.isPaused) {
+        return { outcome: 'unavailable', message: event.pauseReason || 'The Fair QR Hunt is temporarily paused.' };
+      }
+      if (event.startTime && new Date(event.startTime).getTime() > nowMs) {
+        return { outcome: 'unavailable', message: 'The Fair QR Hunt is not open yet.' };
+      }
+      if (event.endTime && new Date(event.endTime).getTime() <= nowMs) {
+        return { outcome: 'unavailable', message: 'The Fair QR Hunt has closed.' };
+      }
+    }
+  }
+
   const { data: prizeRow } = await supabaseAdmin
     .from('fair_signal_prizes')
     .select('cash_value_cents')
