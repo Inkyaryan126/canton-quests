@@ -2391,6 +2391,63 @@ async function getFairMysteryPrizeMapDB(questIds: string[]): Promise<Map<string,
   return new Map(data.map((row: any) => [row.quest_id, row.cash_value_cents]));
 }
 
+export interface FairMysteryAdminData {
+  prizeCents: Record<string, number>;
+  claims: Record<string, { playerId: string; claimedAt: string }>;
+  finderNames: Record<string, string>;
+}
+
+/**
+ * Admin-scoped Mystery Money lookup for the Secret Master Board
+ * (app/admin/fair-qr) — unlike getFairMysteryBoardDB/claimFairMysterySignalDB,
+ * this exists purely for Game Master visibility, so unlike the public board
+ * it is not filtered by quest status or claim state: it returns every
+ * configured prize and claim for the given quest IDs, found or unfound,
+ * active or inactive. Falls back to the local/offline engine the same way
+ * every other Mystery Money DB function does, so the admin console and its
+ * tests work correctly without real Supabase configured.
+ */
+export async function getFairMysteryAdminDataDB(questIds: string[]): Promise<FairMysteryAdminData> {
+  if (questIds.length === 0) return { prizeCents: {}, claims: {}, finderNames: {} };
+
+  if (!isSupabaseConfigured || !supabase) {
+    const prizeMap = localEngine.getFairMysteryPrizeMap();
+    const prizeCents: Record<string, number> = {};
+    for (const id of questIds) {
+      const cents = prizeMap.get(id);
+      if (cents !== undefined) prizeCents[id] = cents;
+    }
+    const localClaims = localEngine.getFairMysteryClaimsForQuests(questIds);
+    const claims: Record<string, { playerId: string; claimedAt: string }> = {};
+    for (const c of localClaims) claims[c.questId] = { playerId: c.playerId, claimedAt: c.claimedAt };
+    const finderNames: Record<string, string> = {};
+    for (const c of localClaims) {
+      const player = localEngine.getPlayerById(c.playerId);
+      if (player) finderNames[c.playerId] = player.displayName;
+    }
+    return { prizeCents, claims, finderNames };
+  }
+
+  const prizeCents: Record<string, number> = {};
+  const claims: Record<string, { playerId: string; claimedAt: string }> = {};
+  const finderNames: Record<string, string> = {};
+  if (isSupabaseAdminConfigured && supabaseAdmin) {
+    const [{ data: prizeRows }, { data: claimRows }] = await Promise.all([
+      supabaseAdmin.from('fair_signal_prizes').select('quest_id, cash_value_cents').in('quest_id', questIds),
+      supabaseAdmin.from('fair_signal_claims').select('quest_id, player_id, claimed_at').in('quest_id', questIds),
+    ]);
+    for (const row of prizeRows || []) prizeCents[row.quest_id] = row.cash_value_cents;
+    for (const row of claimRows || []) claims[row.quest_id] = { playerId: row.player_id, claimedAt: row.claimed_at };
+
+    const finderIds = Array.from(new Set(Object.values(claims).map((c) => c.playerId)));
+    if (finderIds.length > 0) {
+      const { data: playerRows } = await supabaseAdmin.from('players').select('id, display_name').in('id', finderIds);
+      for (const row of playerRows || []) finderNames[row.id] = row.display_name;
+    }
+  }
+  return { prizeCents, claims, finderNames };
+}
+
 export async function claimFairMysterySignalDB(
   playerId: string,
   playerDisplayName: string,

@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import CinematicNav from '@/components/CinematicNav';
+import { parseMysterySignalNumber, CORE_QR_COUNT } from '@/lib/fair-hunt';
 
 type DeploymentStatus = 'placement_tbd' | 'ready_to_print' | 'placed' | 'disabled';
 
@@ -77,6 +78,7 @@ export default function FairQrAdminPage() {
   const [loading, setLoading] = useState(false);
   const [busyQuestId, setBusyQuestId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
 
   const loadData = async () => {
@@ -182,29 +184,7 @@ export default function FairQrAdminPage() {
                 )}
 
                 {mysteryMoney && (
-                  <section className="glass-panel p-5 border-emerald-500/30 space-y-3">
-                    <h2 className="text-sm font-extrabold text-emerald-300 uppercase tracking-wide">$300 Mystery Money — Admin Summary</h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-mono text-xs">
-                      <div>
-                        <div className="text-lg font-black text-white">{formatCents(mysteryMoney.totalPoolCents)}</div>
-                        <div className="text-gray-400">Total Pool</div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-black text-emerald-300">{formatCents(mysteryMoney.totalClaimedCents)}</div>
-                        <div className="text-gray-400">Claimed</div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-black text-cyan-300">{formatCents(mysteryMoney.totalRemainingCents)}</div>
-                        <div className="text-gray-400">Remaining</div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-black text-white">
-                          {mysteryMoney.signalsFound} / {mysteryMoney.signalsTotal}
-                        </div>
-                        <div className="text-gray-400">Signals Found</div>
-                      </div>
-                    </div>
-                  </section>
+                  <SecretMasterBoard core={core} summary={mysteryMoney} onOpenDetail={setSelectedSignalId} />
                 )}
 
                 <div className="text-xs font-mono text-gray-400">
@@ -212,16 +192,6 @@ export default function FairQrAdminPage() {
                   real placement note or are already placed.
                 </div>
 
-                <QuestTable
-                  title="Mystery Money Signals (20)"
-                  rows={core}
-                  showMoney
-                  onToggleStatus={toggleStatus}
-                  onRunAction={runAction}
-                  busyQuestId={busyQuestId}
-                  expandedId={expandedId}
-                  setExpandedId={setExpandedId}
-                />
                 <QuestTable
                   title="Daily Bonus Signals — RETIRED (not part of the $300 Mystery Money Hunt)"
                   rows={bonus}
@@ -241,6 +211,21 @@ export default function FairQrAdminPage() {
                     ))}
                   </ul>
                 </section>
+
+                {selectedSignalId &&
+                  (() => {
+                    const quest = core.find((q) => q.id === selectedSignalId);
+                    if (!quest) return null;
+                    return (
+                      <SignalDetailModal
+                        quest={quest}
+                        busy={busyQuestId === quest.id}
+                        onRunAction={runAction}
+                        onToggleStatus={toggleStatus}
+                        onClose={() => setSelectedSignalId(null)}
+                      />
+                    );
+                  })()}
               </>
             )}
           </>
@@ -250,10 +235,168 @@ export default function FairQrAdminPage() {
   );
 }
 
+/**
+ * SECRET MASTER BOARD — admin-only. Board position is always the Signal
+ * number parsed from its slug (fair-core-07 -> square 07), never the array
+ * index the API happened to return rows in and never affected by
+ * placement/found state — so the grid can never shuffle, and matches the
+ * public Mystery Money Board's own fixed square-per-Signal-number layout
+ * (app/events/fair-qr-hunt/page.tsx).
+ */
+function SecretMasterBoard({
+  core,
+  summary,
+  onOpenDetail,
+}: {
+  core: AdminQuestRow[];
+  summary: MysteryMoneySummary;
+  onOpenDetail: (id: string) => void;
+}) {
+  const byNumber = new Map(core.map((q) => [parseMysterySignalNumber(q.slug), q] as const));
+  const positions = Array.from({ length: CORE_QR_COUNT }, (_, i) => i + 1);
+  const signalsRemaining = summary.signalsTotal - summary.signalsFound;
+
+  return (
+    <section className="glass-panel p-5 border-2 border-red-500/40 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-sm font-extrabold text-red-300 uppercase tracking-wide">Secret Master Board — Admin Only</h2>
+        <span className="text-[10px] text-red-400/70 font-mono">Hidden values below — never shown to players</span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center font-mono text-xs">
+        <div>
+          <div className="text-lg font-black text-white">{formatCents(summary.totalPoolCents)}</div>
+          <div className="text-gray-400">Total Pool</div>
+        </div>
+        <div>
+          <div className="text-lg font-black text-emerald-300">{formatCents(summary.totalClaimedCents)}</div>
+          <div className="text-gray-400">Claimed</div>
+        </div>
+        <div>
+          <div className="text-lg font-black text-cyan-300">{formatCents(summary.totalRemainingCents)}</div>
+          <div className="text-gray-400">Still Hidden</div>
+        </div>
+        <div>
+          <div className="text-lg font-black text-white">
+            {summary.signalsFound} / {summary.signalsTotal}
+          </div>
+          <div className="text-gray-400">Signals Found</div>
+        </div>
+        <div>
+          <div className="text-lg font-black text-amber-300">{signalsRemaining}</div>
+          <div className="text-gray-400">Signals Remaining</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        {positions.map((num) => {
+          const quest = byNumber.get(num);
+          if (!quest) {
+            return (
+              <div
+                key={num}
+                className="aspect-square rounded-lg border border-stone-800 bg-stone-950 flex items-center justify-center text-[9px] text-stone-700"
+              >
+                —
+              </div>
+            );
+          }
+          const placed = Boolean(quest.placedAt);
+          return (
+            <button
+              key={quest.id}
+              type="button"
+              onClick={() => onOpenDetail(quest.id)}
+              className={`aspect-square rounded-lg border p-1 flex flex-col items-center justify-center gap-0.5 text-center font-mono transition-colors hover:border-cyan-500/60 ${
+                quest.found ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-stone-900 border-stone-700'
+              }`}
+            >
+              <span className="text-[9px] text-gray-400">SIG {String(num).padStart(2, '0')}</span>
+              <span className="text-sm font-black text-amber-300">{formatCents(quest.cashValueCents)}</span>
+              <span className={`text-[8px] font-bold ${quest.found ? 'text-emerald-400' : 'text-stone-500'}`}>
+                {quest.found ? 'FOUND' : 'UNFOUND'}
+              </span>
+              <span className={`text-[8px] font-bold ${placed ? 'text-cyan-400' : 'text-stone-600'}`}>
+                {placed ? 'PLACED' : 'NOT PLACED'}
+              </span>
+              {quest.found && quest.finderDisplayName && (
+                <span className="text-[8px] text-white truncate max-w-full">{quest.finderDisplayName}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function SignalDetailModal({
+  quest,
+  busy,
+  onRunAction,
+  onToggleStatus,
+  onClose,
+}: {
+  quest: AdminQuestRow;
+  busy: boolean;
+  onRunAction: (questId: string, payload: Record<string, unknown>) => Promise<void>;
+  onToggleStatus: (quest: AdminQuestRow) => void;
+  onClose: () => void;
+}) {
+  const num = parseMysterySignalNumber(quest.slug);
+  return (
+    <div
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <div
+        className="max-w-lg w-full max-h-[85vh] overflow-y-auto bg-stone-900 border border-amber-500/30 p-6 rounded-2xl space-y-4 text-xs font-mono shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+          <span className="text-amber-400 font-bold uppercase text-[11px] tracking-wider">
+            Signal {String(num).padStart(2, '0')} — {formatCents(quest.cashValueCents)}
+          </span>
+          <button onClick={onClose} className="text-stone-500 hover:text-white transition-colors">✕</button>
+        </div>
+
+        {quest.found ? (
+          <div className="rounded-lg border border-emerald-500/40 bg-emerald-950/30 p-3 space-y-1">
+            <p className="text-emerald-300 font-bold">FOUND</p>
+            <p className="text-white">{quest.finderDisplayName || 'Unknown player'}</p>
+            <p className="text-gray-400 text-[10px]">{formatTime(quest.claimedAt)}</p>
+          </div>
+        ) : (
+          <p className="text-stone-500 font-bold">UNFOUND — hidden value shown above is admin-only.</p>
+        )}
+
+        <div className="flex items-center gap-2 border-t border-stone-800 pt-3">
+          <span className="text-gray-400">Signal status:</span>
+          <span className={quest.status === 'active' ? 'text-emerald-400' : 'text-stone-500'}>{quest.status}</span>
+          <button
+            type="button"
+            onClick={() => onToggleStatus(quest)}
+            disabled={busy}
+            className="ml-auto px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-[10px] font-bold disabled:opacity-50"
+          >
+            {quest.status === 'active' ? 'DEACTIVATE' : 'ACTIVATE'}
+          </button>
+        </div>
+
+        <div className="border-t border-stone-800 pt-3">
+          <p className="text-[10px] text-gray-400 uppercase mb-2">
+            Physical placement — location only, never changes board position or prize value
+          </p>
+          <PlacementEditor quest={quest} busy={busy} onRunAction={onRunAction} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function QuestTable({
   title,
   rows,
-  showMoney,
   onToggleStatus,
   onRunAction,
   busyQuestId,
@@ -263,7 +406,6 @@ function QuestTable({
 }: {
   title: string;
   rows: AdminQuestRow[];
-  showMoney?: boolean;
   onToggleStatus: (quest: AdminQuestRow) => void;
   onRunAction: (questId: string, payload: Record<string, unknown>) => Promise<void>;
   busyQuestId: string | null;
@@ -271,7 +413,7 @@ function QuestTable({
   setExpandedId: (id: string | null) => void;
   showWindow?: boolean;
 }) {
-  const colCount = 6 + (showMoney ? 3 : 0) + (showWindow ? 1 : 0);
+  const colCount = 6 + (showWindow ? 1 : 0);
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-extrabold text-white">{title}</h2>
@@ -281,9 +423,6 @@ function QuestTable({
             <tr className="text-left text-gray-400 border-b border-stone-800">
               <th className="py-2 pr-3">Label</th>
               <th className="py-2 pr-3">Code</th>
-              {showMoney && <th className="py-2 pr-3">Hidden Value</th>}
-              {showMoney && <th className="py-2 pr-3">Found</th>}
-              {showMoney && <th className="py-2 pr-3">Finder</th>}
               {showWindow && <th className="py-2 pr-3">Window (UTC)</th>}
               <th className="py-2 pr-3">Deployment</th>
               <th className="py-2 pr-3">Claimed At</th>
@@ -300,11 +439,6 @@ function QuestTable({
                   <tr className="border-b border-stone-900 text-white">
                     <td className="py-2 pr-3">{q.title}</td>
                     <td className="py-2 pr-3 text-cyan-300">{q.targetCode}</td>
-                    {showMoney && <td className="py-2 pr-3 text-amber-300 font-bold">{formatCents(q.cashValueCents)}</td>}
-                    {showMoney && (
-                      <td className="py-2 pr-3">{q.found ? <span className="text-emerald-400">YES</span> : <span className="text-stone-500">no</span>}</td>
-                    )}
-                    {showMoney && <td className="py-2 pr-3">{q.finderDisplayName || '—'}</td>}
                     {showWindow && (
                       <td className="py-2 pr-3 text-[10px] text-gray-400">
                         {q.startsAt?.slice(0, 16).replace('T', ' ')} → {q.expiresAt?.slice(0, 16).replace('T', ' ')}

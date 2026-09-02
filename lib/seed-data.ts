@@ -330,8 +330,10 @@ export const SEED_FAIR_EVENT: QuestEvent = {
   basicInstructions:
     '1. Explore the fairgrounds and find the QR markers.\n2. Scan each one — every unique marker counts once per player.\n3. Track your live rank on the Fair QR Hunt leaderboard.',
   safetyNotes: 'Stay in public fairground areas, follow posted event staff instructions, and use marked walkways.',
-  mapCenterLat: 40.7989,
-  mapCenterLon: -81.3748,
+  // Matches components/FairLiveMap.tsx's FAIR_MAP_CENTER and the corrected
+  // production events.map_center_lat/lon row exactly (2026-09-02 fix).
+  mapCenterLat: 40.80192286342209,
+  mapCenterLon: -81.40825970719298,
   themeColor: '#22d3ee',
   createdAt: '2026-08-15T00:00:00Z',
   requiresPath: false,

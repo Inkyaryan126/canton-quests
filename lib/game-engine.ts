@@ -2486,7 +2486,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
    (Supabase-not-configured) engine that the Fair test suite runs against.
    ========================================================================= */
 
-function getFairMysteryPrizeMap(): Map<string, number> {
+export function getFairMysteryPrizeMap(): Map<string, number> {
   const prizes = getStoredItem<Array<{ questId: string; cashCents: number }>>(STORAGE_KEYS.FAIR_MYSTERY_PRIZES, []);
   return new Map(prizes.map((p) => [p.questId, p.cashCents]));
 }
@@ -2497,8 +2497,14 @@ interface LocalFairMysteryClaim {
   claimedAt: string;
 }
 
-function getFairMysteryClaims(): LocalFairMysteryClaim[] {
+export function getFairMysteryClaims(): LocalFairMysteryClaim[] {
   return getStoredItem<LocalFairMysteryClaim[]>(STORAGE_KEYS.FAIR_MYSTERY_CLAIMS, []);
+}
+
+/** Admin-scoped: every claim for the given quest IDs, regardless of quest status — mirrors the unfiltered `fair_signal_claims .in('quest_id', questIds)` read the real Supabase-backed admin route performs. */
+export function getFairMysteryClaimsForQuests(questIds: string[]): LocalFairMysteryClaim[] {
+  const idSet = new Set(questIds);
+  return getFairMysteryClaims().filter((c) => idSet.has(c.questId));
 }
 
 /**

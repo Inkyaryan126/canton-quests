@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { resolveAdminSessionFromRequest } from '@/lib/admin-auth';
-import { getEventBySlugDB, getQuestsForEventDB, updateQuestDB } from '@/lib/supabase-db';
-import { supabaseAdmin, isSupabaseAdminConfigured } from '@/lib/supabase';
+import { getEventBySlugDB, getQuestsForEventDB, updateQuestDB, getFairMysteryAdminDataDB } from '@/lib/supabase-db';
 import { FAIR_CORE_CATEGORY, FAIR_EVENT_SLUG, MYSTERY_TOTAL_POOL_CENTS, getDeploymentStatus } from '@/lib/fair-hunt';
 import { QuestPlacementDetails } from '@/lib/types';
 
@@ -30,23 +29,7 @@ export async function GET(request: Request) {
     const sorted = [...quests].sort((a, b) => a.sortOrder - b.sortOrder);
     const mysteryQuestIds = sorted.filter((q) => q.category === FAIR_CORE_CATEGORY).map((q) => q.id);
 
-    let prizeCents: Record<string, number> = {};
-    let claims: Record<string, { playerId: string; claimedAt: string }> = {};
-    let finderNames: Record<string, string> = {};
-    if (isSupabaseAdminConfigured && supabaseAdmin && mysteryQuestIds.length > 0) {
-      const [{ data: prizeRows }, { data: claimRows }] = await Promise.all([
-        supabaseAdmin.from('fair_signal_prizes').select('quest_id, cash_value_cents').in('quest_id', mysteryQuestIds),
-        supabaseAdmin.from('fair_signal_claims').select('quest_id, player_id, claimed_at').in('quest_id', mysteryQuestIds),
-      ]);
-      for (const row of prizeRows || []) prizeCents[row.quest_id] = row.cash_value_cents;
-      for (const row of claimRows || []) claims[row.quest_id] = { playerId: row.player_id, claimedAt: row.claimed_at };
-
-      const finderIds = Array.from(new Set(Object.values(claims).map((c) => c.playerId)));
-      if (finderIds.length > 0) {
-        const { data: playerRows } = await supabaseAdmin.from('players').select('id, display_name').in('id', finderIds);
-        for (const row of playerRows || []) finderNames[row.id] = row.display_name;
-      }
-    }
+    const { prizeCents, claims, finderNames } = await getFairMysteryAdminDataDB(mysteryQuestIds);
 
     const totalClaimedCents = Object.keys(claims).reduce((sum, questId) => sum + (prizeCents[questId] || 0), 0);
 

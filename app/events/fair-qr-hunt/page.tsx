@@ -168,7 +168,7 @@ function MysteryBoard({ board }: { board: FairMysteryBoard }) {
         <DollarSign size={18} className="text-emerald-400" />
         <h2 className="text-lg font-extrabold text-white uppercase tracking-tight">Mystery Money Board</h2>
       </div>
-      <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {board.signals.map((signal) => (
           <div
             key={signal.questId}
