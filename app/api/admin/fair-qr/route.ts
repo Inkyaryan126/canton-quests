@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import { resolveAdminSessionFromRequest } from '@/lib/admin-auth';
-import { getEventBySlugDB, getQuestsForEventDB, getLeaderboardDB, updateQuestDB } from '@/lib/supabase-db';
+import { getEventBySlugDB, getQuestsForEventDB, updateQuestDB } from '@/lib/supabase-db';
 import { supabaseAdmin, isSupabaseAdminConfigured } from '@/lib/supabase';
-import { FAIR_EVENT_SLUG, getDeploymentStatus } from '@/lib/fair-hunt';
+import { FAIR_CORE_CATEGORY, FAIR_EVENT_SLUG, MYSTERY_TOTAL_POOL_CENTS, getDeploymentStatus } from '@/lib/fair-hunt';
 import { QuestPlacementDetails } from '@/lib/types';
 
 /**
  * GET /api/admin/fair-qr — every core + daily bonus QR record (including
  * the internal fields never exposed by the public quest views: target_code,
- * gm_notes/placement note, structured placement details, per-quest unique-
- * claim count, last claim time, and derived deployment status), plus the
- * current Fair leaderboard, for Commander/admin inspection.
+ * gm_notes/placement note, structured placement details, derived
+ * deployment status), plus, for the 20 Mystery Money Signals only, the
+ * ADMIN-ONLY hidden cash value, found/finder/claim time, and pool totals —
+ * for Commander/operations use (recovery, physical retrieval, prize
+ * payout), never exposed via any public route.
  */
 export async function GET(request: Request) {
   const session = resolveAdminSessionFromRequest(request);
@@ -26,46 +28,64 @@ export async function GET(request: Request) {
 
     const quests = await getQuestsForEventDB(event.id);
     const sorted = [...quests].sort((a, b) => a.sortOrder - b.sortOrder);
+    const mysteryQuestIds = sorted.filter((q) => q.category === FAIR_CORE_CATEGORY).map((q) => q.id);
 
-    let claimCounts: Record<string, number> = {};
-    let lastClaimedAt: Record<string, string> = {};
-    if (isSupabaseAdminConfigured && supabaseAdmin) {
-      const { data } = await supabaseAdmin
-        .from('quest_submissions')
-        .select('quest_id, submitted_at')
-        .eq('event_id', event.id)
-        .eq('status', 'verified')
-        .order('submitted_at', { ascending: true });
-      for (const row of data || []) {
-        claimCounts[row.quest_id] = (claimCounts[row.quest_id] || 0) + 1;
-        // Rows are ascending, so the last write for a quest_id is always its most recent claim.
-        lastClaimedAt[row.quest_id] = row.submitted_at;
+    let prizeCents: Record<string, number> = {};
+    let claims: Record<string, { playerId: string; claimedAt: string }> = {};
+    let finderNames: Record<string, string> = {};
+    if (isSupabaseAdminConfigured && supabaseAdmin && mysteryQuestIds.length > 0) {
+      const [{ data: prizeRows }, { data: claimRows }] = await Promise.all([
+        supabaseAdmin.from('fair_signal_prizes').select('quest_id, cash_value_cents').in('quest_id', mysteryQuestIds),
+        supabaseAdmin.from('fair_signal_claims').select('quest_id, player_id, claimed_at').in('quest_id', mysteryQuestIds),
+      ]);
+      for (const row of prizeRows || []) prizeCents[row.quest_id] = row.cash_value_cents;
+      for (const row of claimRows || []) claims[row.quest_id] = { playerId: row.player_id, claimedAt: row.claimed_at };
+
+      const finderIds = Array.from(new Set(Object.values(claims).map((c) => c.playerId)));
+      if (finderIds.length > 0) {
+        const { data: playerRows } = await supabaseAdmin.from('players').select('id, display_name').in('id', finderIds);
+        for (const row of playerRows || []) finderNames[row.id] = row.display_name;
       }
     }
 
-    const leaderboard = await getLeaderboardDB(event.id);
+    const totalClaimedCents = Object.keys(claims).reduce((sum, questId) => sum + (prizeCents[questId] || 0), 0);
 
     return NextResponse.json({
       success: true,
       event,
-      quests: sorted.map((q) => ({
-        id: q.id,
-        slug: q.slug,
-        title: q.title,
-        category: q.category,
-        pointValue: q.pointValue,
-        targetCode: q.targetCode,
-        status: q.status,
-        startsAt: q.startsAt,
-        expiresAt: q.expiresAt,
-        gmNotes: q.gmNotes,
-        placementDetails: q.placementDetails || null,
-        placedAt: q.placedAt || null,
-        deploymentStatus: getDeploymentStatus(q),
-        uniqueClaimCount: claimCounts[q.id] || 0,
-        lastClaimedAt: lastClaimedAt[q.id] || null,
-      })),
-      leaderboard,
+      quests: sorted.map((q) => {
+        const isMystery = q.category === FAIR_CORE_CATEGORY;
+        const claim = claims[q.id];
+        return {
+          id: q.id,
+          slug: q.slug,
+          title: q.title,
+          category: q.category,
+          targetCode: q.targetCode,
+          status: q.status,
+          startsAt: q.startsAt,
+          expiresAt: q.expiresAt,
+          gmNotes: q.gmNotes,
+          placementDetails: q.placementDetails || null,
+          placedAt: q.placedAt || null,
+          deploymentStatus: getDeploymentStatus(q),
+          ...(isMystery
+            ? {
+                cashValueCents: prizeCents[q.id] ?? null,
+                found: Boolean(claim),
+                finderDisplayName: claim ? finderNames[claim.playerId] || 'Unknown Player' : null,
+                claimedAt: claim?.claimedAt || null,
+              }
+            : {}),
+        };
+      }),
+      mysteryMoney: {
+        totalPoolCents: MYSTERY_TOTAL_POOL_CENTS,
+        totalClaimedCents,
+        totalRemainingCents: MYSTERY_TOTAL_POOL_CENTS - totalClaimedCents,
+        signalsFound: Object.keys(claims).length,
+        signalsTotal: mysteryQuestIds.length,
+      },
     });
   } catch (error: any) {
     console.error('[API /admin/fair-qr] Server error:', error);
@@ -117,12 +137,21 @@ export async function POST(request: Request) {
       }
       case 'update_placement': {
         const gmNotes = typeof body.gmNotes === 'string' ? body.gmNotes.slice(0, 500) : undefined;
+        const rawLat = body.placementDetails?.latitude;
+        const rawLng = body.placementDetails?.longitude;
+        // Only ever set from a real, admin-entered number — never defaulted
+        // or fabricated. Out-of-range/non-finite input is dropped (treated
+        // as "not provided") rather than silently clamped.
+        const latitude = typeof rawLat === 'number' && Number.isFinite(rawLat) && rawLat >= -90 && rawLat <= 90 ? rawLat : undefined;
+        const longitude = typeof rawLng === 'number' && Number.isFinite(rawLng) && rawLng >= -180 && rawLng <= 180 ? rawLng : undefined;
         const placementDetails =
           body.placementDetails && typeof body.placementDetails === 'object'
             ? {
                 description: typeof body.placementDetails.description === 'string' ? body.placementDetails.description.slice(0, 1000) : undefined,
                 setupNotes: typeof body.placementDetails.setupNotes === 'string' ? body.placementDetails.setupNotes.slice(0, 1000) : undefined,
                 retrievalNotes: typeof body.placementDetails.retrievalNotes === 'string' ? body.placementDetails.retrievalNotes.slice(0, 1000) : undefined,
+                latitude,
+                longitude,
               }
             : undefined;
         updated = await updateQuestDB(body.questId, { gmNotes, placementDetails });

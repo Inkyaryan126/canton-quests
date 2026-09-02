@@ -13,6 +13,19 @@
  * availability (lib/quest-rewards.ts getQuestAvailability, enforced in both
  * submission paths) is what actually blocks claims before/after the Fair —
  * no separate event-level gate is needed here.
+ *
+ * REDESIGN (2026-09-01): the old points/XP/leaderboard mechanic (100 pts/
+ * Signal, 300 pt daily bonus, 2,600 max score, "$100 to top hunter") is
+ * fully retired — see supabase/migrations/20260901130000_fair_mystery_money_hunt.sql.
+ * The Fair is now a $300 Mystery Money Hunt across the 20 core Signals
+ * only: first authenticated scan globally wins that Signal's hidden cash
+ * value, revealed publicly only after the claim. That mechanic's types,
+ * constants, and pure display math live below and in the "MYSTERY MONEY"
+ * section; the actual claim/board/winners DB logic lives in
+ * claimFairMysterySignalDB / getFairMysteryBoardDB / getFairMysteryWinnersDB
+ * (lib/supabase-db.ts) and their local-engine mirrors (lib/game-engine.ts) —
+ * this file only holds pure, DB-agnostic pieces, same as everything else
+ * here.
  */
 
 import { PublicQuestView, Quest, QuestEvent } from './types';
@@ -27,20 +40,20 @@ export const FAIR_CORE_CATEGORY = 'fair_core' as const;
 export const FAIR_BONUS_CATEGORY = 'fair_bonus' as const;
 
 export const CORE_QR_COUNT = 20;
-export const CORE_QR_POINTS = 100;
-export const DAILY_BONUS_POINTS = 300;
 
-/** Canton, Ohio local calendar days the Fair runs, in America/New_York. */
+/**
+ * Canton, Ohio local calendar days the Fair runs, in America/New_York.
+ * The daily-bonus Signal concept these dates once drove is retired along
+ * with the point system (see module header) — every fair_bonus quest is
+ * now status: 'inactive'. Kept here only because the admin console still
+ * displays those retired quest rows for historical/ops visibility.
+ */
 export const FAIR_BONUS_DATES = [
   '2026-09-04',
   '2026-09-05',
 ] as const;
 
 export const DAILY_BONUS_COUNT = FAIR_BONUS_DATES.length;
-
-export const MAX_CORE_SCORE = CORE_QR_COUNT * CORE_QR_POINTS; // 2,000
-export const MAX_BONUS_SCORE = DAILY_BONUS_COUNT * DAILY_BONUS_POINTS; // 2,100
-export const MAX_FAIR_SCORE = MAX_CORE_SCORE + MAX_BONUS_SCORE; // 4,100
 
 export function fairCoreQuestSlug(index: number): string {
   return `fair-core-${String(index).padStart(2, '0')}`;
@@ -82,49 +95,6 @@ export function getFairOperationPhase(event: Pick<QuestEvent, 'startTime' | 'end
   return 'active';
 }
 
-export interface FairDashboardProgress {
-  coreFoundCount: number;
-  coreTotalCount: number;
-  coreScore: number;
-  bonusFoundCount: number;
-  bonusTotalCount: number;
-  bonusScore: number;
-  totalFoundCount: number;
-  totalScore: number;
-  maxScore: number;
-}
-
-/**
- * Aggregates a Fair player's progress from the full Fair quest list plus
- * which quest ids they've verified-claimed. Works from PublicQuestView (no
- * targetCode/gmNotes needed) so it's safe to call with whatever the
- * dashboard API already fetched for display.
- */
-export function computeFairDashboardProgress(
-  fairQuests: Array<Pick<PublicQuestView, 'id' | 'category' | 'pointValue'>>,
-  claimedQuestIds: Iterable<string>
-): FairDashboardProgress {
-  const claimed = claimedQuestIds instanceof Set ? claimedQuestIds : new Set(claimedQuestIds);
-  const coreQuests = fairQuests.filter(isFairCoreQuest);
-  const bonusQuests = fairQuests.filter(isFairBonusQuest);
-  const coreFound = coreQuests.filter((q) => claimed.has(q.id));
-  const bonusFound = bonusQuests.filter((q) => claimed.has(q.id));
-  const coreScore = coreFound.reduce((sum, q) => sum + (q.pointValue || 0), 0);
-  const bonusScore = bonusFound.reduce((sum, q) => sum + (q.pointValue || 0), 0);
-
-  return {
-    coreFoundCount: coreFound.length,
-    coreTotalCount: coreQuests.length,
-    coreScore,
-    bonusFoundCount: bonusFound.length,
-    bonusTotalCount: bonusQuests.length,
-    bonusScore,
-    totalFoundCount: coreFound.length + bonusFound.length,
-    totalScore: coreScore + bonusScore,
-    maxScore: MAX_FAIR_SCORE,
-  };
-}
-
 export type DeploymentStatus = 'placement_tbd' | 'ready_to_print' | 'placed' | 'disabled';
 
 /**
@@ -149,3 +119,105 @@ export const DEPLOYMENT_STATUS_LABEL: Record<DeploymentStatus, string> = {
   placed: 'PLACED',
   disabled: 'DISABLED',
 };
+
+/* =========================================================================
+   $300 MYSTERY MONEY HUNT
+   -------------------------------------------------------------------------
+   Pure types, constants, and display math only — the actual claim/board/
+   winners DB reads and writes (including the global-first-claim race
+   safety) live in lib/supabase-db.ts (claimFairMysterySignalDB,
+   getFairMysteryBoardDB, getFairMysteryWinnersDB) and their local-engine
+   mirrors in lib/game-engine.ts.
+
+   SECURITY: nothing in this file, and no function these types flow
+   through, may ever let an unfound Signal's cashCents reach a public
+   response. FairMysterySignalPublic's cashCents/claimedAt/finder* fields
+   are typed optional specifically so "not present" is the only way an
+   unfound Signal is representable — never a zeroed-out or masked value
+   that could itself leak information.
+   ========================================================================= */
+
+/** The fixed, permanent prize pool — see supabase/migrations/20260901130000_fair_mystery_money_hunt.sql. Never derive this from live data; it's a constant the seeded prizes are checked against. */
+export const MYSTERY_TOTAL_POOL_CENTS = 30000; // $300
+export const MYSTERY_SIGNAL_COUNT = 20;
+
+/** The approved prize distribution — 6x$5, 4x$10, 4x$15, 3x$20, 2x$30, 1x$50 — documented here for reference; the actual per-Signal assignment lives only in the migration and lib/seed-data.ts's SEED_FAIR_MYSTERY_PRIZES. */
+export const MYSTERY_PRIZE_DISTRIBUTION: ReadonlyArray<{ cashCents: number; count: number }> = [
+  { cashCents: 500, count: 6 },
+  { cashCents: 1000, count: 4 },
+  { cashCents: 1500, count: 4 },
+  { cashCents: 2000, count: 3 },
+  { cashCents: 3000, count: 2 },
+  { cashCents: 5000, count: 1 },
+];
+
+export function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
+}
+
+/** A single Signal as it may ever appear in a PUBLIC response. cashCents/claimedAt/finder* are present if and only if the Signal has been claimed — never populated, zeroed, or masked for an unfound Signal. */
+export interface FairMysterySignalPublic {
+  questId: string;
+  slug: string;
+  /** Parsed from the slug, e.g. 7 for "fair-core-07". */
+  number: number;
+  title: string;
+  found: boolean;
+  finderDisplayName?: string;
+  finderAvatarUrl?: string;
+  /** Only present when found === true. */
+  cashCents?: number;
+  /** Only present when found === true. */
+  claimedAt?: string;
+}
+
+export interface FairMysteryBoard {
+  signals: FairMysterySignalPublic[];
+  totalPoolCents: number;
+  /** Sum of found signals' cashCents — safe to publish, reveals nothing about any specific unfound Signal. */
+  revealedCents: number;
+  /** totalPoolCents - revealedCents — the sum of all still-hidden Signals' values, never broken out per-Signal. */
+  hiddenCents: number;
+  foundCount: number;
+  totalCount: number;
+}
+
+/** A player's cumulative Mystery Money winnings — informational only, never a competitive rank ("no additional prize for being #1"). */
+export interface FairMysteryWinner {
+  playerId: string;
+  displayName: string;
+  avatarUrl?: string;
+  signalsFound: number;
+  totalCents: number;
+}
+
+export type FairMysteryClaimOutcome = 'won' | 'already_claimed' | 'not_recognized' | 'unavailable' | 'error';
+
+export interface FairMysteryClaimResult {
+  outcome: FairMysteryClaimOutcome;
+  signal?: { questId: string; slug: string; number: number; title: string };
+  /** Present for both 'won' and 'already_claimed' — the amount is public once any claim exists, per the CRITICAL SECURITY RULE (hidden only pre-claim). */
+  cashCents?: number;
+  /** The display name of whoever actually holds this Signal — present for 'won' (the caller) and 'already_claimed' (the other player). */
+  winnerDisplayName?: string;
+  message?: string;
+}
+
+/** Parses "fair-core-07" -> 7. Returns null for anything else (e.g. a fair_bonus slug). */
+export function parseMysterySignalNumber(slug: string): number | null {
+  const match = slug.match(/^fair-core-(\d{2})$/);
+  return match ? Number(match[1]) : null;
+}
+
+/** Pure aggregation used by both the Supabase and local-engine board builders, and directly by tests. */
+export function computeMysteryBoardTotals(
+  signals: Array<Pick<FairMysterySignalPublic, 'found' | 'cashCents'>>
+): { revealedCents: number; hiddenCents: number; foundCount: number } {
+  const found = signals.filter((s) => s.found);
+  const revealedCents = found.reduce((sum, s) => sum + (s.cashCents || 0), 0);
+  return {
+    revealedCents,
+    hiddenCents: MYSTERY_TOTAL_POOL_CENTS - revealedCents,
+    foundCount: found.length,
+  };
+}

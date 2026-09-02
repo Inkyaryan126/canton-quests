@@ -82,6 +82,7 @@ import {
   SEED_CROWD_OBJECTIVES,
   SEED_BONUS_WINDOWS,
   SEED_PRIZES,
+  SEED_FAIR_MYSTERY_PRIZES,
 } from './seed-data';
 import { checkProximity, formatDistance } from './geo';
 import { evaluateProofIntegrity } from './proof-integrity';
@@ -91,6 +92,16 @@ import {
   FOUNDER_CIPHER_DISTRICTS,
   verifyDistrictDecodeSequence,
 } from './founders-cipher';
+import {
+  FAIR_CORE_CATEGORY,
+  MYSTERY_TOTAL_POOL_CENTS,
+  computeMysteryBoardTotals,
+  parseMysterySignalNumber,
+  type FairMysteryBoard,
+  type FairMysteryClaimResult,
+  type FairMysterySignalPublic,
+  type FairMysteryWinner,
+} from './fair-hunt';
 
 const STORAGE_KEYS = {
   CURRENT_PLAYER: 'canton_quests_current_player',
@@ -122,6 +133,8 @@ const STORAGE_KEYS = {
   EVENT_PLAYERS: 'canton_quests_event_players',
   CIPHER_FRAGMENT_GRANTS: 'canton_quests_cipher_fragment_grants',
   CIPHER_DISTRICT_PROGRESS: 'canton_quests_cipher_district_progress',
+  FAIR_MYSTERY_PRIZES: 'canton_quests_fair_mystery_prizes',
+  FAIR_MYSTERY_CLAIMS: 'canton_quests_fair_mystery_claims',
 };
 
 const inMemoryStore = new Map<string, any>();
@@ -228,6 +241,9 @@ export function initializeGameEngine(): void {
   }
   if (getStoredItem<Prize[]>(STORAGE_KEYS.PRIZES, []).length === 0) {
     setStoredItem(STORAGE_KEYS.PRIZES, JSON.parse(JSON.stringify(SEED_PRIZES)));
+  }
+  if (getStoredItem<Array<{ questId: string; cashCents: number }>>(STORAGE_KEYS.FAIR_MYSTERY_PRIZES, []).length === 0) {
+    setStoredItem(STORAGE_KEYS.FAIR_MYSTERY_PRIZES, JSON.parse(JSON.stringify(SEED_FAIR_MYSTERY_PRIZES)));
   }
 }
 
@@ -2456,6 +2472,164 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     newRank,
     newAchievements,
   };
+}
+
+/* =========================================================================
+   FAIR $300 MYSTERY MONEY HUNT — local/offline engine mirror
+   -------------------------------------------------------------------------
+   Deliberately NOT built on submitQuestProof/awardCollectible/the score
+   ledger above — this is a fully separate claims/prizes mechanism with its
+   own storage keys, so nothing here can affect Founder's Cipher or any
+   other Mission's XP/scoring logic, and nothing in that shared code path
+   can affect this. Mirrors lib/supabase-db.ts's claimFairMysterySignalDB /
+   getFairMysteryBoardDB / getFairMysteryWinnersDB for the local/offline
+   (Supabase-not-configured) engine that the Fair test suite runs against.
+   ========================================================================= */
+
+function getFairMysteryPrizeMap(): Map<string, number> {
+  const prizes = getStoredItem<Array<{ questId: string; cashCents: number }>>(STORAGE_KEYS.FAIR_MYSTERY_PRIZES, []);
+  return new Map(prizes.map((p) => [p.questId, p.cashCents]));
+}
+
+interface LocalFairMysteryClaim {
+  questId: string;
+  playerId: string;
+  claimedAt: string;
+}
+
+function getFairMysteryClaims(): LocalFairMysteryClaim[] {
+  return getStoredItem<LocalFairMysteryClaim[]>(STORAGE_KEYS.FAIR_MYSTERY_CLAIMS, []);
+}
+
+/**
+ * Single-threaded, so "atomic" here simply means: read the claims list,
+ * and if no row exists for this quest_id yet, append one before returning
+ * — no other request can interleave between the check and the write in
+ * this synchronous, in-memory engine. The real concurrency guarantee (for
+ * actual simultaneous network requests) is the Postgres PRIMARY KEY on
+ * fair_signal_claims.quest_id in the Supabase-backed path
+ * (claimFairMysterySignalDB) — this local mirror exists for deterministic
+ * offline testing, not to demonstrate database-level race safety itself.
+ */
+export function claimFairMysterySignal(playerId: string, questId: string): FairMysteryClaimResult {
+  initializeGameEngine();
+  const quest = getQuestById(questId);
+  if (!quest || quest.category !== FAIR_CORE_CATEGORY) {
+    return { outcome: 'not_recognized' };
+  }
+  if (quest.status !== 'active') {
+    return { outcome: 'unavailable', message: 'This Signal is not currently active.' };
+  }
+
+  const prizeMap = getFairMysteryPrizeMap();
+  const cashCents = prizeMap.get(questId);
+  if (cashCents === undefined) {
+    return { outcome: 'error', message: 'No prize is configured for this Signal.' };
+  }
+
+  const signalInfo = {
+    questId: quest.id,
+    slug: quest.slug,
+    number: parseMysterySignalNumber(quest.slug) ?? 0,
+    title: quest.title,
+  };
+
+  const claims = getFairMysteryClaims();
+  const existing = claims.find((c) => c.questId === questId);
+  if (existing) {
+    const finder = getPlayerById(existing.playerId);
+    return {
+      outcome: 'already_claimed',
+      signal: signalInfo,
+      cashCents,
+      winnerDisplayName: finder?.displayName || 'Another player',
+    };
+  }
+
+  const newClaim: LocalFairMysteryClaim = { questId, playerId, claimedAt: new Date().toISOString() };
+  setStoredItem(STORAGE_KEYS.FAIR_MYSTERY_CLAIMS, [...claims, newClaim]);
+
+  const winner = getPlayerById(playerId);
+  return {
+    outcome: 'won',
+    signal: signalInfo,
+    cashCents,
+    winnerDisplayName: winner?.displayName || 'You',
+  };
+}
+
+export function getFairMysteryBoard(eventId: string): FairMysteryBoard {
+  initializeGameEngine();
+  const quests = getQuestsForEvent(eventId).filter((q) => q.category === FAIR_CORE_CATEGORY && q.status === 'active');
+  const prizeMap = getFairMysteryPrizeMap();
+  const claims = getFairMysteryClaims();
+  const claimsByQuest = new Map(claims.map((c) => [c.questId, c]));
+
+  const signals: FairMysterySignalPublic[] = quests
+    .map((quest) => {
+      const claim = claimsByQuest.get(quest.id);
+      const base: FairMysterySignalPublic = {
+        questId: quest.id,
+        slug: quest.slug,
+        number: parseMysterySignalNumber(quest.slug) ?? 0,
+        title: quest.title,
+        found: Boolean(claim),
+      };
+      if (claim) {
+        const finder = getPlayerById(claim.playerId);
+        base.finderDisplayName = finder?.displayName;
+        base.finderAvatarUrl = finder?.avatarUrl;
+        base.cashCents = prizeMap.get(quest.id);
+        base.claimedAt = claim.claimedAt;
+      }
+      return base;
+    })
+    .sort((a, b) => a.number - b.number);
+
+  const totals = computeMysteryBoardTotals(signals);
+
+  return {
+    signals,
+    totalPoolCents: MYSTERY_TOTAL_POOL_CENTS,
+    revealedCents: totals.revealedCents,
+    hiddenCents: totals.hiddenCents,
+    foundCount: totals.foundCount,
+    totalCount: signals.length,
+  };
+}
+
+export function getFairMysteryWinners(eventId: string): FairMysteryWinner[] {
+  initializeGameEngine();
+  const questIds = new Set(
+    getQuestsForEvent(eventId)
+      .filter((q) => q.category === FAIR_CORE_CATEGORY)
+      .map((q) => q.id)
+  );
+  const prizeMap = getFairMysteryPrizeMap();
+  const claims = getFairMysteryClaims().filter((c) => questIds.has(c.questId));
+
+  const byPlayer = new Map<string, { signalsFound: number; totalCents: number }>();
+  for (const claim of claims) {
+    const cents = prizeMap.get(claim.questId) || 0;
+    const entry = byPlayer.get(claim.playerId) || { signalsFound: 0, totalCents: 0 };
+    entry.signalsFound += 1;
+    entry.totalCents += cents;
+    byPlayer.set(claim.playerId, entry);
+  }
+
+  const winners: FairMysteryWinner[] = Array.from(byPlayer.entries()).map(([playerId, stats]) => {
+    const player = getPlayerById(playerId);
+    return {
+      playerId,
+      displayName: player?.displayName || 'Unknown Player',
+      avatarUrl: player?.avatarUrl,
+      signalsFound: stats.signalsFound,
+      totalCents: stats.totalCents,
+    };
+  });
+
+  winners.sort((a, b) => b.totalCents - a.totalCents);
+  return winners;
 }
 
 export function recordScoreLedger(entryData: Omit<ScoreLedgerEntry, 'id' | 'awardedAt'>): ScoreLedgerEntry {

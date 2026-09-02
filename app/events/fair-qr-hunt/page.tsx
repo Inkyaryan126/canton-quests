@@ -2,32 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Lock, CheckCircle2, Trophy, Zap } from 'lucide-react';
+import { Lock, CheckCircle2, DollarSign } from 'lucide-react';
 import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import PageHeader from '@/components/PageHeader';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import FairLiveMapWrapper from '@/components/FairLiveMapWrapper';
-import {
-  computeFairDashboardProgress,
-  FairOperationPhase,
-  MAX_FAIR_SCORE,
-  MAX_CORE_SCORE,
-  MAX_BONUS_SCORE,
-  CORE_QR_COUNT,
-  CORE_QR_POINTS,
-  DAILY_BONUS_COUNT,
-  DAILY_BONUS_POINTS,
-} from '@/lib/fair-hunt';
-import { LeaderboardEntry, PublicQuestView, QuestEvent } from '@/lib/types';
+import { formatCents } from '@/lib/fair-hunt';
+import type { FairMysteryBoard, FairMysteryWinner, FairOperationPhase } from '@/lib/fair-hunt';
+import type { QuestEvent } from '@/lib/types';
 
 interface DashboardData {
   event: QuestEvent;
   phase: FairOperationPhase;
-  todayDateKey: string;
-  quests: PublicQuestView[];
-  leaderboardPreview: LeaderboardEntry[];
-  leaderboardSize: number;
+  board: FairMysteryBoard;
+  winners: FairMysteryWinner[];
   isAuthenticated: boolean;
   player?: {
     id: string;
@@ -37,13 +26,7 @@ interface DashboardData {
     profileImageCropX?: number;
     profileImageCropY?: number;
   };
-  claimedQuestIds?: string[];
-  rank?: number | null;
-}
-
-function fairQuestDateKey(quest: PublicQuestView): string | null {
-  const match = quest.slug.match(/^fair-bonus-(\d{4}-\d{2}-\d{2})$/);
-  return match ? match[1] : null;
+  myWinnings?: { signalsFound: number; totalCents: number };
 }
 
 export default function FairQrHuntDashboard() {
@@ -68,8 +51,8 @@ export default function FairQrHuntDashboard() {
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-8">
         <PageHeader
           eyebrow="MISSION: FAIR QR HUNT"
-          title="CANTON QUESTS: FAIR QR HUNT"
-          body="A path-free QR scavenger hunt across the fairgrounds — 20 permanent Signals plus one daily bonus Signal each day, Sept 4–5. $100 prize on the line."
+          title="$300 MYSTERY MONEY HUNT"
+          body="A path-free QR scavenger hunt across the fairgrounds — 20 Signals, each hiding a real cash prize. First authenticated scanner to find a Signal wins its money, revealed the moment it's claimed."
           accent="cyan"
           divider
         />
@@ -87,16 +70,16 @@ export default function FairQrHuntDashboard() {
             )}
             {data.phase === 'ended' && (
               <div className="rounded-2xl border border-amber-500/40 bg-amber-950/20 p-5 text-sm font-mono text-amber-200">
-                MISSION COMPLETE — the Fair QR Hunt has ended. Final standings remain viewable below.
+                MISSION COMPLETE — the Fair QR Hunt has ended. Final results remain viewable below.
               </div>
             )}
 
-            <ScoreStructure />
+            <MysterySummary board={data.board} />
 
             {!data.isAuthenticated ? (
               <div className="glass-panel p-8 text-center space-y-4 border-cyan-500/40">
                 <h2 className="text-xl font-extrabold text-white">Enter the Fair QR Hunt</h2>
-                <p className="text-sm text-gray-300">Create your permanent Player Identity — no starting path required — to track your Fair progress.</p>
+                <p className="text-sm text-gray-300">Create your permanent Player Identity — no starting path required — to start finding Signals.</p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Link href={`/register?next=${nextParam}`} className="btn btn-primary py-3 px-6 text-sm font-bold">
                     CREATE PLAYER IDENTITY
@@ -112,11 +95,9 @@ export default function FairQrHuntDashboard() {
 
             <FairLiveMapWrapper />
 
-            <CoreHuntGrid quests={data.quests} claimedQuestIds={data.claimedQuestIds || []} />
+            <MysteryBoard board={data.board} />
 
-            <DailyBonusArea quests={data.quests} claimedQuestIds={data.claimedQuestIds || []} todayDateKey={data.todayDateKey} />
-
-            <LeaderboardPreview entries={data.leaderboardPreview} total={data.leaderboardSize} />
+            <FairHuntersList winners={data.winners} />
           </>
         )}
       </main>
@@ -126,33 +107,31 @@ export default function FairQrHuntDashboard() {
   );
 }
 
-function ScoreStructure() {
+function MysterySummary({ board }: { board: FairMysteryBoard }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center font-mono text-xs">
-      <div className="glass-panel p-4 border-cyan-500/30">
-        <div className="text-2xl font-black text-white">
-          {CORE_QR_COUNT} × {CORE_QR_POINTS}
+    <div className="glass-panel p-6 border-emerald-500/30 space-y-4">
+      <div className="text-center">
+        <div className="text-3xl font-black text-white">$300 MYSTERY MONEY HUNT</div>
+        <div className="text-sm font-mono text-gray-400 mt-1">
+          {board.foundCount} / {board.totalCount} SIGNALS FOUND
         </div>
-        <div className="text-gray-400 mt-1">Core Signals — {MAX_CORE_SCORE.toLocaleString()} pts max</div>
       </div>
-      <div className="glass-panel p-4 border-amber-500/30">
-        <div className="text-2xl font-black text-white">
-          {DAILY_BONUS_COUNT} × {DAILY_BONUS_POINTS}
+      <div className="grid grid-cols-2 gap-3 text-center font-mono text-xs">
+        <div className="glass-panel p-4 border-emerald-500/30">
+          <div className="text-2xl font-black text-emerald-300">{formatCents(board.revealedCents)}</div>
+          <div className="text-gray-400 mt-1">Revealed</div>
         </div>
-        <div className="text-gray-400 mt-1">Daily Bonus Signals — {MAX_BONUS_SCORE.toLocaleString()} pts max</div>
-      </div>
-      <div className="glass-panel p-4 border-emerald-500/30">
-        <div className="text-2xl font-black text-white">{MAX_FAIR_SCORE.toLocaleString()}</div>
-        <div className="text-gray-400 mt-1">Maximum Possible Fair Score</div>
+        <div className="glass-panel p-4 border-cyan-500/30">
+          <div className="text-2xl font-black text-cyan-300">{formatCents(board.hiddenCents)}</div>
+          <div className="text-gray-400 mt-1">Still Hidden</div>
+        </div>
       </div>
     </div>
   );
 }
 
 function PlayerStatusPanel({ data }: { data: DashboardData }) {
-  const claimed = new Set(data.claimedQuestIds || []);
-  const progress = computeFairDashboardProgress(data.quests, claimed);
-
+  const winnings = data.myWinnings || { signalsFound: 0, totalCents: 0 };
   return (
     <div className="glass-panel p-6 border-cyan-500/40 flex flex-col sm:flex-row items-center gap-6">
       <PlayerAvatar
@@ -166,146 +145,82 @@ function PlayerStatusPanel({ data }: { data: DashboardData }) {
       />
       <div className="flex-1 text-center sm:text-left">
         <h3 className="text-lg font-extrabold text-white">{data.player?.displayName}</h3>
-        <p className="text-xs font-mono text-gray-400">
-          Fair Rank: {data.rank ? `#${data.rank}` : 'Unranked'} · {progress.totalScore} pts
-        </p>
+        <p className="text-xs font-mono text-gray-400">Your Mystery Money earnings so far</p>
       </div>
-      <div className="grid grid-cols-3 gap-4 text-center font-mono">
+      <div className="grid grid-cols-2 gap-6 text-center font-mono">
         <div>
-          <div className="text-xl font-black text-white">
-            {progress.coreFoundCount}/{progress.coreTotalCount}
-          </div>
-          <div className="text-[10px] text-gray-400 uppercase">Core Found</div>
+          <div className="text-xl font-black text-white">{winnings.signalsFound}</div>
+          <div className="text-[10px] text-gray-400 uppercase">Signals Found</div>
         </div>
         <div>
-          <div className="text-xl font-black text-white">
-            {progress.bonusFoundCount}/{progress.bonusTotalCount}
-          </div>
-          <div className="text-[10px] text-gray-400 uppercase">Bonuses Found</div>
-        </div>
-        <div>
-          <div className="text-xl font-black text-white">{progress.totalFoundCount}</div>
-          <div className="text-[10px] text-gray-400 uppercase">Total Secured</div>
+          <div className="text-xl font-black text-emerald-300">{formatCents(winnings.totalCents)}</div>
+          <div className="text-[10px] text-gray-400 uppercase">Won</div>
         </div>
       </div>
     </div>
   );
 }
 
-function CoreHuntGrid({ quests, claimedQuestIds }: { quests: PublicQuestView[]; claimedQuestIds: string[] }) {
-  const claimed = new Set(claimedQuestIds);
-  const core = quests.filter((q) => q.category === 'fair_core').sort((a, b) => a.sortOrder - b.sortOrder);
-
+function MysteryBoard({ board }: { board: FairMysteryBoard }) {
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2">
-        <Zap size={18} className="text-cyan-400" />
-        <h2 className="text-lg font-extrabold text-white uppercase tracking-tight">Core Hunt Progress</h2>
+        <DollarSign size={18} className="text-emerald-400" />
+        <h2 className="text-lg font-extrabold text-white uppercase tracking-tight">Mystery Money Board</h2>
       </div>
       <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-        {core.map((quest) => {
-          const found = claimed.has(quest.id);
-          return (
-            <div
-              key={quest.id}
-              className={`aspect-square rounded-xl border flex flex-col items-center justify-center gap-1 font-mono text-[10px] ${
-                found ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300' : 'bg-stone-900/60 border-stone-700 text-stone-500'
-              }`}
-              title={quest.title}
-            >
-              {found ? <CheckCircle2 size={16} /> : <Lock size={16} />}
-              <span>{quest.title}</span>
-            </div>
-          );
-        })}
+        {board.signals.map((signal) => (
+          <div
+            key={signal.questId}
+            className={`aspect-square rounded-xl border flex flex-col items-center justify-center gap-1 font-mono text-[10px] p-1 text-center ${
+              signal.found
+                ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
+                : 'bg-stone-900/60 border-stone-700 text-stone-500'
+            }`}
+            title={signal.title}
+          >
+            {signal.found ? <CheckCircle2 size={16} /> : <Lock size={16} />}
+            <span>SIGNAL {String(signal.number).padStart(2, '0')}</span>
+            {signal.found ? (
+              <>
+                <span className="text-white font-bold truncate max-w-full">{signal.finderDisplayName}</span>
+                <span className="text-emerald-300 font-bold">{formatCents(signal.cashCents || 0)}</span>
+              </>
+            ) : (
+              <span className="text-stone-500">$???</span>
+            )}
+          </div>
+        ))}
       </div>
     </section>
   );
 }
 
-function DailyBonusArea({
-  quests,
-  claimedQuestIds,
-  todayDateKey,
-}: {
-  quests: PublicQuestView[];
-  claimedQuestIds: string[];
-  todayDateKey: string;
-}) {
-  const claimed = new Set(claimedQuestIds);
-  const bonuses = quests
-    .filter((q) => q.category === 'fair_bonus')
-    .map((q) => ({ quest: q, dateKey: fairQuestDateKey(q) }))
-    .filter((entry): entry is { quest: PublicQuestView; dateKey: string } => Boolean(entry.dateKey))
-    .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
-
+function FairHuntersList({ winners }: { winners: FairMysteryWinner[] }) {
   return (
     <section className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Trophy size={18} className="text-amber-400" />
-        <h2 className="text-lg font-extrabold text-white uppercase tracking-tight">Daily Bonus Signals</h2>
-      </div>
-      <div className="grid grid-cols-7 gap-2">
-        {bonuses.map(({ quest, dateKey }) => {
-          const found = claimed.has(quest.id);
-          const isToday = dateKey === todayDateKey;
-          const isPast = dateKey < todayDateKey;
-          const dayLabel = dateKey.slice(-2);
-          const status = found ? 'secured' : isToday ? 'today' : isPast ? 'missed' : 'locked';
-
-          return (
-            <div
-              key={quest.id}
-              className={`rounded-xl border p-2 text-center font-mono text-[10px] space-y-1 ${
-                found
-                  ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
-                  : isToday
-                    ? 'bg-amber-500/15 border-amber-400 text-amber-300 animate-pulse'
-                    : 'bg-stone-900/60 border-stone-700 text-stone-500'
-              }`}
-            >
-              <div className="text-lg font-black">{dayLabel}</div>
-              <div className="uppercase">
-                {status === 'secured' ? 'Secured' : status === 'today' ? 'Live Today' : status === 'missed' ? 'Missed' : 'Locked'}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <p className="text-xs text-gray-400 font-mono">
-        Each day&apos;s bonus Signal is only claimable during that Canton, Ohio calendar day. A missed day&apos;s bonus cannot be
-        claimed later.
+      <h2 className="text-lg font-extrabold text-white uppercase tracking-tight">Fair Hunters</h2>
+      <p className="text-xs font-mono text-gray-500">
+        Each hunter&apos;s total earnings so far — the real prizes are the dollar values hidden in the Signals themselves, not this list.
       </p>
-    </section>
-  );
-}
-
-function LeaderboardPreview({ entries, total }: { entries: LeaderboardEntry[]; total: number }) {
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-extrabold text-white uppercase tracking-tight">Fair Leaderboard</h2>
-        <Link href="/leaderboard?operation=fair-qr-hunt" className="text-xs font-mono text-cyan-400 hover:text-cyan-300">
-          View Full Leaderboard →
-        </Link>
-      </div>
-      {entries.length === 0 ? (
-        <p className="text-sm text-gray-400 font-mono">No Fair scores yet — be the first to secure a Signal.</p>
+      {winners.length === 0 ? (
+        <p className="text-sm text-gray-400 font-mono">No Signals found yet — be the first to secure one.</p>
       ) : (
         <div className="cq-rank-list">
-          {entries.map((entry) => (
-            <article key={entry.playerId}>
-              <div className="cq-rank-number">#{entry.rank}</div>
-              <PlayerAvatar avatarUrl={entry.avatarUrl} size={40} fallback="⚡" className="cq-rank-avatar" />
+          {winners.map((winner) => (
+            <article key={winner.playerId}>
+              <PlayerAvatar avatarUrl={winner.avatarUrl} size={40} fallback="⚡" className="cq-rank-avatar" />
               <div className="cq-rank-name">
-                <h3>{entry.displayName}</h3>
+                <h3>{winner.displayName}</h3>
+                <span className="text-[10px] text-gray-500 font-mono">
+                  {winner.signalsFound} Find{winner.signalsFound === 1 ? '' : 's'}
+                </span>
               </div>
-              <strong>{entry.totalPoints} pts</strong>
+              <strong>{formatCents(winner.totalCents)}</strong>
             </article>
           ))}
         </div>
       )}
-      <p className="text-xs text-gray-500 font-mono">{total} ranked Fair agent{total === 1 ? '' : 's'}.</p>
     </section>
   );
 }

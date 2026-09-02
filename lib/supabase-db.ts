@@ -85,6 +85,16 @@ import {
 import { grantCipherFragmentsForQuestRewardDB } from './founders-cipher';
 import { getActiveLiveEventMultiplierDB, getActiveLiveEventsDB, incrementLiveEventProgressDB } from './live-events-db';
 import { isKnownCantonLaunchSlug } from './launch-status';
+import {
+  FAIR_CORE_CATEGORY,
+  MYSTERY_TOTAL_POOL_CENTS,
+  computeMysteryBoardTotals,
+  parseMysterySignalNumber,
+  type FairMysteryBoard,
+  type FairMysteryClaimResult,
+  type FairMysterySignalPublic,
+  type FairMysteryWinner,
+} from './fair-hunt';
 
 const DRAWABLE_LEDGER_STATUSES: DrawingStatus[] = ['locked', 'drawn'];
 const PUBLISHABLE_LEDGER_STATUSES: DrawingStatus[] = ['drawn'];
@@ -2348,6 +2358,215 @@ export async function submitQuestProofDB(
     console.error('submitQuestProofDB error:', err);
     return failedSubmissionResult(params, err.message || 'Server-authoritative submission failed.');
   }
+}
+
+/* =========================================================================
+   FAIR $300 MYSTERY MONEY HUNT
+   -------------------------------------------------------------------------
+   Deliberately NOT built on submitQuestProofDB/awardQuestRewardsDB above —
+   a fully separate claims/prizes mechanism (fair_signal_prizes,
+   fair_signal_claims — see supabase/migrations/20260901130000_fair_mystery_money_hunt.sql),
+   so nothing here can affect Founder's Cipher's or any other Mission's
+   XP/scoring path, and nothing in that shared pipeline can affect this.
+
+   Race safety: claimFairMysterySignalDB relies on fair_signal_claims.quest_id
+   being a PRIMARY KEY. Two simultaneous scanners both attempt an INSERT for
+   the same quest_id; Postgres serializes them and exactly one succeeds —
+   the loser's INSERT fails with a 23505 unique-violation, caught below and
+   turned into an 'already_claimed' result naming the actual winner. This
+   is a genuine database-level guarantee, not a check-then-insert race.
+
+   Security: cash_value_cents is only ever selected via supabaseAdmin
+   (service role — RLS on both tables has zero policies, so the anon/
+   authenticated roles can read neither table at all even if a future bug
+   used the wrong client). It is attached to a FairMysterySignalPublic only
+   when that Signal has actually been claimed — never for an unfound one.
+   ========================================================================= */
+
+async function getFairMysteryPrizeMapDB(questIds: string[]): Promise<Map<string, number>> {
+  if (!isSupabaseAdminConfigured || !supabaseAdmin || questIds.length === 0) return new Map();
+  const { data, error } = await supabaseAdmin
+    .from('fair_signal_prizes')
+    .select('quest_id, cash_value_cents')
+    .in('quest_id', questIds);
+  if (error || !data) return new Map();
+  return new Map(data.map((row: any) => [row.quest_id, row.cash_value_cents]));
+}
+
+export async function claimFairMysterySignalDB(
+  playerId: string,
+  playerDisplayName: string,
+  questId: string
+): Promise<FairMysteryClaimResult> {
+  if (!isSupabaseConfigured || !supabase) {
+    return localEngine.claimFairMysterySignal(playerId, questId);
+  }
+  if (!isSupabaseAdminConfigured || !supabaseAdmin) {
+    return { outcome: 'error', message: 'Server-authoritative claim verification requires Supabase service-role configuration.' };
+  }
+
+  const quest = await getQuestByIdDB(questId);
+  if (!quest || quest.category !== FAIR_CORE_CATEGORY) {
+    return { outcome: 'not_recognized' };
+  }
+  if (quest.status !== 'active') {
+    return { outcome: 'unavailable', message: 'This Signal is not currently active.' };
+  }
+
+  const { data: prizeRow } = await supabaseAdmin
+    .from('fair_signal_prizes')
+    .select('cash_value_cents')
+    .eq('quest_id', questId)
+    .maybeSingle();
+  if (!prizeRow) {
+    return { outcome: 'error', message: 'No prize is configured for this Signal.' };
+  }
+  const cashCents: number = prizeRow.cash_value_cents;
+
+  const signalInfo = {
+    questId: quest.id,
+    slug: quest.slug,
+    number: parseMysterySignalNumber(quest.slug) ?? 0,
+    title: quest.title,
+  };
+
+  const { error: insertError } = await supabaseAdmin
+    .from('fair_signal_claims')
+    .insert({ quest_id: questId, player_id: playerId });
+
+  if (!insertError) {
+    return { outcome: 'won', signal: signalInfo, cashCents, winnerDisplayName: playerDisplayName };
+  }
+
+  if (insertError.code === '23505') {
+    // Lost the race (or this is a genuine re-scan of an already-claimed
+    // Signal) — re-read the actual winning claim rather than assuming it's
+    // this player's own, which it may well not be.
+    const { data: winningClaim } = await supabaseAdmin
+      .from('fair_signal_claims')
+      .select('player_id')
+      .eq('quest_id', questId)
+      .maybeSingle();
+    let winnerDisplayName = 'Another player';
+    if (winningClaim) {
+      const { data: winnerRow } = await supabaseAdmin
+        .from('players')
+        .select('display_name')
+        .eq('id', winningClaim.player_id)
+        .maybeSingle();
+      winnerDisplayName = winnerRow?.display_name || winnerDisplayName;
+    }
+    return { outcome: 'already_claimed', signal: signalInfo, cashCents, winnerDisplayName };
+  }
+
+  console.error('claimFairMysterySignalDB insert error:', insertError);
+  return { outcome: 'error', message: 'Failed to record this claim.' };
+}
+
+export async function getFairMysteryBoardDB(eventId: string): Promise<FairMysteryBoard> {
+  if (!isSupabaseConfigured || !supabase) {
+    return localEngine.getFairMysteryBoard(eventId);
+  }
+
+  const quests = (await getQuestsForEventDB(eventId)).filter((q) => q.category === FAIR_CORE_CATEGORY && q.status === 'active');
+  const questIds = quests.map((q) => q.id);
+
+  const prizeMap = await getFairMysteryPrizeMapDB(questIds);
+
+  let claims: Array<{ quest_id: string; player_id: string; claimed_at: string }> = [];
+  if (isSupabaseAdminConfigured && supabaseAdmin && questIds.length > 0) {
+    const { data } = await supabaseAdmin
+      .from('fair_signal_claims')
+      .select('quest_id, player_id, claimed_at')
+      .in('quest_id', questIds);
+    claims = data || [];
+  }
+  const claimsByQuest = new Map(claims.map((c) => [c.quest_id, c]));
+
+  const finderIds = Array.from(new Set(claims.map((c) => c.player_id)));
+  let finders = new Map<string, { displayName: string; avatarUrl?: string }>();
+  if (isSupabaseAdminConfigured && supabaseAdmin && finderIds.length > 0) {
+    const { data: playerRows } = await supabaseAdmin.from('players').select('*').in('id', finderIds);
+    finders = new Map((playerRows || []).map((row: any) => [row.id, { displayName: mapPlayerFromDB(row).displayName, avatarUrl: mapPlayerFromDB(row).avatarUrl }]));
+  }
+
+  const signals: FairMysterySignalPublic[] = quests
+    .map((quest) => {
+      const claim = claimsByQuest.get(quest.id);
+      const base: FairMysterySignalPublic = {
+        questId: quest.id,
+        slug: quest.slug,
+        number: parseMysterySignalNumber(quest.slug) ?? 0,
+        title: quest.title,
+        found: Boolean(claim),
+      };
+      if (claim) {
+        const finder = finders.get(claim.player_id);
+        base.finderDisplayName = finder?.displayName;
+        base.finderAvatarUrl = finder?.avatarUrl;
+        base.cashCents = prizeMap.get(quest.id);
+        base.claimedAt = claim.claimed_at;
+      }
+      return base;
+    })
+    .sort((a, b) => a.number - b.number);
+
+  const totals = computeMysteryBoardTotals(signals);
+
+  return {
+    signals,
+    totalPoolCents: MYSTERY_TOTAL_POOL_CENTS,
+    revealedCents: totals.revealedCents,
+    hiddenCents: totals.hiddenCents,
+    foundCount: totals.foundCount,
+    totalCount: signals.length,
+  };
+}
+
+export async function getFairMysteryWinnersDB(eventId: string): Promise<FairMysteryWinner[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    return localEngine.getFairMysteryWinners(eventId);
+  }
+  if (!isSupabaseAdminConfigured || !supabaseAdmin) return [];
+
+  const quests = (await getQuestsForEventDB(eventId)).filter((q) => q.category === FAIR_CORE_CATEGORY);
+  const questIds = quests.map((q) => q.id);
+  if (questIds.length === 0) return [];
+
+  const prizeMap = await getFairMysteryPrizeMapDB(questIds);
+
+  const { data: claims } = await supabaseAdmin
+    .from('fair_signal_claims')
+    .select('quest_id, player_id')
+    .in('quest_id', questIds);
+
+  const byPlayer = new Map<string, { signalsFound: number; totalCents: number }>();
+  for (const claim of claims || []) {
+    const cents = prizeMap.get(claim.quest_id) || 0;
+    const entry = byPlayer.get(claim.player_id) || { signalsFound: 0, totalCents: 0 };
+    entry.signalsFound += 1;
+    entry.totalCents += cents;
+    byPlayer.set(claim.player_id, entry);
+  }
+
+  const playerIds = Array.from(byPlayer.keys());
+  if (playerIds.length === 0) return [];
+
+  const { data: playerRows } = await supabaseAdmin.from('players').select('*').in('id', playerIds);
+  const winners: FairMysteryWinner[] = (playerRows || []).map((row: any) => {
+    const player = mapPlayerFromDB(row);
+    const stats = byPlayer.get(row.id)!;
+    return {
+      playerId: row.id,
+      displayName: player.displayName,
+      avatarUrl: player.avatarUrl,
+      signalsFound: stats.signalsFound,
+      totalCents: stats.totalCents,
+    };
+  });
+
+  winners.sort((a, b) => b.totalCents - a.totalCents);
+  return winners;
 }
 
 /**

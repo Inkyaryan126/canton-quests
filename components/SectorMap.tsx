@@ -182,10 +182,17 @@ export default function SectorMap({
         zoomSnap: 0.1,
       }).setView([40.7980, -81.3820], 13.6);
 
-      // Dark CARTO tile layer matching HUD tactical aesthetic
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
+      // Production-safe public tiles: no private API key required. The
+      // prior CARTO dark_all URL now returns HTTP 200 with "API KEY
+      // REQUIRED" watermarked directly into the tile image (CARTO's free
+      // Basemaps tier now gates that style) — verified by fetching a tile
+      // directly, not assumed from the rendered error text. Same fix
+      // already proven in components/CantonMap.tsx and
+      // components/FairLiveMap.tsx — reused here rather than inventing a
+      // new tile source. Basemap provider only: center/zoom/zones/markers
+      // below are all unchanged.
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
       }).addTo(map);
 
@@ -218,7 +225,13 @@ export default function SectorMap({
         L.marker([zone.lat + latOffsetDeg, zone.lng], {
           icon: L.divIcon({
             className: 'quest-zone-label',
-            html: `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;color:${zone.color};text-shadow:0 0 6px ${zone.color};white-space:nowrap;transform:translate(-50%,-100%);pointer-events:none;padding-bottom:4px;">${zone.name.toUpperCase()}</div>`,
+            // A solid dark backing plate (not just a colored text-shadow
+            // glow) keeps the label legible against the light OSM basemap
+            // tiles as well as the dark HUD chrome — a glow-only label was
+            // tuned for the old dark-tile basemap and would wash out
+            // against real street imagery. Same fix already applied to
+            // FairLiveMap.tsx's zone labels.
+            html: `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;color:#ffffff;white-space:nowrap;transform:translate(-50%,-100%);pointer-events:none;margin-bottom:6px;background:rgba(10,13,18,0.82);border:1px solid ${zone.color};border-radius:4px;padding:2px 6px;box-shadow:0 0 6px rgba(0,0,0,0.5);">${zone.name.toUpperCase()}</div>`,
             iconSize: [0, 0],
             iconAnchor: [0, 0],
           }),

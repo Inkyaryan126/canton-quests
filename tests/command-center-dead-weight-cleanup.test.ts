@@ -151,7 +151,6 @@ describe('Shared Mission logic used by OTHER routes was preserved, not deleted',
     const otherQuestConsumers = [
       'app/api/admin/fair-qr/route.ts',
       'app/api/game/events/[slug]/route.ts',
-      'app/api/fair/dashboard/route.ts',
     ];
     for (const file of otherQuestConsumers) {
       expect(readSource(file)).toContain('getQuestsForEventDB');

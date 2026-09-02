@@ -9,6 +9,8 @@ interface PlacementDetails {
   description?: string;
   setupNotes?: string;
   retrievalNotes?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface AdminQuestRow {
@@ -16,7 +18,6 @@ interface AdminQuestRow {
   slug: string;
   title: string;
   category: string;
-  pointValue: number;
   targetCode?: string;
   status: 'active' | 'inactive' | 'draft';
   startsAt?: string;
@@ -25,16 +26,19 @@ interface AdminQuestRow {
   placementDetails?: PlacementDetails | null;
   placedAt?: string | null;
   deploymentStatus: DeploymentStatus;
-  uniqueClaimCount: number;
-  lastClaimedAt?: string | null;
+  // Mystery Money fields — present only for fair_core Signals, admin-only.
+  cashValueCents?: number | null;
+  found?: boolean;
+  finderDisplayName?: string | null;
+  claimedAt?: string | null;
 }
 
-interface LeaderboardRow {
-  rank: number;
-  playerId: string;
-  displayName: string;
-  totalPoints: number;
-  questsCompletedCount: number;
+interface MysteryMoneySummary {
+  totalPoolCents: number;
+  totalClaimedCents: number;
+  totalRemainingCents: number;
+  signalsFound: number;
+  signalsTotal: number;
 }
 
 const DEPLOYMENT_BADGE: Record<DeploymentStatus, { label: string; className: string }> = {
@@ -47,6 +51,11 @@ const DEPLOYMENT_BADGE: Record<DeploymentStatus, { label: string; className: str
 function formatTime(iso?: string | null) {
   if (!iso) return '—';
   return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function formatCents(cents?: number | null): string {
+  if (cents === null || cents === undefined) return '—';
+  return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
 }
 
 const DEPLOYMENT_SAFETY_REMINDERS = [
@@ -64,7 +73,7 @@ export default function FairQrAdminPage() {
   const [passphrase, setPassphrase] = useState('');
   const [authError, setAuthError] = useState('');
   const [quests, setQuests] = useState<AdminQuestRow[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
+  const [mysteryMoney, setMysteryMoney] = useState<MysteryMoneySummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [busyQuestId, setBusyQuestId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -77,7 +86,7 @@ export default function FairQrAdminPage() {
       const data = await res.json();
       if (data.success) {
         setQuests(data.quests);
-        setLeaderboard(data.leaderboard);
+        setMysteryMoney(data.mysteryMoney);
       }
     } finally {
       setLoading(false);
@@ -172,14 +181,41 @@ export default function FairQrAdminPage() {
                   <div className="rounded-lg border border-red-500/40 bg-red-950/30 p-3 text-xs font-mono text-red-300">{actionError}</div>
                 )}
 
+                {mysteryMoney && (
+                  <section className="glass-panel p-5 border-emerald-500/30 space-y-3">
+                    <h2 className="text-sm font-extrabold text-emerald-300 uppercase tracking-wide">$300 Mystery Money — Admin Summary</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-mono text-xs">
+                      <div>
+                        <div className="text-lg font-black text-white">{formatCents(mysteryMoney.totalPoolCents)}</div>
+                        <div className="text-gray-400">Total Pool</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-black text-emerald-300">{formatCents(mysteryMoney.totalClaimedCents)}</div>
+                        <div className="text-gray-400">Claimed</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-black text-cyan-300">{formatCents(mysteryMoney.totalRemainingCents)}</div>
+                        <div className="text-gray-400">Remaining</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-black text-white">
+                          {mysteryMoney.signalsFound} / {mysteryMoney.signalsTotal}
+                        </div>
+                        <div className="text-gray-400">Signals Found</div>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
                 <div className="text-xs font-mono text-gray-400">
                   Deployment progress: <span className="text-white font-bold">{readyCount}</span> / {quests.length} Signals have a
                   real placement note or are already placed.
                 </div>
 
                 <QuestTable
-                  title="Core Signals (20)"
+                  title="Mystery Money Signals (20)"
                   rows={core}
+                  showMoney
                   onToggleStatus={toggleStatus}
                   onRunAction={runAction}
                   busyQuestId={busyQuestId}
@@ -187,7 +223,7 @@ export default function FairQrAdminPage() {
                   setExpandedId={setExpandedId}
                 />
                 <QuestTable
-                  title="Daily Bonus Signals (7)"
+                  title="Daily Bonus Signals — RETIRED (not part of the $300 Mystery Money Hunt)"
                   rows={bonus}
                   onToggleStatus={toggleStatus}
                   onRunAction={runAction}
@@ -196,39 +232,6 @@ export default function FairQrAdminPage() {
                   setExpandedId={setExpandedId}
                   showWindow
                 />
-
-                <section className="space-y-3">
-                  <h2 className="text-lg font-extrabold text-white">Fair Leaderboard</h2>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm font-mono">
-                      <thead>
-                        <tr className="text-left text-gray-400 border-b border-stone-800">
-                          <th className="py-2 pr-4">Rank</th>
-                          <th className="py-2 pr-4">Player</th>
-                          <th className="py-2 pr-4">Score</th>
-                          <th className="py-2 pr-4">Signals Found</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {leaderboard.map((row) => (
-                          <tr key={row.playerId} className={`border-b border-stone-900 ${row.rank === 1 ? 'text-amber-300' : 'text-white'}`}>
-                            <td className="py-2 pr-4">#{row.rank}</td>
-                            <td className="py-2 pr-4">{row.displayName}</td>
-                            <td className="py-2 pr-4">{row.totalPoints}</td>
-                            <td className="py-2 pr-4">{row.questsCompletedCount}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {leaderboard.length === 0 && <p className="text-xs text-gray-500 mt-2">No Fair scores yet.</p>}
-                    {leaderboard.length > 0 && (
-                      <p className="text-xs text-gray-500 mt-3">
-                        Current #1 Fair player: <strong className="text-amber-300">{leaderboard[0].displayName}</strong> —
-                        the Fair prize winner unless business rules say otherwise (no automatic payment or drawing logic runs here).
-                      </p>
-                    )}
-                  </div>
-                </section>
 
                 <section className="glass-panel p-5 border-amber-500/30 space-y-2">
                   <h2 className="text-sm font-extrabold text-amber-300 uppercase tracking-wide">Physical Deployment Safety — Internal Only</h2>
@@ -250,6 +253,7 @@ export default function FairQrAdminPage() {
 function QuestTable({
   title,
   rows,
+  showMoney,
   onToggleStatus,
   onRunAction,
   busyQuestId,
@@ -259,6 +263,7 @@ function QuestTable({
 }: {
   title: string;
   rows: AdminQuestRow[];
+  showMoney?: boolean;
   onToggleStatus: (quest: AdminQuestRow) => void;
   onRunAction: (questId: string, payload: Record<string, unknown>) => Promise<void>;
   busyQuestId: string | null;
@@ -266,6 +271,7 @@ function QuestTable({
   setExpandedId: (id: string | null) => void;
   showWindow?: boolean;
 }) {
+  const colCount = 6 + (showMoney ? 3 : 0) + (showWindow ? 1 : 0);
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-extrabold text-white">{title}</h2>
@@ -275,11 +281,12 @@ function QuestTable({
             <tr className="text-left text-gray-400 border-b border-stone-800">
               <th className="py-2 pr-3">Label</th>
               <th className="py-2 pr-3">Code</th>
-              <th className="py-2 pr-3">Points</th>
+              {showMoney && <th className="py-2 pr-3">Hidden Value</th>}
+              {showMoney && <th className="py-2 pr-3">Found</th>}
+              {showMoney && <th className="py-2 pr-3">Finder</th>}
               {showWindow && <th className="py-2 pr-3">Window (UTC)</th>}
               <th className="py-2 pr-3">Deployment</th>
-              <th className="py-2 pr-3">Claims</th>
-              <th className="py-2 pr-3">Last Claim</th>
+              <th className="py-2 pr-3">Claimed At</th>
               <th className="py-2 pr-3">Status</th>
               <th className="py-2 pr-3">Actions</th>
             </tr>
@@ -293,7 +300,11 @@ function QuestTable({
                   <tr className="border-b border-stone-900 text-white">
                     <td className="py-2 pr-3">{q.title}</td>
                     <td className="py-2 pr-3 text-cyan-300">{q.targetCode}</td>
-                    <td className="py-2 pr-3">{q.pointValue}</td>
+                    {showMoney && <td className="py-2 pr-3 text-amber-300 font-bold">{formatCents(q.cashValueCents)}</td>}
+                    {showMoney && (
+                      <td className="py-2 pr-3">{q.found ? <span className="text-emerald-400">YES</span> : <span className="text-stone-500">no</span>}</td>
+                    )}
+                    {showMoney && <td className="py-2 pr-3">{q.finderDisplayName || '—'}</td>}
                     {showWindow && (
                       <td className="py-2 pr-3 text-[10px] text-gray-400">
                         {q.startsAt?.slice(0, 16).replace('T', ' ')} → {q.expiresAt?.slice(0, 16).replace('T', ' ')}
@@ -302,8 +313,7 @@ function QuestTable({
                     <td className="py-2 pr-3">
                       <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${badge.className}`}>{badge.label}</span>
                     </td>
-                    <td className="py-2 pr-3">{q.uniqueClaimCount}</td>
-                    <td className="py-2 pr-3 text-[10px] text-gray-400">{formatTime(q.lastClaimedAt)}</td>
+                    <td className="py-2 pr-3 text-[10px] text-gray-400">{formatTime(q.claimedAt)}</td>
                     <td className="py-2 pr-3">
                       <span className={q.status === 'active' ? 'text-emerald-400' : 'text-stone-500'}>{q.status}</span>
                     </td>
@@ -327,7 +337,7 @@ function QuestTable({
                   </tr>
                   {isExpanded && (
                     <tr className="border-b border-stone-900 bg-stone-950/60">
-                      <td colSpan={showWindow ? 9 : 8} className="py-3 px-3">
+                      <td colSpan={colCount} className="py-3 px-3">
                         <PlacementEditor quest={q} busy={busyQuestId === q.id} onRunAction={onRunAction} />
                       </td>
                     </tr>
@@ -355,12 +365,20 @@ function PlacementEditor({
   const [description, setDescription] = useState(quest.placementDetails?.description || '');
   const [setupNotes, setSetupNotes] = useState(quest.placementDetails?.setupNotes || '');
   const [retrievalNotes, setRetrievalNotes] = useState(quest.placementDetails?.retrievalNotes || '');
+  const [latitude, setLatitude] = useState(quest.placementDetails?.latitude?.toString() || '');
+  const [longitude, setLongitude] = useState(quest.placementDetails?.longitude?.toString() || '');
 
   const save = () =>
     onRunAction(quest.id, {
       action: 'update_placement',
       gmNotes,
-      placementDetails: { description, setupNotes, retrievalNotes },
+      placementDetails: {
+        description,
+        setupNotes,
+        retrievalNotes,
+        latitude: latitude.trim() === '' ? undefined : Number(latitude),
+        longitude: longitude.trim() === '' ? undefined : Number(longitude),
+      },
     });
 
   return (
@@ -401,6 +419,33 @@ function PlacementEditor({
           className="w-full px-2.5 py-1.5 rounded bg-stone-900 border border-stone-700 text-white text-xs"
         />
       </label>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="block text-[10px] text-gray-400 uppercase mb-1">Real GPS Latitude (optional)</span>
+          <input
+            type="number"
+            step="any"
+            value={latitude}
+            onChange={(e) => setLatitude(e.target.value)}
+            placeholder="Only once physically placed"
+            className="w-full px-2.5 py-1.5 rounded bg-stone-900 border border-stone-700 text-white text-xs"
+          />
+        </label>
+        <label className="block">
+          <span className="block text-[10px] text-gray-400 uppercase mb-1">Real GPS Longitude (optional)</span>
+          <input
+            type="number"
+            step="any"
+            value={longitude}
+            onChange={(e) => setLongitude(e.target.value)}
+            placeholder="Only once physically placed"
+            className="w-full px-2.5 py-1.5 rounded bg-stone-900 border border-stone-700 text-white text-xs"
+          />
+        </label>
+      </div>
+      <p className="text-[10px] text-gray-500">
+        Only enter coordinates once this card is actually placed at the fairgrounds — this data is not yet rendered on the public map (see FairLiveMap.tsx).
+      </p>
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

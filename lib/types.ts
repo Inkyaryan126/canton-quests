@@ -384,6 +384,16 @@ export interface QuestPlacementDetails {
   description?: string;
   setupNotes?: string;
   retrievalNotes?: string;
+  /**
+   * Real, on-site GPS coordinates for this specific physical card — set by
+   * a Commander only once it has actually been placed. Distinct from
+   * FairSectorZone's decorative sector circles (components/FairLiveMap.tsx),
+   * which are approximate campus landmarks, not per-Signal placements.
+   * Absent (undefined) means "not yet physically placed at a known point" —
+   * never default or invent a value here.
+   */
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface Quest {

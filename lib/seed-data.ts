@@ -16,7 +16,7 @@ import {
   BonusWindow,
   Prize,
 } from './types';
-import { CORE_QR_POINTS, DAILY_BONUS_POINTS, FAIR_BONUS_DATES, fairBonusQuestSlug, fairCoreQuestSlug } from './fair-hunt';
+import { FAIR_BONUS_DATES, fairBonusQuestSlug, fairCoreQuestSlug } from './fair-hunt';
 
 export const SEED_CITY: City = {
   id: 'city-canton-oh',
@@ -2137,8 +2137,13 @@ export const SEED_FAIR_QUESTS: Quest[] = [
       slug: fairCoreQuestSlug(n),
       description: 'A permanent Canton Quests QR marker hidden somewhere across the fairgrounds.',
       instructions: 'Find the physical QR card and scan it with your phone camera to claim this signal.',
-      pointValue: CORE_QR_POINTS,
-      xpReward: CORE_QR_POINTS,
+      // No point/XP/drawing-entry value — the $300 Mystery Money Hunt
+      // (lib/fair-mystery-hunt.ts) is a fully separate claims/prizes
+      // mechanism. These stay 0 for defense-in-depth: even if a bug ever
+      // routed a Fair Signal through the old generic award path, it could
+      // not award real value under a game design that no longer exists.
+      pointValue: 0,
+      xpReward: 0,
       drawingEntryReward: 0,
       difficulty: 'easy',
       category: 'fair_core',
@@ -2168,8 +2173,14 @@ export const SEED_FAIR_QUESTS: Quest[] = [
       slug: fairBonusQuestSlug(dateKey),
       description: 'A one-day-only bonus QR marker, live for a single Fair calendar day.',
       instructions: "Find today's bonus QR card and scan it before the day ends — it will not be here tomorrow.",
-      pointValue: DAILY_BONUS_POINTS,
-      xpReward: DAILY_BONUS_POINTS,
+      // Retired: the daily-bonus point mechanic no longer exists under the
+      // $300 Mystery Money Hunt redesign (which is exactly the 20 core
+      // Signals, no daily bonus). status: 'inactive' below is what
+      // actually stops a scan from doing anything (existing "SIGNAL
+      // OFFLINE" response) — pointValue/xpReward are zeroed for the same
+      // defense-in-depth reason as the core Signals above.
+      pointValue: 0,
+      xpReward: 0,
       drawingEntryReward: 0,
       difficulty: 'medium',
       category: 'fair_bonus',
@@ -2179,7 +2190,7 @@ export const SEED_FAIR_QUESTS: Quest[] = [
       isFlash: true,
       startsAt: dayStart,
       expiresAt: dayEnd,
-      status: 'active',
+      status: 'inactive',
       sortOrder: 20 + i + 1,
       createdAt: '2026-08-26T00:00:00Z',
       gmNotes: 'Placement TBD.',
@@ -2187,4 +2198,36 @@ export const SEED_FAIR_QUESTS: Quest[] = [
     };
     return quest;
   }),
+];
+
+/**
+ * The fixed, permanent $300 Mystery Money assignment across the 20 core
+ * Fair Signals — the local-engine mirror of
+ * supabase/migrations/20260901130000_fair_mystery_money_hunt.sql. Generated
+ * once (Python random.seed(42) shuffle of 6x$5, 4x$10, 4x$15, 3x$20,
+ * 2x$30, 1x$50 = $300) and hardcoded in both places — this array must
+ * never be regenerated or reordered; doing so would desync it from the
+ * production migration's already-seeded values.
+ */
+export const SEED_FAIR_MYSTERY_PRIZES: Array<{ questId: string; cashCents: number }> = [
+  { questId: `qst-${fairCoreQuestSlug(1)}`, cashCents: 5000 },
+  { questId: `qst-${fairCoreQuestSlug(2)}`, cashCents: 500 },
+  { questId: `qst-${fairCoreQuestSlug(3)}`, cashCents: 2000 },
+  { questId: `qst-${fairCoreQuestSlug(4)}`, cashCents: 500 },
+  { questId: `qst-${fairCoreQuestSlug(5)}`, cashCents: 1000 },
+  { questId: `qst-${fairCoreQuestSlug(6)}`, cashCents: 1500 },
+  { questId: `qst-${fairCoreQuestSlug(7)}`, cashCents: 2000 },
+  { questId: `qst-${fairCoreQuestSlug(8)}`, cashCents: 3000 },
+  { questId: `qst-${fairCoreQuestSlug(9)}`, cashCents: 1000 },
+  { questId: `qst-${fairCoreQuestSlug(10)}`, cashCents: 1500 },
+  { questId: `qst-${fairCoreQuestSlug(11)}`, cashCents: 3000 },
+  { questId: `qst-${fairCoreQuestSlug(12)}`, cashCents: 1500 },
+  { questId: `qst-${fairCoreQuestSlug(13)}`, cashCents: 500 },
+  { questId: `qst-${fairCoreQuestSlug(14)}`, cashCents: 1500 },
+  { questId: `qst-${fairCoreQuestSlug(15)}`, cashCents: 500 },
+  { questId: `qst-${fairCoreQuestSlug(16)}`, cashCents: 2000 },
+  { questId: `qst-${fairCoreQuestSlug(17)}`, cashCents: 1000 },
+  { questId: `qst-${fairCoreQuestSlug(18)}`, cashCents: 1000 },
+  { questId: `qst-${fairCoreQuestSlug(19)}`, cashCents: 500 },
+  { questId: `qst-${fairCoreQuestSlug(20)}`, cashCents: 500 },
 ];

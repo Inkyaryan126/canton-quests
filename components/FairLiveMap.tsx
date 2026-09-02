@@ -7,11 +7,45 @@ import { PublicGameFeedItem } from '@/lib/types';
 import { DistrictInfo } from '@/components/spectator/DistrictActivityView';
 
 /* =========================================================================
+   STARK COUNTY FAIRGROUNDS — CANONICAL MAP CENTER
+   -------------------------------------------------------------------------
+   The single source of truth for where the Fair QR Hunt live map opens.
+   Every consumer (the Leaflet setView call, the map-footer coordinate
+   readout) derives from this one constant — never hardcode this pair
+   anywhere else in this file.
+   ========================================================================= */
+export const FAIR_MAP_CENTER = {
+  lat: 40.80192286342209,
+  lng: -81.40825970719298,
+} as const;
+
+const FAIR_MAP_CENTER_LABEL = `${FAIR_MAP_CENTER.lat.toFixed(4)}° N, ${Math.abs(FAIR_MAP_CENTER.lng).toFixed(4)}° W`;
+
+/* =========================================================================
    STARK COUNTY FAIRGROUNDS — SECTOR ZONE CONFIGURATION
    -------------------------------------------------------------------------
-   Each zone corresponds to a physical sector on the Stark County Fairgrounds
-   campus (305 Wertz Ave SW, Canton, OH 44708) with real GPS coordinates,
-   visual accent colors, and boundary radii in meters.
+   Four real operational sectors, georeferenced against the official Stark
+   County Fairgrounds map (starkcountyfair.com) and cross-checked against
+   OpenStreetMap's real street/property geometry (Wertz Ave NW / Roslyn Ave
+   NW / Third St NW, the actual fairgrounds boundary polygon). The transform
+   used to derive these was validated to within ~1 meter against the known
+   FAIR_MAP_CENTER point before being applied to the four sectors below.
+
+   These are still APPROXIMATE SECTOR CENTERS, not survey-grade coordinates —
+   the source map is a hand-illustrated fair program graphic, not drawn to
+   scale, so treat each value as "roughly here," never as a precise point.
+
+   Critically, these are NOT verified per-Signal QR placements. Every Fair
+   quest currently has location_id = NULL / placement_details = NULL /
+   placed_at = NULL in the database — no Signal has a confirmed physical
+   location yet. These sectors exist to give the search grid a sense of
+   place; the resolveFairZoneId() Signal→sector mapping below is a cosmetic
+   text heuristic (Signal number ranges), not real placement data, and must
+   never be presented to a player as "this is where Signal N actually is."
+
+   Real per-Signal markers render separately, from FairPlacedSignal props
+   only (see below) — never derived from, or falling back to, a sector
+   center.
    ========================================================================= */
 export interface FairSectorZone {
   id: string;
@@ -19,46 +53,46 @@ export interface FairSectorZone {
   color: string;
   lat: number;
   lng: number;
-  radius: number; // radius in meters
+  radius: number; // approximate radius in meters — not survey-grade
   description: string;
 }
 
 export const FAIR_SECTOR_ZONES: FairSectorZone[] = [
   {
-    id: 'grandstand',
-    name: 'Grandstand & Track Area',
+    id: 'track_grandstand',
+    name: 'Track / Grandstand',
     color: '#ff3b3b', // Crimson
-    lat: 40.8060,
-    lng: -81.3992,
-    radius: 110,
-    description: 'Grandstand arena, track perimeter, and main staging grounds.',
-  },
-  {
-    id: 'midway',
-    name: 'Midway & Carnival Plaza',
-    color: '#ffcf3f', // Fair Gold
-    lat: 40.8042,
-    lng: -81.3975,
-    radius: 120,
-    description: 'Central rides, carnival games, and main plaza corridors.',
-  },
-  {
-    id: 'exhibition',
-    name: 'Exhibition & Agri Pavilion',
-    color: '#00f0ff', // Electric Cyan
-    lat: 40.8025,
-    lng: -81.4012,
+    lat: 40.8038592,
+    lng: -81.4092032,
     radius: 130,
-    description: 'Livestock barns, creative arts buildings, and exhibition hall rows.',
+    description: 'The oval race track, Grandstand, Speed Stables, and the Wertz Avenue side of the grounds.',
   },
   {
-    id: 'food_row',
-    name: 'South Gate & Food Row',
+    id: 'livestock',
+    name: 'Livestock',
+    color: '#ffcf3f', // Fair Gold
+    lat: 40.8047277,
+    lng: -81.4108493,
+    radius: 106,
+    description: 'The dairy, beef, goat, sheep, swine, poultry, and horse/pony barns north of the grounds.',
+  },
+  {
+    id: 'pavilion_exhibits',
+    name: 'Pavilion / Exhibits',
+    color: '#00f0ff', // Electric Cyan
+    lat: 40.8027898,
+    lng: -81.4107411,
+    radius: 166,
+    description: 'The Pavilion, Exhibition Hall, Art Hall, Farm Bureau, Grange, and Jr. Fair 4-H exhibit buildings.',
+  },
+  {
+    id: 'midway_amusement',
+    name: 'Midway / Amusement',
     color: '#10b981', // Emerald
-    lat: 40.8014,
-    lng: -81.3988,
-    radius: 110,
-    description: 'South fairground entrance, concessions, and food court alley.',
+    lat: 40.8021115,
+    lng: -81.4099042,
+    radius: 113,
+    description: 'The Midway, Kiddyland, games, and amusement area toward the Third Street / Gate C side.',
   },
 ];
 
@@ -88,51 +122,99 @@ function formatTimeAgo(dateString?: string): string {
   }
 }
 
+/**
+ * Best-guess sector for a piece of ticker text — a cosmetic heuristic for
+ * which sector circle briefly pulses, NOT a claim about where a Signal
+ * actually is. "Food Row" no longer exists as a sector (the official
+ * fairgrounds map shows food distributed throughout the grounds, not
+ * concentrated in one place), so food/concession keywords no longer route
+ * anywhere special.
+ */
 export function resolveFairZoneId(text?: string): string {
-  if (!text) return 'midway';
+  if (!text) return 'track_grandstand';
   const lower = text.toLowerCase();
   if (
-    lower.includes('grandstand') ||
     lower.includes('track') ||
+    lower.includes('grandstand') ||
+    lower.includes('speed stable') ||
+    lower.includes('horse show') ||
     lower.includes('arena') ||
     lower.includes('stage') ||
     /signal (0?[1-5])\b/.test(lower) ||
     /fair-core-0[1-5]/.test(lower)
   ) {
-    return 'grandstand';
+    return 'track_grandstand';
   }
   if (
-    lower.includes('exhibit') ||
-    lower.includes('agri') ||
-    lower.includes('barn') ||
     lower.includes('livestock') ||
-    /signal (1[1-5])\b/.test(lower) ||
-    /fair-core-1[1-5]/.test(lower)
-  ) {
-    return 'exhibition';
-  }
-  if (
-    lower.includes('food') ||
-    lower.includes('gate') ||
-    lower.includes('concession') ||
-    lower.includes('bonus') ||
-    /signal (1[6-9]|20)\b/.test(lower) ||
-    /fair-core-(1[6-9]|20)/.test(lower) ||
-    lower.includes('fair-bonus')
-  ) {
-    return 'food_row';
-  }
-  if (
-    lower.includes('midway') ||
-    lower.includes('carnival') ||
-    lower.includes('plaza') ||
-    lower.includes('ride') ||
+    lower.includes('barn') ||
+    lower.includes('dairy') ||
+    lower.includes('beef') ||
+    lower.includes('goat') ||
+    lower.includes('sheep') ||
+    lower.includes('swine') ||
+    lower.includes('poultry') ||
+    lower.includes('rabbit') ||
+    lower.includes('cavy') ||
+    lower.includes('coliseum') ||
+    lower.includes('horse/pony') ||
     /signal (0?[6-9]|10)\b/.test(lower) ||
     /fair-core-(0[6-9]|10)/.test(lower)
   ) {
-    return 'midway';
+    return 'livestock';
   }
-  return 'midway';
+  if (
+    lower.includes('pavilion') ||
+    lower.includes('exhibit') ||
+    lower.includes('art hall') ||
+    lower.includes('farm bureau') ||
+    lower.includes('grange') ||
+    lower.includes('4-h') ||
+    lower.includes('political') ||
+    /signal (1[1-5])\b/.test(lower) ||
+    /fair-core-1[1-5]/.test(lower)
+  ) {
+    return 'pavilion_exhibits';
+  }
+  if (
+    lower.includes('midway') ||
+    lower.includes('amusement') ||
+    lower.includes('kiddyland') ||
+    lower.includes('kiddie') ||
+    lower.includes('games') ||
+    lower.includes('carnival') ||
+    lower.includes('ride') ||
+    /signal (1[6-9]|20)\b/.test(lower) ||
+    /fair-core-(1[6-9]|20)/.test(lower)
+  ) {
+    return 'midway_amusement';
+  }
+  return 'track_grandstand';
+}
+
+/**
+ * A single, real, admin-confirmed physical Signal placement — deliberately
+ * the ONLY fields a public marker may ever carry. No target_code, no GM
+ * notes, no setup/retrieval notes, no other admin metadata: the type shape
+ * itself is the enforcement, not a runtime filter that could be forgotten.
+ *
+ * Product decision (intentional, not a placeholder to "finish later"): the
+ * Fair QR Hunt's whole mechanic is physically finding a hidden card — no
+ * Fair quest requires or checks GPS, so revealing a card's exact
+ * coordinates publicly would trivialize the hunt. Exact placement
+ * coordinates therefore stay admin-only (app/api/admin/fair-qr,
+ * app/admin/fair-qr/page.tsx) for recovery/operations use, and are never
+ * wired into the public dashboard (app/api/fair/dashboard,
+ * app/events/fair-qr-hunt/page.tsx) that feeds this component. This type
+ * and its rendering below exist so that decision can be revisited in one
+ * place later — by actually passing real data through this prop — without
+ * ever falling back to a sector center or leaking a private field.
+ */
+export interface FairPlacedSignal {
+  id: string;
+  label: string;
+  lat: number;
+  lng: number;
 }
 
 export interface FairLiveMapProps {
@@ -144,6 +226,13 @@ export interface FairLiveMapProps {
   activeSpectatorCount?: number;
   /** Real district/sector activity info from server */
   districts?: DistrictInfo[];
+  /**
+   * Real, individually-placed Signal markers — public-safe fields only
+   * (see FairPlacedSignal). Deliberately NOT sourced from the public Fair
+   * dashboard today (see FairPlacedSignal doc comment); omit entirely
+   * rather than pass placeholder/sector data.
+   */
+  placedSignals?: FairPlacedSignal[];
   /** Optional auto-refresh interval in ms when polling standalone (default: 10000ms) */
   pollIntervalMs?: number;
 }
@@ -153,11 +242,14 @@ export default function FairLiveMap({
   feed: feedProp,
   activeSpectatorCount: countProp,
   districts,
+  placedSignals,
   pollIntervalMs = 10000,
 }: FairLiveMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const zoneMarkersRef = useRef<Record<string, L.Marker>>({});
+  const signalMarkersRef = useRef<L.Marker[]>([]);
+  const [mapReady, setMapReady] = useState(false);
 
   // Local state for feed & polling
   const [internalFeed, setInternalFeed] = useState<PublicGameFeedItem[]>(feedProp || []);
@@ -242,12 +334,18 @@ export default function FairLiveMap({
         scrollWheelZoom: false,
         attributionControl: true,
         zoomSnap: 0.1,
-      }).setView([40.8038, -81.3995], 16.2);
+      }).setView([FAIR_MAP_CENTER.lat, FAIR_MAP_CENTER.lng], 15.4);
 
-      // Dark CARTO tile layer
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
+      // Production-safe public tiles: no private API key required. The
+      // prior CARTO dark_all URL now returns HTTP 200 with "API KEY
+      // REQUIRED" watermarked directly into the tile image (CARTO's free
+      // Basemaps tier now gates that style) — verified by fetching a tile
+      // for this exact location directly, not assumed from the rendered
+      // error text. Same fix already proven in components/CantonMap.tsx
+      // (see tests/mission-map-tab-loading-fix.test.ts) — reused here
+      // rather than inventing a new tile source.
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
       }).addTo(map);
 
@@ -279,7 +377,12 @@ export default function FairLiveMap({
         L.marker([zone.lat + latOffsetDeg, zone.lng], {
           icon: L.divIcon({
             className: 'fair-zone-label',
-            html: `<div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:.06em;color:${zone.color};text-shadow:0 0 6px ${zone.color};white-space:nowrap;transform:translate(-50%,-100%);pointer-events:none;padding-bottom:3px;">${zone.name.toUpperCase()}</div>`,
+            // A solid dark backing plate (not just a colored text-shadow
+            // glow) keeps the label legible against the light OSM basemap
+            // tiles as well as the dark HUD chrome — a glow-only label
+            // was tuned for the old dark-tile basemap and would wash out
+            // against real street imagery.
+            html: `<div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;letter-spacing:.06em;color:#ffffff;white-space:nowrap;transform:translate(-50%,-100%);pointer-events:none;margin-bottom:6px;background:rgba(10,13,18,0.82);border:1px solid ${zone.color};border-radius:4px;padding:2px 6px;box-shadow:0 0 6px rgba(0,0,0,0.5);">${zone.name.toUpperCase()}</div>`,
             iconSize: [0, 0],
             iconAnchor: [0, 0],
           }),
@@ -303,6 +406,7 @@ export default function FairLiveMap({
       });
 
       mapInstanceRef.current = map;
+      if (!isCancelled) setMapReady(true);
     };
 
     initMap();
@@ -314,8 +418,50 @@ export default function FairLiveMap({
         mapInstanceRef.current = null;
       }
       zoneMarkersRef.current = {};
+      setMapReady(false);
     };
   }, []);
+
+  // Render real, individually-placed Signal markers — ONLY from the
+  // placedSignals prop, never derived from FAIR_SECTOR_ZONES or
+  // FAIR_MAP_CENTER. A distinct pin style (not the translucent sector
+  // circles) since each of these represents one specific confirmed
+  // physical point, not a general search area. Absent/empty prop (the
+  // default, per the product decision above) renders nothing.
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current) return;
+    let isCancelled = false;
+
+    const renderSignalMarkers = async () => {
+      const L = (await import('leaflet')).default;
+      if (isCancelled || !mapInstanceRef.current) return;
+
+      signalMarkersRef.current.forEach((marker) => marker.remove());
+      signalMarkersRef.current = [];
+
+      for (const signal of placedSignals || []) {
+        if (!Number.isFinite(signal.lat) || !Number.isFinite(signal.lng)) continue;
+
+        const icon = L.divIcon({
+          className: 'signal-pin',
+          html: `<div class="signal-pin-dot"></div>`,
+          iconSize: [12, 12],
+          iconAnchor: [6, 6],
+        });
+
+        const marker = L.marker([signal.lat, signal.lng], { icon, interactive: false, title: signal.label }).addTo(
+          mapInstanceRef.current
+        );
+        signalMarkersRef.current.push(marker);
+      }
+    };
+
+    renderSignalMarkers();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [mapReady, placedSignals]);
 
   // Process live feed to Fair Ticker
   useEffect(() => {
@@ -582,6 +728,21 @@ export default function FairLiveMap({
           }
         }
 
+        /* REAL, CONFIRMED SIGNAL PLACEMENT — deliberately a small solid
+           dot, visually distinct from the translucent sector-area circles
+           above, since this represents one specific physical point rather
+           than a general search area. Renders only from real
+           FairPlacedSignal data (see component doc comment); no default
+           caller currently supplies any. */
+        .cq-fair-map-root .signal-pin-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: #ffffff;
+          border: 2px solid var(--signal-cyan);
+          box-shadow: 0 0 6px var(--signal-cyan);
+        }
+
         .cq-fair-map-root .map-footer {
           position: relative;
           z-index: 5;
@@ -727,6 +888,15 @@ export default function FairLiveMap({
           display: inline-block;
         }
 
+        .cq-fair-map-root .zone-disclaimer {
+          margin: 10px 0 0;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          line-height: 1.5;
+          color: var(--text-dim);
+          opacity: 0.85;
+        }
+
         /* REDUCED MOTION */
         @media (prefers-reduced-motion: reduce) {
           .cq-fair-map-root .top-label .dot {
@@ -756,15 +926,15 @@ export default function FairLiveMap({
         {/* Top Status Indicator */}
         <div className="top-label">
           <span className="dot" />
-          STARK COUNTY FAIRGROUNDS RADAR GRID · CANTON, OH
+          FAIRGROUNDS SEARCH GRID · CANTON, OH
         </div>
 
         {/* Section Heading & Subtitle */}
         <h2 className="title">
-          Live Fairgrounds Grid. <span>Real-Time Signals.</span>
+          Fair Hunt <span>Map</span>
         </h2>
         <p className="sub">
-          Live tactical telemetry across the Stark County Fairgrounds campus. Watch Signal discoveries, daily bonuses, and fair activity unfold in real time.
+          Search sectors show general areas of the fairgrounds. Individual Signal locations must still be discovered on-site. Official Command broadcasts and Fair-wide activity updates appear in the feed below as they&apos;re published.
         </p>
 
         {/* Tactical 2-Panel Grid */}
@@ -783,7 +953,7 @@ export default function FairLiveMap({
             </div>
 
             <div className="map-footer">
-              <span>STARK COUNTY FAIRGROUNDS · 40.8038° N, 81.3995° W</span>
+              <span>STARK COUNTY FAIRGROUNDS · {FAIR_MAP_CENTER_LABEL}</span>
               <span>{clockString}</span>
             </div>
           </div>
@@ -812,7 +982,7 @@ export default function FairLiveMap({
                   STANDBY // ALL FAIR SECTORS ONLINE
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-dim)', maxWidth: '280px', margin: '0 auto', lineHeight: 1.4 }}>
-                  Stark County Fairgrounds grid is listening. Live scan dispatches and signal claims will stream here as players explore.
+                  No Command dispatches published yet. This feed shows official Fair Command broadcasts — individual Signal scans are not posted here.
                 </div>
               </div>
             ) : (
@@ -835,19 +1005,24 @@ export default function FairLiveMap({
           </div>
         </div>
 
-        {/* Stats Row */}
+        {/* Stats Row — "Active Fair Agents" only renders when a real, live
+            count is actually supplied via the activeSpectatorCount prop.
+            No caller currently passes one, so it's correctly omitted rather
+            than showing a permanently-frozen, misleading "0". */}
         <div className="stats-row">
-          <div className="stat">
-            <div className="num">{internalCount}</div>
-            <div className="lbl">Active Fair Agents</div>
-          </div>
+          {countProp !== undefined && (
+            <div className="stat">
+              <div className="num">{internalCount}</div>
+              <div className="lbl">Active Fair Agents</div>
+            </div>
+          )}
           <div className="stat">
             <div className="num">{FAIR_SECTOR_ZONES.length}</div>
             <div className="lbl">Fair Zones Online</div>
           </div>
           <div className="stat">
             <div className="num">{internalFeed?.length ?? 0}</div>
-            <div className="lbl">Signal Dispatches</div>
+            <div className="lbl">Command Dispatches</div>
           </div>
         </div>
 
@@ -860,6 +1035,9 @@ export default function FairLiveMap({
             </span>
           ))}
         </div>
+        <p className="zone-disclaimer">
+          Search sectors show general areas of the fairgrounds. Individual Signal locations must still be discovered on-site.
+        </p>
       </div>
     </div>
   );

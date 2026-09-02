@@ -1,27 +1,25 @@
 import { NextResponse } from 'next/server';
 import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
-import {
-  getEventBySlugDB,
-  getEventParticipationDB,
-  getLeaderboardDB,
-  getPlayerProgressDB,
-  getQuestsForEventDB,
-} from '@/lib/supabase-db';
-import { getPublicQuestView } from '@/lib/game-engine';
-import { computeFairDashboardProgress, FAIR_EVENT_SLUG, getFairDateKey, getFairOperationPhase } from '@/lib/fair-hunt';
+import { getEventBySlugDB, getEventParticipationDB, getFairMysteryBoardDB, getFairMysteryWinnersDB } from '@/lib/supabase-db';
+import { FAIR_EVENT_SLUG, getFairOperationPhase } from '@/lib/fair-hunt';
 
 export const dynamic = 'force-dynamic';
-
-const LEADERBOARD_PREVIEW_SIZE = 10;
 
 /**
  * GET /api/fair/dashboard
  *
- * Always returns the public Fair state (Operation phase, all 22 quest
- * slots, leaderboard preview) so a logged-out visitor can see what the
- * Fair QR Hunt is. Player-specific fields (score, rank, per-quest
- * claimed/unclaimed, Operation participation) are only included when
- * authenticated.
+ * Always returns the public $300 Mystery Money board (Operation phase, all
+ * 20 Signal slots — found/unfound, with cashCents present only for found
+ * Signals — plus the revealed/hidden totals and the non-competitive
+ * per-player winnings list) so a logged-out visitor can see the whole
+ * board. Player-specific fields (Operation participation) are only
+ * included when authenticated.
+ *
+ * SECURITY: this route never reads fair_signal_prizes for an unfound
+ * Signal into anything it returns — getFairMysteryBoardDB only attaches
+ * cashCents to a signal object once a claim exists for it. There is no
+ * field on this response from which an unfound Signal's dollar value can
+ * be derived.
  */
 export async function GET(request: Request) {
   try {
@@ -30,37 +28,26 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Fair QR Hunt event not found.' }, { status: 404 });
     }
 
-    const [quests, leaderboard] = await Promise.all([getQuestsForEventDB(event.id), getLeaderboardDB(event.id)]);
-    const activeFairQuests = quests.filter((q) => q.status === 'active');
-    const publicQuests = activeFairQuests.map(getPublicQuestView);
+    const [board, winners] = await Promise.all([getFairMysteryBoardDB(event.id), getFairMysteryWinnersDB(event.id)]);
     const phase = getFairOperationPhase(event);
-    const todayDateKey = getFairDateKey();
-
-    const sessionResult = await resolveAuthenticatedSession(request);
-    const player = sessionResult.player;
 
     const base = {
       success: true,
       event,
       phase,
-      todayDateKey,
-      quests: publicQuests,
-      leaderboardPreview: leaderboard.slice(0, LEADERBOARD_PREVIEW_SIZE),
-      leaderboardSize: leaderboard.length,
+      board,
+      winners,
     };
 
+    const sessionResult = await resolveAuthenticatedSession(request);
+    const player = sessionResult.player;
+
     if (!player) {
-      const response = NextResponse.json({ ...base, isAuthenticated: false });
-      return response;
+      return NextResponse.json({ ...base, isAuthenticated: false });
     }
 
-    const [participation, progress] = await Promise.all([
-      getEventParticipationDB(event.id, player.id),
-      getPlayerProgressDB(player.id, event.id),
-    ]);
-
-    const claimedQuestIds = new Set(progress.completedQuestIds);
-    const rankEntry = leaderboard.find((entry) => entry.playerId === player.id);
+    const participation = await getEventParticipationDB(event.id, player.id);
+    const myWinnings = winners.find((w) => w.playerId === player.id);
 
     const response = NextResponse.json({
       ...base,
@@ -76,9 +63,7 @@ export async function GET(request: Request) {
       participation: participation
         ? { id: participation.id, registeredAt: participation.registeredAt }
         : null,
-      claimedQuestIds: Array.from(claimedQuestIds),
-      rank: rankEntry?.rank ?? null,
-      progress: computeFairDashboardProgress(publicQuests, claimedQuestIds),
+      myWinnings: myWinnings ? { signalsFound: myWinnings.signalsFound, totalCents: myWinnings.totalCents } : { signalsFound: 0, totalCents: 0 },
     });
 
     if (sessionResult.refreshedSession) {

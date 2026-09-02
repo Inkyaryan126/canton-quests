@@ -5,10 +5,11 @@ import {
   getQuestByTargetCodeDB,
   getOrCreateEventParticipationDB,
   submitQuestProofDB,
+  claimFairMysterySignalDB,
 } from '@/lib/supabase-db';
 import { getQuestAvailability } from '@/lib/quest-rewards';
 import { getPublicQuestView } from '@/lib/game-engine';
-import { FAIR_EVENT_SLUG, isFairBonusQuest } from '@/lib/fair-hunt';
+import { FAIR_CORE_CATEGORY, FAIR_EVENT_SLUG, isFairBonusQuest } from '@/lib/fair-hunt';
 
 /**
  * POST /api/qr/claim
@@ -20,11 +21,16 @@ import { FAIR_EVENT_SLUG, isFairBonusQuest } from '@/lib/fair-hunt';
  * supplied questId/eventId, so a request can't claim credit for a
  * different quest than the one actually printed on the card.
  *
- * Reuses the existing, already-hardened submitQuestProofDB transaction for
- * the actual award (server-authoritative points, event-id verification,
- * database-level duplicate protection via the score_ledger/reward_grants/
- * quest_submissions unique indexes) — this route only adds code-based
- * resolution and richer, reason-coded responses for the claim UI.
+ * Two entirely separate award paths, chosen by quest.category:
+ *   - fair_core (the 20 Mystery Money Signals) -> claimFairMysterySignalDB,
+ *     a dedicated global-first-claim-wins-cash mechanism (see that
+ *     function's doc comment in lib/supabase-db.ts). No XP, no points, no
+ *     drawing entry — a real dollar prize, revealed only once claimed.
+ *   - everything else (Volume 1's QR quests, and the now-retired/inactive
+ *     Fair daily-bonus Signals) -> the existing, unchanged
+ *     submitQuestProofDB transaction (server-authoritative points,
+ *     database-level duplicate protection). This path is completely
+ *     untouched by the Mystery Money redesign.
  */
 export async function POST(request: Request) {
   try {
@@ -50,6 +56,7 @@ export async function POST(request: Request) {
     }
 
     const isFair = quest.eventId && (await isEventFairQrHunt(quest.eventId));
+    const isMysterySignal = quest.category === FAIR_CORE_CATEGORY;
     const isBonus = isFairBonusQuest(quest);
 
     // Ensure Operation participation exists before attempting the claim —
@@ -61,16 +68,57 @@ export async function POST(request: Request) {
     }
 
     // Pre-classify availability for the claim UI's exact copy — the actual
-    // security boundary is submitQuestProofDB's own identical check
-    // (lib/quest-rewards.ts getQuestAvailability, shared by both paths),
-    // not this pre-check, so the two can never disagree in a way that lets
-    // an unavailable quest actually award anything.
+    // security boundary is each award path's own identical check
+    // (lib/quest-rewards.ts getQuestAvailability for submitQuestProofDB;
+    // claimFairMysterySignalDB checks quest.status itself), not this
+    // pre-check, so the two can never disagree in a way that lets an
+    // unavailable quest actually award anything.
     const availability = getQuestAvailability(quest);
     if (!availability.ok) {
       return NextResponse.json({
         success: false,
         reason: availability.reason,
         isBonus,
+        isFair,
+        isMysterySignal,
+        quest: getPublicQuestView(quest),
+      });
+    }
+
+    if (isMysterySignal) {
+      const claim = await claimFairMysterySignalDB(player.id, player.displayName, quest.id);
+
+      if (claim.outcome === 'won') {
+        return NextResponse.json({
+          success: true,
+          reason: 'signal_secured',
+          isFair: true,
+          isMysterySignal: true,
+          cashCents: claim.cashCents,
+          winnerDisplayName: claim.winnerDisplayName,
+          quest: getPublicQuestView(quest),
+          eventId: quest.eventId,
+        });
+      }
+
+      if (claim.outcome === 'already_claimed') {
+        return NextResponse.json({
+          success: false,
+          reason: 'signal_already_found',
+          isFair: true,
+          isMysterySignal: true,
+          cashCents: claim.cashCents,
+          winnerDisplayName: claim.winnerDisplayName,
+          quest: getPublicQuestView(quest),
+        });
+      }
+
+      return NextResponse.json({
+        success: false,
+        reason: claim.outcome === 'unavailable' ? 'inactive' : 'rejected',
+        message: claim.message,
+        isFair: true,
+        isMysterySignal: true,
         quest: getPublicQuestView(quest),
       });
     }
