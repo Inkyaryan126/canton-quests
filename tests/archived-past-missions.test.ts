@@ -127,14 +127,14 @@ describe('Archived past Missions — Mission Directory presentation', () => {
     expect(html).toContain('ENTER MISSION');
   });
 
-  it('the events directory page renders the archive/past-missions section before the live/upcoming sections', () => {
+  it('the events directory page renders the archive/past-missions section before the live/next-mission sections', () => {
     const source = readSource('app/events/page.tsx');
     const pastIdx = source.indexOf('PAST MISSIONS');
     const liveIdx = source.indexOf('LIVE NOW');
-    const upcomingIdx = source.indexOf('COMING UP');
+    const nextIdx = source.indexOf('NEXT MISSION');
     expect(pastIdx).toBeGreaterThan(-1);
     expect(pastIdx).toBeLessThan(liveIdx);
-    expect(pastIdx).toBeLessThan(upcomingIdx);
+    expect(pastIdx).toBeLessThan(nextIdx);
   });
 });
 

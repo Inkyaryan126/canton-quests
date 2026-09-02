@@ -12,8 +12,8 @@ const OPERATION_PRIZE_CONTEXT: Record<string, { prizeLabel?: string; teaser: str
     teaser: 'The full three-path Canton Quests experience — Family, Challenge, or Secret. This Mission has its own citywide leaderboard.',
   },
   'fair-qr-hunt': {
-    prizeLabel: '$100 Prize',
-    teaser: 'A path-free QR scavenger hunt across the fairgrounds. Scan every marker you can find.',
+    prizeLabel: '$300 Mystery Money',
+    teaser: 'A path-free QR scavenger hunt across the fairgrounds. 20 Signals, each hiding a real cash prize.',
   },
   // Archived worldbuilding Missions — no prizeLabel: there is no real prize
   // pool to report for a Mission that never had one, so the Gift row below

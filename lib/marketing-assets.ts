@@ -314,6 +314,19 @@ export const destinationCards = [
   },
 ];
 
+/**
+ * A small, spoiler-safe subset of destinationCards for the public Mission
+ * Directory's "glimpse inside" preview only (app/events/page.tsx).
+ * destinationCards itself is untouched and still fully powers the real
+ * in-Mission board (components/FounderCipherShell.tsx) — this list just
+ * picks out entry-point Family/Challenge cards whose copy never reveals a
+ * cipher answer, exact solution, finale location, or late-game discovery.
+ * Deliberately excludes every Secret Sector card and every "Staged"
+ * (not-yet-placed) card.
+ */
+const MISSION_PREVIEW_CARD_TITLES = ['Canton Sign Capture', 'Bell Cipher', 'Kraken Wall', 'The 9th Street Signal'];
+export const missionPreviewCards = destinationCards.filter((card) => MISSION_PREVIEW_CARD_TITLES.includes(card.title));
+
 export const proofTypeLabels: Record<Quest['verificationType'], string> = {
   checkin: 'GPS Check-In',
   gps: 'GPS Location',
@@ -353,16 +366,21 @@ export function getActiveEvent(events: QuestEvent[]) {
 
 /**
  * A Mission's public status for directory/card display: LIVE, UPCOMING, or
- * ENDED. Prefers the event's own authoritative `status` field (the same
- * source getActiveEvent already trusts) and only falls back to comparing
- * startTime/endTime against now for older/local data that never got a
- * maintained status value.
+ * ENDED. `status: 'ended'` is a genuine admin override (always ENDED, even
+ * if endTime is somehow still in the future). Otherwise this is purely
+ * time-driven — an "active" status (meaning "published/enabled", not
+ * "happening right now") does NOT by itself make a future-dated Mission
+ * show as LIVE. A Mission is only LIVE once its own startTime has actually
+ * arrived (or it has no startTime at all) and it isn't paused; an ended
+ * endTime always wins over a stale status value. `now` is injectable for
+ * tests — never hardcode "today" here.
  */
-export function getOperationStatus(event: QuestEvent): 'LIVE' | 'UPCOMING' | 'ENDED' {
+export function getOperationStatus(event: QuestEvent, now: Date = new Date()): 'LIVE' | 'UPCOMING' | 'ENDED' {
   if (event.status === 'ended') return 'ENDED';
-  if (event.status === 'active') return 'LIVE';
-  if (event.endTime && new Date(event.endTime).getTime() <= Date.now()) return 'ENDED';
-  if (!event.startTime || new Date(event.startTime).getTime() <= Date.now()) return 'LIVE';
+  const nowMs = now.getTime();
+  if (event.endTime && new Date(event.endTime).getTime() <= nowMs) return 'ENDED';
+  const hasStarted = !event.startTime || new Date(event.startTime).getTime() <= nowMs;
+  if (hasStarted && !event.isPaused) return 'LIVE';
   return 'UPCOMING';
 }
 
