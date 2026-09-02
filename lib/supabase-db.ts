@@ -1033,7 +1033,6 @@ export async function awardQuestRewardsDB(params: {
   quest: Quest;
   eventId: string;
   playerId: string;
-  teamId?: string;
   submissionId: string;
   method: ProofVerificationType;
   usedNfc?: boolean;
@@ -1157,7 +1156,6 @@ export async function awardQuestRewardsDB(params: {
     const scoreInsert = await db.from('score_ledger').insert({
       event_id: eventId,
       player_id: playerId,
-      team_id: params.teamId,
       quest_id: quest.id,
       submission_id: submissionId,
       points: totalXp,
@@ -2959,7 +2957,6 @@ export async function reviewSubmissionDB(
           quest,
           eventId: sub.event_id,
           playerId: sub.player_id,
-          teamId: sub.team_id,
           submissionId: sub.id,
           method: sub.proof_type,
           scoreDescription: `Media submission approved for ${quest.title}`,
@@ -2971,7 +2968,6 @@ export async function reviewSubmissionDB(
         await supabaseAdmin.from('score_ledger').insert({
           event_id: sub.event_id,
           player_id: sub.player_id,
-          team_id: sub.team_id,
           quest_id: sub.quest_id,
           submission_id: sub.id,
           points: 100,

@@ -989,7 +989,6 @@ export interface CodeRedemption {
   id: string;
   codeId: string;
   playerId: string;
-  teamId?: string;
   redeemedAt: string;
   pointsAwarded: number;
 }

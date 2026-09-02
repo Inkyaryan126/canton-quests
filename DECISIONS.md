@@ -1149,6 +1149,31 @@ Each entry follows the standard ADR structure:
   - The 8 seeded demo roster players have generated face images stored as base64 data URIs in `players.avatar_url` with `profile_image_path = NULL`. Because `getPlayerRosterDB` previously only selected preset keys and profile image paths, the public roster fell back to preset icons instead of displaying their demo face portraits.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-053] 2026-09-01: Confirmed Dead Schema Cleanup Preparation (Teams System & Legacy Prizes Table)
+
+- **Decision**:
+  1. **Cleanup Migration Prepared (Production Schema Removal Pending Application)**:
+     - Prepared dependency-safe cleanup migration `20260901140000_cleanup_dead_teams_and_legacy_prizes.sql` to remove `public.team_members`, `public.teams`, and `public.prizes` tables, as well as the four obsolete `team_id` foreign keys and columns from `quest_submissions`, `score_ledger`, `code_redemptions`, and `finale_qualifications`.
+     - The migration has been authored and verified locally with zero `CASCADE` drop statements; execution against the live Supabase database is pending explicit operator application.
+  2. **Runtime & Type Cleanup Completed Locally**:
+     - Removed obsolete defensive `sub.team_id` handling in `lib/supabase-db.ts` (`awardQuestRewardsDB` and `reviewSubmissionDB`).
+     - Removed obsolete `teamId?: string;` property from `CodeRedemption` in `lib/types.ts`.
+     - Confirmed via regression tests that the local runtime and test suites no longer depend on the legacy team schema or obsolete `team_id` columns.
+  3. **Fail-Safe Precondition Assertions & No-Cascade Invariant**:
+     - The migration contains a strict PL/pgSQL assertion DO block validating that `teams`, `team_members`, `prizes`, and all four `team_id` columns are 100% empty (0 rows / 0 non-null values), aborting loudly with an exception otherwise before any object is touched.
+     - Known foreign-key constraints are dropped explicitly before tables, with zero `CASCADE` drops.
+  4. **Live Public Quest View Naming Correction**:
+     - Documented canonical view name: the live public quest view is `public.public_quests` (not `public_quests_projection`). `public.public_quests` and its columns (`race_rewards`, `hints`, `risk_reward`, `required_collectible_id`) remain completely untouched.
+  5. **Preservation of Planned and Live Infrastructure**:
+     - `public.event_prizes` and `public.prize_draw_records` (transparent drawing system) remain the sole, authoritative prize infrastructure.
+     - Live weekend tables (`live_events`, `field_npcs`, `player_links`, `player_personal_roles`, `watcher_eligibility`, `drawing_entry_ledger`, `host_broadcasts`, `audience_*`, `announcements`) remain untouched.
+- **Reason**:
+  - Eliminates technical debt from early Phase 2/3 prototypes and aligns the codebase strictly with the pure individual explorer model (ADR-023) and transparent prize drawing architecture (ADR-017 / ADR-020), while ensuring production schema changes are safely prepared and staged prior to live execution.
+- **Status**: **ACCEPTED**
+
+
 
 
 
