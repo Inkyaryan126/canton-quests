@@ -1151,16 +1151,16 @@ Each entry follows the standard ADR structure:
 
 ---
 
-### [ADR-053] 2026-09-01: Confirmed Dead Schema Cleanup Preparation (Teams System & Legacy Prizes Table)
+### [ADR-053] 2026-09-01: Confirmed Dead Schema Cleanup (Teams System & Legacy Prizes Table)
 
 - **Decision**:
-  1. **Cleanup Migration Prepared (Production Schema Removal Pending Application)**:
-     - Prepared dependency-safe cleanup migration `20260901140000_cleanup_dead_teams_and_legacy_prizes.sql` to remove `public.team_members`, `public.teams`, and `public.prizes` tables, as well as the four obsolete `team_id` foreign keys and columns from `quest_submissions`, `score_ledger`, `code_redemptions`, and `finale_qualifications`.
-     - The migration has been authored and verified locally with zero `CASCADE` drop statements; execution against the live Supabase database is pending explicit operator application.
-  2. **Runtime & Type Cleanup Completed Locally**:
+  1. **Production Schema Cleanup Completed**:
+     - Applied dependency-safe cleanup migration `20260901140000_cleanup_dead_teams_and_legacy_prizes.sql` to live Supabase, removing `public.team_members`, `public.teams`, and `public.prizes` tables, as well as the four obsolete `team_id` foreign keys and columns from `quest_submissions`, `score_ledger`, `code_redemptions`, and `finale_qualifications`.
+     - Zero `CASCADE` drop statements were used, and all fail-safe precondition assertions (0 rows / 0 non-null values) succeeded.
+  2. **Runtime & Type Cleanup Deployed**:
      - Removed obsolete defensive `sub.team_id` handling in `lib/supabase-db.ts` (`awardQuestRewardsDB` and `reviewSubmissionDB`).
      - Removed obsolete `teamId?: string;` property from `CodeRedemption` in `lib/types.ts`.
-     - Confirmed via regression tests that the local runtime and test suites no longer depend on the legacy team schema or obsolete `team_id` columns.
+     - Confirmed via regression tests and live production verification that the runtime no longer depends on the legacy team schema or obsolete `team_id` columns.
   3. **Fail-Safe Precondition Assertions & No-Cascade Invariant**:
      - The migration contains a strict PL/pgSQL assertion DO block validating that `teams`, `team_members`, `prizes`, and all four `team_id` columns are 100% empty (0 rows / 0 non-null values), aborting loudly with an exception otherwise before any object is touched.
      - Known foreign-key constraints are dropped explicitly before tables, with zero `CASCADE` drops.
