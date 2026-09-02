@@ -53,6 +53,22 @@ export default function EventsPage() {
             <p className="cq-empty-state" style={{ padding: '2rem 0' }}>No Missions are published yet. Check back soon.</p>
           ) : (
             <div className="space-y-10">
+              {endedMissions.length > 0 && (
+                <div>
+                  <div className="cq-section-heading">
+                    <div>
+                      <span className="cq-kicker">PAST MISSIONS</span>
+                      <h2>Mission Archive</h2>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {endedMissions.map((event) => (
+                      <OperationCard key={event.id} event={event} status="ENDED" />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {liveMissions.length > 0 && (
                 <div>
                   <div className="cq-section-heading">
@@ -80,22 +96,6 @@ export default function EventsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     {upcomingMissions.map((event) => (
                       <OperationCard key={event.id} event={event} status="INCOMING" />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {endedMissions.length > 0 && (
-                <div>
-                  <div className="cq-section-heading">
-                    <div>
-                      <span className="cq-kicker">ARCHIVE</span>
-                      <h2>Ended Missions</h2>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    {endedMissions.map((event) => (
-                      <OperationCard key={event.id} event={event} status="ENDED" />
                     ))}
                   </div>
                 </div>

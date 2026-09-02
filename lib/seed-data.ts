@@ -339,6 +339,47 @@ export const SEED_FAIR_EVENT: QuestEvent = {
   requiresPath: false,
 };
 
+// Two archived/completed past Missions — pure worldbuilding continuity for
+// the Mission Directory (app/events/page.tsx). status: 'ended', dated
+// before the current September 2026 Missions. No quests, QR codes,
+// submissions, or players are seeded for either — see
+// supabase/migrations/20260902140000_seed_archived_past_missions.sql.
+export const SEED_MISSING_SIGNAL_EVENT: QuestEvent = {
+  id: 'evt-the-missing-signal',
+  cityId: SEED_CITY.id,
+  title: 'The Missing Signal',
+  slug: 'the-missing-signal',
+  description:
+    'A strange transmission surfaced across Canton. Players were called to follow hidden marks, broken signals, and overlooked details scattered through the city to trace the origin of a message that was never meant to be found.',
+  status: 'ended',
+  currentPhase: 'day_1',
+  isPaused: false,
+  startTime: '2026-06-19T04:00:00Z',
+  endTime: '2026-06-22T03:59:59Z',
+  basicInstructions: 'This Mission has concluded. See the archive for the final debrief.',
+  themeColor: '#6b7280',
+  createdAt: '2026-06-19T00:00:00Z',
+  requiresPath: false,
+};
+
+export const SEED_MIDNIGHT_LEDGER_EVENT: QuestEvent = {
+  id: 'evt-the-midnight-ledger',
+  cityId: SEED_CITY.id,
+  title: 'The Midnight Ledger',
+  slug: 'the-midnight-ledger',
+  description:
+    'A coded ledger appeared with references to Canton landmarks, unexplained times, and locations that should not have been connected. Following the entries revealed that someone else had been watching the city long before the players arrived.',
+  status: 'ended',
+  currentPhase: 'day_1',
+  isPaused: false,
+  startTime: '2026-08-01T04:00:00Z',
+  endTime: '2026-08-04T03:59:59Z',
+  basicInstructions: 'This Mission has concluded. See the archive for the final debrief.',
+  themeColor: '#4c1d95',
+  createdAt: '2026-08-01T00:00:00Z',
+  requiresPath: false,
+};
+
 // Demo Players with Path & Attribution Metadata
 export const SEED_DEMO_PLAYERS: Player[] = [
   {

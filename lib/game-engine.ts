@@ -70,6 +70,8 @@ import {
   SEED_LOCATIONS,
   SEED_EVENT,
   SEED_FAIR_EVENT,
+  SEED_MISSING_SIGNAL_EVENT,
+  SEED_MIDNIGHT_LEDGER_EVENT,
   SEED_FAIR_QUESTS,
   SEED_QUESTS,
   SEED_DEMO_PLAYERS,
@@ -201,6 +203,8 @@ export function initializeGameEngine(): void {
     setStoredItem(STORAGE_KEYS.EVENTS, [
       JSON.parse(JSON.stringify(SEED_EVENT)),
       JSON.parse(JSON.stringify(SEED_FAIR_EVENT)),
+      JSON.parse(JSON.stringify(SEED_MISSING_SIGNAL_EVENT)),
+      JSON.parse(JSON.stringify(SEED_MIDNIGHT_LEDGER_EVENT)),
     ]);
   }
   if (getStoredItem<Quest[]>(STORAGE_KEYS.QUESTS, []).length === 0) {

@@ -1,10 +1,12 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { ArrowRight, Gift } from 'lucide-react';
 import { QuestEvent } from '@/lib/types';
+import { isWorldbuildingArchiveMission } from '@/lib/marketing-assets';
 
-const OPERATION_PRIZE_CONTEXT: Record<string, { prizeLabel: string; teaser: string }> = {
+const OPERATION_PRIZE_CONTEXT: Record<string, { prizeLabel?: string; teaser: string }> = {
   'canton-weekend-1': {
     prizeLabel: '$500 Prize Pool',
     teaser: 'The full three-path Canton Quests experience — Family, Challenge, or Secret. This Mission has its own citywide leaderboard.',
@@ -12,6 +14,16 @@ const OPERATION_PRIZE_CONTEXT: Record<string, { prizeLabel: string; teaser: stri
   'fair-qr-hunt': {
     prizeLabel: '$100 Prize',
     teaser: 'A path-free QR scavenger hunt across the fairgrounds. Scan every marker you can find.',
+  },
+  // Archived worldbuilding Missions — no prizeLabel: there is no real prize
+  // pool to report for a Mission that never had one, so the Gift row below
+  // simply doesn't render rather than showing a fabricated or placeholder
+  // amount.
+  'the-missing-signal': {
+    teaser: 'A strange transmission surfaced across Canton. Players traced hidden marks, broken signals, and overlooked details to find its origin.',
+  },
+  'the-midnight-ledger': {
+    teaser: 'A coded ledger referenced Canton landmarks and unexplained times. Following it revealed someone else had been watching the city first.',
   },
 };
 
@@ -60,6 +72,8 @@ const STATUS_STYLE: Record<'LIVE' | 'INCOMING' | 'ENDED', { label: string; color
 export default function OperationCard({ event, status, showPathInfo = true }: OperationCardProps) {
   const context = OPERATION_PRIZE_CONTEXT[event.slug] || { prizeLabel: 'Prizes TBD', teaser: event.description };
   const style = STATUS_STYLE[status];
+  const isArchiveMission = isWorldbuildingArchiveMission(event.slug);
+  const detailHref = isArchiveMission ? `/events/archive/${event.slug}` : `/events/${event.slug}`;
 
   return (
     <article
@@ -85,11 +99,13 @@ export default function OperationCard({ event, status, showPathInfo = true }: Op
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-300">
-          <Gift size={14} aria-hidden="true" />
-          <span>{context.prizeLabel}</span>
-        </div>
-        {showPathInfo && (
+        {context.prizeLabel && (
+          <div className="flex items-center gap-2 text-xs font-mono font-bold text-amber-300">
+            <Gift size={14} aria-hidden="true" />
+            <span>{context.prizeLabel}</span>
+          </div>
+        )}
+        {showPathInfo && !isArchiveMission && (
           <span className="text-[10px] font-mono uppercase tracking-wide text-stone-400">
             {event.requiresPath ? 'Path required to enter' : 'No path required'}
           </span>
@@ -98,18 +114,20 @@ export default function OperationCard({ event, status, showPathInfo = true }: Op
 
       <div className="mt-auto pt-2 flex flex-wrap items-center gap-3">
         <Link
-          href={`/events/${event.slug}`}
+          href={detailHref}
           className="cq-gold-button inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-6"
         >
-          <span>{status === 'ENDED' ? 'VIEW RESULTS' : 'ENTER MISSION'}</span>
+          <span>{isArchiveMission ? 'VIEW ARCHIVE' : status === 'ENDED' ? 'VIEW RESULTS' : 'ENTER MISSION'}</span>
           <ArrowRight size={14} />
         </Link>
-        <Link
-          href={`/events/${event.slug}`}
-          className="cq-dark-button inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-5"
-        >
-          RANKINGS
-        </Link>
+        {!isArchiveMission && (
+          <Link
+            href={detailHref}
+            className="cq-dark-button inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-5"
+          >
+            RANKINGS
+          </Link>
+        )}
       </div>
     </article>
   );

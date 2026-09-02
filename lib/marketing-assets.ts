@@ -366,6 +366,31 @@ export function getOperationStatus(event: QuestEvent): 'LIVE' | 'UPCOMING' | 'EN
   return 'UPCOMING';
 }
 
+/**
+ * The small set of "worldbuilding-only" archived Missions — ended events
+ * with a real event row (title/dates/status/description) but deliberately
+ * no quests, QR codes, submissions, or players behind them. Distinct from
+ * a real Operation (e.g. the Sept 11 Main Operation) that will also
+ * eventually reach status: 'ended' but has genuine quest/leaderboard
+ * history worth showing on the full /events/[slug] dashboard. Cards and
+ * links for these slugs route to the lightweight /events/archive/[slug]
+ * page instead, and never claim a prize/leaderboard that doesn't exist.
+ */
+export const ARCHIVED_MISSION_DEBRIEF: Record<string, { stamp: string; lines: string[] }> = {
+  'the-missing-signal': {
+    stamp: 'MISSION COMPLETE',
+    lines: ['The signal was traced.', 'The network remained.', 'Somewhere in Canton, another transmission was already waiting.'],
+  },
+  'the-midnight-ledger': {
+    stamp: 'MISSION COMPLETE',
+    lines: ['The final entry was recovered.', 'The ledger closed.', 'But one question remained:', 'Who was keeping the record?'],
+  },
+};
+
+export function isWorldbuildingArchiveMission(slug: string): boolean {
+  return slug in ARCHIVED_MISSION_DEBRIEF;
+}
+
 export function getQuestRarity(quest: Quest) {
   if (quest.isSecret || quest.isFinaleQuest) return 'LEGENDARY';
   if (quest.isFlash) return 'EPIC';
