@@ -165,3 +165,34 @@ describe('Mission Directory — archived Mission badge reads MISSION COMPLETE, n
     expect(html).not.toContain('MISSION COMPLETE');
   });
 });
+
+describe('Homepage (#operations teaser) — same bug, separate implementation, now fixed', () => {
+  // app/page.tsx had its own independent isOperationLive(event) helper that
+  // only ever checked startTime <= now, never event.status — so an ended
+  // Mission whose startTime had passed (both archived Missions) read as
+  // "live" there even after getOperationStatus was fixed on /events. Fixed
+  // by having the homepage use the same getOperationStatus function.
+  it('app/page.tsx no longer defines its own isOperationLive — it reuses getOperationStatus', () => {
+    const source = readSource('app/page.tsx');
+    expect(source).not.toContain('function isOperationLive');
+    expect(source).toContain('getOperationStatus');
+  });
+
+  it('the homepage upcoming bucket is sorted by startTime, same as the Mission Directory', () => {
+    const source = readSource('app/page.tsx');
+    expect(source).toMatch(/incomingOperations[\s\S]*?\.sort\(/);
+  });
+
+  it('replicating the homepage\'s exact bucketing logic: archived Missions land in neither Live nor Upcoming, and Fair sorts before Cipher', () => {
+    const sept2 = new Date('2026-09-02T12:00:00Z');
+    const events = [SEED_MISSING_SIGNAL_EVENT, SEED_MIDNIGHT_LEDGER_EVENT, SEED_EVENT, SEED_FAIR_EVENT];
+
+    const live = events.filter((e) => getOperationStatus(e, sept2) === 'LIVE');
+    const upcoming = events
+      .filter((e) => getOperationStatus(e, sept2) === 'UPCOMING')
+      .sort((a, b) => (a.startTime ? new Date(a.startTime).getTime() : Infinity) - (b.startTime ? new Date(b.startTime).getTime() : Infinity));
+
+    expect(live).toHaveLength(0);
+    expect(upcoming.map((e) => e.slug)).toEqual(['fair-qr-hunt', 'canton-weekend-1']);
+  });
+});

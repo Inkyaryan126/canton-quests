@@ -21,7 +21,7 @@ import MobileStartBar from '@/components/MobileStartBar';
 import OperationCard from '@/components/OperationCard';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { Player, PublicRosterEntry, QuestEvent } from '@/lib/types';
-import { cqImages, getActiveEvent } from '@/lib/marketing-assets';
+import { cqImages, getActiveEvent, getOperationStatus } from '@/lib/marketing-assets';
 import { isProfileIdentityComplete } from '@/lib/player-command-center';
 import { createPlayerFileClickHandler } from '@/lib/player-file-nav';
 
@@ -36,11 +36,6 @@ function getStoredPlayer(): Player | null {
     }
   }
   return null;
-}
-
-function isOperationLive(event: QuestEvent): boolean {
-  if (!event.startTime) return true;
-  return new Date(event.startTime).getTime() <= Date.now();
 }
 
 // The short, platform-level join loop — applies to every Mission, not
@@ -134,8 +129,15 @@ export default function HomePage() {
 
   const activeEvent = getActiveEvent(events);
   const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events/canton-weekend-1';
-  const liveOperations = events.filter(isOperationLive);
-  const incomingOperations = events.filter((e) => !isOperationLive(e));
+  // Ended/archived Missions (e.g. worldbuilding past Missions) match
+  // neither filter, so they never appear in this homepage teaser — the
+  // full Mission Archive lives on /events. Upcoming is sorted by startTime
+  // ascending, not raw event array order (created_at doesn't necessarily
+  // match chronological Mission start order).
+  const liveOperations = events.filter((e) => getOperationStatus(e) === 'LIVE');
+  const incomingOperations = events
+    .filter((e) => getOperationStatus(e) === 'UPCOMING')
+    .sort((a, b) => (a.startTime ? new Date(a.startTime).getTime() : Infinity) - (b.startTime ? new Date(b.startTime).getTime() : Infinity));
   const rosterPreview = roster.slice(0, 6);
 
   return (
