@@ -129,15 +129,18 @@ export default function HomePage() {
 
   const activeEvent = getActiveEvent(events);
   const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events/canton-weekend-1';
-  // Ended/archived Missions (e.g. worldbuilding past Missions) match
-  // neither filter, so they never appear in this homepage teaser — the
-  // full Mission Archive lives on /events. Upcoming is sorted by startTime
-  // ascending, not raw event array order (created_at doesn't necessarily
-  // match chronological Mission start order).
+  // Upcoming is sorted by startTime ascending, not raw event array order
+  // (created_at doesn't necessarily match chronological Mission start
+  // order). Past Missions are shown too — they're part of the Canton
+  // Quests story, not just Directory-page trivia — sorted oldest first,
+  // same as /events.
   const liveOperations = events.filter((e) => getOperationStatus(e) === 'LIVE');
   const incomingOperations = events
     .filter((e) => getOperationStatus(e) === 'UPCOMING')
     .sort((a, b) => (a.startTime ? new Date(a.startTime).getTime() : Infinity) - (b.startTime ? new Date(b.startTime).getTime() : Infinity));
+  const pastOperations = events
+    .filter((e) => getOperationStatus(e) === 'ENDED')
+    .sort((a, b) => (a.startTime ? new Date(a.startTime).getTime() : 0) - (b.startTime ? new Date(b.startTime).getTime() : 0));
   const rosterPreview = roster.slice(0, 6);
 
   return (
@@ -293,6 +296,20 @@ export default function HomePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   {incomingOperations.map((event) => (
                     <OperationCard key={event.id} event={event} status="INCOMING" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {pastOperations.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-2 h-2 rounded-full bg-stone-400" />
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-stone-400">Past Missions</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {pastOperations.map((event) => (
+                    <OperationCard key={event.id} event={event} status="ENDED" />
                   ))}
                 </div>
               </div>

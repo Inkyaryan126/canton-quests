@@ -195,4 +195,20 @@ describe('Homepage (#operations teaser) — same bug, separate implementation, n
     expect(live).toHaveLength(0);
     expect(upcoming.map((e) => e.slug)).toEqual(['fair-qr-hunt', 'canton-weekend-1']);
   });
+
+  it('the homepage also renders a Past Missions section — players should see prior Missions are part of the story, not just on /events', () => {
+    const source = readSource('app/page.tsx');
+    expect(source).toContain('pastOperations');
+    expect(source).toContain('Past Missions');
+    expect(source).toMatch(/pastOperations[\s\S]*?status="ENDED"/);
+  });
+
+  it('replicating the homepage\'s pastOperations logic: both archived Missions appear, oldest first', () => {
+    const sept2 = new Date('2026-09-02T12:00:00Z');
+    const events = [SEED_MIDNIGHT_LEDGER_EVENT, SEED_MISSING_SIGNAL_EVENT, SEED_EVENT, SEED_FAIR_EVENT];
+    const past = events
+      .filter((e) => getOperationStatus(e, sept2) === 'ENDED')
+      .sort((a, b) => (a.startTime ? new Date(a.startTime).getTime() : 0) - (b.startTime ? new Date(b.startTime).getTime() : 0));
+    expect(past.map((e) => e.slug)).toEqual(['the-missing-signal', 'the-midnight-ledger']);
+  });
 });
