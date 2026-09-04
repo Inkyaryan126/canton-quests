@@ -1,4 +1,6 @@
 // Canton Quests — Phase 5.4 Real Event Readiness, Launch Gates & Rehearsal Test Suite
+import fs from 'fs';
+import path from 'path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   getEvents,
@@ -50,37 +52,37 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
   // 1. HARD SERVER-SIDE LAUNCH GATES
   // ===========================================================================
   describe('1. Hard Server-Side Launch Gates', () => {
-    it('1. valid seed event passes all mandatory critical launch gates', () => {
-      const result = evaluateEventLaunchGates(TEST_EVENT_ID);
+    it('1. valid seed event passes all mandatory critical launch gates', async () => {
+      const result = await evaluateEventLaunchGates(TEST_EVENT_ID);
       expect(result.isLaunchPermitted).toBe(true);
       expect(result.failedCriticalCount).toBe(0);
       expect(result.passedCount).toBeGreaterThanOrEqual(9);
       expect(result.blockingReasons).toHaveLength(0);
     });
 
-    it('2. non-existent event ID fails closed with critical blocker', () => {
-      const result = evaluateEventLaunchGates('non-existent-event-id-999');
+    it('2. non-existent event ID fails closed with critical blocker', async () => {
+      const result = await evaluateEventLaunchGates('non-existent-event-id-999');
       expect(result.isLaunchPermitted).toBe(false);
       expect(result.failedCriticalCount).toBe(1);
       expect(result.blockingReasons[0]).toContain('does not exist');
     });
 
-    it('3. cancelled event strictly fails launch gate', () => {
+    it('3. cancelled event strictly fails launch gate', async () => {
       const events = getEvents();
       const testEvt = events.find((e) => e.id === TEST_EVENT_ID);
       if (testEvt) (testEvt as any).status = 'cancelled';
 
-      const result = evaluateEventLaunchGates(TEST_EVENT_ID);
+      const result = await evaluateEventLaunchGates(TEST_EVENT_ID);
       expect(result.isLaunchPermitted).toBe(false);
       expect(result.blockingReasons[0]).toContain('cancelled');
     });
 
-    it('4. event with insufficient playable quests fails launch gate', () => {
+    it('4. event with insufficient playable quests fails launch gate', async () => {
       const quests = getQuestsForEvent(TEST_EVENT_ID);
       // Deactivate all quests except 1
       quests.slice(1).forEach((q) => (q.status = 'inactive'));
 
-      const result = evaluateEventLaunchGates(TEST_EVENT_ID);
+      const result = await evaluateEventLaunchGates(TEST_EVENT_ID);
       expect(result.isLaunchPermitted).toBe(false);
       const gate = result.gates.find((g) => g.code === 'GATE_PLAYABLE_QUESTS_COUNT');
       expect(gate?.isPassed).toBe(false);
@@ -92,8 +94,8 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
   // 2. QR READINESS AUDIT & SECURITY LEAK DETECTION
   // ===========================================================================
   describe('2. QR Readiness Audit & Security Checks', () => {
-    it('1. audits all event QR quests and verifies route availability', () => {
-      const report = auditEventQRQuests(TEST_EVENT_ID);
+    it('1. audits all event QR quests and verifies route availability', async () => {
+      const report = await auditEventQRQuests(TEST_EVENT_ID);
       expect(report.totalQrQuests).toBeGreaterThan(0);
       expect(report.brokenCount).toBe(0);
       expect(report.readyCount).toBeGreaterThanOrEqual(1);
@@ -103,7 +105,7 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
       expect(sample.hasSecretExposed).toBe(false);
     });
 
-    it('2. detects critical security leak if target secret code is exposed in public description', () => {
+    it('2. detects critical security leak if target secret code is exposed in public description', async () => {
       const quests = getQuestsForEvent(TEST_EVENT_ID);
       const qrQuest = quests.find((q) => q.verificationType === 'qr');
       expect(qrQuest).toBeDefined();
@@ -113,7 +115,7 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
         qrQuest.description = 'Look around Centennial Plaza and enter SUPER_SECRET_CANTON_PASS to win.';
       }
 
-      const report = auditEventQRQuests(TEST_EVENT_ID);
+      const report = await auditEventQRQuests(TEST_EVENT_ID);
       expect(report.brokenCount).toBeGreaterThan(0);
 
       const leakedItem = report.items.find((i) => i.questId === qrQuest?.id);
@@ -122,7 +124,7 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
       expect(leakedItem?.issues[0]).toContain('CRITICAL SECURITY LEAK');
     });
 
-    it('3. detects duplicate active QR identifier collisions between quests', () => {
+    it('3. detects duplicate active QR identifier collisions between quests', async () => {
       const quests = getQuestsForEvent(TEST_EVENT_ID);
       const qrQuests = quests.filter((q) => q.verificationType === 'qr');
       expect(qrQuests.length).toBeGreaterThanOrEqual(2);
@@ -131,7 +133,7 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
       qrQuests[0].qrCodeIdentifier = 'COLLIDING_QR_CODE_123';
       qrQuests[1].qrCodeIdentifier = 'COLLIDING_QR_CODE_123';
 
-      const report = auditEventQRQuests(TEST_EVENT_ID);
+      const report = await auditEventQRQuests(TEST_EVENT_ID);
       expect(report.brokenCount).toBeGreaterThanOrEqual(1);
       const colliding = report.items.find((i) => i.questId === qrQuests[1].id);
       expect(colliding?.status).toBe('BROKEN');
@@ -143,19 +145,19 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
   // 3. QUEST & LOCATION STRUCTURAL AUDIT
   // ===========================================================================
   describe('3. Quest Roster & Location Structural Audit', () => {
-    it('1. validates point values, coordinates within Canton bounds, and proof types', () => {
-      const audit = auditEventQuestsAndLocations(TEST_EVENT_ID);
+    it('1. validates point values, coordinates within Canton bounds, and proof types', async () => {
+      const audit = await auditEventQuestsAndLocations(TEST_EVENT_ID);
       expect(audit.summary.total).toBeGreaterThan(0);
       expect(audit.summary.broken).toBe(0);
       expect(audit.summary.ready + audit.summary.warning).toBe(audit.summary.total);
       expect(audit.summary.ready).toBeGreaterThanOrEqual(14);
     });
 
-    it('2. flags broken prerequisite reference if required quest does not exist', () => {
+    it('2. flags broken prerequisite reference if required quest does not exist', async () => {
       const quests = getQuestsForEvent(TEST_EVENT_ID);
       quests[0].prerequisiteQuestId = 'ghost-quest-999-missing';
 
-      const audit = auditEventQuestsAndLocations(TEST_EVENT_ID);
+      const audit = await auditEventQuestsAndLocations(TEST_EVENT_ID);
       expect(audit.summary.broken).toBeGreaterThanOrEqual(1);
 
       const brokenItem = audit.items.find((i) => i.questId === quests[0].id);
@@ -163,11 +165,11 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
       expect(brokenItem?.issues[0]).toContain('Prerequisite quest');
     });
 
-    it('3. detects self-referencing prerequisite cycles', () => {
+    it('3. detects self-referencing prerequisite cycles', async () => {
       const quests = getQuestsForEvent(TEST_EVENT_ID);
       quests[0].prerequisiteQuestId = quests[0].id; // Self loop
 
-      const audit = auditEventQuestsAndLocations(TEST_EVENT_ID);
+      const audit = await auditEventQuestsAndLocations(TEST_EVENT_ID);
       const brokenItem = audit.items.find((i) => i.questId === quests[0].id);
       expect(brokenItem?.auditStatus).toBe('BROKEN');
       expect(brokenItem?.issues[0]).toContain('Self-referencing prerequisite cycle');
@@ -178,8 +180,8 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
   // 4. COMPUTED LAUNCH READINESS DASHBOARD & OPERATOR CHECKLIST
   // ===========================================================================
   describe('4. Event Readiness Report & Pre-Event Checklist', () => {
-    it('1. computes complete readiness report across all 12 operational subsystems', () => {
-      const report = computeEventReadinessReport(TEST_EVENT_ID);
+    it('1. computes complete readiness report across all 12 operational subsystems', async () => {
+      const report = await computeEventReadinessReport(TEST_EVENT_ID);
       expect(report.eventId).toBe(TEST_EVENT_ID);
       expect(report.overallStatus).toBeDefined();
       expect(Object.keys(report.categories)).toHaveLength(12);
@@ -188,8 +190,8 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
       expect(report.categories.prize_and_drawing_isolation.status).toBe('READY');
     });
 
-    it('2. provides operator checklist with automated and manual verification sync', () => {
-      const checklist = getOperatorChecklist(TEST_EVENT_ID);
+    it('2. provides operator checklist with automated and manual verification sync', async () => {
+      const checklist = await getOperatorChecklist(TEST_EVENT_ID);
       expect(checklist.items.length).toBe(10);
 
       // Automated check syncs with system readiness
@@ -197,7 +199,7 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
       expect(autoItem?.automatedStatus).toBe('READY');
 
       // Update manual check item
-      const updated = updateOperatorChecklistItem(
+      const updated = await updateOperatorChecklistItem(
         TEST_EVENT_ID,
         'chk-3-qr-placed',
         true,
@@ -214,11 +216,11 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
   // 5. WALK-UP PLAYER REHEARSAL & SANDBOX ISOLATION
   // ===========================================================================
   describe('5. Walk-Up Player Rehearsal Simulator', () => {
-    it('1. executes 10-step simulated player walk-up flow successfully', () => {
+    it('1. executes 10-step simulated player walk-up flow successfully', async () => {
       const playersBefore = getAllPlayers().length;
       const leaderboardBefore = getLeaderboardForEvent(TEST_EVENT_ID).length;
 
-      const result = runWalkUpPlayerRehearsal(TEST_EVENT_ID);
+      const result = await runWalkUpPlayerRehearsal(TEST_EVENT_ID);
 
       expect(result.isSuccess).toBe(true);
       expect(result.isRehearsal).toBe(true);
@@ -232,8 +234,8 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
       expect(getLeaderboardForEvent(TEST_EVENT_ID).length).toBe(leaderboardBefore);
     });
 
-    it('2. logs rehearsal execution in operational timeline with isRehearsal flag', () => {
-      runWalkUpPlayerRehearsal(TEST_EVENT_ID);
+    it('2. logs rehearsal execution in operational timeline with isRehearsal flag', async () => {
+      await runWalkUpPlayerRehearsal(TEST_EVENT_ID);
       const timeline = getLiveEventTimeline(TEST_EVENT_ID, 20, true);
       const rehearsalEntry = timeline.find((t) => t.actionType === 'rehearsal_executed');
 
@@ -247,9 +249,9 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
   // 6. FULL EVENT 8-PHASE REHEARSAL
   // ===========================================================================
   describe('6. Full Event 8-Phase Progression Rehearsal', () => {
-    it('1. simulates complete 8-phase event lifecycle with 100% sandbox isolation', () => {
+    it('1. simulates complete 8-phase event lifecycle with 100% sandbox isolation', async () => {
       const playersBefore = getAllPlayers().length;
-      const result = runFullEventRehearsal(TEST_EVENT_ID);
+      const result = await runFullEventRehearsal(TEST_EVENT_ID);
 
       expect(result.isSuccess).toBe(true);
       expect(result.isRehearsal).toBe(true);
@@ -318,8 +320,37 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
       expect(settings.isSpectatorSystemDisabled).toBe(false);
     });
 
-    it('3. executeEventClosure transitions event to ENDED, halts scoring, and preserves historical data', () => {
-      const closureResult = executeEventClosure(
+    it('4. genuinely reads real production data — GATE_EVENT_EXISTS is DB-aware, not local-engine-only (2026-09-04 fix)', () => {
+      // Regression for: /admin/live reported "Event Exists in Database:
+      // NOT FOUND" for the real production event ID
+      // (b0000001-0000-4000-8000-000000000001) even though that event
+      // genuinely existed — because every readiness function read from
+      // lib/game-engine.ts's local/offline engine, which has its own
+      // different seed IDs and never contains real production rows.
+      const source = fs.readFileSync(path.join(process.cwd(), 'lib/event-readiness.ts'), 'utf8');
+      expect(source).toContain("from './supabase-db'");
+      expect(source).toContain('getEventByIdDB');
+      expect(source).toContain('getQuestsForEventDB');
+      expect(source).toContain('getLocationsDB');
+      expect(source).toContain('getPlayerCountDB');
+      // No more direct local-engine reads for the readiness-determining data.
+      expect(source).not.toMatch(/from '\.\/game-engine'/);
+      // Every readiness/gate/audit function must be async now that it
+      // awaits real DB calls.
+      for (const fn of [
+        'auditEventQRQuests',
+        'auditEventQuestsAndLocations',
+        'evaluateEventLaunchGates',
+        'computeEventReadinessReport',
+        'getOperatorChecklist',
+        'executeEventClosure',
+      ]) {
+        expect(source).toContain(`export async function ${fn}`);
+      }
+    });
+
+    it('3. executeEventClosure transitions event to ENDED, halts scoring, and preserves historical data', async () => {
+      const closureResult = await executeEventClosure(
         TEST_EVENT_ID,
         'Lead Game Master',
         'Official Event Concluded'

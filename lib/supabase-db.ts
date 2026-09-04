@@ -1900,6 +1900,16 @@ export async function createLocationDB(locData: Omit<LocationInfo, 'id'>): Promi
 }
 
 // 7. PLAYERS DB & PROFILE
+
+/** Total registered player count — a head-only count query, never fetches full rows. Used for admin metrics display only. */
+export async function getPlayerCountDB(): Promise<number> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getAllPlayers().length;
+  const db = supabaseAdmin || supabase;
+  const { count, error } = await db.from('players').select('*', { count: 'exact', head: true });
+  if (error || count === null) return localEngine.getAllPlayers().length;
+  return count;
+}
+
 export async function getPlayerByIdDB(playerId: string): Promise<Player | undefined> {
   if (!isSupabaseConfigured || !supabase) return localEngine.getPlayerById(playerId);
   const db = supabaseAdmin || supabase;

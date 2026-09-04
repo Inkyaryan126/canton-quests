@@ -354,9 +354,9 @@ describe('Player Identity & Three-Path City Architecture', () => {
   });
 
   describe('5. Hard Launch Gates & Event Integrity', () => {
-    it('passes all launch gates with 3-path architecture and individual player model', () => {
+    it('passes all launch gates with 3-path architecture and individual player model', async () => {
       const eventId = SEED_EVENT.id;
-      const gates = evaluateEventLaunchGates(eventId);
+      const gates = await evaluateEventLaunchGates(eventId);
 
       expect(gates.isLaunchPermitted).toBe(true);
       expect(gates.failedCriticalCount).toBe(0);

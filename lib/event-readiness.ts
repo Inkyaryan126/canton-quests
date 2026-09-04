@@ -1,4 +1,19 @@
 // Canton Quests — Phase 5.4 Real Event Readiness, Launch Gates & Rehearsal Engine
+//
+// DB-AWARE (2026-09-04): every function that determines a real readiness
+// verdict — the launch gates, the QR/quest/location audits, the readiness
+// report's category statuses, and the operator checklist's automated
+// statuses — reads real production Supabase data (via lib/supabase-db.ts
+// and lib/spectator-db.ts), not the local/offline engine. Before this fix,
+// every one of those functions read from lib/game-engine.ts's in-memory
+// local engine, which in production never contains the real event/quest
+// rows at all — so "Event Exists in Database" and similar gates could
+// never genuinely pass against the real event, regardless of actual
+// production state. The two rehearsal simulators (runWalkUpPlayerRehearsal,
+// runFullEventRehearsal) are intentionally still a scripted narrative
+// walkthrough, not a real-state check — see their own doc comments — but
+// now pull real quest data for the few facts they surface (quest count,
+// the quest they narrate opening) rather than reading local-only state.
 import {
   EventReadinessReport,
   ReadinessCategory,
@@ -21,19 +36,19 @@ import {
   QuestEvent,
 } from './types';
 import {
-  getEvents,
-  getQuestsForEvent,
-  getLocations,
-  getAllPlayers,
-  setEventPhase,
-} from './game-engine';
+  getEventByIdDB,
+  getQuestsForEventDB,
+  getLocationsDB,
+  setEventPhaseDB,
+  getPlayerCountDB,
+} from './supabase-db';
 import {
-  getAudienceEvents,
-  getHostBroadcasts,
-  getSpectatorSystemSettings,
-  closeAudienceVoting,
-  logTimelineAction,
-} from './spectator-engine';
+  getAudienceEventsDB,
+  getHostBroadcastsDB,
+  getSpectatorSystemSettingsDB,
+  closeAudienceVotingDB,
+} from './spectator-db';
+import { logTimelineAction } from './spectator-engine';
 
 // Canton geographic bounding box
 const CANTON_BOUNDS = {
@@ -51,8 +66,8 @@ let lastRehearsalTimestamp: string | undefined = undefined;
  * 1. QR READINESS AUDIT ENGINE
  * Inspects all QR-related quests and campaign assignments for integrity and security.
  */
-export function auditEventQRQuests(eventId: string): QRReadinessAuditReport {
-  const quests = getQuestsForEvent(eventId);
+export async function auditEventQRQuests(eventId: string): Promise<QRReadinessAuditReport> {
+  const quests = await getQuestsForEventDB(eventId);
   const qrQuests = quests.filter(
     (q) =>
       q.verificationType === 'qr' ||
@@ -139,12 +154,12 @@ export function auditEventQRQuests(eventId: string): QRReadinessAuditReport {
  * 2. QUEST & LOCATION READINESS AUDIT ENGINE
  * Evaluates all quests for category, XP, locations, proof methods, and prerequisite chains.
  */
-export function auditEventQuestsAndLocations(eventId: string): {
+export async function auditEventQuestsAndLocations(eventId: string): Promise<{
   items: QuestAuditItem[];
   summary: { total: number; ready: number; warning: number; broken: number };
-} {
-  const quests = getQuestsForEvent(eventId);
-  const locations = getLocations();
+}> {
+  const quests = await getQuestsForEventDB(eventId);
+  const locations = await getLocationsDB();
   const locationMap = new Map<string, LocationInfo>(locations.map((l) => [l.id, l]));
   const questMap = new Map<string, Quest>(quests.map((q) => [q.id, q]));
 
@@ -259,9 +274,8 @@ export function auditEventQuestsAndLocations(eventId: string): {
  * 3. HARD SERVER-SIDE LAUNCH GATES
  * Blocks live launch if critical configuration or security invariants fail closed.
  */
-export function evaluateEventLaunchGates(eventId: string): LaunchGatesEvaluationResult {
-  const events = getEvents();
-  const event = events.find((e) => e.id === eventId);
+export async function evaluateEventLaunchGates(eventId: string): Promise<LaunchGatesEvaluationResult> {
+  const event = await getEventByIdDB(eventId);
   const gates: LaunchGateRule[] = [];
   const blockingReasons: string[] = [];
 
@@ -313,7 +327,7 @@ export function evaluateEventLaunchGates(eventId: string): LaunchGatesEvaluation
   }
 
   // Gate 3: Playable Quest Count (Minimum 3 playable quests)
-  const quests = getQuestsForEvent(eventId);
+  const quests = await getQuestsForEventDB(eventId);
   const playableQuests = quests.filter((q) => q.status !== 'inactive');
   if (playableQuests.length < 3) {
     gates.push({
@@ -334,7 +348,7 @@ export function evaluateEventLaunchGates(eventId: string): LaunchGatesEvaluation
   }
 
   // Gate 4: Zero Broken Quests
-  const questAudit = auditEventQuestsAndLocations(eventId);
+  const questAudit = await auditEventQuestsAndLocations(eventId);
   if (questAudit.summary.broken > 0) {
     gates.push({
       code: 'GATE_NO_BROKEN_QUESTS',
@@ -354,7 +368,7 @@ export function evaluateEventLaunchGates(eventId: string): LaunchGatesEvaluation
   }
 
   // Gate 5: QR Configuration Integrity
-  const qrAudit = auditEventQRQuests(eventId);
+  const qrAudit = await auditEventQRQuests(eventId);
   if (qrAudit.brokenCount > 0) {
     gates.push({
       code: 'GATE_QR_CONFIG_VALID',
@@ -497,19 +511,20 @@ export function evaluateEventLaunchGates(eventId: string): LaunchGatesEvaluation
  * 4. EVENT READINESS DASHBOARD REPORT GENERATOR
  * Computes exhaustive health status across all 12 operational subsystems.
  */
-export function computeEventReadinessReport(eventId: string): EventReadinessReport {
-  const events = getEvents();
-  const event = events.find((e) => e.id === eventId);
+export async function computeEventReadinessReport(eventId: string): Promise<EventReadinessReport> {
+  const event = await getEventByIdDB(eventId);
   const now = new Date().toISOString();
 
-  const quests = getQuestsForEvent(eventId);
-  const qrAudit = auditEventQRQuests(eventId);
-  const questAudit = auditEventQuestsAndLocations(eventId);
-  const launchGates = evaluateEventLaunchGates(eventId);
-  const spectatorSettings = getSpectatorSystemSettings(eventId);
-  const players = getAllPlayers();
-  const audienceEvents = getAudienceEvents(eventId, true);
-  const broadcasts = getHostBroadcasts(eventId);
+  const quests = await getQuestsForEventDB(eventId);
+  const [qrAudit, questAudit, launchGates, spectatorSettings, registeredPlayers, audienceEvents, broadcasts] = await Promise.all([
+    auditEventQRQuests(eventId),
+    auditEventQuestsAndLocations(eventId),
+    evaluateEventLaunchGates(eventId),
+    getSpectatorSystemSettingsDB(eventId),
+    getPlayerCountDB(),
+    getAudienceEventsDB(eventId, true),
+    getHostBroadcastsDB(eventId, true),
+  ]);
 
   const categories: Record<ReadinessCategory, CategoryReadinessSummary> = {} as any;
   const blockers: string[] = [...launchGates.blockingReasons];
@@ -776,7 +791,7 @@ export function computeEventReadinessReport(eventId: string): EventReadinessRepo
       qrQuests: qrAudit.totalQrQuests,
       locationQuests: questAudit.items.filter((i) => i.isLocationBound).length,
       brokenQuests: questAudit.summary.broken,
-      registeredPlayers: players.length,
+      registeredPlayers,
       activePhase: event?.currentPhase || 'pre_game',
       isPaused: !!event?.isPaused,
       isSpectatorFrozen: !!spectatorSettings?.isSpectatorSystemDisabled,
@@ -789,8 +804,8 @@ export function computeEventReadinessReport(eventId: string): EventReadinessRepo
  * 5. PRE-EVENT OPERATOR CHECKLIST
  * Returns the interactive Game Master checklist with automated state synchronization.
  */
-export function getOperatorChecklist(eventId: string): PreEventChecklistState {
-  const readiness = computeEventReadinessReport(eventId);
+export async function getOperatorChecklist(eventId: string): Promise<PreEventChecklistState> {
+  const readiness = await computeEventReadinessReport(eventId);
   let items = checklistStore.get(eventId);
 
   if (!items) {
@@ -910,13 +925,13 @@ export function getOperatorChecklist(eventId: string): PreEventChecklistState {
 /**
  * Updates a checklist item's manual confirmation status.
  */
-export function updateOperatorChecklistItem(
+export async function updateOperatorChecklistItem(
   eventId: string,
   itemId: string,
   isChecked: boolean,
   actor: string
-): PreEventChecklistState {
-  const state = getOperatorChecklist(eventId);
+): Promise<PreEventChecklistState> {
+  const state = await getOperatorChecklist(eventId);
   const item = state.items.find((i) => i.id === itemId);
   if (item) {
     item.isManuallyChecked = isChecked;
@@ -930,8 +945,12 @@ export function updateOperatorChecklistItem(
 /**
  * 6. WALK-UP PLAYER REHEARSAL SIMULATOR
  * Proves that a brand-new player can arrive, enter, submit quests, earn XP, and appear on leaderboards safely.
+ *
+ * Still an intentionally scripted narrative walkthrough (every step is a
+ * canned PASSED result, not a live probe) — but step 3/4 now surface the
+ * REAL quest roster and a real target quest, instead of local-only state.
  */
-export function runWalkUpPlayerRehearsal(eventId: string): WalkUpRehearsalResult {
+export async function runWalkUpPlayerRehearsal(eventId: string): Promise<WalkUpRehearsalResult> {
   const startTime = Date.now();
   const simPlayerId = `sim-player-walkup-${Date.now()}`;
   const simPlayerName = 'Simulated Pioneer';
@@ -958,7 +977,7 @@ export function runWalkUpPlayerRehearsal(eventId: string): WalkUpRehearsalResult
   });
 
   // Step 3: Enter Event & Load Quests
-  const quests = getQuestsForEvent(eventId);
+  const quests = await getQuestsForEventDB(eventId);
   steps.push({
     stepNumber: 3,
     title: 'Enter Live Event & Retrieve Quest Roster',
@@ -1072,9 +1091,10 @@ export function runWalkUpPlayerRehearsal(eventId: string): WalkUpRehearsalResult
 
 /**
  * 7. FULL EVENT PHASE REHEARSAL SIMULATOR
- * Simulates the complete event lifecycle across all 8 phases.
+ * Simulates the complete event lifecycle across all 8 phases. Entirely a
+ * scripted narrative — no real data lookups — see doc comment above.
  */
-export function runFullEventRehearsal(eventId: string): FullEventRehearsalResult {
+export async function runFullEventRehearsal(eventId: string): Promise<FullEventRehearsalResult> {
   const startTime = Date.now();
   const phases: FullEventRehearsalPhaseResult[] = [];
 
@@ -1210,24 +1230,24 @@ export function runFullEventRehearsal(eventId: string): FullEventRehearsalResult
  * 8. SAFE EVENT CLOSURE & EMERGENCY STATE MANAGEMENT
  * Safely concludes a live event, locks new submissions, and preserves historical data.
  */
-export function executeEventClosure(
+export async function executeEventClosure(
   eventId: string,
   actor: string,
   reason?: string
-): { success: boolean; event?: QuestEvent; details: Record<string, any>; error?: string } {
-  const events = getEvents();
-  const event = events.find((e) => e.id === eventId);
+): Promise<{ success: boolean; event?: QuestEvent; details: Record<string, any>; error?: string }> {
+  const event = await getEventByIdDB(eventId);
   if (!event) return { success: false, details: {}, error: 'Event not found' };
 
   // Transition phase to ended
-  setEventPhase(eventId, 'ended');
-  (event as any).status = 'ended';
+  const updatedEvent = await setEventPhaseDB(eventId, 'ended');
+  const finalEvent = (updatedEvent || event) as QuestEvent;
+  (finalEvent as any).status = 'ended';
 
   // Safely close any active audience voting
-  const audienceEvents = getAudienceEvents(eventId, true);
-  const activeAudienceEvent = audienceEvents.find((e) => e.status === 'voting_active');
+  const audienceEvents = await getAudienceEventsDB(eventId, true);
+  const activeAudienceEvent = (audienceEvents as any[]).find((e) => e.status === 'voting_active');
   if (activeAudienceEvent) {
-    closeAudienceVoting(activeAudienceEvent.id, actor);
+    await closeAudienceVotingDB(activeAudienceEvent.id, actor);
   }
 
   // Publish concluding host broadcast
@@ -1241,7 +1261,7 @@ export function executeEventClosure(
 
   return {
     success: true,
-    event,
+    event: finalEvent as QuestEvent,
     details: {
       concludedAt: new Date().toISOString(),
       closedAudienceEventId: activeAudienceEvent?.id,

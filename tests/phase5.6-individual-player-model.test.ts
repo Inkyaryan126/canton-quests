@@ -132,17 +132,17 @@ describe('Phase 5.6 — Pure Individual Player Competition Architecture', () => 
     expect(pageData.totalQualifiedPlayers).toBeGreaterThanOrEqual(1);
   });
 
-  it('6. executes launch readiness and simulated rehearsals under individual player model', () => {
-    const report = computeEventReadinessReport(SEED_EVENT.id);
+  it('6. executes launch readiness and simulated rehearsals under individual player model', async () => {
+    const report = await computeEventReadinessReport(SEED_EVENT.id);
     expect(report).toBeDefined();
     expect(report.metrics.totalQuests).toBeGreaterThan(0);
 
-    const walkUp = runWalkUpPlayerRehearsal(SEED_EVENT.id);
+    const walkUp = await runWalkUpPlayerRehearsal(SEED_EVENT.id);
     expect(walkUp.isSuccess).toBe(true);
     expect(walkUp.simulatedPlayer.id).toBeDefined();
     expect(walkUp.simulatedPlayer.earnedXp).toBeGreaterThan(0);
 
-    const fullRehearsal = runFullEventRehearsal(SEED_EVENT.id);
+    const fullRehearsal = await runFullEventRehearsal(SEED_EVENT.id);
     expect(fullRehearsal.isSuccess).toBe(true);
     expect(fullRehearsal.simulatedPlayerCount).toBeGreaterThan(0);
     expect(fullRehearsal.productionDataVerifiedUntouched).toBe(true);

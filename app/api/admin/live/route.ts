@@ -116,12 +116,14 @@ export async function GET(request: Request) {
     const resolvedEvents = events.filter((e) => e.status === 'resolved' || e.status === 'cancelled' || e.status === 'effect_applied');
 
     // Phase 5.4 Readiness and Audit State
-    const readiness = computeEventReadinessReport(eventId);
-    const launchGates = evaluateEventLaunchGates(eventId);
-    const checklist = getOperatorChecklist(eventId);
-    const qrAudit = auditEventQRQuests(eventId);
-    const questAudit = auditEventQuestsAndLocations(eventId);
-    const liveEvents = await getActiveLiveEventsDB(eventId);
+    const [readiness, launchGates, checklist, qrAudit, questAudit, liveEvents] = await Promise.all([
+      computeEventReadinessReport(eventId),
+      evaluateEventLaunchGates(eventId),
+      getOperatorChecklist(eventId),
+      auditEventQRQuests(eventId),
+      auditEventQuestsAndLocations(eventId),
+      getActiveLiveEventsDB(eventId),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -359,22 +361,22 @@ export async function POST(request: Request) {
       }
 
       case 'evaluate_launch_gates': {
-        const gatesResult = evaluateEventLaunchGates(eventId);
+        const gatesResult = await evaluateEventLaunchGates(eventId);
         return NextResponse.json({ success: true, ...gatesResult });
       }
 
       case 'get_readiness_report': {
-        const report = computeEventReadinessReport(eventId);
+        const report = await computeEventReadinessReport(eventId);
         return NextResponse.json({ success: true, report });
       }
 
       case 'audit_qr_quests': {
-        const qrAudit = auditEventQRQuests(eventId);
+        const qrAudit = await auditEventQRQuests(eventId);
         return NextResponse.json({ success: true, ...qrAudit });
       }
 
       case 'audit_quests_locations': {
-        const questAudit = auditEventQuestsAndLocations(eventId);
+        const questAudit = await auditEventQuestsAndLocations(eventId);
         return NextResponse.json({ success: true, ...questAudit });
       }
 
@@ -383,17 +385,17 @@ export async function POST(request: Request) {
         if (!itemId) {
           return NextResponse.json({ success: false, error: 'Missing itemId' }, { status: 400 });
         }
-        const checklist = updateOperatorChecklistItem(eventId, itemId, Boolean(isChecked), 'Game Director');
+        const checklist = await updateOperatorChecklistItem(eventId, itemId, Boolean(isChecked), 'Game Director');
         return NextResponse.json({ success: true, checklist });
       }
 
       case 'run_walkup_rehearsal': {
-        const walkUpResult = runWalkUpPlayerRehearsal(eventId);
+        const walkUpResult = await runWalkUpPlayerRehearsal(eventId);
         return NextResponse.json({ success: true, rehearsal: walkUpResult });
       }
 
       case 'run_full_rehearsal': {
-        const fullRehearsalResult = runFullEventRehearsal(eventId);
+        const fullRehearsalResult = await runFullEventRehearsal(eventId);
         return NextResponse.json({ success: true, rehearsal: fullRehearsalResult });
       }
 
@@ -403,7 +405,7 @@ export async function POST(request: Request) {
         if (!body.confirm) {
           return NextResponse.json({ success: false, error: 'Ending the Mission requires confirm: true.' }, { status: 400 });
         }
-        const closureResult = executeEventClosure(eventId, 'Game Director', reason);
+        const closureResult = await executeEventClosure(eventId, 'Game Director', reason);
         await recordAdminAuditDB({ eventId, action: 'execute_event_closure', targetType: 'event', targetId: eventId, detail: { reason: reason || null } });
         return NextResponse.json(closureResult);
       }
