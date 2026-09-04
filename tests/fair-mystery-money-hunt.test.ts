@@ -134,6 +134,12 @@ describe('$300 Mystery Money Hunt — claim flow', () => {
     expect(data.isMysterySignal).toBe(true);
     expect(data.cashCents).toBe(expectedCents);
     expect(data.winnerDisplayName).toBe(player.displayName);
+    expect(data.paymentInstructions).toEqual({
+      cashTag: '$inksplattering',
+      requestAmountCents: expectedCents,
+      requestMemo: 'Signal 01 — FirstFinder',
+      warning: 'Never pay a fee or send money to claim a prize.',
+    });
     expect(data.pointsAwarded).toBeUndefined();
   });
 

@@ -32,6 +32,12 @@ interface ClaimResponse {
   pointsAwarded?: number;
   cashCents?: number;
   winnerDisplayName?: string;
+  paymentInstructions?: {
+    cashTag: string;
+    requestAmountCents: number;
+    requestMemo: string;
+    warning: string;
+  };
   quest?: PublicQuestView;
   eventId?: string;
 }
@@ -187,6 +193,7 @@ export default function QrClaimPage({ params }: { params: { code: string } }) {
 }
 
 function ClaimResultPanel({ result }: { result: ClaimResponse }) {
+  const [cashTagCopied, setCashTagCopied] = useState(false);
   const isFair = Boolean(result.isFair || result.quest?.category === 'fair_core' || result.quest?.category === 'fair_bonus');
   const backHref = isFair ? '/events/fair-qr-hunt' : '/quests';
   const backLabel = isFair ? 'BACK TO FAIR HUNT DASHBOARD' : 'RETURN TO QUESTS';
@@ -195,6 +202,13 @@ function ClaimResultPanel({ result }: { result: ClaimResponse }) {
   // language from the old points-based panel below it: this is real money,
   // not points, and the copy must never be confused with the point system.
   if (result.reason === 'signal_secured') {
+    const payment = result.paymentInstructions;
+    const copyCashTag = async () => {
+      if (!payment?.cashTag || !navigator.clipboard) return;
+      await navigator.clipboard.writeText(payment.cashTag);
+      setCashTagCopied(true);
+    };
+
     return (
       <div className="glass-panel p-8 w-full text-center space-y-5 border-emerald-500/50 glow-emerald">
         <div className="text-4xl">💰</div>
@@ -207,6 +221,22 @@ function ClaimResultPanel({ result }: { result: ClaimResponse }) {
           <div className="text-4xl font-black text-emerald-300">{formatCents(result.cashCents || 0)}</div>
         </div>
         <p className="text-xs text-gray-400 font-mono">That money is now yours — see the full board on the Fair Hunt dashboard.</p>
+        {payment && (
+          <section className="cq-cashapp-claim" aria-labelledby="cashapp-claim-title">
+            <p className="cq-cashapp-claim__eyebrow">HOW TO GET PAID</p>
+            <h2 id="cashapp-claim-title" className="cq-cashapp-claim__title">Request it on Cash App</h2>
+            <ol className="cq-cashapp-claim__steps">
+              <li>Open Cash App and request <strong>{formatCents(payment.requestAmountCents)}</strong>.</li>
+              <li>Send the request to <strong>{payment.cashTag}</strong>.</li>
+              <li>In the “For” section, enter <strong>{payment.requestMemo}</strong>.</li>
+            </ol>
+            <button type="button" className="cq-cashapp-claim__copy" onClick={copyCashTag}>
+              {cashTagCopied ? 'CASH TAG COPIED' : `COPY ${payment.cashTag}`}
+            </button>
+            <p className="cq-cashapp-claim__warning">{payment.warning}</p>
+            <p className="cq-cashapp-claim__verification">Payments are verified against the winning Canton Quests account before being sent.</p>
+          </section>
+        )}
         <Link href={backHref} className="btn btn-primary w-full py-3 text-sm font-bold inline-block">
           {backLabel}
         </Link>

@@ -164,6 +164,12 @@ export async function POST(request: Request) {
           isMysterySignal: true,
           cashCents: claim.cashCents,
           winnerDisplayName: claim.winnerDisplayName,
+          paymentInstructions: {
+            cashTag: '$inksplattering',
+            requestAmountCents: claim.cashCents,
+            requestMemo: `${quest.title} — ${player.displayName}`,
+            warning: 'Never pay a fee or send money to claim a prize.',
+          },
           quest: getPublicQuestView(quest),
           eventId: quest.eventId,
         });

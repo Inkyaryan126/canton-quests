@@ -6563,4 +6563,75 @@ code, pre, .font-mono {
 
 
 
+/* Fair Mystery Money winner payment directions */
+.cq-cashapp-claim {
+  width: 100%;
+  padding: 1.1rem;
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  border-radius: 0.85rem;
+  background: rgba(3, 18, 14, 0.9);
+  text-align: left;
+}
 
+.cq-cashapp-claim__eyebrow {
+  margin: 0 0 0.3rem;
+  color: #6ee7b7;
+  font-family: monospace;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.cq-cashapp-claim__title {
+  margin: 0 0 0.8rem;
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.cq-cashapp-claim__steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #e5e7eb;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.cq-cashapp-claim__steps li + li {
+  margin-top: 0.35rem;
+}
+
+.cq-cashapp-claim__copy {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 1rem;
+  border: 1px solid #6ee7b7;
+  border-radius: 0.65rem;
+  background: #10b981;
+  color: #04130e;
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cq-cashapp-claim__copy:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.cq-cashapp-claim__warning,
+.cq-cashapp-claim__verification {
+  margin: 0.75rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.cq-cashapp-claim__warning {
+  color: #fbbf24;
+  font-weight: 800;
+}
+
+.cq-cashapp-claim__verification {
+  color: #9ca3af;
+}
