@@ -937,4 +937,61 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(setCookie).not.toContain('expired-token');
     });
   });
+
+  describe('11. "Still logs me out on every QR scan" regression — a fire-and-forget analytics call must never contend for the single-use refresh token', () => {
+    // Root cause: components/VisitorTracker.tsx fires POST /api/track on
+    // every page mount, including the QR landing page, at the same instant
+    // that page's own GET /api/auth/me fires. Supabase refresh tokens are
+    // single-use/rotating — if BOTH concurrent requests see the same stale
+    // access token and race to refresh the SAME refresh token, only one can
+    // win. If /api/auth/me is the loser, the client wrongly renders the
+    // "create identity / log in" AuthGate even though the session was
+    // perfectly valid. The fix: /api/track opts out of refreshing entirely
+    // (resolveAuthenticatedSession(request, { allowRefresh: false })), so it
+    // can never contend with a real, response-reading session call.
+    it('resolveAuthenticatedSession(request, { allowRefresh: false }) reports unauthenticated for an expired access token WITHOUT consuming the still-valid refresh token', async () => {
+      await signUpWithPassword({
+        displayName: 'TrackRacer',
+        email: 'track-racer@example.com',
+        password: 'track-race-pass-2026',
+        selectedStartingPath: 'family',
+      });
+      const loginRes = await loginHandler(
+        new Request('https://www.cantonquests.com/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'password_login', email: 'track-racer@example.com', password: 'track-race-pass-2026' }),
+        })
+      );
+      const { session } = await loginRes.json();
+      const staleRequest = () =>
+        new Request('https://www.cantonquests.com/internal-test', {
+          headers: { cookie: `sb-access-token=expired-token; sb-refresh-token=${session.refresh_token}` },
+        });
+
+      // The non-refreshing call (what /api/track now uses) must not
+      // authenticate off the stale access token, and — critically — must
+      // not attempt, and thereby burn, the still-valid refresh token.
+      const noRefreshResult = await resolveAuthenticatedSession(staleRequest(), { allowRefresh: false });
+      expect(noRefreshResult.user).toBeNull();
+      expect(noRefreshResult.player).toBeNull();
+      expect(noRefreshResult.refreshedSession).toBeUndefined();
+
+      // Because the no-refresh call never touched the refresh token, a
+      // genuine, response-reading call (the default every other route uses)
+      // made AFTERWARDS with the ORIGINAL, still-unburned refresh token must
+      // still succeed — proving nothing was silently consumed by the racer.
+      const realResult = await resolveAuthenticatedSession(staleRequest());
+      expect(realResult.user).not.toBeNull();
+      expect(realResult.refreshedSession?.access_token).toContain('mock-jwt-refreshed-');
+    });
+
+    it('app/api/track/route.ts wires the opt-out through — never lets the analytics beacon call attempt a session refresh', () => {
+      const source = require('fs').readFileSync(
+        require('path').join(process.cwd(), 'app/api/track/route.ts'),
+        'utf8'
+      );
+      expect(source).toContain('resolveAuthenticatedSession(request, { allowRefresh: false })');
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import * as supabaseModule from '@/lib/supabase';
-import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession } from '@/lib/supabase-auth';
 import { CAMPAIGN_ATTRIBUTION_COOKIE, classifyUserAgent } from '@/lib/qr-campaigns';
 import {
   VISITOR_ID_COOKIE,
@@ -140,20 +140,19 @@ export async function POST(request: Request) {
           }
         }
 
-        // resolveAuthenticatedSession (not the resolveAuthenticatedPlayer
-        // shorthand) so a silent access-token refresh gets persisted back
-        // onto the shared `response` below — this endpoint fires on nearly
-        // every page load (components/VisitorTracker.tsx), making it the
-        // most likely place a rotated refresh token would otherwise get
-        // silently burned, leaving the player's next authenticated request
-        // (e.g. scanning a QR) with no way back in.
+        // allowRefresh: false — this endpoint fires on nearly every page load
+        // (components/VisitorTracker.tsx) via sendBeacon/fetch-and-ignore, so
+        // it routinely runs concurrently with a real, response-reading
+        // session call on the same page (e.g. /api/auth/me on the QR landing
+        // page). Supabase refresh tokens are single-use: if both requests
+        // raced to refresh the same stale token, the loser would wrongly
+        // report the user logged out. Attribution here is best-effort only —
+        // when the access token has expired, just skip player attribution
+        // for this pageview rather than contending for the refresh.
         let playerId: string | null = null;
         try {
-          const sessionResult = await resolveAuthenticatedSession(request);
+          const sessionResult = await resolveAuthenticatedSession(request, { allowRefresh: false });
           playerId = sessionResult.player?.id || null;
-          if (sessionResult.refreshedSession) {
-            setAuthCookies(response, sessionResult.refreshedSession, playerId || undefined);
-          }
         } catch {
           playerId = null;
         }

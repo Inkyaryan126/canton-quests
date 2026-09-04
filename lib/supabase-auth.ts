@@ -1145,9 +1145,11 @@ export interface ResolvedAuthSession {
  * Automatically refreshes expired sessions using the persistent refresh token.
  */
 export async function resolveAuthenticatedSession(
-  requestOrToken?: Request | string | { request?: Request; accessToken?: string; refreshToken?: string } | null
+  requestOrToken?: Request | string | { request?: Request; accessToken?: string; refreshToken?: string } | null,
+  options?: { allowRefresh?: boolean }
 ): Promise<ResolvedAuthSession> {
   if (!requestOrToken) return { user: null, player: null };
+  const allowRefresh = options?.allowRefresh !== false;
 
   const { accessToken, refreshToken } = extractAuthTokens(requestOrToken);
 
@@ -1209,7 +1211,12 @@ export async function resolveAuthenticatedSession(
   }
 
   // 2. If access token is expired or invalid, but refresh token is available, refresh the session!
-  if (!authUser && refreshToken) {
+  // Supabase refresh tokens are single-use/rotating: skip this entirely when
+  // the caller opted out (allowRefresh: false) so a low-stakes, fire-and-forget
+  // call (e.g. analytics tracking that fires on nearly every page load) can
+  // never race a genuine session-consuming request for the same refresh
+  // token — the loser of that race would wrongly report the user logged out.
+  if (!authUser && refreshToken && allowRefresh) {
     const refreshRes = await refreshSupabaseSession(refreshToken);
     if (refreshRes.success && refreshRes.user && refreshRes.session) {
       authUser = refreshRes.user;
