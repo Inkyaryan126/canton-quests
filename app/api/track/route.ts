@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import * as supabaseModule from '@/lib/supabase';
-import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 import { CAMPAIGN_ATTRIBUTION_COOKIE, classifyUserAgent } from '@/lib/qr-campaigns';
 import {
   VISITOR_ID_COOKIE,
@@ -140,10 +140,20 @@ export async function POST(request: Request) {
           }
         }
 
+        // resolveAuthenticatedSession (not the resolveAuthenticatedPlayer
+        // shorthand) so a silent access-token refresh gets persisted back
+        // onto the shared `response` below — this endpoint fires on nearly
+        // every page load (components/VisitorTracker.tsx), making it the
+        // most likely place a rotated refresh token would otherwise get
+        // silently burned, leaving the player's next authenticated request
+        // (e.g. scanning a QR) with no way back in.
         let playerId: string | null = null;
         try {
-          const player = await resolveAuthenticatedPlayer(request);
-          playerId = player?.id || null;
+          const sessionResult = await resolveAuthenticatedSession(request);
+          playerId = sessionResult.player?.id || null;
+          if (sessionResult.refreshedSession) {
+            setAuthCookies(response, sessionResult.refreshedSession, playerId || undefined);
+          }
         } catch {
           playerId = null;
         }

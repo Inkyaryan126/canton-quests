@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 import { isSupabaseAdminConfigured, supabaseAdmin } from '@/lib/supabase';
 import { evaluateAndGrantProfileCompletionRewardDB, getPlayerByIdDB, upsertPlayerDB } from '@/lib/supabase-db';
 import { CUSTOM_AVATAR_KEY, getAvatarPresetPath, PLAYER_AVATAR_PRESETS } from '@/lib/player-command-center';
@@ -27,12 +27,24 @@ function extensionForType(type: string) {
 
 export async function POST(request: Request) {
   try {
-    const player = await resolveAuthenticatedPlayer(request);
+    // resolveAuthenticatedSession + withCookies (not the
+    // resolveAuthenticatedPlayer shorthand) so a silent access-token
+    // refresh gets persisted back to cookies — otherwise the rotated
+    // refresh token is burned here and the player's next authenticated
+    // request has no way back in.
+    const sessionResult = await resolveAuthenticatedSession(request);
+    const player = sessionResult.player;
+    const withCookies = (body: unknown, init?: ResponseInit) => {
+      const res = NextResponse.json(body, init);
+      if (sessionResult.refreshedSession) setAuthCookies(res, sessionResult.refreshedSession, player?.id);
+      return res;
+    };
+
     if (!player) {
-      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+      return withCookies({ success: false, error: 'Authentication required.' }, { status: 401 });
     }
     if (!isSupabaseAdminConfigured || !supabaseAdmin) {
-      return NextResponse.json(
+      return withCookies(
         { success: false, error: 'Profile photo storage is not configured on this server.' },
         { status: 503 }
       );
@@ -41,13 +53,13 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const file = form.get('file');
     if (!(file instanceof File)) {
-      return NextResponse.json({ success: false, error: 'Image file is required.' }, { status: 400 });
+      return withCookies({ success: false, error: 'Image file is required.' }, { status: 400 });
     }
     if (!ALLOWED_TYPES.has(file.type)) {
-      return NextResponse.json({ success: false, error: 'Only JPG, PNG, or WebP images are allowed.' }, { status: 400 });
+      return withCookies({ success: false, error: 'Only JPG, PNG, or WebP images are allowed.' }, { status: 400 });
     }
     if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
-      return NextResponse.json({ success: false, error: 'Image must be 4 MB or smaller.' }, { status: 400 });
+      return withCookies({ success: false, error: 'Image must be 4 MB or smaller.' }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
@@ -60,7 +72,7 @@ export async function POST(request: Request) {
         upsert: false,
       });
     if (uploadError) {
-      return NextResponse.json({ success: false, error: uploadError.message }, { status: 500 });
+      return withCookies({ success: false, error: uploadError.message }, { status: 500 });
     }
 
     if (player.profileImagePath) {
@@ -85,7 +97,7 @@ export async function POST(request: Request) {
       ? (await getPlayerByIdDB(player.id)) || updated
       : updated;
 
-    return NextResponse.json({
+    return withCookies({
       success: true,
       player: finalPlayer,
       profileCompletionReward: profileCompletionResult.newlyGranted,
@@ -100,9 +112,16 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const player = await resolveAuthenticatedPlayer(request);
+    const sessionResult = await resolveAuthenticatedSession(request);
+    const player = sessionResult.player;
+    const withCookies = (body: unknown, init?: ResponseInit) => {
+      const res = NextResponse.json(body, init);
+      if (sessionResult.refreshedSession) setAuthCookies(res, sessionResult.refreshedSession, player?.id);
+      return res;
+    };
+
     if (!player) {
-      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+      return withCookies({ success: false, error: 'Authentication required.' }, { status: 401 });
     }
     if (player.profileImagePath && isSupabaseAdminConfigured && supabaseAdmin) {
       await supabaseAdmin.storage.from('player-profile-images').remove([player.profileImagePath]);
@@ -137,7 +156,7 @@ export async function DELETE(request: Request) {
       ? (await getPlayerByIdDB(player.id)) || updated
       : updated;
 
-    return NextResponse.json({
+    return withCookies({
       success: true,
       player: finalPlayer,
       profileCompletionReward: profileCompletionResult.newlyGranted,

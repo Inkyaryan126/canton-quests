@@ -205,7 +205,11 @@ describe("Founder's Cipher district fragment system", () => {
       'utf8'
     );
 
-    expect(routeSource).toContain('resolveAuthenticatedPlayer(request)');
+    // resolveAuthenticatedSession (not the resolveAuthenticatedPlayer
+    // shorthand) so a silent access-token refresh gets persisted back to
+    // cookies — see tests/password-authentication-and-session-persistence
+    // .test.ts section 10 for the regression this fixed.
+    expect(routeSource).toContain('resolveAuthenticatedSession(request)');
     expect(routeSource).toContain('authenticatedPlayer?.id === playerId');
     expect(routeSource).toContain('cipherProgress');
   });

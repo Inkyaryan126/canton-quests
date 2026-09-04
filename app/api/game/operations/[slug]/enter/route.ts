@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 import {
   awardAchievementDB,
   getAchievementsForPlayerDB,
@@ -34,9 +34,21 @@ import { PlayerAchievement, StartingPath } from '@/lib/types';
  */
 export async function POST(request: Request, { params }: { params: { slug: string } }) {
   try {
-    const player = await resolveAuthenticatedPlayer(request);
+    // resolveAuthenticatedSession + withCookies (not the
+    // resolveAuthenticatedPlayer shorthand) so a silent access-token
+    // refresh gets persisted back to cookies — otherwise the rotated
+    // refresh token is burned here and the player's next authenticated
+    // request has no way back in.
+    const sessionResult = await resolveAuthenticatedSession(request);
+    const player = sessionResult.player;
+    const withCookies = (body: unknown, init?: ResponseInit) => {
+      const res = NextResponse.json(body, init);
+      if (sessionResult.refreshedSession) setAuthCookies(res, sessionResult.refreshedSession, player?.id);
+      return res;
+    };
+
     if (!player) {
-      return NextResponse.json(
+      return withCookies(
         { success: false, error: 'Access Command Center to enter this Operation.' },
         { status: 401 }
       );
@@ -44,7 +56,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
 
     const event = await getEventBySlugDB(params.slug);
     if (!event) {
-      return NextResponse.json({ success: false, error: 'Operation not found.' }, { status: 404 });
+      return withCookies({ success: false, error: 'Operation not found.' }, { status: 404 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -80,7 +92,7 @@ export async function POST(request: Request, { params }: { params: { slug: strin
       }
     }
 
-    return NextResponse.json({
+    return withCookies({
       success: true,
       event,
       participation,

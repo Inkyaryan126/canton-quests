@@ -176,7 +176,11 @@ describe('Blocker 1 — quest submission cannot be forged to another player', ()
 
   it('the route derives the acting player from the authenticated session, not the request body', () => {
     const source = readFile('app/api/game/submit/route.ts');
-    expect(source).toContain('resolveAuthenticatedPlayer(request)');
+    // resolveAuthenticatedSession (not the resolveAuthenticatedPlayer
+    // shorthand) so a silent access-token refresh gets persisted back to
+    // cookies via withCookies — see tests/password-authentication-and-
+    // session-persistence.test.ts section 10 for the regression this fixed.
+    expect(source).toContain('resolveAuthenticatedSession(request)');
     expect(source).toContain('playerId: authenticatedPlayer.id');
     expect(source).toMatch(/if\s*\(\s*!authenticatedPlayer\s*\)/);
     expect(source).toMatch(/playerId\s*&&\s*playerId\s*!==\s*authenticatedPlayer\.id/);

@@ -24,7 +24,11 @@ import { POST as logoutHandler } from '../app/api/auth/logout/route';
 import { GET as meHandler } from '../app/api/auth/me/route';
 import { GET as commandCenterHandler } from '../app/api/player/command-center/route';
 import { GET as profileHandler, POST as profilePostHandler } from '../app/api/player/profile/route';
+import { POST as qrClaimHandler } from '../app/api/qr/claim/route';
+import { POST as submitHandler } from '../app/api/game/submit/route';
 import * as localEngine from '../lib/game-engine';
+import { SEED_FAIR_QUESTS } from '../lib/seed-data';
+import { isFairCoreQuest } from '../lib/fair-hunt';
 
 describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite', () => {
   beforeEach(() => {
@@ -803,6 +807,134 @@ describe('Canton Quests — Password Accounts & Persistent Sessions Test Suite',
       expect(setCookie).toContain('sb-access-token');
       expect(setCookie).toContain('sb-refresh-token');
       expect(setCookie).toContain(`Max-Age=${AUTH_COOKIE_MAX_AGE}`);
+    });
+  });
+
+  describe('10. "Logged out every time I scan another QR code" regression — refreshed session cookies must survive a claim', () => {
+    async function loginExistingPlayer() {
+      await signUpWithPassword({
+        displayName: 'ScanRanger',
+        email: 'scan-ranger@example.com',
+        password: 'scan-session-pass-2026',
+        selectedStartingPath: 'challenge',
+      });
+      const loginRes = await loginHandler(
+        new Request('https://www.cantonquests.com/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'password_login', email: 'scan-ranger@example.com', password: 'scan-session-pass-2026' }),
+        })
+      );
+      const loginJson = await loginRes.json();
+      return { loginJson };
+    }
+
+    function widenFairWindow() {
+      for (const quest of SEED_FAIR_QUESTS.filter(isFairCoreQuest)) {
+        localEngine.updateQuest(quest.id, { startsAt: undefined, expiresAt: undefined });
+      }
+    }
+
+    it('scanning a QR with an expired access token refreshes the session AND writes the new tokens back to cookies (the actual bug)', async () => {
+      const { loginJson } = await loginExistingPlayer();
+      widenFairWindow();
+      const signal01 = SEED_FAIR_QUESTS.filter(isFairCoreQuest).find((q) => q.slug === 'fair-core-01')!;
+
+      // Simulates a session that has sat long enough for the access token
+      // to expire — only the refresh token is still genuinely valid.
+      const staleCookie = `sb-access-token=expired-token; sb-refresh-token=${loginJson.session.refresh_token}`;
+
+      const claimRes = await qrClaimHandler(
+        new Request('https://www.cantonquests.com/api/qr/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', cookie: staleCookie },
+          body: JSON.stringify({ code: signal01.targetCode }),
+        })
+      );
+
+      expect(claimRes.status).not.toBe(401);
+      const setCookie = claimRes.headers.get('set-cookie') || '';
+      expect(setCookie).toContain('sb-access-token');
+      expect(setCookie).toContain('sb-refresh-token');
+      // Proof a real refresh+rewrite happened, not a no-op: the new access
+      // token is the distinct "refreshed" one, not the stale value the
+      // request came in with.
+      expect(setCookie).not.toContain('expired-token');
+      expect(setCookie).toContain('mock-jwt-refreshed-');
+    });
+
+    it('scanning a SECOND QR code with the freshly-rotated cookies from the first scan still works — no forced logout', async () => {
+      const { loginJson } = await loginExistingPlayer();
+      widenFairWindow();
+      const [signal01, signal02] = SEED_FAIR_QUESTS.filter(isFairCoreQuest);
+
+      const staleCookie = `sb-access-token=expired-token; sb-refresh-token=${loginJson.session.refresh_token}`;
+      const firstScan = await qrClaimHandler(
+        new Request('https://www.cantonquests.com/api/qr/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', cookie: staleCookie },
+          body: JSON.stringify({ code: signal01.targetCode }),
+        })
+      );
+      const firstSetCookie = firstScan.headers.get('set-cookie') || '';
+      const newAccessToken = /sb-access-token=([^;]+)/.exec(firstSetCookie)?.[1];
+      const newRefreshToken = /sb-refresh-token=([^;]+)/.exec(firstSetCookie)?.[1];
+      expect(newAccessToken).toBeTruthy();
+      expect(newRefreshToken).toBeTruthy();
+
+      // Because Supabase refresh tokens rotate on use, the OLD refresh
+      // token from loginJson is now burned — a second request with the
+      // OLD stale cookie would fail. The player's browser only ever holds
+      // whatever cookies the LAST response set, so the real next request
+      // uses the rotated pair from the first scan's response.
+      const rotatedCookie = `sb-access-token=${newAccessToken}; sb-refresh-token=${newRefreshToken}`;
+      const secondScan = await qrClaimHandler(
+        new Request('https://www.cantonquests.com/api/qr/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', cookie: rotatedCookie },
+          body: JSON.stringify({ code: signal02.targetCode }),
+        })
+      );
+      expect(secondScan.status).not.toBe(401);
+      const secondJson = await secondScan.json();
+      expect(secondJson.reason).not.toBe('unauthenticated');
+    });
+
+    it('the same fix applies to /api/game/submit — the Founder\'s Cipher quest-proof path', async () => {
+      const { loginJson } = await loginExistingPlayer();
+      const staleCookie = `sb-access-token=expired-token; sb-refresh-token=${loginJson.session.refresh_token}`;
+
+      // Deliberately omits questId/eventId/proofType — this reaches the
+      // route's own controlled 400 "missing required fields" response
+      // (still built via withCookies) rather than throwing deep inside
+      // submitQuestProofDB, which would hit the outer catch block instead.
+      const submitRes = await submitHandler(
+        new Request('https://www.cantonquests.com/api/game/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', cookie: staleCookie },
+          body: JSON.stringify({}),
+        })
+      );
+
+      // Whatever the gameplay outcome, the request must never be treated
+      // as unauthenticated, and the refreshed session must be persisted.
+      expect(submitRes.status).not.toBe(401);
+      const setCookie = submitRes.headers.get('set-cookie') || '';
+      expect(setCookie).toContain('sb-access-token');
+      expect(setCookie).not.toContain('expired-token');
+    });
+
+    it('the same fix applies to /api/player/profile — the most routine authenticated page load', async () => {
+      const { loginJson } = await loginExistingPlayer();
+      const staleCookie = `sb-access-token=expired-token; sb-refresh-token=${loginJson.session.refresh_token}`;
+
+      const profileRes = await profileHandler(
+        new Request('https://www.cantonquests.com/api/player/profile', { headers: { cookie: staleCookie } })
+      );
+      expect(profileRes.status).toBe(200);
+      const setCookie = profileRes.headers.get('set-cookie') || '';
+      expect(setCookie).toContain('sb-access-token');
+      expect(setCookie).not.toContain('expired-token');
     });
   });
 });

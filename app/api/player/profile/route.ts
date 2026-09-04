@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 import {
   evaluateAndGrantProfileCompletionRewardDB,
   getAchievementsForPlayerDB,
@@ -34,15 +34,27 @@ function cleanNumber(value: unknown, fallback: number, min: number, max: number)
 
 export async function GET(request: Request) {
   try {
-    const player = await resolveAuthenticatedPlayer(request);
+    // resolveAuthenticatedSession + withCookies (not the
+    // resolveAuthenticatedPlayer shorthand) so a silent access-token
+    // refresh gets persisted back to cookies — otherwise the rotated
+    // refresh token is burned here and the player's next authenticated
+    // request has no way back in.
+    const sessionResult = await resolveAuthenticatedSession(request);
+    const player = sessionResult.player;
+    const withCookies = (body: unknown, init?: ResponseInit) => {
+      const res = NextResponse.json(body, init);
+      if (sessionResult.refreshedSession) setAuthCookies(res, sessionResult.refreshedSession, player?.id);
+      return res;
+    };
+
     if (!player) {
-      return NextResponse.json(
+      return withCookies(
         { success: false, error: 'Authentication required. Please log in to Canton Quests.' },
         { status: 401 }
       );
     }
 
-    return NextResponse.json({
+    return withCookies({
       success: true,
       player,
     });
@@ -56,9 +68,16 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const player = await resolveAuthenticatedPlayer(request);
+    const sessionResult = await resolveAuthenticatedSession(request);
+    const player = sessionResult.player;
+    const withCookies = (body: unknown, init?: ResponseInit) => {
+      const res = NextResponse.json(body, init);
+      if (sessionResult.refreshedSession) setAuthCookies(res, sessionResult.refreshedSession, player?.id);
+      return res;
+    };
+
     if (!player) {
-      return NextResponse.json(
+      return withCookies(
         { success: false, error: 'Authentication required. Please log in to Canton Quests.' },
         { status: 401 }
       );
@@ -68,7 +87,7 @@ export async function POST(request: Request) {
 
     // Server-resolved player ID is authoritative. Ignore / reject attacker attempts to modify other players.
     if (body.playerId && body.playerId !== player.id) {
-      return NextResponse.json(
+      return withCookies(
         { success: false, error: 'Unauthorized attempt to modify another player profile.' },
         { status: 403 }
       );
@@ -77,12 +96,12 @@ export async function POST(request: Request) {
     const earnedBadges = await getAchievementsForPlayerDB(player.id);
     const featuredValidation = validateFeaturedBadges(body.featuredBadgeSlugs ?? body.showcaseBadges, earnedBadges);
     if (!featuredValidation.ok) {
-      return NextResponse.json({ success: false, error: featuredValidation.error }, { status: 400 });
+      return withCookies({ success: false, error: featuredValidation.error }, { status: 400 });
     }
 
     const displayName = cleanString(body.displayName, 30) || player.displayName;
     if (displayName.length < 2) {
-      return NextResponse.json({ success: false, error: 'Callsign must be at least 2 characters.' }, { status: 400 });
+      return withCookies({ success: false, error: 'Callsign must be at least 2 characters.' }, { status: 400 });
     }
 
     const selectedStartingPath = STARTING_PATHS.has(body.selectedStartingPath)
@@ -124,7 +143,7 @@ export async function POST(request: Request) {
       ? (await getPlayerByIdDB(player.id)) || updated
       : updated;
 
-    return NextResponse.json({
+    return withCookies({
       success: true,
       player: finalPlayer,
       message: 'Profile updated successfully.',

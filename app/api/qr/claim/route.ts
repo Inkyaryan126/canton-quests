@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 import {
   getEventBySlugDB,
   getQuestByTargetCodeDB,
@@ -31,18 +31,35 @@ import { FAIR_CORE_CATEGORY, FAIR_EVENT_SLUG, isFairBonusQuest } from '@/lib/fai
  *     submitQuestProofDB transaction (server-authoritative points,
  *     database-level duplicate protection). This path is completely
  *     untouched by the Mystery Money redesign.
+ *
+ * Uses resolveAuthenticatedSession (not the resolveAuthenticatedPlayer
+ * shorthand) and re-applies setAuthCookies on every response via
+ * withCookies below — a Supabase access token expires in ~1hr, and its
+ * refresh token is single-use/rotating. Scan one QR after the access
+ * token has expired and the session gets silently refreshed to keep this
+ * request working, but if the new tokens are never written back to
+ * cookies, the browser is left holding a now-burned refresh token — the
+ * very next scan (or any authenticated request) then has no way back in,
+ * i.e. "logs me out every time I scan another QR code".
  */
 export async function POST(request: Request) {
   try {
-    const player = await resolveAuthenticatedPlayer(request);
+    const sessionResult = await resolveAuthenticatedSession(request);
+    const player = sessionResult.player;
+    const withCookies = (body: unknown, init?: ResponseInit) => {
+      const res = NextResponse.json(body, init);
+      if (sessionResult.refreshedSession) setAuthCookies(res, sessionResult.refreshedSession, player?.id);
+      return res;
+    };
+
     if (!player) {
-      return NextResponse.json({ success: false, reason: 'unauthenticated' }, { status: 401 });
+      return withCookies({ success: false, reason: 'unauthenticated' }, { status: 401 });
     }
 
     const body = await request.json().catch(() => ({}));
     const code = typeof body.code === 'string' ? body.code.trim() : '';
     if (!code) {
-      return NextResponse.json({ success: false, reason: 'not_recognized' }, { status: 400 });
+      return withCookies({ success: false, reason: 'not_recognized' }, { status: 400 });
     }
     // Opportunistic GPS — only a handful of existing QR quests (e.g. Volume
     // 1's requireQrAndLocation ones) actually need it; verifyAutomatedProof
@@ -52,7 +69,7 @@ export async function POST(request: Request) {
 
     const quest = await getQuestByTargetCodeDB(code);
     if (!quest) {
-      return NextResponse.json({ success: false, reason: 'not_recognized' });
+      return withCookies({ success: false, reason: 'not_recognized' });
     }
 
     const fairEvent = quest.eventId ? await getFairEventIfApplicable(quest.eventId) : null;
@@ -75,7 +92,7 @@ export async function POST(request: Request) {
       const endMs = fairEvent.endTime ? new Date(fairEvent.endTime).getTime() : Infinity;
 
       if (fairEvent.isPaused) {
-        return NextResponse.json({
+        return withCookies({
           success: false,
           reason: 'hunt_paused',
           code: 'HUNT_PAUSED',
@@ -88,7 +105,7 @@ export async function POST(request: Request) {
       }
 
       if (startMs && nowMs < startMs) {
-        return NextResponse.json({
+        return withCookies({
           success: false,
           reason: 'hunt_not_open',
           code: 'HUNT_NOT_OPEN',
@@ -101,7 +118,7 @@ export async function POST(request: Request) {
       }
 
       if (endMs && nowMs > endMs) {
-        return NextResponse.json({
+        return withCookies({
           success: false,
           reason: 'hunt_closed',
           code: 'HUNT_CLOSED',
@@ -124,7 +141,7 @@ export async function POST(request: Request) {
     if (!availability.ok) {
       const isNotOpen = availability.reason === 'not_yet_active';
       const isClosed = availability.reason === 'expired';
-      return NextResponse.json({
+      return withCookies({
         success: false,
         reason: isFair && isNotOpen ? 'hunt_not_open' : isFair && isClosed ? 'hunt_closed' : availability.reason,
         code: isFair && isNotOpen ? 'HUNT_NOT_OPEN' : isFair && isClosed ? 'HUNT_CLOSED' : undefined,
@@ -140,7 +157,7 @@ export async function POST(request: Request) {
       const claim = await claimFairMysterySignalDB(player.id, player.displayName, quest.id);
 
       if (claim.outcome === 'won') {
-        return NextResponse.json({
+        return withCookies({
           success: true,
           reason: 'signal_secured',
           isFair: true,
@@ -153,7 +170,7 @@ export async function POST(request: Request) {
       }
 
       if (claim.outcome === 'already_claimed') {
-        return NextResponse.json({
+        return withCookies({
           success: false,
           reason: 'signal_already_found',
           isFair: true,
@@ -164,7 +181,7 @@ export async function POST(request: Request) {
         });
       }
 
-      return NextResponse.json({
+      return withCookies({
         success: false,
         reason: claim.outcome === 'unavailable' ? 'inactive' : 'rejected',
         message: claim.message,
@@ -190,7 +207,7 @@ export async function POST(request: Request) {
 
     if (!result.success) {
       const alreadySecured = result.submission.status === 'verified';
-      return NextResponse.json({
+      return withCookies({
         success: false,
         reason: alreadySecured ? 'already_secured' : 'rejected',
         message: result.message,
@@ -199,7 +216,7 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({
+    return withCookies({
       success: true,
       reason: 'secured',
       pointsAwarded: result.awardedPoints,

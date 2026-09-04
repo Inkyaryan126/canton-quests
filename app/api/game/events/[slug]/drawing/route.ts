@@ -5,7 +5,7 @@ import {
   getPublicDrawingPageDataDB,
   getAuthenticatedPlayerDrawingQualificationDB,
 } from '@/lib/supabase-db';
-import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession, setAuthCookies, AuthSessionTokens } from '@/lib/supabase-auth';
 import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
 import { AuthenticatedPlayerDrawingQualification } from '@/lib/types';
 
@@ -25,29 +25,43 @@ export async function GET(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
+    // resolveAuthenticatedSession + withCookies (not the
+    // resolveAuthenticatedPlayer shorthand) so a silent access-token
+    // refresh gets persisted back to cookies — otherwise the rotated
+    // refresh token is burned here and the player's next authenticated
+    // request has no way back in.
     let authenticatedPlayerQualification: AuthenticatedPlayerDrawingQualification | null = null;
+    let refreshedSession: AuthSessionTokens | undefined;
+    let authPlayerId: string | undefined;
     try {
-      const authPlayer = await resolveAuthenticatedPlayer(request);
-      if (authPlayer && authPlayer.id) {
+      const sessionResult = await resolveAuthenticatedSession(request);
+      refreshedSession = sessionResult.refreshedSession;
+      authPlayerId = sessionResult.player?.id;
+      if (sessionResult.player) {
         authenticatedPlayerQualification = await getAuthenticatedPlayerDrawingQualificationDB(
-          authPlayer.id,
+          sessionResult.player.id,
           event.id
         );
       }
     } catch {
       // Unauthenticated or invalid session: qualification stays null
     }
+    const withCookies = (body: unknown, init?: ResponseInit) => {
+      const res = NextResponse.json(body, init);
+      if (refreshedSession) setAuthCookies(res, refreshedSession, authPlayerId);
+      return res;
+    };
 
     if (isPreLaunchEvent(event, slug)) {
       try {
         const drawingData = await getPublicDrawingPageDataDB(event.id);
-        return NextResponse.json({
+        return withCookies({
           ...drawingData,
           authenticatedPlayerQualification,
           isPreLaunch: true,
         });
       } catch {
-        return NextResponse.json({
+        return withCookies({
           isPreLaunch: true,
           eventSlug: slug,
           eventTitle: event.title,
@@ -58,7 +72,7 @@ export async function GET(
     }
 
     const drawingData = await getPublicDrawingPageDataDB(event.id);
-    return NextResponse.json({
+    return withCookies({
       ...drawingData,
       authenticatedPlayerQualification,
     });

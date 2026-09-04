@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { submitQuestProofDB } from '@/lib/supabase-db';
-import { resolveAuthenticatedPlayer } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 
 export async function POST(request: Request) {
   try {
@@ -9,9 +9,22 @@ export async function POST(request: Request) {
     // anonymous identity model (every player.id is backed by an
     // authenticated Supabase Auth user, see lib/supabase-auth.ts), so quest
     // submission requires a valid session.
-    const authenticatedPlayer = await resolveAuthenticatedPlayer(request);
+    //
+    // Uses resolveAuthenticatedSession + withCookies (not the
+    // resolveAuthenticatedPlayer shorthand) so a silent access-token
+    // refresh gets persisted back to cookies — otherwise the rotated
+    // refresh token is burned here and the player's next authenticated
+    // request has no way back in.
+    const sessionResult = await resolveAuthenticatedSession(request);
+    const authenticatedPlayer = sessionResult.player;
+    const withCookies = (body: unknown, init?: ResponseInit) => {
+      const res = NextResponse.json(body, init);
+      if (sessionResult.refreshedSession) setAuthCookies(res, sessionResult.refreshedSession, authenticatedPlayer?.id);
+      return res;
+    };
+
     if (!authenticatedPlayer) {
-      return NextResponse.json(
+      return withCookies(
         { success: false, error: 'Authentication required to submit quest proof.', awardedPoints: 0 },
         { status: 401 }
       );
@@ -36,14 +49,14 @@ export async function POST(request: Request) {
     // forged-identity attempt and is rejected outright, not silently
     // resubmitted under the real player's identity.
     if (playerId && playerId !== authenticatedPlayer.id) {
-      return NextResponse.json(
+      return withCookies(
         { success: false, error: 'Cannot submit proof on behalf of another player.', awardedPoints: 0 },
         { status: 403 }
       );
     }
 
     if (!questId || !eventId || !proofType) {
-      return NextResponse.json(
+      return withCookies(
         { error: 'Missing required fields: questId, eventId, proofType' },
         { status: 400 }
       );
@@ -65,7 +78,7 @@ export async function POST(request: Request) {
       request
     );
 
-    return NextResponse.json(result);
+    return withCookies(result);
   } catch (error: any) {
     console.error('[API /submit] Server error:', error);
     return NextResponse.json({ error: 'Submission processing failed' }, { status: 500 });
