@@ -57,25 +57,24 @@ export const LOCKED_CASH_VALUES: Record<number, number> = {
 };
 
 const COLOR = {
-  charcoal: '#0d0f10',
-  charcoalDeep: '#08090a',
-  gold: '#d9a44c',
-  goldLight: '#f5c97a',
-  cyan: '#22d3ee',
+  inkNavy: '#0a3270',
+  inkRoyal: '#1b4f8a',
+  inkAccent: '#2f6bb0',
+  guideLight: '#b4cce8',
   white: '#ffffff',
-  cream: '#f4f1ea',
-  borderGold: '#d9a44c',
 };
 
-// Geometry: 3.7in x 4.75in cards on US Letter (8.5in x 11in)
-const CARD_W_IN = 3.7;
-const CARD_H_IN = 4.75;
+// Geometry: 3.5in x 5.0in cards on US Letter (8.5in x 11in)
+const CARD_W_IN = 3.5;
+const CARD_H_IN = 5.0;
 const SHEET_DPI = 300;
 const CARDS_PER_ROW = 2;
 const CARDS_PER_COL = 2;
 const CARDS_PER_SHEET = CARDS_PER_ROW * CARDS_PER_COL; // 4 cards per sheet
-const SHEET_MARGIN_IN = 0.4;
-const SHEET_GAP_IN = 0.2;
+const SHEET_MARGIN_X_PX = 150;
+const SHEET_MARGIN_Y_PX = 100;
+const SHEET_GAP_X_PX = 150;
+const SHEET_GAP_Y_PX = 100;
 
 interface AdminOverlay {
   questId?: string;
@@ -153,7 +152,7 @@ async function generateQrPngBase64(url: string): Promise<{ buffer: Buffer; dataU
     errorCorrectionLevel: 'H',
     margin: 2,
     width: 900,
-    color: { dark: '#000000', light: '#ffffff' },
+    color: { dark: COLOR.inkNavy, light: COLOR.white },
   });
   return { buffer, dataUri: `data:image/png;base64,${buffer.toString('base64')}` };
 }
@@ -164,79 +163,121 @@ async function decodeQrPng(buffer: Buffer): Promise<string | null> {
   return result?.data ?? null;
 }
 
+function buildFlourish(y: number, flip = false): string {
+  const transform = flip ? `translate(525, ${y}) scale(1, -1)` : `translate(525, ${y})`;
+  return `
+  <g transform="${transform}" stroke="${COLOR.inkNavy}" fill="none" stroke-linecap="round">
+    <!-- Central Fleur / Diamond -->
+    <polygon points="0,-12 7,0 0,12 -7,0" fill="${COLOR.inkNavy}" stroke="none" />
+    <circle cx="-18" cy="0" r="2.5" fill="${COLOR.inkNavy}" stroke="none" />
+    <circle cx="18" cy="0" r="2.5" fill="${COLOR.inkNavy}" stroke="none" />
+    
+    <!-- Left Wing Swirls -->
+    <path d="M -24,0 C -60,-18 -100,16 -140,-4 C -155,-12 -165,-2 -160,8 C -155,16 -140,14 -142,4 C -144,-4 -154,-2 -156,2" stroke-width="1.5" />
+    <path d="M -45,-3 C -80,-20 -115,0 -130,-2" stroke-width="0.8" stroke="${COLOR.inkRoyal}" />
+    
+    <!-- Right Wing Swirls -->
+    <path d="M 24,0 C 60,-18 100,16 140,-4 C 155,-12 165,-2 160,8 C 155,16 140,14 142,4 C 144,-4 154,-2 156,2" stroke-width="1.5" />
+    <path d="M 45,-3 C 80,-20 115,0 130,-2" stroke-width="0.8" stroke="${COLOR.inkRoyal}" />
+  </g>
+  `.trim();
+}
+
+function buildCornerFlourish(x: number, y: number, scaleX = 1, scaleY = 1): string {
+  return `
+  <g transform="translate(${x}, ${y}) scale(${scaleX}, ${scaleY})" stroke="${COLOR.inkRoyal}" stroke-width="1" fill="none" opacity="0.75">
+    <path d="M 0,40 C 0,15 15,0 40,0" />
+    <path d="M 6,34 C 6,18 18,6 34,6" stroke-width="0.6" />
+    <circle cx="8" cy="42" r="2" fill="${COLOR.inkNavy}" stroke="none" />
+    <circle cx="42" cy="8" r="2" fill="${COLOR.inkNavy}" stroke="none" />
+  </g>
+  `.trim();
+}
+
 /**
- * Builds the player-facing physical card SVG.
- * Guaranteed to NEVER reveal:
- * - hidden dollar value
- * - target code string
- * - placement details
- *
- * Contains:
- * - CANTON QUESTS / STARK COUNTY FAIR / MYSTERY MONEY SIGNAL
- * - SIGNAL XX (prominent header)
- * - Large high-contrast QR code (black on white)
- * - Scannability quiet zone
- * - Concise player rules: "$300 MYSTERY MONEY HUNT", "Find it first. Scan to claim.", "Once claimed, it's gone!"
- * - Official domain www.cantonquests.com
+ * Builds the player-facing physical card SVG (3.5 x 5 in @ 300dpi = 1050 x 1500 px).
+ * 
+ * Elegant Invitation Style:
+ * - Plain white paper background
+ * - Blue ink only (NO black ink anywhere)
+ * - Refined Georgia serif invitation typography and delicate calligraphic flourishes
+ * - High-contrast blue QR code on white plate with generous quiet zone
+ * - Guaranteed to NEVER reveal hidden dollar value, target code text, or placement info
  */
 function buildMysteryCardSvg(signalNum: number, signalLabel: string, qrDataUri: string): string {
-  const wPt = CARD_W_IN * 72; // 266.4
-  const hPt = CARD_H_IN * 72; // 342.0
-
-  // QR Plate sizing & positioning
-  const qrSizePt = 152; // ~2.11in scannable QR
-  const plateSizePt = 168; // White rounded backing plate
-  const plateX = (wPt - plateSizePt) / 2;
-  const plateY = 96;
-  const qrX = (wPt - qrSizePt) / 2;
-  const qrY = plateY + (plateSizePt - qrSizePt) / 2;
-  const plateBottom = plateY + plateSizePt;
-
+  const w = 1050;
+  const h = 1500;
   const numStr = String(signalNum).padStart(2, '0');
 
   return `
-<svg xmlns="http://www.w3.org/2000/svg" width="${wPt}" height="${hPt}" viewBox="0 0 ${wPt} ${hPt}">
-  <defs>
-    <linearGradient id="cardBg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${COLOR.charcoal}" />
-      <stop offset="100%" stop-color="${COLOR.charcoalDeep}" />
-    </linearGradient>
-  </defs>
-
-  <!-- Card Background -->
-  <rect x="0" y="0" width="${wPt}" height="${hPt}" fill="url(#cardBg)" />
+<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <!-- Plain White Background -->
+  <rect width="${w}" height="${h}" fill="${COLOR.white}" />
   
-  <!-- Outer Double Gold Border -->
-  <rect x="5" y="5" width="${wPt - 10}" height="${hPt - 10}" rx="12" fill="none" stroke="${COLOR.borderGold}" stroke-width="2" opacity="0.9" />
-  <rect x="8" y="8" width="${wPt - 16}" height="${hPt - 16}" rx="10" fill="none" stroke="${COLOR.borderGold}" stroke-width="0.75" opacity="0.4" />
-
-  <!-- Header Section -->
-  <text x="${wPt / 2}" y="24" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="9" font-weight="800" letter-spacing="2.5" fill="${COLOR.gold}">CANTON QUESTS</text>
-  <text x="${wPt / 2}" y="38" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="7.5" font-weight="700" letter-spacing="1.5" fill="${COLOR.cyan}">STARK COUNTY FAIR</text>
+  <!-- Outer Elegant Invitation Double Border (Blue Ink) -->
+  <rect x="44" y="44" width="962" height="1412" rx="6" fill="none" stroke="${COLOR.inkNavy}" stroke-width="2.5" />
+  <rect x="56" y="56" width="938" height="1388" rx="4" fill="none" stroke="${COLOR.inkRoyal}" stroke-width="0.8" opacity="0.6" />
   
-  <!-- Mystery Money Badge -->
-  <rect x="${wPt / 2 - 78}" y="47" width="156" height="15" rx="7.5" fill="#182026" stroke="${COLOR.gold}" stroke-width="1" />
-  <text x="${wPt / 2}" y="58" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="7.5" font-weight="800" letter-spacing="1.2" fill="${COLOR.goldLight}">MYSTERY MONEY SIGNAL</text>
-
-  <!-- Large Signal Identifier -->
-  <text x="${wPt / 2}" y="86" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" letter-spacing="1" fill="${COLOR.white}">SIGNAL ${numStr}</text>
-
-  <!-- White QR Backing Plate with Quiet Zone -->
-  <rect x="${plateX}" y="${plateY}" width="${plateSizePt}" height="${plateSizePt}" rx="10" fill="#ffffff" stroke="#e5e5e5" stroke-width="1" />
-  <image x="${qrX}" y="${qrY}" width="${qrSizePt}" height="${qrSizePt}" href="${qrDataUri}" />
-
-  <!-- Footer Instructions / Concise Rules -->
-  <text x="${wPt / 2}" y="${plateBottom + 17}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="9.5" font-weight="800" letter-spacing="1" fill="${COLOR.white}">FIND IT FIRST • SCAN TO CLAIM</text>
-  <text x="${wPt / 2}" y="${plateBottom + 29}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="7.5" font-weight="600" fill="${COLOR.cream}">Every Signal holds a mystery cash prize ($5–$50).</text>
-  <text x="${wPt / 2}" y="${plateBottom + 40}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="7" font-weight="700" fill="${COLOR.cyan}">Once claimed, it's gone! • $300 Total Cash Pool</text>
-
-  <text x="${wPt / 2}" y="${hPt - 13}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="7.5" font-weight="600" letter-spacing="0.5" fill="${COLOR.gold}" opacity="0.8">${FAIR_PUBLIC_DOMAIN}</text>
+  <!-- Four Corner Flourishes -->
+  ${buildCornerFlourish(64, 64, 1, 1)}
+  ${buildCornerFlourish(986, 64, -1, 1)}
+  ${buildCornerFlourish(64, 1436, 1, -1)}
+  ${buildCornerFlourish(986, 1436, -1, -1)}
+  
+  <!-- Top Calligraphic Flourish -->
+  ${buildFlourish(112, false)}
+  
+  <!-- Top Organization Header -->
+  <text x="525" y="162" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" letter-spacing="4" fill="${COLOR.inkRoyal}">CANTON QUESTS</text>
+  
+  <!-- Delicate Divider -->
+  <g stroke="${COLOR.inkRoyal}" stroke-width="0.8" opacity="0.5">
+    <line x1="380" y1="185" x2="485" y2="185" />
+    <polygon points="525,181 529,185 525,189 521,185" fill="${COLOR.inkNavy}" stroke="none" />
+    <line x1="565" y1="185" x2="670" y2="185" />
+  </g>
+  
+  <!-- Invitation Continuing Headline -->
+  <text x="525" y="230" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="34" font-weight="bold" letter-spacing="3" fill="${COLOR.inkNavy}">YOUR INVITATION</text>
+  <text x="525" y="270" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="34" font-weight="bold" letter-spacing="4" fill="${COLOR.inkNavy}">CONTINUES</text>
+  <text x="525" y="312" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="21" font-style="italic" letter-spacing="1.5" fill="${COLOR.inkRoyal}">Welcome, Cantonians</text>
+  
+  <!-- Signal Identifier Cartouche -->
+  <rect x="295" y="345" width="460" height="48" rx="24" fill="${COLOR.white}" stroke="${COLOR.inkNavy}" stroke-width="1.5" />
+  <text x="525" y="378" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="23" font-weight="bold" letter-spacing="2.5" fill="${COLOR.inkNavy}">MYSTERY MONEY SIGNAL ${numStr}</text>
+  
+  <!-- Invitation Prompt -->
+  <text x="525" y="438" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="23" fill="${COLOR.inkNavy}">Scan to enter the Stark County Fair</text>
+  <text x="525" y="472" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="26" font-style="italic" font-weight="bold" fill="${COLOR.inkNavy}">Mystery Money Hunt</text>
+  <text x="525" y="508" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="18" fill="${COLOR.inkRoyal}">First player to scan claims the secret cash reward.</text>
+  
+  <!-- QR Plate & Image (White Plate, Blue Modules, Crisp Quiet Zone) -->
+  <rect x="270" y="535" width="510" height="510" rx="10" fill="${COLOR.white}" stroke="${COLOR.inkRoyal}" stroke-width="1.5" />
+  <rect x="278" y="543" width="494" height="494" rx="8" fill="none" stroke="${COLOR.inkAccent}" stroke-width="0.6" opacity="0.4" />
+  <image x="290" y="555" width="470" height="470" href="${qrDataUri}" />
+  
+  <!-- Future-facing Lore & Adventure Call -->
+  <text x="525" y="1105" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="28" font-style="italic" font-weight="bold" fill="${COLOR.inkNavy}">This is only the beginning.</text>
+  <text x="525" y="1150" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="22" fill="${COLOR.inkNavy}">Join Canton Quests for future missions,</text>
+  <text x="525" y="1182" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="22" fill="${COLOR.inkNavy}">secret drops, and live adventures.</text>
+  
+  <!-- Mid-lower Calligraphic Swirl -->
+  <g transform="translate(525, 1228) scale(0.7)" stroke="${COLOR.inkRoyal}" stroke-width="1.2" fill="none">
+    <path d="M -80,0 C -50,-12 -25,12 0,0 C 25,-12 50,12 80,0" />
+    <polygon points="0,-5 4,0 0,5 -4,0" fill="${COLOR.inkNavy}" stroke="none" />
+  </g>
+  
+  <!-- Domain -->
+  <text x="525" y="1290" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="24" font-weight="bold" letter-spacing="4" fill="${COLOR.inkNavy}">${FAIR_PUBLIC_DOMAIN.toUpperCase()}</text>
+  
+  <!-- Bottom Symmetrical Flourish -->
+  ${buildFlourish(1350, true)}
 </svg>`.trim();
 }
 
 /**
- * Composites 4 cards onto a US Letter sheet (8.5in x 11in @ 300dpi)
- * with dashed cut guides.
+ * Composites 4 cards onto a US Letter sheet (8.5in x 11in @ 300dpi = 2550 x 3300 px)
+ * with delicate light blue dashed cut guides.
  */
 async function renderSheetPng(
   signalNums: number[],
@@ -246,46 +287,53 @@ async function renderSheetPng(
   outputPath: string,
   sheetNumber: number
 ) {
-  const pageW = Math.round(8.5 * SHEET_DPI);
-  const pageH = Math.round(11 * SHEET_DPI);
-  const marginPx = Math.round(SHEET_MARGIN_IN * SHEET_DPI);
-  const gapPx = Math.round(SHEET_GAP_IN * SHEET_DPI);
+  const pageW = Math.round(8.5 * SHEET_DPI); // 2550
+  const pageH = Math.round(11.0 * SHEET_DPI); // 3300
+  const marginX = SHEET_MARGIN_X_PX; // 150
+  const marginY = SHEET_MARGIN_Y_PX; // 100
+  const gapX = SHEET_GAP_X_PX; // 150
+  const gapY = SHEET_GAP_Y_PX; // 100
 
-  const gridW = CARDS_PER_ROW * cardW + (CARDS_PER_ROW - 1) * gapPx;
-  const gridH = CARDS_PER_COL * cardH + (CARDS_PER_COL - 1) * gapPx;
-  const startX = Math.max(marginPx, Math.round((pageW - gridW) / 2));
-  const startY = marginPx + 60; // Extra room for sheet header
+  const startNumStr = String(signalNums[0]).padStart(2, '0');
+  const endNumStr = String(signalNums[signalNums.length - 1]).padStart(2, '0');
 
-  const cutLines: string[] = [];
-  for (let row = 0; row <= CARDS_PER_COL; row++) {
-    const y = startY + row * (cardH + gapPx) - (row > 0 ? gapPx / 2 : 0);
-    cutLines.push(`<line x1="${startX - 20}" y1="${y}" x2="${startX + gridW + 20}" y2="${y}" stroke="#888" stroke-width="2" stroke-dasharray="10,10" />`);
-  }
-  for (let col = 0; col <= CARDS_PER_ROW; col++) {
-    const x = startX + col * (cardW + gapPx) - (col > 0 ? gapPx / 2 : 0);
-    cutLines.push(`<line x1="${x}" y1="${startY - 20}" x2="${x}" y2="${startY + gridH + 20}" stroke="#888" stroke-width="2" stroke-dasharray="10,10" />`);
-  }
-
-  const headerSvg = `
-  <text x="${pageW / 2}" y="55" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="bold" fill="#333333">CANTON QUESTS — $300 MYSTERY MONEY HUNT (SHEET ${sheetNumber} OF 5)</text>
-  <text x="${pageW / 2}" y="95" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#666666">SIGNALS ${String(signalNums[0]).padStart(2, '0')}–${String(signalNums[signalNums.length - 1]).padStart(2, '0')} • PRINT AT 100% SCALE (ACTUAL SIZE)</text>
-  `;
-
-  const guideSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${pageW}" height="${pageH}">${headerSvg}${cutLines.join('')}</svg>`;
+  const cutGuidesSvg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="${pageW}" height="${pageH}">
+    <text x="${pageW / 2}" y="48" text-anchor="middle" font-family="Georgia, serif" font-size="24" font-weight="bold" letter-spacing="3" fill="${COLOR.inkRoyal}">CANTON QUESTS • $300 MYSTERY MONEY HUNT (SHEET ${sheetNumber} OF 5)</text>
+    <text x="${pageW / 2}" y="78" text-anchor="middle" font-family="Georgia, serif" font-size="18" font-style="italic" fill="${COLOR.inkAccent}">SIGNALS ${startNumStr}–${endNumStr} • PRINT AT 100% SCALE / ACTUAL SIZE (3.5" × 5" CARDS)</text>
+    
+    <!-- Outer crop marks and dashed cut lines in delicate light blue -->
+    <g stroke="${COLOR.guideLight}" stroke-width="1.5" stroke-dasharray="10,10">
+      <!-- Vertical cut line between columns -->
+      <line x1="${marginX + cardW + gapX / 2}" y1="88" x2="${marginX + cardW + gapX / 2}" y2="${pageH - 25}" />
+      <!-- Horizontal cut line between rows -->
+      <line x1="25" y1="${marginY + cardH + gapY / 2}" x2="${pageW - 25}" y2="${marginY + cardH + gapY / 2}" />
+      <!-- Left cut guide -->
+      <line x1="${marginX}" y1="88" x2="${marginX}" y2="${pageH - 25}" opacity="0.4" />
+      <!-- Right cut guide -->
+      <line x1="${marginX + 2 * cardW + gapX}" y1="88" x2="${marginX + 2 * cardW + gapX}" y2="${pageH - 25}" opacity="0.4" />
+      <!-- Top cut guide -->
+      <line x1="25" y1="${marginY}" x2="${pageW - 25}" y2="${marginY}" opacity="0.4" />
+      <!-- Bottom cut guide -->
+      <line x1="25" y1="${marginY + 2 * cardH + gapY}" x2="${pageW - 25}" y2="${marginY + 2 * cardH + gapY}" opacity="0.4" />
+    </g>
+  </svg>
+  `.trim();
 
   const composites: OverlayOptions[] = signalNums.map((num, i) => {
     const col = i % CARDS_PER_ROW;
     const row = Math.floor(i / CARDS_PER_ROW);
     return {
       input: cardBuffers[num],
-      left: startX + col * (cardW + gapPx),
-      top: startY + row * (cardH + gapPx),
+      left: marginX + col * (cardW + gapX),
+      top: marginY + row * (cardH + gapY),
     };
   });
-  composites.push({ input: Buffer.from(guideSvg), left: 0, top: 0 });
+  composites.push({ input: Buffer.from(cutGuidesSvg), left: 0, top: 0 });
 
-  await sharp({ create: { width: pageW, height: pageH, channels: 3, background: '#ffffff' } })
+  await sharp({ create: { width: pageW, height: pageH, channels: 3, background: COLOR.white } })
     .composite(composites)
+    .withMetadata({ density: 300 })
     .png()
     .toFile(outputPath);
 }
@@ -380,6 +428,12 @@ async function main() {
     // Save individual card named signal-01.png ... signal-20.png
     const cardFileName = `signal-${String(i).padStart(2, '0')}.png`;
     fs.writeFileSync(path.join(CARDS_DIR, cardFileName), cardPng);
+
+    // Verify direct decoding from the final card PNG itself
+    const directCardDecoded = await decodeQrPng(cardPng);
+    if (directCardDecoded !== entry.publicUrl) {
+      throw new Error(`Direct card PNG decode FAILED for Signal ${i}! Expected: ${entry.publicUrl}, Decoded: ${directCardDecoded}`);
+    }
   }
 
   console.log(`Generated 20 individual Signal cards in output/fair-qr-print/cards/ (all QR decodes verified: 20/20 PASS).`);
