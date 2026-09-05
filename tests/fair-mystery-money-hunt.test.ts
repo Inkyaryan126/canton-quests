@@ -12,6 +12,8 @@
  * window timing) — this file covers only the new Mystery Money claims
  * mechanism end to end.
  */
+import fs from 'fs';
+import path from 'path';
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
   initializeGameEngine,
@@ -399,6 +401,25 @@ describe('$300 Mystery Money Hunt — public board & security', () => {
     expect(data.isAuthenticated).toBe(false);
     expect(data.board.totalCount).toBe(20);
     expect(data.board.totalPoolCents).toBe(30000);
+  });
+
+  it("18. the dedicated Fair QR Hunt page renders a Winner Payment Instructions panel below the opening description and above the stats panel", () => {
+    const source = fs.readFileSync(path.join(process.cwd(), 'app/events/fair-qr-hunt/page.tsx'), 'utf8');
+
+    expect(source).toContain('Winner Payment Instructions');
+    expect(source).toContain('$inksplattering');
+    expect(source).toContain('Canton Quests callsign');
+    expect(source).toContain('Signal number you found');
+    expect(source).toContain('Never pay a fee or send money to claim a prize.');
+
+    // Placement: <WinnerPaymentInstructions /> must sit between the opening
+    // <PageHeader ... /> and the <MysterySummary ... /> stats panel.
+    const headerIndex = source.indexOf('<PageHeader');
+    const panelIndex = source.indexOf('<WinnerPaymentInstructions');
+    const summaryIndex = source.indexOf('<MysterySummary');
+    expect(headerIndex).toBeGreaterThan(-1);
+    expect(panelIndex).toBeGreaterThan(headerIndex);
+    expect(summaryIndex).toBeGreaterThan(panelIndex);
   });
 
   it('16. server-side guard blocks claims before event start time with HUNT_NOT_OPEN', async () => {

@@ -57,6 +57,8 @@ export default function FairQrHuntDashboard() {
           divider
         />
 
+        <WinnerPaymentInstructions />
+
         {loading ? (
           <div className="text-center text-sm font-mono text-cyan-300 py-12">Loading Fair Hunt status...</div>
         ) : !data ? (
@@ -104,6 +106,42 @@ export default function FairQrHuntDashboard() {
 
       <CinematicFooter />
     </div>
+  );
+}
+
+// Hardcoded rather than sourced from events.basic_instructions: that
+// Supabase field is free-text edited by ops for the generic scan-instructions
+// blob shown elsewhere, and its current value doesn't carry the exact
+// "WINNER PAYMENT INSTRUCTIONS" heading/structure this panel guarantees —
+// rendering it verbatim would make this panel's wording drift with edits
+// meant for a different purpose.
+function WinnerPaymentInstructions() {
+  return (
+    <section className="glass-panel p-6 border-amber-500/40 space-y-3" aria-labelledby="winner-payment-instructions-title">
+      <div className="flex items-center gap-2">
+        <DollarSign size={18} className="text-amber-400 shrink-0" />
+        <h2 id="winner-payment-instructions-title" className="text-lg font-extrabold text-amber-400 uppercase tracking-tight">
+          Winner Payment Instructions
+        </h2>
+      </div>
+      <p className="text-sm text-white leading-relaxed">
+        Found an unclaimed Signal? Open Cash App and request the exact prize amount from{' '}
+        <span className="inline-block px-2 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-400/50 text-cyan-300 font-black tracking-wide break-words">
+          $inksplattering
+        </span>
+        .
+      </p>
+      <div className="text-sm text-white">
+        <p className="mb-1.5">In the &ldquo;For&rdquo; section, include:</p>
+        <ul className="list-disc list-inside space-y-1 text-gray-200 marker:text-cyan-400">
+          <li>Your Canton Quests callsign</li>
+          <li>The Signal number you found</li>
+        </ul>
+      </div>
+      <p className="text-xs font-mono text-amber-300 pt-1 border-t border-amber-500/20">
+        Payments are verified before being sent. Never pay a fee or send money to claim a prize.
+      </p>
+    </section>
   );
 }
 
