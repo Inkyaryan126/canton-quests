@@ -13,6 +13,7 @@ import {
   PublicPlayerDrawingEntry,
   PublicQuestView,
   LeaderboardEntry,
+  GlobalXpLeaderboardEntry,
   PlayerEventProgress,
   EventParticipation,
   ProofVerificationType,
@@ -89,8 +90,8 @@ import {
 import { checkProximity, formatDistance } from './geo';
 import { evaluateProofIntegrity } from './proof-integrity';
 import { sanitizeTextContent } from './spectator-engine';
-import { isProfileIdentityComplete } from './player-command-center';
-import { computeLevelForXp } from './xp';
+import { isProfileIdentityComplete, resolveAvatarUrl } from './player-command-center';
+import { computeLevelForXp, SOCIAL_SHARE_XP } from './xp';
 import {
   FOUNDER_CIPHER_DISTRICTS,
   verifyDistrictDecodeSequence,
@@ -1398,6 +1399,24 @@ export function getAllPlayers(): Player[] {
   return getStoredItem<Player[]>(STORAGE_KEYS.PLAYERS, SEED_DEMO_PLAYERS);
 }
 
+export function getGlobalXpLeaderboard(limit = 25): GlobalXpLeaderboardEntry[] {
+  initializeGameEngine();
+  return getAllPlayers()
+    .slice()
+    .sort((a, b) => (b.totalXp || 0) - (a.totalXp || 0))
+    .slice(0, limit)
+    .map((p) => ({
+      id: p.id,
+      displayName: p.displayName,
+      avatarUrl: resolveAvatarUrl(p),
+      profileImageCropZoom: p.profileImageCropZoom,
+      profileImageCropX: p.profileImageCropX,
+      profileImageCropY: p.profileImageCropY,
+      totalXp: p.totalXp || 0,
+      level: p.level,
+    }));
+}
+
 export function getPlayerById(playerId: string): Player | undefined {
   initializeGameEngine();
   const players = getAllPlayers();
@@ -1639,6 +1658,114 @@ export function evaluateAndGrantProfileCompletionReward(playerId: string): { new
   const newAchievement = awardAchievement(playerId, 'field-ready', SEED_EVENT.id, 'Player identity complete — avatar selected');
 
   return { newlyGranted: true, xpAwarded: PROFILE_COMPLETION_XP, newAchievement };
+}
+
+/**
+ * One-time, per-field XP for profile development beyond the avatar.
+ * Deliberately limited to `tagline` — see the matching comment on
+ * PROFILE_MILESTONE_XP in lib/supabase-db.ts for why the other profile
+ * columns aren't included yet (no player-facing editor exists for them).
+ */
+const PROFILE_MILESTONE_XP: Record<string, number> = {
+  tagline: 15,
+};
+
+/**
+ * Local/offline mirror of evaluateAndGrantProfileMilestonesDB — granular,
+ * one-time-per-field XP for profile development beyond the avatar. Safe,
+ * idempotent no-op for fields already granted via recordRewardGrant's
+ * questless (player_id, reward_type, reward_key) dedupe.
+ */
+export function evaluateAndGrantProfileMilestones(playerId: string): { newlyGranted: Array<{ field: string; xpAwarded: number }>; totalXpAwarded: number } {
+  initializeGameEngine();
+  const player = getAllPlayers().find((p) => p.id === playerId);
+  if (!player) return { newlyGranted: [], totalXpAwarded: 0 };
+
+  const fieldsPresent: Record<string, boolean> = {
+    tagline: Boolean(player.tagline && player.tagline.trim()),
+  };
+
+  const newlyGranted: Array<{ field: string; xpAwarded: number }> = [];
+  for (const [field, isPresent] of Object.entries(fieldsPresent)) {
+    if (!isPresent) continue;
+    const xpAwarded = PROFILE_MILESTONE_XP[field];
+    const granted = recordRewardGrant({
+      eventId: SEED_EVENT.id,
+      playerId,
+      rewardType: 'PROFILE_MILESTONE',
+      rewardKey: `profile_field:${field}`,
+      xpAwarded,
+    });
+    if (!granted) continue;
+
+    recordScoreLedger({
+      eventId: SEED_EVENT.id,
+      playerId,
+      points: xpAwarded,
+      category: 'profile_milestone',
+      description: `Profile development: ${field} (+${xpAwarded} XP)`,
+    });
+    newlyGranted.push({ field, xpAwarded });
+  }
+
+  return { newlyGranted, totalXpAwarded: newlyGranted.reduce((sum, g) => sum + g.xpAwarded, 0) };
+}
+
+/** Local/offline mirror of claimSocialShareDB — one honor-system claim per calendar day (UTC). */
+export function claimSocialShare(playerId: string): { newlyGranted: boolean; xpAwarded: number } {
+  initializeGameEngine();
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const granted = recordRewardGrant({
+    eventId: SEED_EVENT.id,
+    playerId,
+    rewardType: 'SOCIAL_SHARE',
+    rewardKey: `share:${todayKey}`,
+    xpAwarded: SOCIAL_SHARE_XP,
+  });
+  if (!granted) return { newlyGranted: false, xpAwarded: 0 };
+
+  recordScoreLedger({
+    eventId: SEED_EVENT.id,
+    playerId,
+    points: SOCIAL_SHARE_XP,
+    category: 'social_share',
+    description: `Shared Canton Quests (+${SOCIAL_SHARE_XP} XP)`,
+  });
+
+  return { newlyGranted: true, xpAwarded: SOCIAL_SHARE_XP };
+}
+
+/** Mirrors rollDailyLuckySignalXp in lib/supabase-db.ts — ~70% 5-15, ~25% 16-40, ~5% a 100 XP jackpot. */
+function rollDailyLuckySignalXp(): number {
+  const roll = Math.random();
+  if (roll < 0.7) return 5 + Math.floor(Math.random() * 11);
+  if (roll < 0.95) return 16 + Math.floor(Math.random() * 25);
+  return 100;
+}
+
+/** Local/offline mirror of claimDailyLuckySignalDB — one random-XP claim per calendar day (UTC). */
+export function claimDailyLuckySignal(playerId: string): { newlyGranted: boolean; xpAwarded: number } {
+  initializeGameEngine();
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const xpAwarded = rollDailyLuckySignalXp();
+  const granted = recordRewardGrant({
+    eventId: SEED_EVENT.id,
+    playerId,
+    rewardType: 'DAILY_LUCKY_SIGNAL',
+    rewardKey: `lucky:${todayKey}`,
+    xpAwarded,
+  });
+  if (!granted) return { newlyGranted: false, xpAwarded: 0 };
+
+  recordScoreLedger({
+    eventId: SEED_EVENT.id,
+    playerId,
+    points: xpAwarded,
+    category: 'daily_lucky_signal',
+    description: `⚡ Daily Lucky Signal (+${xpAwarded} XP)`,
+  });
+
+  return { newlyGranted: true, xpAwarded };
 }
 
 export function getEvents(): QuestEvent[] {

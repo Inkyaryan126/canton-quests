@@ -20,7 +20,7 @@ import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import OperationCard from '@/components/OperationCard';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { Player, PublicRosterEntry, QuestEvent } from '@/lib/types';
+import { GlobalXpLeaderboardEntry, Player, PublicRosterEntry, QuestEvent } from '@/lib/types';
 import { cqImages, getActiveEvent, getOperationStatus } from '@/lib/marketing-assets';
 import { isProfileIdentityComplete } from '@/lib/player-command-center';
 import { createPlayerFileClickHandler } from '@/lib/player-file-nav';
@@ -92,6 +92,7 @@ export default function HomePage() {
   const [currentPlayer, setCurrentPlayerState] = useState<Player | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [roster, setRoster] = useState<PublicRosterEntry[]>([]);
+  const [topAgents, setTopAgents] = useState<GlobalXpLeaderboardEntry[]>([]);
   // Shared with every other "go to /profile" control — see lib/player-file-nav.ts.
   const handlePlayerFileClick = createPlayerFileClickHandler(router, currentPlayer);
 
@@ -123,6 +124,14 @@ export default function HomePage() {
       .then((res) => res.json())
       .then((data: { roster?: PublicRosterEntry[] }) => {
         setRoster(data.roster || []);
+      })
+      .catch(() => {});
+
+    // 5. Top Agents preview — the cross-Mission, all-time XP leaderboard
+    fetch('/api/game/leaderboard/global?limit=5')
+      .then((res) => res.json())
+      .then((data: { leaderboard?: GlobalXpLeaderboardEntry[] }) => {
+        setTopAgents(data.leaderboard || []);
       })
       .catch(() => {});
   }, []);
@@ -458,7 +467,46 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* F. PLAYER COMMUNITY / ROSTER PREVIEW */}
+        {/* F. TOP AGENTS / GLOBAL XP LEADERBOARD PREVIEW */}
+        {topAgents.length > 0 && (
+          <section className="cq-section py-14" aria-labelledby="top-agents-heading">
+            <div className="cq-section-shell">
+              <div className="p-6 sm:p-8 rounded-3xl bg-stone-950/90 border border-amber-500/30 shadow-2xl">
+                <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Trophy size={16} className="text-amber-400" aria-hidden="true" />
+                    <span id="top-agents-heading" className="text-xs font-mono font-bold uppercase text-amber-400 tracking-wider">
+                      TOP AGENTS — ALL-TIME XP
+                    </span>
+                  </div>
+                  <Link href="/leaderboard?scope=global" className="cq-dark-button inline-flex items-center justify-center gap-2 text-xs font-mono py-3 px-5">
+                    VIEW FULL RANKINGS
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </Link>
+                </div>
+                <div className="space-y-2">
+                  {topAgents.map((entry, i) => (
+                    <div key={entry.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-stone-900/60 border border-stone-800">
+                      <span className="w-6 text-center font-display font-black text-amber-400 text-sm shrink-0">#{i + 1}</span>
+                      <PlayerAvatar
+                        avatarUrl={entry.avatarUrl}
+                        cropZoom={entry.profileImageCropZoom}
+                        cropX={entry.profileImageCropX}
+                        cropY={entry.profileImageCropY}
+                        size={36}
+                        ariaLabel={`${entry.displayName} avatar`}
+                      />
+                      <span className="flex-1 text-sm text-white font-body truncate">{entry.displayName}</span>
+                      <span className="text-xs font-mono font-bold text-emerald-300 shrink-0">{entry.totalXp} XP</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* G. PLAYER COMMUNITY / ROSTER PREVIEW */}
         {rosterPreview.length > 0 && (
           <section className="cq-section py-14" aria-labelledby="roster-preview-heading">
             <div className="cq-section-shell">
@@ -503,7 +551,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* G. FINAL CTA */}
+        {/* H. FINAL CTA */}
         <section className="cq-live-cta" aria-labelledby="final-cta-heading">
           <div className="cq-live-cta-art" aria-hidden="true">
             <Image

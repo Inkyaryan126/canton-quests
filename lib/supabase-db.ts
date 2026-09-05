@@ -44,6 +44,7 @@ import {
   PublicPlayerDrawingEntry,
   PublicPrizeDrawResult,
   PublicRosterEntry,
+  GlobalXpLeaderboardEntry,
   PublicDrawingPageData,
   AuthenticatedPlayerDrawingQualification,
   DrawingLedgerReview,
@@ -107,7 +108,7 @@ import {
   proofMatchesAny,
 } from './quest-proof-secrets';
 import { isProfileIdentityComplete, resolveAvatarUrl } from './player-command-center';
-import { computeLevelForXp } from './xp';
+import { computeLevelForXp, SOCIAL_SHARE_XP } from './xp';
 
 
 function mapLocationFromDB(row: any): LocationInfo | undefined {
@@ -1027,6 +1028,172 @@ export async function evaluateAndGrantProfileCompletionRewardDB(
   const newAchievement = await awardAchievementDB(playerId, 'field-ready', event.id, 'Player identity complete — avatar selected');
 
   return { newlyGranted: true, xpAwarded, newAchievement };
+}
+
+/**
+ * One-time, per-field XP for filling in profile development beyond the
+ * avatar. Deliberately limited to `tagline` for now — it's the only one of
+ * players' bio/hometown/theme_color/favorite_style/selected_flair columns
+ * that actually has a player-facing input anywhere in the app today (the
+ * Motto field on app/profile/page.tsx). The other four columns exist in the
+ * schema and the profile-save API already accepts them, but nothing in the
+ * UI lets a player set them yet — awarding one-time XP for a field no one
+ * can actually "develop" would either never fire or fire only for
+ * pre-existing seeded data, neither of which is the intended behavior. Add
+ * them here once each gets a real editor.
+ */
+const PROFILE_MILESTONE_XP: Record<string, number> = {
+  tagline: 15,
+};
+
+/**
+ * Granular, one-time-per-field XP for developing a profile beyond the
+ * avatar (which is its own bigger, capstone PROFILE_COMPLETION reward
+ * above). Call this after any profile save capable of setting one of these
+ * fields for the first time — like evaluateAndGrantProfileCompletionRewardDB,
+ * it always re-reads the player's current row and re-evaluates every field,
+ * so it's a safe, idempotent no-op for fields already granted (or never
+ * filled in). Idempotency is enforced the same way as PROFILE_COMPLETION —
+ * reward_grants' account-level questless unique index
+ * (player_id, reward_type, reward_key) — so a field can only ever pay out
+ * once per account, no matter how many times it's edited afterward.
+ */
+export async function evaluateAndGrantProfileMilestonesDB(
+  playerId: string
+): Promise<{ newlyGranted: Array<{ field: string; xpAwarded: number }>; totalXpAwarded: number }> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.evaluateAndGrantProfileMilestones(playerId);
+  }
+  const db = supabaseAdmin;
+
+  const { data: playerRow, error: playerError } = await db
+    .from('players')
+    .select('id, tagline')
+    .eq('id', playerId)
+    .maybeSingle();
+  if (playerError || !playerRow) return { newlyGranted: [], totalXpAwarded: 0 };
+
+  const event = await getEventBySlugDB(SEED_EVENT.slug);
+  if (!event) return { newlyGranted: [], totalXpAwarded: 0 };
+
+  const fieldsPresent: Record<string, boolean> = {
+    tagline: Boolean(playerRow.tagline && String(playerRow.tagline).trim()),
+  };
+
+  const newlyGranted: Array<{ field: string; xpAwarded: number }> = [];
+  for (const [field, isPresent] of Object.entries(fieldsPresent)) {
+    if (!isPresent) continue;
+    const xpAwarded = PROFILE_MILESTONE_XP[field];
+    const isNewGrant = await insertRewardGrantDB({
+      eventId: event.id,
+      playerId,
+      rewardType: 'PROFILE_MILESTONE',
+      rewardKey: `profile_field:${field}`,
+      xpAwarded,
+    });
+    if (!isNewGrant) continue;
+
+    await db.from('score_ledger').insert({
+      event_id: event.id,
+      player_id: playerId,
+      points: xpAwarded,
+      category: 'profile_milestone',
+      description: `Profile development: ${field.replace('_', ' ')} (+${xpAwarded} XP)`,
+    });
+    await incrementPlayerXpDB(playerId, xpAwarded);
+    newlyGranted.push({ field, xpAwarded });
+  }
+
+  return { newlyGranted, totalXpAwarded: newlyGranted.reduce((sum, g) => sum + g.xpAwarded, 0) };
+}
+
+/**
+ * One claim per calendar day (UTC), honor-system — the client is trusted
+ * that a real share-intent dialog was opened; there is no server-side
+ * proof of an actual post. Farming is limited by (a) the modest XP amount
+ * and (b) the reward_key embedding today's UTC date, so reward_grants'
+ * existing account-level questless unique index
+ * (player_id, reward_type, reward_key) makes a second claim on the same
+ * day a no-op — no new index or scheduled cleanup needed, a new day is
+ * simply a new key.
+ */
+export async function claimSocialShareDB(playerId: string): Promise<{ newlyGranted: boolean; xpAwarded: number }> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.claimSocialShare(playerId);
+  }
+  const db = supabaseAdmin;
+  const event = await getEventBySlugDB(SEED_EVENT.slug);
+  if (!event) return { newlyGranted: false, xpAwarded: 0 };
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const isNewGrant = await insertRewardGrantDB({
+    eventId: event.id,
+    playerId,
+    rewardType: 'SOCIAL_SHARE',
+    rewardKey: `share:${todayKey}`,
+    xpAwarded: SOCIAL_SHARE_XP,
+  });
+  if (!isNewGrant) return { newlyGranted: false, xpAwarded: 0 };
+
+  await db.from('score_ledger').insert({
+    event_id: event.id,
+    player_id: playerId,
+    points: SOCIAL_SHARE_XP,
+    category: 'social_share',
+    description: `Shared Canton Quests (+${SOCIAL_SHARE_XP} XP)`,
+  });
+  await incrementPlayerXpDB(playerId, SOCIAL_SHARE_XP);
+
+  return { newlyGranted: true, xpAwarded: SOCIAL_SHARE_XP };
+}
+
+/**
+ * Weighted random payout table for the Daily Lucky Signal — rolled
+ * server-side only, never trusting a client-supplied value. Roughly 70%
+ * small (5-15), 25% medium (16-40), 5% a 100 XP jackpot.
+ */
+function rollDailyLuckySignalXp(): number {
+  const roll = Math.random();
+  if (roll < 0.7) return 5 + Math.floor(Math.random() * 11); // 5-15
+  if (roll < 0.95) return 16 + Math.floor(Math.random() * 25); // 16-40
+  return 100; // jackpot
+}
+
+/**
+ * One random-XP claim per calendar day (UTC) per player — same one-per-day
+ * pattern as claimSocialShareDB (date-suffixed reward_key against the
+ * existing account-level questless unique index). The amount is rolled
+ * here, server-side, at claim time — never predictable or client-supplied.
+ */
+export async function claimDailyLuckySignalDB(playerId: string): Promise<{ newlyGranted: boolean; xpAwarded: number }> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.claimDailyLuckySignal(playerId);
+  }
+  const db = supabaseAdmin;
+  const event = await getEventBySlugDB(SEED_EVENT.slug);
+  if (!event) return { newlyGranted: false, xpAwarded: 0 };
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const xpAwarded = rollDailyLuckySignalXp();
+  const isNewGrant = await insertRewardGrantDB({
+    eventId: event.id,
+    playerId,
+    rewardType: 'DAILY_LUCKY_SIGNAL',
+    rewardKey: `lucky:${todayKey}`,
+    xpAwarded,
+  });
+  if (!isNewGrant) return { newlyGranted: false, xpAwarded: 0 };
+
+  await db.from('score_ledger').insert({
+    event_id: event.id,
+    player_id: playerId,
+    points: xpAwarded,
+    category: 'daily_lucky_signal',
+    description: `⚡ Daily Lucky Signal (+${xpAwarded} XP)`,
+  });
+  await incrementPlayerXpDB(playerId, xpAwarded);
+
+  return { newlyGranted: true, xpAwarded };
 }
 
 const THREE_LOCKS_COLLECTIBLE_IDS = ['col-founder-mark', 'col-founder-code', 'col-founder-word'];
@@ -2717,6 +2884,45 @@ export async function getPlayerRosterDB(search?: string): Promise<PublicRosterEn
     selectedStartingPath: row.selected_starting_path || undefined,
     level: row.level,
     createdAt: row.created_at,
+  }));
+}
+
+/**
+ * The GLOBAL, cross-event XP leaderboard for the homepage/main leaderboard
+ * page — every registered player ranked by players.total_xp, which every
+ * reward path (quest completion, profile milestones, Field NPCs, bounties,
+ * finale, Player Links, social share, lucky pickups) keeps up to date via
+ * incrementPlayerXpDB. Distinct from getLeaderboardDB, which sums one
+ * Operation's score_ledger rows only.
+ */
+export async function getGlobalXpLeaderboardDB(limit = 25): Promise<GlobalXpLeaderboardEntry[]> {
+  if (!isSupabaseConfigured || !supabase) return localEngine.getGlobalXpLeaderboard(limit);
+
+  const db = supabaseAdmin || supabase;
+  const { data, error } = await db
+    .from('players')
+    .select(
+      'id, display_name, avatar_preset_key, profile_image_path, avatar_url, acquisition_source, profile_image_crop_zoom, profile_image_crop_x, profile_image_crop_y, total_xp, level'
+    )
+    .order('total_xp', { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+
+  return data.map((row: any) => ({
+    id: row.id,
+    displayName: row.display_name,
+    avatarUrl: resolveAvatarUrl({
+      id: row.id,
+      avatarPresetKey: row.avatar_preset_key,
+      profileImagePath: row.profile_image_path,
+      avatarUrl: row.avatar_url,
+      acquisitionSource: row.acquisition_source,
+    }),
+    profileImageCropZoom: row.profile_image_crop_zoom,
+    profileImageCropX: row.profile_image_crop_x,
+    profileImageCropY: row.profile_image_crop_y,
+    totalXp: row.total_xp || 0,
+    level: row.level,
   }));
 }
 

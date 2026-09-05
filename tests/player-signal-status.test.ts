@@ -210,8 +210,11 @@ describe('players.level DB calculation is untouched by this change', () => {
     const supabaseDbSource = fs.readFileSync(path.join(process.cwd(), 'lib/supabase-db.ts'), 'utf8');
 
     expect(xpSource).toMatch(/Math\.floor\(Math\.max\(0,\s*totalXp\)\s*\/\s*LEVEL_XP_STEP\)\s*\+\s*1/);
-    expect(gameEngineSource).toContain("import { computeLevelForXp } from './xp'");
-    expect(supabaseDbSource).toContain("import { computeLevelForXp } from './xp'");
+    // A regex (not an exact substring) tolerates lib/xp.ts's import line
+    // gaining further named imports (e.g. SOCIAL_SHARE_XP) over time —
+    // what actually matters is that computeLevelForXp is imported from './xp'.
+    expect(gameEngineSource).toMatch(/import\s*\{[^}]*\bcomputeLevelForXp\b[^}]*\}\s*from\s*'\.\/xp'/);
+    expect(supabaseDbSource).toMatch(/import\s*\{[^}]*\bcomputeLevelForXp\b[^}]*\}\s*from\s*'\.\/xp'/);
   });
 
   it('no migration was introduced — players.level remains the same column, same formula', async () => {

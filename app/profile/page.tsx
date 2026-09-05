@@ -13,6 +13,8 @@ import {
   RotateCcw,
   Save,
   ShieldCheck,
+  Share2,
+  Sparkles,
   User,
   LogOut,
 } from 'lucide-react';
@@ -32,6 +34,7 @@ import {
 } from '@/lib/player-command-center';
 import { showGameMoment } from '@/lib/game-effects';
 import { getPathTone } from '@/lib/path-tone';
+import { SOCIAL_SHARE_XP } from '@/lib/xp';
 
 type BadgeCatalogItem = Achievement & {
   iconPath: string;
@@ -90,29 +93,47 @@ function announceProfileCompletion(payload: {
   profileCompletionXp?: number;
   player?: Player;
   newAchievement?: PlayerAchievement;
+  profileMilestonesAwarded?: Array<{ field: string; xpAwarded: number }>;
+  profileMilestonesXp?: number;
 }) {
-  if (!payload.profileCompletionReward) return;
-  showGameMoment({
-    type: 'reward-token',
-    kind: 'xp',
-    headline: 'IDENTITY CONFIRMED',
-    primaryText: 'PLAYER PROFILE ACTIVE',
-    secondaryText: 'You are officially on the board.',
-    xpAmount: payload.profileCompletionXp || 100,
-    cta: 'VIEW PLAYER FILE',
-  });
-
-  // A real, permanent badge alongside the XP — queued right after so it
-  // never overlaps the reward-token moment above.
-  const ach = payload.newAchievement?.achievement;
-  if (ach) {
+  if (payload.profileCompletionReward) {
     showGameMoment({
-      type: 'achievement',
-      achievementId: ach.slug,
-      title: ach.name,
-      description: ach.description,
-      icon: ach.badgeSymbol || '🏅',
-      category: ach.category,
+      type: 'reward-token',
+      kind: 'xp',
+      headline: 'IDENTITY CONFIRMED',
+      primaryText: 'PLAYER PROFILE ACTIVE',
+      secondaryText: 'You are officially on the board.',
+      xpAmount: payload.profileCompletionXp || 100,
+      cta: 'VIEW PLAYER FILE',
+    });
+
+    // A real, permanent badge alongside the XP — queued right after so it
+    // never overlaps the reward-token moment above.
+    const ach = payload.newAchievement?.achievement;
+    if (ach) {
+      showGameMoment({
+        type: 'achievement',
+        achievementId: ach.slug,
+        title: ach.name,
+        description: ach.description,
+        icon: ach.badgeSymbol || '🏅',
+        category: ach.category,
+      });
+    }
+  }
+
+  // Granular one-time profile-development XP (e.g. setting a Motto) —
+  // celebrated separately since it can land on its own save, without a
+  // fresh PROFILE_COMPLETION grant.
+  if (payload.profileMilestonesAwarded && payload.profileMilestonesAwarded.length > 0) {
+    showGameMoment({
+      type: 'reward-token',
+      kind: 'xp',
+      headline: 'PROFILE DEVELOPED',
+      primaryText: 'NEW IDENTITY DETAIL SAVED',
+      secondaryText: 'Every new detail on your Player Card earns XP — once.',
+      xpAmount: payload.profileMilestonesXp || 0,
+      cta: 'VIEW PLAYER FILE',
     });
   }
 }
@@ -134,6 +155,9 @@ export default function ProfilePage() {
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
   const [lastNumberedPresetKey, setLastNumberedPresetKey] = useState('1');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'claiming' | 'claimed' | 'already'>('idle');
+  const [luckySignalStatus, setLuckySignalStatus] = useState<'idle' | 'claiming' | 'claimed' | 'already'>('idle');
+  const [luckySignalXp, setLuckySignalXp] = useState(0);
 
   const handleLogout = async () => {
     try {
@@ -301,6 +325,79 @@ export default function ProfilePage() {
     });
   };
 
+  // Honor-system: opens a real platform share dialog, then claims the daily
+  // XP immediately — no proof of an actual post is required or checked.
+  const shareToPlatform = async (platform: 'x' | 'facebook') => {
+    if (typeof window === 'undefined') return;
+    const siteUrl = window.location.origin;
+    const shareText = "I'm hunting real-world missions with Canton Quests — join me.";
+    const shareUrl =
+      platform === 'x'
+        ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(siteUrl)}`
+        : `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(siteUrl)}`;
+    window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
+
+    setShareStatus('claiming');
+    try {
+      const response = await fetch('/api/player/share-claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ platform }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Share claim failed.');
+      if (payload.alreadyClaimedToday) {
+        setShareStatus('already');
+        return;
+      }
+      setShareStatus('claimed');
+      showGameMoment({
+        type: 'reward-token',
+        kind: 'xp',
+        headline: 'SIGNAL BOOSTED',
+        primaryText: 'CANTON QUESTS SHARED',
+        secondaryText: 'Come back tomorrow to share again.',
+        xpAmount: payload.xpAwarded || 0,
+        cta: 'KEEP GOING',
+      });
+      await loadCommandCenter();
+    } catch (error) {
+      setShareStatus('idle');
+      setMessage({ type: 'error', text: getErrorMessage(error, 'Share claim failed.') });
+    }
+  };
+
+  const claimLuckySignal = async () => {
+    setLuckySignalStatus('claiming');
+    try {
+      const response = await fetch('/api/player/lucky-signal/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Lucky Signal claim failed.');
+      if (payload.alreadyClaimedToday) {
+        setLuckySignalStatus('already');
+        return;
+      }
+      setLuckySignalXp(payload.xpAwarded || 0);
+      setLuckySignalStatus('claimed');
+      showGameMoment({
+        type: 'reward-token',
+        kind: 'xp',
+        headline: 'LUCKY SIGNAL',
+        primaryText: 'DAILY SIGNAL CLAIMED',
+        secondaryText: 'One free pickup every day — come back tomorrow.',
+        xpAmount: payload.xpAwarded || 0,
+        cta: 'NICE',
+      });
+      await loadCommandCenter();
+    } catch (error) {
+      setLuckySignalStatus('idle');
+      setMessage({ type: 'error', text: getErrorMessage(error, 'Lucky Signal claim failed.') });
+    }
+  };
+
   return (
     <div className="cq-home-shell">
       <CinematicNav eventHref="/events/canton-weekend-1" context="global" />
@@ -419,6 +516,73 @@ export default function ProfilePage() {
               </p>
             </section>
 
+            {/* DAILY BONUSES — the two ways to earn XP every single day, in
+                or out of any Mission. Both are once-per-calendar-day claims
+                (server-enforced), so buttons are type="button" to never
+                trigger the surrounding Player File save form. */}
+            <section className="cq-command-section" aria-labelledby="daily-bonuses-heading">
+              <div className="cq-command-section-head">
+                <h2 id="daily-bonuses-heading">Daily Bonuses</h2>
+                <Sparkles size={18} />
+              </div>
+
+              <div className="cq-identity-status">
+                <span className="cq-identity-status-title">
+                  <Share2 size={13} style={{ display: 'inline', verticalAlign: '-2px', marginRight: '0.3rem' }} />
+                  SHARE CANTON QUESTS
+                </span>
+                {shareStatus === 'already' ? (
+                  <em>ALREADY SHARED TODAY — COME BACK TOMORROW</em>
+                ) : shareStatus === 'claimed' ? (
+                  <em>+{SOCIAL_SHARE_XP} XP CLAIMED TODAY</em>
+                ) : (
+                  <em>+{SOCIAL_SHARE_XP} XP / day</em>
+                )}
+              </div>
+              <div className="cq-button-row" style={{ marginTop: '0.6rem' }}>
+                <button
+                  type="button"
+                  disabled={shareStatus === 'claiming' || shareStatus === 'claimed' || shareStatus === 'already'}
+                  onClick={() => shareToPlatform('x')}
+                >
+                  <Share2 size={16} />
+                  SHARE ON X
+                </button>
+                <button
+                  type="button"
+                  disabled={shareStatus === 'claiming' || shareStatus === 'claimed' || shareStatus === 'already'}
+                  onClick={() => shareToPlatform('facebook')}
+                >
+                  <Share2 size={16} />
+                  SHARE ON FACEBOOK
+                </button>
+              </div>
+
+              <div className="cq-identity-status" style={{ marginTop: '1rem' }}>
+                <span className="cq-identity-status-title">
+                  <Sparkles size={13} style={{ display: 'inline', verticalAlign: '-2px', marginRight: '0.3rem' }} />
+                  DAILY LUCKY SIGNAL
+                </span>
+                {luckySignalStatus === 'already' ? (
+                  <em>ALREADY CLAIMED TODAY — COME BACK TOMORROW</em>
+                ) : luckySignalStatus === 'claimed' ? (
+                  <em>+{luckySignalXp} XP CLAIMED TODAY</em>
+                ) : (
+                  <em>A FREE RANDOM XP PICKUP, ONCE A DAY</em>
+                )}
+              </div>
+              <div className="cq-button-row" style={{ marginTop: '0.6rem' }}>
+                <button
+                  type="button"
+                  disabled={luckySignalStatus === 'claiming' || luckySignalStatus === 'claimed' || luckySignalStatus === 'already'}
+                  onClick={claimLuckySignal}
+                >
+                  <Sparkles size={16} />
+                  {luckySignalStatus === 'claiming' ? 'CLAIMING...' : 'CLAIM TODAY’S SIGNAL'}
+                </button>
+              </div>
+            </section>
+
             <section className="cq-command-section" aria-labelledby="settings-heading">
               <div className="cq-command-section-head">
                 <h2 id="settings-heading">Profile Settings</h2>
@@ -440,6 +604,29 @@ export default function ProfilePage() {
                         <span className="cq-identity-status-title">PLAYER IDENTITY</span>
                         <span className="cq-identity-status-item">○ Select your player image</span>
                         <em>Complete your identity <strong>+100 XP</strong></em>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Granular, one-time profile-development XP beyond the avatar
+                  capstone above — currently just the Motto field below (the
+                  only other profile attribute with a real editor today). */}
+              {(() => {
+                const mottoComplete = Boolean(data.player.tagline && data.player.tagline.trim());
+                return (
+                  <div className={`cq-identity-status${mottoComplete ? ' is-complete' : ''}`}>
+                    {mottoComplete ? (
+                      <>
+                        <CheckCircle2 size={15} />
+                        <span>MOTTO SET</span>
+                        <em>+15 XP CLAIMED</em>
+                      </>
+                    ) : (
+                      <>
+                        <span className="cq-identity-status-item">○ Set your Player Card motto</span>
+                        <em>+15 XP</em>
                       </>
                     )}
                   </div>

@@ -13,3 +13,11 @@ export const LEVEL_XP_STEP = 250;
 export function computeLevelForXp(totalXp: number): number {
   return Math.floor(Math.max(0, totalXp) / LEVEL_XP_STEP) + 1;
 }
+
+/**
+ * Client-safe XP constants shared between server reward logic and
+ * player-facing UI copy — kept here (not lib/supabase-db.ts, which pulls in
+ * server-only Supabase admin clients) so a 'use client' page can import the
+ * exact number without bundling server code.
+ */
+export const SOCIAL_SHARE_XP = 20;

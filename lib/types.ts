@@ -590,7 +590,11 @@ export type RewardGrantReason =
   | 'PROFILE_COMPLETION'
   | 'PLAYER_LINK'
   | 'NPC_CLAIM'
-  | 'BOUNTY_COMPLETE';
+  | 'BOUNTY_COMPLETE'
+  | 'PROFILE_MILESTONE'
+  | 'SOCIAL_SHARE'
+  | 'DAILY_LUCKY_SIGNAL'
+  | 'QUEST_LUCKY_BONUS';
 
 export interface RewardGrant {
   id: string;
@@ -886,6 +890,23 @@ export interface PublicRosterEntry {
   selectedStartingPath?: StartingPath;
   level: number;
   createdAt: string;
+}
+
+/**
+ * One row of the GLOBAL, cross-event XP leaderboard — ranked by
+ * players.total_xp directly (the one cumulative counter every reward path
+ * updates), not by any single Operation's score_ledger. Distinct from
+ * LeaderboardEntry, which is always scoped to one eventId.
+ */
+export interface GlobalXpLeaderboardEntry {
+  id: string;
+  displayName: string;
+  avatarUrl: string;
+  profileImageCropZoom?: number;
+  profileImageCropX?: number;
+  profileImageCropY?: number;
+  totalXp: number;
+  level: number;
 }
 
 /**

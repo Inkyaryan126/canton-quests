@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 import {
   evaluateAndGrantProfileCompletionRewardDB,
+  evaluateAndGrantProfileMilestonesDB,
   getAchievementsForPlayerDB,
   getPlayerByIdDB,
   upsertPlayerDB,
@@ -136,12 +137,14 @@ export async function POST(request: Request) {
     });
 
     const profileCompletionResult = await evaluateAndGrantProfileCompletionRewardDB(player.id);
+    const milestonesResult = await evaluateAndGrantProfileMilestonesDB(player.id);
     // Re-read the authoritative row rather than hand-computing totalXp/level
-    // client-side — the grant above already persisted both, and a
+    // client-side — the grant(s) above already persisted both, and a
     // freshly-added score-ledger row could double-count if summed here.
-    const finalPlayer = profileCompletionResult.newlyGranted
-      ? (await getPlayerByIdDB(player.id)) || updated
-      : updated;
+    const finalPlayer =
+      profileCompletionResult.newlyGranted || milestonesResult.newlyGranted.length > 0
+        ? (await getPlayerByIdDB(player.id)) || updated
+        : updated;
 
     return withCookies({
       success: true,
@@ -150,6 +153,8 @@ export async function POST(request: Request) {
       profileCompletionReward: profileCompletionResult.newlyGranted,
       profileCompletionXp: profileCompletionResult.xpAwarded,
       newAchievement: profileCompletionResult.newAchievement,
+      profileMilestonesAwarded: milestonesResult.newlyGranted,
+      profileMilestonesXp: milestonesResult.totalXpAwarded,
     });
   } catch (error: any) {
     return NextResponse.json(

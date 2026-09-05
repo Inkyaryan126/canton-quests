@@ -268,10 +268,13 @@ describe('Profile Completion Incentive', () => {
   it('16. the profile page only fires the Identity Confirmed GameMoment when the server reports a new grant', () => {
     const profilePageSource = fs.readFileSync(path.join(process.cwd(), 'app/profile/page.tsx'), 'utf8');
 
-    // announceProfileCompletion must early-return unless the server payload
-    // says this exact call newly granted the reward — never inferred from
-    // form state or shown unconditionally after every save.
-    const guardMatch = profilePageSource.match(/function announceProfileCompletion\([^)]*\)\s*\{\s*if\s*\(!payload\.profileCompletionReward\)\s*return;/);
+    // announceProfileCompletion must gate the Identity Confirmed moment on
+    // the server payload saying this exact call newly granted the reward —
+    // never inferred from form state or shown unconditionally after every
+    // save. (Previously an early-return guard; now an if-block so the same
+    // function can also handle the separate profileMilestonesAwarded case
+    // below it — the gating condition itself is unchanged.)
+    const guardMatch = profilePageSource.match(/function announceProfileCompletion\([^)]*\)\s*\{\s*if\s*\(payload\.profileCompletionReward\)\s*\{/);
     expect(guardMatch).not.toBeNull();
     expect(profilePageSource).toContain("headline: 'IDENTITY CONFIRMED'");
     expect(profilePageSource).toContain('announceProfileCompletion(payload)');

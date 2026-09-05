@@ -309,8 +309,11 @@ describe('Bug 3 — Player Card reflects server-confirmed XP immediately after t
   describe('the client only fires the reward cinematic on a genuinely new server-confirmed grant', () => {
     const source = readSource('app/profile/page.tsx');
 
-    it('early-returns unless payload.profileCompletionReward is true — never inferred from form state', () => {
-      const guardMatch = source.match(/function announceProfileCompletion\([^)]*\)\s*\{\s*if\s*\(!payload\.profileCompletionReward\)\s*return;/);
+    it('gates the cinematic on payload.profileCompletionReward being true — never inferred from form state', () => {
+      // Previously an early-return guard; now an if-block (so the same
+      // function can also handle the separate profileMilestonesAwarded
+      // celebration) — the gating condition itself is unchanged.
+      const guardMatch = source.match(/function announceProfileCompletion\([^)]*\)\s*\{\s*if\s*\(payload\.profileCompletionReward\)\s*\{/);
       expect(guardMatch).not.toBeNull();
     });
 

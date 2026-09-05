@@ -9,7 +9,7 @@ import CinematicFooter from '@/components/CinematicFooter';
 import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import PageHeader from '@/components/PageHeader';
-import { LeaderboardEntry, Player, QuestEvent } from '@/lib/types';
+import { GlobalXpLeaderboardEntry, LeaderboardEntry, Player, QuestEvent } from '@/lib/types';
 import { cqImages, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
@@ -32,11 +32,14 @@ function getClientPlayer(): Player {
 function LeaderboardContent() {
   const searchParams = useSearchParams();
   const operationSlug = searchParams.get('operation') || searchParams.get('eventSlug');
+  const initialViewMode = searchParams.get('scope') === 'global' ? 'global' : 'mission';
 
+  const [viewMode, setViewMode] = useState<'mission' | 'global'>(initialViewMode);
   const [events, setEvents] = useState<QuestEvent[]>([]);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<QuestEvent | null>(null);
+  const [globalEntries, setGlobalEntries] = useState<GlobalXpLeaderboardEntry[]>([]);
 
   useEffect(() => {
     setCurrentPlayer(getClientPlayer());
@@ -56,6 +59,16 @@ function LeaderboardContent() {
       .then((data: { leaderboard?: LeaderboardEntry[] } | undefined) => {
         setEntries(data?.leaderboard || []);
       });
+
+    // Cross-Mission, all-time XP ranking — independent of whichever
+    // Operation is "active," so it's fetched unconditionally rather than
+    // gated behind the viewMode tab (avoids a loading flash on first switch).
+    fetch('/api/game/leaderboard/global')
+      .then((res) => res.json())
+      .then((data: { leaderboard?: GlobalXpLeaderboardEntry[] }) => {
+        setGlobalEntries(data.leaderboard || []);
+      })
+      .catch(() => {});
   }, [operationSlug]);
 
   const activeEvent = selectedEvent || getActiveEvent(events);
@@ -92,6 +105,31 @@ function LeaderboardContent() {
           />
         </section>
 
+        <section className="cq-page-section" style={{ paddingTop: 0, paddingBottom: '1rem' }}>
+          <div className="flex items-center gap-2 p-1 rounded-xl bg-stone-950 border border-stone-800 text-xs font-mono max-w-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('mission')}
+              className={`flex-1 py-2 px-3 rounded-lg text-center font-bold transition-all cursor-pointer ${
+                viewMode === 'mission' ? 'bg-amber-500 text-black shadow-md' : 'text-stone-400 hover:text-stone-200'
+              }`}
+            >
+              THIS MISSION
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('global')}
+              className={`flex-1 py-2 px-3 rounded-lg text-center font-bold transition-all cursor-pointer ${
+                viewMode === 'global' ? 'bg-amber-500 text-black shadow-md' : 'text-stone-400 hover:text-stone-200'
+              }`}
+            >
+              ALL-TIME XP
+            </button>
+          </div>
+        </section>
+
+        {viewMode !== 'mission' ? null : (
+        <>
         {activeEvent && isKnownCantonLaunchSlug(activeEvent.slug) && (
           <section className="cq-page-section" style={{ paddingTop: 0, paddingBottom: '1rem' }}>
             <WatchTransmissionButton trigger="cipher_leaderboard" playerId={currentPlayer?.id} label="Commander Briefing" size="hero" />
@@ -235,6 +273,116 @@ function LeaderboardContent() {
               </div>
             </section>
           </>
+        )}
+        </>
+        )}
+
+        {viewMode !== 'global' ? null : (
+        <>
+        <section className="cq-scoreboard-overview">
+          <div>
+            <span className="cq-kicker">ALL-TIME</span>
+            <h2>Global XP Leaderboard</h2>
+            <p>Every registered Canton Quests identity, ranked across every Mission ever run.</p>
+          </div>
+          <div>
+            <Radio size={20} aria-hidden="true" />
+            <strong>{globalEntries.length}</strong>
+            <span>ranked agents</span>
+          </div>
+          <div>
+            <Trophy size={20} aria-hidden="true" />
+            <strong>{globalEntries.length > 0 ? `${globalEntries[0].totalXp} XP` : '0 XP'}</strong>
+            <span>current #1 total XP</span>
+          </div>
+        </section>
+
+        {globalEntries.length === 0 ? (
+          <section className="cq-page-section cq-board-section">
+            <div className="relative overflow-hidden p-10 sm:p-14 rounded-3xl bg-stone-950 border border-stone-800 text-center space-y-4 max-w-3xl mx-auto my-8 shadow-2xl">
+              <div className="relative z-10 space-y-3">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-widest">
+                  <Trophy size={14} className="text-amber-400" />
+                  <span>GLOBAL RANKINGS</span>
+                </div>
+                <h2 className="text-3xl font-black font-display text-white uppercase tracking-tight">No Agents Ranked Yet</h2>
+                <p className="text-sm text-stone-300 font-body max-w-lg mx-auto leading-relaxed">
+                  Create a Player Identity and start earning XP across any Mission to appear here.
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <>
+            <section className="cq-podium">
+              {globalEntries.slice(0, 3).map((entry, i) => {
+                const rank = i + 1;
+                return (
+                  <article key={entry.id} className={`cq-podium-card cq-podium-rank-${rank}`}>
+                    <span>
+                      {rank === 1 ? <Crown size={20} /> : <Medal size={20} />}
+                      #{rank}
+                    </span>
+                    <div>
+                      <PlayerAvatar
+                        avatarUrl={entry.avatarUrl}
+                        cropZoom={entry.profileImageCropZoom}
+                        cropX={entry.profileImageCropX}
+                        cropY={entry.profileImageCropY}
+                        size={64}
+                        fallback="⚡"
+                      />
+                    </div>
+                    <h2>{entry.displayName}</h2>
+                    <strong>{entry.totalXp} XP</strong>
+                    <p>Level {entry.level}</p>
+                  </article>
+                );
+              })}
+            </section>
+
+            <section className="cq-page-section cq-board-section">
+              <div className="cq-section-heading">
+                <div>
+                  <h2>TOP AGENTS — ALL-TIME</h2>
+                </div>
+                {currentPlayer && <div className="cq-filter-label">Current: {currentPlayer.displayName}</div>}
+              </div>
+
+              <div className="cq-rank-list">
+                {globalEntries.map((entry, i) => {
+                  const rank = i + 1;
+                  const isCurrent = currentPlayer?.id === entry.id;
+
+                  return (
+                    <article className={isCurrent ? 'is-current' : ''} key={entry.id}>
+                      <div className="cq-rank-number">#{rank}</div>
+                      <PlayerAvatar
+                        avatarUrl={entry.avatarUrl}
+                        cropZoom={entry.profileImageCropZoom}
+                        cropX={entry.profileImageCropX}
+                        cropY={entry.profileImageCropY}
+                        size={46}
+                        fallback="⚡"
+                        className="cq-rank-avatar"
+                        style={{ fontSize: '1.4rem' }}
+                      />
+                      <div className="cq-rank-name">
+                        <h3>
+                          {entry.displayName}
+                          {isCurrent && <span>YOU</span>}
+                        </h3>
+                        <p>Level {entry.level}</p>
+                      </div>
+                      <strong>{entry.totalXp} XP</strong>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          </>
+        )}
+        </>
         )}
       </main>
 
