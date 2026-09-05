@@ -1233,6 +1233,8 @@ export async function awardQuestRewardsDB(params: {
   readyToDecodeDistricts?: Array<'arts' | 'challenge' | 'secret'>;
   isFirstCipherFragment?: boolean;
   newAchievements: Array<{ id: string; title: string; description: string; icon?: string }>;
+  /** Present only when the 12% Lucky Signal Spike roll actually hit on this genuine new completion — see the QUEST_LUCKY_BONUS block below. */
+  luckyBonusXp?: number;
 }> {
   if (!isSupabaseConfigured || !supabaseAdmin) {
     throw new Error('awardQuestRewardsDB requires Supabase service-role configuration.');
@@ -1332,7 +1334,32 @@ export async function awardQuestRewardsDB(params: {
     if (granted) newRaceBonusXp = bonuses.raceBonusXp;
   }
 
-  const totalXp = (isNewBase ? multipliedBaseXp : 0) + newBonusXp + newRaceBonusXp + extraFlatXp;
+  // Lucky Signal Spike: an opt-in (rewardConfig.luckyBonusChance, unset/0
+  // by default) surprise chance that a genuine new quest completion pays
+  // extra XP on top of its base — gated on isNewBase exactly like the
+  // race-placement bonus above, so a later supplemental field/photo/NFC
+  // submission for an already-completed quest never re-rolls it. Recorded
+  // as its own reward-grant component (quest-scoped, keyed like the other
+  // per-quest bonuses) so it's fully auditable and, if this exact call is
+  // ever retried/duplicated, naturally idempotent via the same partial
+  // unique index QUEST_FIELD_CHECKIN/NFC/PHOTO_VIDEO already use.
+  const luckyBonusChance = quest.rewardConfig?.luckyBonusChance || 0;
+  let newLuckyBonusXp = 0;
+  if (isNewBase && multipliedBaseXp > 0 && luckyBonusChance > 0 && Math.random() < luckyBonusChance) {
+    const luckyBonusXp = Math.max(1, Math.round(multipliedBaseXp * (0.25 + Math.random() * 0.5)));
+    const granted = await insertRewardGrantDB({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'QUEST_LUCKY_BONUS',
+      rewardKey: quest.id,
+      xpAwarded: luckyBonusXp,
+    });
+    if (granted) newLuckyBonusXp = luckyBonusXp;
+  }
+
+  const totalXp = (isNewBase ? multipliedBaseXp : 0) + newBonusXp + newRaceBonusXp + newLuckyBonusXp + extraFlatXp;
 
   if (totalXp > 0) {
     const scoreInsert = await db.from('score_ledger').insert({
@@ -1561,6 +1588,7 @@ export async function awardQuestRewardsDB(params: {
     readyToDecodeDistricts,
     isFirstCipherFragment,
     newAchievements,
+    luckyBonusXp: newLuckyBonusXp > 0 ? newLuckyBonusXp : undefined,
   };
 }
 
@@ -2458,6 +2486,7 @@ export async function submitQuestProofDB(
     let cipherDistrictsUnlocked: Array<'arts' | 'challenge' | 'secret'> | undefined;
     let readyToDecodeDistricts: Array<'arts' | 'challenge' | 'secret'> | undefined;
     let isFirstCipherFragment: boolean | undefined;
+    let luckyBonusXp: number | undefined;
 
     if (verification.status === 'verified') {
       try {
@@ -2485,6 +2514,7 @@ export async function submitQuestProofDB(
         cipherDistrictsUnlocked = grant.cipherDistrictsUnlocked;
         readyToDecodeDistricts = grant.readyToDecodeDistricts;
         isFirstCipherFragment = grant.isFirstCipherFragment;
+        luckyBonusXp = grant.luckyBonusXp;
       } catch (grantErr: any) {
         // Reward granting failed partway through — unwind every row keyed to
         // this submission (score/drawing/audit ledger + the submission
@@ -2531,6 +2561,7 @@ export async function submitQuestProofDB(
       cipherDistrictsUnlocked,
       readyToDecodeDistricts,
       isFirstCipherFragment,
+      luckyBonusXp,
     };
   } catch (err: any) {
     console.error('submitQuestProofDB error:', err);

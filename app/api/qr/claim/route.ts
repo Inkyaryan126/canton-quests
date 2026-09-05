@@ -226,6 +226,7 @@ export async function POST(request: Request) {
       success: true,
       reason: 'secured',
       pointsAwarded: result.awardedPoints,
+      luckyBonusXp: result.luckyBonusXp,
       isBonus,
       isFair,
       quest: getPublicQuestView(quest),

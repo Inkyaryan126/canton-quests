@@ -627,6 +627,23 @@ export default function QuestDetailPage({
             chainTitle: isMultiStepChain ? `${quest.title} Sequence` : quest.title,
           });
 
+          // The Lucky Signal Spike — a surprise bonus the server rolled a
+          // ~12% chance of on top of this genuinely new completion's base
+          // XP. Celebrated as its own distinct moment (never folded silently
+          // into the base XP figure above) so the surprise actually reads
+          // as a surprise.
+          if (result.luckyBonusXp && result.luckyBonusXp > 0) {
+            showGameMoment({
+              type: 'reward-token',
+              kind: 'xp',
+              headline: 'LUCKY SIGNAL SPIKE',
+              primaryText: `+${result.luckyBonusXp} BONUS XP`,
+              secondaryText: 'A random signal spike hit right as you completed this — pure luck.',
+              xpAmount: result.luckyBonusXp,
+              cta: 'NICE',
+            });
+          }
+
           // The dedicated Entry Token cinematic — only ever fired when the
           // server confirms a genuinely new entry was granted this call
           // (never inferred from XP, never shown on a retry/duplicate).

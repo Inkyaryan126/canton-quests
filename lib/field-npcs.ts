@@ -33,11 +33,38 @@ export interface FieldNpc {
   claimLimit?: number | null;
   currentClaims: number;
   rewardXp: number;
+  /**
+   * Optional lucky-pickup range — when both are set, claimFieldNpcDB rolls
+   * a random integer in [rewardXpMin, rewardXpMax] instead of the flat
+   * rewardXp above. Deliberately excluded from PublicFieldNpc: the exact
+   * range is never shown pre-claim (rewardXp still displays as the
+   * advertised/typical amount) — the real, random amount is revealed only
+   * in the claim result itself, same "mystery until claimed" feel as the
+   * Fair Hunt's Mystery Money Signals.
+   */
+  rewardXpMin?: number | null;
+  rewardXpMax?: number | null;
   rewardDrawingEntries: number;
   commanderTransmissionTrigger?: string | null;
   operatorNotes?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Rolls the actual XP an NPC claim pays out. When both range bounds are
+ * configured, returns a random integer in [rewardXpMin, rewardXpMax]
+ * inclusive (a genuine "lucky pickup"); otherwise falls back to the flat
+ * rewardXp, so every existing NPC is unaffected until an admin sets a
+ * range. Pulled out as its own pure function (rather than inlined in
+ * claimFieldNpcDB) specifically so the roll math is unit-testable without
+ * a live Supabase connection.
+ */
+export function rollFieldNpcRewardXp(npc: Pick<FieldNpc, 'rewardXp' | 'rewardXpMin' | 'rewardXpMax'>): number {
+  if (npc.rewardXpMin != null && npc.rewardXpMax != null && npc.rewardXpMax >= npc.rewardXpMin) {
+    return npc.rewardXpMin + Math.floor(Math.random() * (npc.rewardXpMax - npc.rewardXpMin + 1));
+  }
+  return npc.rewardXp;
 }
 
 /** The sanitized shape a player may ever see — never currentCode, exactLat/exactLon, operatorNotes, or commanderTransmissionTrigger. */

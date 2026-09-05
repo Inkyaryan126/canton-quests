@@ -30,6 +30,7 @@ interface ClaimResponse {
   isFair?: boolean;
   isMysterySignal?: boolean;
   pointsAwarded?: number;
+  luckyBonusXp?: number;
   cashCents?: number;
   winnerDisplayName?: string;
   paymentInstructions?: {
@@ -332,6 +333,12 @@ function ClaimResultPanel({ result }: { result: ClaimResponse }) {
       {isSecured && (
         <div className="text-amber-400 font-display font-extrabold text-lg">+{result.pointsAwarded} points</div>
       )}
+
+      {isSecured && result.luckyBonusXp ? (
+        <div className="badge badge-flash font-mono inline-flex items-center gap-1.5">
+          ⚡ LUCKY SIGNAL SPIKE +{result.luckyBonusXp} XP
+        </div>
+      ) : null}
 
       <Link href={backHref} className="btn btn-primary w-full py-3 text-sm font-bold inline-block">
         {backLabel}

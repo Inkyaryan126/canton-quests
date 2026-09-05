@@ -566,6 +566,18 @@ export interface QuestRewardConfig {
   cipherFragmentKeys?: string[];
   /** Whether completing this quest counts toward finale qualification. */
   countsTowardFinale?: boolean;
+  /**
+   * Opt-in chance (0-1) that a genuinely new completion of this quest also
+   * triggers a surprise "Lucky Signal Spike" — extra XP (25%-75% of this
+   * completion's base XP, rolled server-side) on top of the normal reward.
+   * Unset/0 by default on every quest, so this never fires unless a quest
+   * explicitly opts in — deliberately NOT an ambient chance on every quest:
+   * that would make every existing exact-XP assertion across the test
+   * suite intermittently flaky. Never applies to a supplemental
+   * field/photo/NFC submission on an already-completed quest, only the
+   * genuine first completion (same isNewBase gate as the race-bonus tiers).
+   */
+  luckyBonusChance?: number;
 }
 
 /**
@@ -979,6 +991,8 @@ export interface SubmitProofResult {
   cipherDistrictsUnlocked?: CipherDistrictKey[];
   readyToDecodeDistricts?: CipherDistrictKey[];
   isFirstCipherFragment?: boolean;
+  /** Present only when this genuinely new quest completion hit the surprise Lucky Signal Spike roll — see awardQuestRewardsDB. */
+  luckyBonusXp?: number;
 }
 
 export interface LiveAnnouncement {

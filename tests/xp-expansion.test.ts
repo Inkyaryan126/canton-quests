@@ -19,8 +19,13 @@ import {
   recordScoreLedger,
   claimSocialShare,
   claimDailyLuckySignal,
+  submitQuestProof,
+  updateQuest,
+  getQuestById,
 } from '../lib/game-engine';
 import { computeLevelForXp, LEVEL_XP_STEP, SOCIAL_SHARE_XP } from '../lib/xp';
+import { rollFieldNpcRewardXp } from '../lib/field-npcs';
+import { SEED_EVENT } from '../lib/seed-data';
 
 describe('computeLevelForXp — shared level formula', () => {
   it('matches the existing floor(totalXp/250)+1 formula exactly', () => {
@@ -182,5 +187,111 @@ describe('Daily Lucky Signal — random XP, once per day', () => {
       const result = claimDailyLuckySignal(player.id);
       expect(result.xpAwarded === 100 || (result.xpAwarded >= 5 && result.xpAwarded <= 40)).toBe(true);
     }
+  });
+});
+
+describe('rollFieldNpcRewardXp — randomized Field NPC lucky pickups', () => {
+  it('falls back to the flat rewardXp when no range is configured', () => {
+    expect(rollFieldNpcRewardXp({ rewardXp: 30, rewardXpMin: null, rewardXpMax: null })).toBe(30);
+    expect(rollFieldNpcRewardXp({ rewardXp: 30, rewardXpMin: undefined, rewardXpMax: undefined })).toBe(30);
+  });
+
+  it('falls back to the flat rewardXp when only one bound is set (a half-configured range never rolls)', () => {
+    expect(rollFieldNpcRewardXp({ rewardXp: 30, rewardXpMin: 10, rewardXpMax: null })).toBe(30);
+    expect(rollFieldNpcRewardXp({ rewardXp: 30, rewardXpMin: null, rewardXpMax: 50 })).toBe(30);
+  });
+
+  it('rolls within [min, max] inclusive across many rolls when a valid range is configured', () => {
+    for (let i = 0; i < 100; i++) {
+      const rolled = rollFieldNpcRewardXp({ rewardXp: 0, rewardXpMin: 10, rewardXpMax: 20 });
+      expect(rolled).toBeGreaterThanOrEqual(10);
+      expect(rolled).toBeLessThanOrEqual(20);
+      expect(Number.isInteger(rolled)).toBe(true);
+    }
+  });
+
+  it('a single-value range (min === max) always rolls that exact value', () => {
+    expect(rollFieldNpcRewardXp({ rewardXp: 0, rewardXpMin: 25, rewardXpMax: 25 })).toBe(25);
+  });
+});
+
+describe('Quest-completion Lucky Signal Spike — opt-in surprise bonus via rewardConfig.luckyBonusChance', () => {
+  const QUEST_ID = 'qst-centennial-discovery';
+
+  beforeEach(() => {
+    resetGameEngineStore();
+    initializeGameEngine();
+  });
+
+  it('never fires for a quest with no luckyBonusChance configured — every existing exact-XP quest stays fully deterministic', () => {
+    const quest = getQuestById(QUEST_ID)!;
+    expect(quest.rewardConfig?.luckyBonusChance).toBeFalsy();
+
+    for (let i = 0; i < 30; i++) {
+      const player = registerPlayer({ displayName: `NoLuckAgent${i}`, userId: `usr-no-luck-${i}` });
+      const result = submitQuestProof({
+        playerId: player.id,
+        questId: QUEST_ID,
+        eventId: SEED_EVENT.id,
+        proofType: 'checkin',
+        submittedContent: 'GPS Checkin Confirmed',
+        userLat: 40.7989,
+        userLon: -81.3748,
+      });
+      expect(result.luckyBonusXp).toBeUndefined();
+      expect(result.awardedPoints).toBe(quest.xpReward || quest.pointValue);
+    }
+  });
+
+  it('fires and adds extra XP on top of the base when a quest opts in with luckyBonusChance: 1 (guaranteed)', () => {
+    const original = getQuestById(QUEST_ID)!;
+    const baseXp = original.xpReward || original.pointValue;
+    updateQuest(QUEST_ID, { rewardConfig: { ...original.rewardConfig, luckyBonusChance: 1 } });
+
+    const player = registerPlayer({ displayName: 'GuaranteedLuckAgent', userId: 'usr-guaranteed-luck' });
+    const result = submitQuestProof({
+      playerId: player.id,
+      questId: QUEST_ID,
+      eventId: SEED_EVENT.id,
+      proofType: 'checkin',
+      submittedContent: 'GPS Checkin Confirmed',
+      userLat: 40.7989,
+      userLon: -81.3748,
+    });
+
+    expect(result.luckyBonusXp).toBeGreaterThan(0);
+    // 25%-75% of base XP, rounded, minimum 1.
+    expect(result.luckyBonusXp!).toBeGreaterThanOrEqual(Math.max(1, Math.round(baseXp * 0.25)) - 1);
+    expect(result.luckyBonusXp!).toBeLessThanOrEqual(Math.round(baseXp * 0.75) + 1);
+    expect(result.awardedPoints).toBe(baseXp + result.luckyBonusXp!);
+
+    // Restore for any other test relying on this seed quest's original config.
+    updateQuest(QUEST_ID, { rewardConfig: original.rewardConfig });
+  });
+
+  it('never re-rolls on a resubmission of an already-completed quest', () => {
+    const original = getQuestById(QUEST_ID)!;
+    updateQuest(QUEST_ID, { rewardConfig: { ...original.rewardConfig, luckyBonusChance: 1 } });
+
+    const player = registerPlayer({ displayName: 'RetryLuckAgent', userId: 'usr-retry-luck' });
+    const submitOnce = () =>
+      submitQuestProof({
+        playerId: player.id,
+        questId: QUEST_ID,
+        eventId: SEED_EVENT.id,
+        proofType: 'checkin',
+        submittedContent: 'GPS Checkin Confirmed',
+        userLat: 40.7989,
+        userLon: -81.3748,
+      });
+
+    const first = submitOnce();
+    expect(first.luckyBonusXp).toBeGreaterThan(0);
+
+    const second = submitOnce();
+    expect(second.awardedPoints).toBe(0);
+    expect(second.luckyBonusXp).toBeUndefined();
+
+    updateQuest(QUEST_ID, { rewardConfig: original.rewardConfig });
   });
 });

@@ -2523,6 +2523,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
   let cipherDistrictsUnlocked: Array<'arts' | 'challenge' | 'secret'> | undefined;
   let readyToDecodeDistricts: Array<'arts' | 'challenge' | 'secret'> | undefined;
   let isFirstCipherFragment: boolean | undefined;
+  let luckyBonusXp: number | undefined;
   let oldRank: number | undefined = undefined;
   let newRank: number | undefined = undefined;
   let newAchievements: Array<{
@@ -2568,6 +2569,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     cipherDistrictsUnlocked = grant.cipherDistrictsUnlocked;
     readyToDecodeDistricts = grant.readyToDecodeDistricts;
     isFirstCipherFragment = grant.isFirstCipherFragment;
+    luckyBonusXp = grant.luckyBonusXp;
     newSubmission.awardedPoints = awardedPoints;
     newSubmission.drawingEntriesAwarded = drawingEntriesAwarded;
     setStoredItem(STORAGE_KEYS.SUBMISSIONS, updatedSubmissions);
@@ -2611,6 +2613,7 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     oldRank,
     newRank,
     newAchievements,
+    luckyBonusXp,
   };
 }
 
@@ -3202,6 +3205,8 @@ function applyQuestRewardGrants(
     description: string;
     icon?: string;
   }>;
+  /** Present only when the 12% Lucky Signal Spike roll actually hit on this genuine new completion — mirrors awardQuestRewardsDB in lib/supabase-db.ts. */
+  luckyBonusXp?: number;
 } {
   const multiplier = options.bonusMultiplier ?? 1;
   const rawBaseXp = getEffectiveBaseXp(quest);
@@ -3262,7 +3267,28 @@ function applyQuestRewardGrants(
     if (granted) newRaceBonusXp = bonuses.raceBonusXp;
   }
 
-  const totalXp = (isNewBase ? multipliedBaseXp : 0) + newBonusXp + newRaceBonusXp + extraFlatXp;
+  // Lucky Signal Spike — mirrors awardQuestRewardsDB in lib/supabase-db.ts
+  // exactly: opt-in per quest via rewardConfig.luckyBonusChance (unset/0 by
+  // default — never an ambient chance on every quest, which would make
+  // every existing exact-XP test assertion intermittently flaky), same
+  // 25%-75% multiplier of the base XP, same isNewBase gate.
+  const luckyBonusChance = quest.rewardConfig?.luckyBonusChance || 0;
+  let newLuckyBonusXp = 0;
+  if (isNewBase && multipliedBaseXp > 0 && luckyBonusChance > 0 && Math.random() < luckyBonusChance) {
+    const luckyBonusXp = Math.max(1, Math.round(multipliedBaseXp * (0.25 + Math.random() * 0.5)));
+    const granted = recordRewardGrant({
+      eventId,
+      playerId,
+      questId: quest.id,
+      submissionId,
+      rewardType: 'QUEST_LUCKY_BONUS',
+      rewardKey: quest.id,
+      xpAwarded: luckyBonusXp,
+    });
+    if (granted) newLuckyBonusXp = luckyBonusXp;
+  }
+
+  const totalXp = (isNewBase ? multipliedBaseXp : 0) + newBonusXp + newRaceBonusXp + newLuckyBonusXp + extraFlatXp;
 
   if (totalXp > 0) {
     recordScoreLedger({
@@ -3453,6 +3479,7 @@ function applyQuestRewardGrants(
     readyToDecodeDistricts,
     isFirstCipherFragment,
     newAchievements,
+    luckyBonusXp: newLuckyBonusXp > 0 ? newLuckyBonusXp : undefined,
   };
 }
 

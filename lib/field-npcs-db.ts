@@ -10,7 +10,7 @@
  */
 
 import { supabaseAdmin, isSupabaseAdminConfigured } from './supabase';
-import { FieldNpc, FieldNpcType, PublicFieldNpc, validateFieldNpcClaim, generateFieldNpcCode, toPublicFieldNpc } from './field-npcs';
+import { FieldNpc, FieldNpcType, PublicFieldNpc, validateFieldNpcClaim, generateFieldNpcCode, toPublicFieldNpc, rollFieldNpcRewardXp } from './field-npcs';
 import { StartingPath } from './types';
 import { insertRewardGrantDB, incrementPlayerXpDB } from './supabase-db';
 
@@ -50,6 +50,8 @@ function mapFieldNpcFromDB(row: any): FieldNpc {
     claimLimit: row.claim_limit ?? null,
     currentClaims: row.current_claims ?? 0,
     rewardXp: row.reward_xp ?? 0,
+    rewardXpMin: row.reward_xp_min ?? null,
+    rewardXpMax: row.reward_xp_max ?? null,
     rewardDrawingEntries: row.reward_drawing_entries ?? 0,
     commanderTransmissionTrigger: row.commander_transmission_trigger || null,
     operatorNotes: row.operator_notes || null,
@@ -182,27 +184,33 @@ export async function claimFieldNpcDB(params: { eventId: string; npcId: string; 
     return { eligibility: { ok: false, reason: 'inventory_exhausted', message: 'This contact has nothing left to give — all claims exhausted.' }, newlyClaimed: false, xpAwarded: 0, drawingEntriesAwarded: 0 };
   }
 
+  // A lucky-pickup NPC (both range bounds configured) pays a random amount
+  // rolled fresh at claim time, never advertised beforehand — everything
+  // downstream (the reward grant, the score ledger, the XP increment) uses
+  // this single rolled value in place of the flat npc.rewardXp.
+  const rolledXp = rollFieldNpcRewardXp(npc);
+
   const rewardKey = `npc:${params.npcId}`;
   const granted = await insertRewardGrantDB({
     eventId: params.eventId,
     playerId: params.playerId,
     rewardType: 'NPC_CLAIM',
     rewardKey,
-    xpAwarded: npc.rewardXp,
+    xpAwarded: rolledXp,
     drawingEntriesAwarded: npc.rewardDrawingEntries,
   });
   if (!granted) {
     return { eligibility: { ok: true }, newlyClaimed: false, xpAwarded: 0, drawingEntriesAwarded: 0 };
   }
 
-  if (npc.rewardXp > 0) {
-    await incrementPlayerXpDB(params.playerId, npc.rewardXp);
+  if (rolledXp > 0) {
+    await incrementPlayerXpDB(params.playerId, rolledXp);
     await supabaseAdmin.from('score_ledger').insert({
       event_id: params.eventId,
       player_id: params.playerId,
-      points: npc.rewardXp,
+      points: rolledXp,
       category: 'npc_claim',
-      description: `${npc.aliasName} contact confirmed (+${npc.rewardXp} XP)`,
+      description: `${npc.aliasName} contact confirmed (+${rolledXp} XP)`,
     });
   }
 
@@ -224,5 +232,5 @@ export async function claimFieldNpcDB(params: { eventId: string; npcId: string; 
     }
   }
 
-  return { eligibility: { ok: true }, newlyClaimed: true, xpAwarded: npc.rewardXp, drawingEntriesAwarded };
+  return { eligibility: { ok: true }, newlyClaimed: true, xpAwarded: rolledXp, drawingEntriesAwarded };
 }
