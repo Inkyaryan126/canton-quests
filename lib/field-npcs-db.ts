@@ -12,7 +12,7 @@
 import { supabaseAdmin, isSupabaseAdminConfigured } from './supabase';
 import { FieldNpc, FieldNpcType, PublicFieldNpc, validateFieldNpcClaim, generateFieldNpcCode, toPublicFieldNpc } from './field-npcs';
 import { StartingPath } from './types';
-import { insertRewardGrantDB } from './supabase-db';
+import { insertRewardGrantDB, incrementPlayerXpDB } from './supabase-db';
 
 function isMissingTable(error: any): boolean {
   // PostgREST returns two different shapes for "this table doesn't exist
@@ -196,9 +196,7 @@ export async function claimFieldNpcDB(params: { eventId: string; npcId: string; 
   }
 
   if (npc.rewardXp > 0) {
-    const { data: player } = await supabaseAdmin.from('players').select('total_xp').eq('id', params.playerId).maybeSingle();
-    const nextTotalXp = Math.max(0, (player?.total_xp || 0) + npc.rewardXp);
-    await supabaseAdmin.from('players').update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 }).eq('id', params.playerId);
+    await incrementPlayerXpDB(params.playerId, npc.rewardXp);
     await supabaseAdmin.from('score_ledger').insert({
       event_id: params.eventId,
       player_id: params.playerId,

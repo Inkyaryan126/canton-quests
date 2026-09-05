@@ -107,6 +107,7 @@ import {
   proofMatchesAny,
 } from './quest-proof-secrets';
 import { isProfileIdentityComplete, resolveAvatarUrl } from './player-command-center';
+import { computeLevelForXp } from './xp';
 
 
 function mapLocationFromDB(row: any): LocationInfo | undefined {
@@ -933,6 +934,32 @@ export async function insertRewardGrantDB(entry: {
 }
 
 /**
+ * Reads a player's current total_xp, adds `xpAmount` (never below zero),
+ * writes total_xp + the derived level back, and returns the new total. The
+ * single shared read-modify-write every XP-award call site should use
+ * instead of hand-rolling `total_xp + amount` / `Math.floor(.../250)+1`
+ * itself — previously duplicated across evaluateAndGrantProfileCompletionRewardDB,
+ * awardQuestRewardsDB, claimFieldNpcDB, grantBountyIfNewlyComplete,
+ * completeFinaleDB, and createPlayerLinkDB. Callers remain responsible for
+ * their own score_ledger insert and reward_grants idempotency check — this
+ * only ever touches the players row.
+ */
+export async function incrementPlayerXpDB(playerId: string, xpAmount: number): Promise<number> {
+  if (!supabaseAdmin) return 0;
+  const { data: player, error: fetchError } = await supabaseAdmin.from('players').select('total_xp').eq('id', playerId).maybeSingle();
+  if (fetchError) throw new Error(`Failed to read player profile: ${fetchError.message}`);
+
+  const nextTotalXp = Math.max(0, (player?.total_xp || 0) + xpAmount);
+  const { error: updateError } = await supabaseAdmin
+    .from('players')
+    .update({ total_xp: nextTotalXp, level: computeLevelForXp(nextTotalXp) })
+    .eq('id', playerId);
+  if (updateError) throw new Error(`Failed to update player XP: ${updateError.message}`);
+
+  return nextTotalXp;
+}
+
+/**
  * The one-time Player Identity onboarding reward: +100 XP, no Entry Token,
  * no drawing_entry_ledger write. Call this after any profile mutation
  * capable of satisfying either requirement (starting path change, avatar
@@ -991,19 +1018,7 @@ export async function evaluateAndGrantProfileCompletionRewardDB(
     throw new Error(`Failed to record profile completion score ledger entry: ${scoreInsert.error.message}`);
   }
 
-  const { data: currentPlayer, error: fetchError } = await db
-    .from('players')
-    .select('total_xp')
-    .eq('id', playerId)
-    .single();
-  if (fetchError) throw new Error(`Failed to read player profile: ${fetchError.message}`);
-
-  const nextTotalXp = Math.max(0, (currentPlayer?.total_xp || 0) + xpAwarded);
-  const { error: updateError } = await db
-    .from('players')
-    .update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 })
-    .eq('id', playerId);
-  if (updateError) throw new Error(`Failed to update player XP: ${updateError.message}`);
+  await incrementPlayerXpDB(playerId, xpAwarded);
 
   // "Field Ready" pre-launch badge — piggybacks on this same identity-
   // complete moment. Idempotent on its own via player_achievements'
@@ -1172,19 +1187,7 @@ export async function awardQuestRewardsDB(params: {
     // insert hitting score_ledger's partial unique index must not also
     // double-add XP to the player's total.
     if (!isDuplicateScore) {
-      const { data: player, error: playerFetchError } = await db
-        .from('players')
-        .select('total_xp')
-        .eq('id', playerId)
-        .single();
-      if (playerFetchError) throw new Error(`Failed to read player profile: ${playerFetchError.message}`);
-
-      const nextTotalXp = Math.max(0, (player?.total_xp || 0) + totalXp);
-      const { error: playerUpdateError } = await db
-        .from('players')
-        .update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 })
-        .eq('id', playerId);
-      if (playerUpdateError) throw new Error(`Failed to update player XP: ${playerUpdateError.message}`);
+      await incrementPlayerXpDB(playerId, totalXp);
     }
   }
 

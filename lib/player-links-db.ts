@@ -20,7 +20,7 @@ import {
   validatePlayerLinkEligibility,
   PlayerLinkEligibility,
 } from './player-links';
-import { getEventParticipationDB, insertRewardGrantDB } from './supabase-db';
+import { getEventParticipationDB, insertRewardGrantDB, incrementPlayerXpDB } from './supabase-db';
 import { propagateSignalCarrierDB } from './personal-roles-db';
 
 function isMissingTable(error: any): boolean {
@@ -127,9 +127,7 @@ export async function createPlayerLinkDB(params: {
     });
     if (granted) {
       newlyRewarded = true;
-      const { data: player } = await supabaseAdmin.from('players').select('total_xp').eq('id', playerId).maybeSingle();
-      const nextTotalXp = Math.max(0, (player?.total_xp || 0) + xpAwarded);
-      await supabaseAdmin.from('players').update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 }).eq('id', playerId);
+      await incrementPlayerXpDB(playerId, xpAwarded);
       await supabaseAdmin.from('score_ledger').insert({
         event_id: params.eventId,
         player_id: playerId,

@@ -90,6 +90,7 @@ import { checkProximity, formatDistance } from './geo';
 import { evaluateProofIntegrity } from './proof-integrity';
 import { sanitizeTextContent } from './spectator-engine';
 import { isProfileIdentityComplete } from './player-command-center';
+import { computeLevelForXp } from './xp';
 import {
   FOUNDER_CIPHER_DISTRICTS,
   verifyDistrictDecodeSequence,
@@ -1173,7 +1174,7 @@ export function reconcilePlayerScores(eventId: string): { reconciledCount: numbe
   players.forEach((p) => {
     if (playerTotals[p.id] !== undefined && playerTotals[p.id] !== p.totalXp) {
       p.totalXp = playerTotals[p.id];
-      p.level = Math.floor(p.totalXp / 250) + 1;
+      p.level = computeLevelForXp(p.totalXp);
       count++;
     }
   });
@@ -2703,7 +2704,7 @@ export function recordScoreLedger(entryData: Omit<ScoreLedgerEntry, 'id' | 'awar
   const player = players.find((p) => p.id === entryData.playerId);
   if (player) {
     player.totalXp = Math.max(0, player.totalXp + entryData.points);
-    player.level = Math.floor(player.totalXp / 250) + 1;
+    player.level = computeLevelForXp(player.totalXp);
     setStoredItem(STORAGE_KEYS.PLAYERS, players);
   }
 

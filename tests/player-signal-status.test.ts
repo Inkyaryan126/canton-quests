@@ -199,12 +199,19 @@ describe('PLAYER SIGNAL — old XP/level and district text are gone from the car
 });
 
 describe('players.level DB calculation is untouched by this change', () => {
-  it('the floor(totalXp/250)+1 formula still exists verbatim at both write sites', () => {
+  it('the floor(totalXp/250)+1 formula still exists verbatim, now centralized in lib/xp.ts and shared by both write sites', () => {
+    // Previously duplicated verbatim in both files; now both import the
+    // single computeLevelForXp helper (lib/xp.ts) instead of re-deriving
+    // the formula, so the guard here is: (a) the formula itself is
+    // unchanged at its one remaining definition, and (b) both engines
+    // actually reference that shared helper rather than a local copy.
+    const xpSource = fs.readFileSync(path.join(process.cwd(), 'lib/xp.ts'), 'utf8');
     const gameEngineSource = fs.readFileSync(path.join(process.cwd(), 'lib/game-engine.ts'), 'utf8');
     const supabaseDbSource = fs.readFileSync(path.join(process.cwd(), 'lib/supabase-db.ts'), 'utf8');
 
-    expect(gameEngineSource).toMatch(/Math\.floor\(\s*(player\.)?totalXp\s*\/\s*250\)\s*\+\s*1/);
-    expect(supabaseDbSource).toMatch(/Math\.floor\(nextTotalXp\s*\/\s*250\)\s*\+\s*1/);
+    expect(xpSource).toMatch(/Math\.floor\(Math\.max\(0,\s*totalXp\)\s*\/\s*LEVEL_XP_STEP\)\s*\+\s*1/);
+    expect(gameEngineSource).toContain("import { computeLevelForXp } from './xp'");
+    expect(supabaseDbSource).toContain("import { computeLevelForXp } from './xp'");
   });
 
   it('no migration was introduced — players.level remains the same column, same formula', async () => {

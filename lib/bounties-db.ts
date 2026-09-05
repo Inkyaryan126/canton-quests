@@ -8,7 +8,7 @@
  * concurrent requests, can never grant the same bounty twice.
  */
 
-import { getLeaderboardDB, insertRewardGrantDB } from './supabase-db';
+import { getLeaderboardDB, insertRewardGrantDB, incrementPlayerXpDB } from './supabase-db';
 import { getPlayerOwnLinksDB } from './player-links-db';
 import { getPrimaryRivalSignal, RivalSignal } from './rivalries';
 import { assignCoreBounty, isBountyComplete, BOUNTY_DEFINITIONS, BountyDefinition, BountyKey } from './bounties';
@@ -37,9 +37,7 @@ async function grantBountyIfNewlyComplete(eventId: string, playerId: string, bou
   });
   if (!granted) return false;
 
-  const { data: player } = await supabaseAdmin.from('players').select('total_xp').eq('id', playerId).maybeSingle();
-  const nextTotalXp = Math.max(0, (player?.total_xp || 0) + bounty.rewardXp);
-  await supabaseAdmin.from('players').update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 }).eq('id', playerId);
+  await incrementPlayerXpDB(playerId, bounty.rewardXp);
   await supabaseAdmin.from('score_ledger').insert({
     event_id: eventId,
     player_id: playerId,

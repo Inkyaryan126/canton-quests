@@ -12,7 +12,7 @@
  */
 
 import { supabaseAdmin, isSupabaseAdminConfigured } from './supabase';
-import { getEventByIdDB, insertRewardGrantDB } from './supabase-db';
+import { getEventByIdDB, insertRewardGrantDB, incrementPlayerXpDB } from './supabase-db';
 import { getWatcherStatusDB } from './watchers-db';
 import {
   FinaleConfig,
@@ -233,9 +233,7 @@ export async function submitFinaleAnswerDB(eventId: string, playerId: string, su
   if (outcome.stage === 'completed') {
     const granted = await insertRewardGrantDB({ eventId, playerId, rewardType: 'FINALE_PROGRESS', rewardKey: 'master_cipher_complete', xpAwarded: 100 });
     if (granted) {
-      const { data: player } = await supabaseAdmin.from('players').select('total_xp').eq('id', playerId).maybeSingle();
-      const nextTotalXp = Math.max(0, (player?.total_xp || 0) + 100);
-      await supabaseAdmin.from('players').update({ total_xp: nextTotalXp, level: Math.floor(nextTotalXp / 250) + 1 }).eq('id', playerId);
+      await incrementPlayerXpDB(playerId, 100);
     }
   }
 
