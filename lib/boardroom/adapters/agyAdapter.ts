@@ -19,7 +19,10 @@ export const agyAdapter: AgentAdapter = {
     // runner-level timeout so OUR SIGTERM/SIGKILL ceiling is always the one
     // that actually governs — agy's own timeout is a secondary safety net.
     const agyTimeoutMinutes = Math.max(1, Math.ceil(opts.timeoutMs / 60_000) + 5);
-    const args = ['-p', '--output-format', 'json', '--mode', 'accept-edits', '--print-timeout', `${agyTimeoutMinutes}m`, '--add-dir', opts.cwd, prompt];
+    // `-p` takes the very next token as the prompt (confirmed against the real
+    // CLI during the Boardroom rehearsal — putting other flags between `-p`
+    // and the prompt makes agy swallow the first flag as its prompt instead).
+    const args = ['-p', prompt, '--output-format', 'json', '--mode', 'accept-edits', '--print-timeout', `${agyTimeoutMinutes}m`, '--add-dir', opts.cwd];
 
     const result = await spawnAndCapture(binary, args, { cwd: opts.cwd, timeoutMs: opts.timeoutMs, logFile: opts.logFile });
 

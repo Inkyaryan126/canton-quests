@@ -12,7 +12,10 @@ export const claudeAdapter: AgentAdapter = {
   name: 'CLAUDE',
   async run(prompt: string, opts: AdapterRunOptions): Promise<AgentRunResult> {
     const binary = opts.binaryOverride || 'claude';
-    const args = ['-p', '--output-format', 'json', '--permission-mode', 'acceptEdits', prompt];
+    // `-p` takes the very next token as the prompt (see agyAdapter.ts — agy
+    // and claude appear to share the same underlying CLI framework, and this
+    // was confirmed as a real bug on agy during the Boardroom rehearsal).
+    const args = ['-p', prompt, '--output-format', 'json', '--permission-mode', 'acceptEdits'];
 
     const result = await spawnAndCapture(binary, args, { cwd: opts.cwd, timeoutMs: opts.timeoutMs, logFile: opts.logFile });
 
