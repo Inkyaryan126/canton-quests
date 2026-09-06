@@ -383,6 +383,21 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
   };
   const reportContent = writeMorningReport({ run, tasks: finalTasks, budget, commits, actionsRequired }, root);
 
+  // Sweep any remaining Boardroom bookkeeping (a final task's own handoff doc,
+  // which is written after its commit and so is never included in it, plus
+  // the morning report just written above) into one closing commit — so
+  // boardroom/ actually stays git-tracked as intended, rather than left as
+  // uncommitted local files at the end of a run with nothing further to do.
+  try {
+    const trailingPaths = parseGitStatusShort(statusShort(git)).filter(isBoardroomBookkeepingPath);
+    if (trailingPaths.length > 0) {
+      stageExactPaths(git, trailingPaths);
+      commitExact(git, `Boardroom bookkeeping for run ${boot.runId}\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`);
+    }
+  } catch {
+    // Best-effort — a failure here must never prevent the report from being returned.
+  }
+
   return {
     ok: true,
     stopReason,
