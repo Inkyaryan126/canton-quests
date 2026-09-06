@@ -88,9 +88,20 @@ function ResetPasswordContent() {
       {errorMessage && (
         <div className="mb-5 p-3.5 rounded-xl bg-red-950/80 border border-red-500/50 text-red-300 text-xs font-mono flex items-start gap-2.5">
           <AlertCircle size={16} className="shrink-0 text-red-400 mt-0.5" />
-          <div>
+          <div style={{ flex: 1 }}>
             <strong className="block font-bold">Security Notice</strong>
             <span>{errorMessage}</span>
+            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(239, 68, 68, 0.3)' }}>
+              <p style={{ margin: '0 0 6px 0', fontSize: '11px', color: '#cbd5e1' }}>
+                Password reset links expire quickly for your protection. If you need a new link, check your Spam or Junk folder after requesting it.
+              </p>
+              <Link
+                href="/auth/forgot-password"
+                style={{ color: '#fbbf24', fontWeight: 'bold', textDecoration: 'underline' }}
+              >
+                Request a new password reset link →
+              </Link>
+            </div>
           </div>
         </div>
       )}

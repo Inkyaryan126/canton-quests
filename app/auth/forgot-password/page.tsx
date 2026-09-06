@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Mail, CheckCircle2, AlertCircle, ArrowRight, RefreshCw, ArrowLeft } from 'lucide-react';
 import { cqImages } from '@/lib/marketing-assets';
+import SpamJunkNotice from '@/components/auth/SpamJunkNotice';
 
 function ForgotPasswordContent() {
   const [email, setEmail] = useState('');
@@ -49,6 +50,31 @@ function ForgotPasswordContent() {
     }
   };
 
+  const handleResend = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) return { success: false, error: 'Email address is required.' };
+
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'forgot_password',
+        email: cleanEmail,
+        redirectTo: '/auth/reset-password',
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.error || 'Failed to resend recovery email.' };
+    }
+
+    return {
+      success: true,
+      message: data.message || `Password-reset link resent to ${cleanEmail}! Check your inbox — and your Spam, Junk, or Promotions folder.`,
+    };
+  };
+
   return (
     <div className="w-full max-w-md space-y-3">
       <div className="bg-stone-900/95 backdrop-blur-md rounded-2xl border border-amber-500/30 p-6 sm:p-8 shadow-2xl text-left">
@@ -61,19 +87,35 @@ function ForgotPasswordContent() {
 
         {sent ? (
           <div className="space-y-4">
-            <h1 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
-              CHECK YOUR INBOX
-            </h1>
-            <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 flex items-start gap-3">
-              <CheckCircle2 size={22} className="text-emerald-400 shrink-0 mt-0.5" />
-              <div className="text-xs font-mono">
-                <span className="font-bold block text-sm text-emerald-200 mb-1">Recovery Link Sent</span>
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-400 text-[11px] font-mono font-bold uppercase mb-2">
+                PASSWORD RESET EMAIL SENT
+              </div>
+              <h1 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight">
+                CHECK YOUR INBOX
+              </h1>
+              <p className="text-xs sm:text-sm text-stone-300 font-body mt-1 leading-relaxed">
+                Check your inbox for the Canton Quests password-reset email.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 flex items-start gap-3">
+              <CheckCircle2 size={20} className="text-emerald-400 shrink-0 mt-0.5" />
+              <div className="text-xs font-mono leading-relaxed">
+                <span className="font-bold block text-sm text-emerald-200 mb-0.5">Reset Link Dispatched</span>
                 <span>
-                  If an account exists for <strong>{email}</strong>, a secure reset link has been sent to that inbox.
-                  Check your spam folder if it doesn&apos;t arrive within a minute.
+                  If an account exists for <strong className="text-emerald-100">{email}</strong>, a secure reset link has been dispatched to that inbox.
                 </span>
               </div>
             </div>
+
+            <SpamJunkNotice
+              type="password_reset"
+              email={email}
+              onResend={handleResend}
+              onChangeEmail={() => setSent(false)}
+              changeEmailLabel="Need to enter a different email address?"
+            />
           </div>
         ) : (
           <>

@@ -186,7 +186,7 @@ export default function EnterGameModal({
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error);
-      setInfoMsg('New verification code sent! Check your inbox.');
+      setInfoMsg('New verification code sent! Check your inbox — and your Spam/Junk folder if you do not see it.');
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to resend code.');
     } finally {
@@ -392,6 +392,11 @@ export default function EnterGameModal({
                 required
                 className="w-full px-4 py-3 rounded-xl bg-gray-900 border-2 border-amber-500/60 text-white font-mono text-xl tracking-widest text-center focus:border-amber-400 focus:outline-none"
               />
+            </div>
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-mono text-stone-300 text-left">
+              <strong className="text-amber-300 block mb-1">⚠ Don&apos;t see the email? Check Spam or Junk</strong>
+              <span>New automated messages can occasionally land in Spam, Junk, or Promotions. Please check there before requesting a new code.</span>
             </div>
 
             <div className="flex items-center justify-between text-xs font-mono text-gray-400">

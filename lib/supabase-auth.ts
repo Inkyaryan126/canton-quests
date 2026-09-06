@@ -49,6 +49,7 @@ export interface PasswordSignUpResult {
 
 export interface PasswordSignInResult {
   success: boolean;
+  isUnconfirmed?: boolean;
   user?: AuthSessionUser;
   session?: AuthSessionTokens;
   player?: Player;
@@ -141,7 +142,7 @@ export function clearAuthCookies(
 
 // In-memory dev/test OTP store when Supabase is not configured (e.g. unit testing / offline dev)
 const mockOtpStore = new Map<string, { code: string; expiresAt: number; path?: StartingPath; source?: string }>();
-export const mockUserPasswordStore = new Map<string, { password: string; user: AuthSessionUser; player?: Player }>();
+export const mockUserPasswordStore = new Map<string, { password: string; user: AuthSessionUser; player?: Player; isUnconfirmed?: boolean }>();
 export const mockRefreshTokenStore = new Map<string, { userId: string; email?: string }>();
 const mockRecoveryTokenStore = new Map<string, { token: string; expiresAt: number }>();
 export const mockVerifiedUserStore = new Map<string, AuthSessionUser>();
@@ -380,9 +381,14 @@ export async function signInWithPassword(
       });
 
       if (error || !data.user || !data.session) {
+        const rawError = error?.message || 'Invalid email or password.';
+        const isUnconfirmed = rawError.toLowerCase().includes('email not confirmed');
         return {
           success: false,
-          error: error?.message || 'Invalid email or password.',
+          isUnconfirmed,
+          error: isUnconfirmed
+            ? 'Your account still needs email confirmation. Check your inbox — and your Spam/Junk folder — for the Canton Quests confirmation email.'
+            : rawError,
         };
       }
 
@@ -414,6 +420,13 @@ export async function signInWithPassword(
   // Dev / Test runner fallback
   const stored = mockUserPasswordStore.get(cleanEmail);
   if (stored) {
+    if (stored.isUnconfirmed) {
+      return {
+        success: false,
+        isUnconfirmed: true,
+        error: 'Your account still needs email confirmation. Check your inbox — and your Spam/Junk folder — for the Canton Quests confirmation email.',
+      };
+    }
     if (stored.password !== password && password !== 'valid-password-123' && password !== 'test-pass-123') {
       return { success: false, error: 'Invalid email or password.' };
     }
@@ -504,6 +517,66 @@ export async function sendPasswordResetEmail(
     success: true,
     message: `[DEV/TEST MODE] Password recovery link sent. Token: ${mockToken}`,
   };
+}
+
+/**
+ * Resends the account confirmation email via Supabase Auth.
+ */
+export async function resendConfirmationEmail(
+  email: string,
+  options?: { redirectTo?: string }
+): Promise<{ success: boolean; message: string; error?: string }> {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { success: false, message: 'Valid email address is required.', error: 'Invalid email address.' };
+  }
+
+  const safeTargetNext = sanitizeRedirectUrl(options?.redirectTo, '/profile');
+  const emailRedirectTo = `${getSiteUrl()}/auth/confirm?type=signup&next=${encodeURIComponent(safeTargetNext)}`;
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: cleanEmail,
+        options: {
+          emailRedirectTo,
+        },
+      });
+
+      if (error) {
+        return { success: false, message: error.message, error: error.message };
+      }
+
+      return {
+        success: true,
+        message: 'Confirmation email resent. Check your inbox and your Spam, Junk, or Promotions folder.',
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Failed to resend confirmation email.',
+        error: err.message,
+      };
+    }
+  }
+
+  // Dev / Test runner fallback
+  return {
+    success: true,
+    message: '[DEV/TEST MODE] Confirmation email resent. Check your inbox and your Spam, Junk, or Promotions folder.',
+  };
+}
+
+/**
+ * Test helper: flags a mock user as unconfirmed to test unconfirmed login handling.
+ */
+export function setMockUserUnconfirmed(email: string, unconfirmed: boolean = true) {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const stored = mockUserPasswordStore.get(cleanEmail);
+  if (stored) {
+    stored.isUnconfirmed = unconfirmed;
+  }
 }
 
 /**

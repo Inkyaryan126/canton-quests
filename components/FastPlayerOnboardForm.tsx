@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, KeyRound, Mail, RefreshCw, ShieldCheck, Sparkles, UserCheck, Zap, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, CheckCircle2, KeyRound, Mail, RefreshCw, ShieldCheck, Sparkles, UserCheck, Zap, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { StartingPath } from '@/lib/types';
 import { showGameMoment } from '@/lib/game-effects';
 import WatchTransmissionButton from '@/components/commander/WatchTransmissionButton';
+import SpamJunkNotice from '@/components/auth/SpamJunkNotice';
 
 interface FastPlayerOnboardFormProps {
   /**
@@ -43,6 +44,8 @@ export default function FastPlayerOnboardForm({
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
   const [isVerificationPending, setIsVerificationPending] = useState(false);
+  const [isResetSent, setIsResetSent] = useState(false);
+  const [unconfirmedError, setUnconfirmedError] = useState<string | null>(null);
 
   const pathTitles: Record<StartingPath, string> = {
     family: 'Family Adventure Path',
@@ -104,7 +107,8 @@ export default function FastPlayerOnboardForm({
       // If email confirmation link was sent
       if (data.confirmationRequired) {
         setIsVerificationPending(true);
-        setInfoMessage(data.message || 'Verification link sent to your email! Click the link in your inbox to enter Canton Quests.');
+        setErrorMessage('');
+        setUnconfirmedError(null);
         return;
       }
 
@@ -172,6 +176,7 @@ export default function FastPlayerOnboardForm({
     setIsLoading(true);
     setErrorMessage('');
     setInfoMessage('');
+    setUnconfirmedError(null);
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -186,6 +191,18 @@ export default function FastPlayerOnboardForm({
 
       const data = await res.json();
       if (!res.ok || data.error || !data.success) {
+        if (
+          data.isUnconfirmed ||
+          (data.error && data.error.toLowerCase().includes('email confirmation')) ||
+          (data.error && data.error.toLowerCase().includes('email not confirmed'))
+        ) {
+          setUnconfirmedError(
+            data.error ||
+              'Your account still needs email confirmation. Check your inbox — and your Spam/Junk folder — for the Canton Quests confirmation email.'
+          );
+          setErrorMessage('');
+          return;
+        }
         throw new Error(data.error || 'Invalid email or password.');
       }
 
@@ -240,12 +257,62 @@ export default function FastPlayerOnboardForm({
         throw new Error(data.error || 'Failed to send recovery email.');
       }
 
-      setInfoMessage(data.message || 'Password recovery link sent! Check your inbox to set a new password.');
+      setIsResetSent(true);
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to send recovery email.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Resend Confirmation Action
+  const handleResendConfirmation = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter a valid email address.' };
+    }
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'resend_confirmation',
+        email: cleanEmail,
+        redirectTo,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.error || 'Failed to resend confirmation email.' };
+    }
+    return {
+      success: true,
+      message: data.message || `Confirmation email resent to ${cleanEmail}! Check your inbox — and your Spam, Junk, or Promotions folder.`,
+    };
+  };
+
+  // Resend Password Reset Action
+  const handleResendPasswordReset = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter a valid email address.' };
+    }
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'forgot_password',
+        email: cleanEmail,
+        redirectTo: '/auth/reset-password',
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.error || 'Failed to resend recovery email.' };
+    }
+    return {
+      success: true,
+      message: data.message || `Password recovery link resent to ${cleanEmail}! Check your inbox — and your Spam, Junk, or Promotions folder.`,
+    };
   };
 
   return (
@@ -279,7 +346,7 @@ export default function FastPlayerOnboardForm({
       )}
 
       {/* Mode Selector Tabs */}
-      {!isVerificationPending && (
+      {!isVerificationPending && !isResetSent && (
         <div className="flex items-center gap-2 mb-3 p-1 rounded-xl bg-stone-950 border border-stone-800 text-xs font-mono">
           <button
             type="button"
@@ -287,6 +354,8 @@ export default function FastPlayerOnboardForm({
               setMode('signup');
               setErrorMessage('');
               setInfoMessage('');
+              setUnconfirmedError(null);
+              setIsResetSent(false);
             }}
             className={`flex-1 py-1.5 px-2 rounded-lg text-center font-bold transition-all cursor-pointer ${
               mode === 'signup'
@@ -302,6 +371,8 @@ export default function FastPlayerOnboardForm({
               setMode('login');
               setErrorMessage('');
               setInfoMessage('');
+              setUnconfirmedError(null);
+              setIsResetSent(false);
             }}
             className={`flex-1 py-1.5 px-2 rounded-lg text-center font-bold transition-all cursor-pointer ${
               mode === 'login'
@@ -333,22 +404,38 @@ export default function FastPlayerOnboardForm({
         <div className="space-y-3 py-2 text-center">
           <div className="p-4 rounded-xl bg-stone-950 border border-amber-500/30">
             <Mail size={32} className="mx-auto text-amber-400 mb-2 animate-bounce" />
-            <h3 className="font-display font-black text-sm text-white uppercase mb-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-400 text-[11px] font-mono font-bold uppercase mb-2">
+              CONFIRMATION EMAIL SENT
+            </div>
+            <h3 className="font-display font-black text-base text-white uppercase mb-1">
               Check Your Inbox
             </h3>
             <p className="text-xs text-stone-300 font-body leading-relaxed">
-              We sent a verification link to <strong>{email}</strong>. Click the link in the email to activate your account and enter the Player Command Center.
+              We sent an account confirmation email to <strong className="text-amber-300">{email}</strong>. Click the confirmation link to activate your Player File and enter Canton Quests.
             </p>
           </div>
+
+          <SpamJunkNotice
+            type="signup_confirmation"
+            email={email}
+            onResend={handleResendConfirmation}
+            onChangeEmail={() => {
+              setIsVerificationPending(false);
+              setMode('signup');
+            }}
+            changeEmailLabel="Entered the wrong email? Edit address"
+          />
+
           <button
             type="button"
             onClick={() => {
               setIsVerificationPending(false);
               setMode('login');
+              setUnconfirmedError(null);
             }}
-            className="text-xs font-mono text-amber-400 hover:text-amber-300 underline"
+            className="text-xs font-mono text-amber-400 hover:text-amber-300 underline block mx-auto pt-1"
           >
-            Already verified? Enter via Log In →
+            Already confirmed? Enter via Log In →
           </button>
         </div>
       ) : mode === 'signup' ? (
@@ -485,90 +572,147 @@ export default function FastPlayerOnboardForm({
         </form>
       ) : mode === 'login' ? (
         /* MODE 2: RETURNING LOGIN */
-        <form onSubmit={handleLogin} className="space-y-3.5">
-          <div>
-            <label htmlFor="returning-login-email" className="block text-xs font-mono font-bold text-stone-200 mb-1">
-              Email *
-            </label>
-            <input
-              id="returning-login-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="agent@example.com"
-              required
-              autoFocus
-              className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white placeholder-stone-500 focus:outline-none focus:border-amber-400 font-mono text-sm"
-            />
-          </div>
+        <div className="space-y-3.5">
+          {unconfirmedError && (
+            <div className="cq-unconfirmed-card" role="alert">
+              <div className="cq-unconfirmed-title">
+                <AlertCircle size={16} className="shrink-0 text-amber-400" />
+                <span>Account Confirmation Required</span>
+              </div>
+              <p className="cq-unconfirmed-body">
+                {unconfirmedError}
+              </p>
+              <SpamJunkNotice
+                type="unconfirmed_login"
+                email={email}
+                onResend={handleResendConfirmation}
+              />
+            </div>
+          )}
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor="returning-login-password" className="block text-xs font-mono font-bold text-stone-200">
-                Password *
+          <form onSubmit={handleLogin} className="space-y-3.5">
+            <div>
+              <label htmlFor="returning-login-email" className="block text-xs font-mono font-bold text-stone-200 mb-1">
+                Email *
               </label>
+              <input
+                id="returning-login-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="agent@example.com"
+                required
+                autoFocus
+                className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white placeholder-stone-500 focus:outline-none focus:border-amber-400 font-mono text-sm"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="returning-login-password" className="block text-xs font-mono font-bold text-stone-200">
+                  Password *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-[11px] font-mono text-stone-400 hover:text-amber-300 flex items-center gap-1"
+                >
+                  {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                  <span>{showPassword ? 'Hide' : 'Show'}</span>
+                </button>
+              </div>
+              <input
+                id="returning-login-password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white placeholder-stone-600 focus:outline-none focus:border-amber-400 font-mono text-sm"
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-xs font-mono pt-1">
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="text-[11px] font-mono text-stone-400 hover:text-amber-300 flex items-center gap-1"
+                onClick={() => {
+                  setMode('forgot_password');
+                  setErrorMessage('');
+                  setInfoMessage('');
+                  setUnconfirmedError(null);
+                  setIsResetSent(false);
+                }}
+                className="text-amber-400 hover:text-amber-300 underline"
               >
-                {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-                <span>{showPassword ? 'Hide' : 'Show'}</span>
+                FORGOT PASSWORD?
               </button>
+              <span className="text-stone-400 flex items-center gap-1 text-[11px]">
+                <ShieldCheck size={13} className="text-emerald-400" />
+                <span>Encrypted Session</span>
+              </span>
             </div>
-            <input
-              id="returning-login-password"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="w-full px-3.5 py-2.5 rounded-xl bg-stone-950 border border-stone-700 text-white placeholder-stone-600 focus:outline-none focus:border-amber-400 font-mono text-sm"
-            />
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3.5 px-6 rounded-xl font-display font-extrabold text-base uppercase tracking-wider text-black transition-all transform active:scale-98 flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 cursor-pointer"
+              style={{
+                backgroundColor: themeAccent || '#f59e0b',
+                boxShadow: `0 4px 20px ${themeAccent || '#f59e0b'}40`,
+              }}
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <RefreshCw size={16} className="animate-spin" />
+                  Authenticating...
+                </span>
+              ) : (
+                <>
+                  <KeyRound size={18} />
+                  <span>ENTER CANTON QUESTS</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      ) : isResetSent ? (
+        /* MODE 3B: FORGOT PASSWORD - EMAIL SENT */
+        <div className="space-y-3 py-2 text-center">
+          <div className="p-4 rounded-xl bg-stone-950 border border-amber-500/30">
+            <Mail size={32} className="mx-auto text-amber-400 mb-2 animate-bounce" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-400 text-[11px] font-mono font-bold uppercase mb-2">
+              PASSWORD RESET SENT
+            </div>
+            <h3 className="font-display font-black text-base text-white uppercase mb-1">
+              Check Your Inbox
+            </h3>
+            <p className="text-xs text-stone-300 font-body leading-relaxed">
+              If an account exists for <strong className="text-amber-300">{email}</strong>, a secure password-reset link has been dispatched to that inbox.
+            </p>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-mono pt-1">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('forgot_password');
-                setErrorMessage('');
-                setInfoMessage('');
-              }}
-              className="text-amber-400 hover:text-amber-300 underline"
-            >
-              FORGOT PASSWORD?
-            </button>
-            <span className="text-stone-400 flex items-center gap-1 text-[11px]">
-              <ShieldCheck size={13} className="text-emerald-400" />
-              <span>Encrypted Session</span>
-            </span>
-          </div>
+          <SpamJunkNotice
+            type="password_reset"
+            email={email}
+            onResend={handleResendPasswordReset}
+            onChangeEmail={() => setIsResetSent(false)}
+            changeEmailLabel="Need to enter a different email address?"
+          />
 
           <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3.5 px-6 rounded-xl font-display font-extrabold text-base uppercase tracking-wider text-black transition-all transform active:scale-98 flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 cursor-pointer"
-            style={{
-              backgroundColor: themeAccent || '#f59e0b',
-              boxShadow: `0 4px 20px ${themeAccent || '#f59e0b'}40`,
+            type="button"
+            onClick={() => {
+              setIsResetSent(false);
+              setMode('login');
+              setUnconfirmedError(null);
             }}
+            className="text-xs font-mono text-amber-400 hover:text-amber-300 underline block mx-auto pt-1"
           >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <RefreshCw size={16} className="animate-spin" />
-                Authenticating...
-              </span>
-            ) : (
-              <>
-                <KeyRound size={18} />
-                <span>ENTER CANTON QUESTS</span>
-              </>
-            )}
+            ← Back to Log In
           </button>
-        </form>
+        </div>
       ) : (
-        /* MODE 3: FORGOT PASSWORD */
+        /* MODE 3: FORGOT PASSWORD FORM */
         <form onSubmit={handleForgotPassword} className="space-y-3.5">
           <div>
             <label htmlFor="recovery-email" className="block text-xs font-mono font-bold text-stone-200 mb-1">
@@ -596,6 +740,7 @@ export default function FastPlayerOnboardForm({
                 setMode('login');
                 setErrorMessage('');
                 setInfoMessage('');
+                setUnconfirmedError(null);
               }}
               className="text-stone-400 hover:text-amber-300 underline"
             >

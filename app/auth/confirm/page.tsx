@@ -223,6 +223,31 @@ function ConfirmEmailContent() {
           <div>
             <strong>Verification Notice</strong>
             <p>{errorMessage}</p>
+            {isRecovery ? (
+              <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                <p style={{ margin: '0 0 6px 0', fontSize: '11px', color: '#cbd5e1' }}>
+                  Password reset links expire quickly for your protection. If you request a new link, remember to check your Spam or Junk folder if it does not arrive promptly.
+                </p>
+                <Link
+                  href="/auth/forgot-password"
+                  style={{ color: '#fbbf24', fontFamily: 'var(--font-mono)', fontSize: '11px', textDecoration: 'underline' }}
+                >
+                  Request a new password reset link →
+                </Link>
+              </div>
+            ) : (
+              <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                <p style={{ margin: '0 0 6px 0', fontSize: '11px', color: '#cbd5e1' }}>
+                  Confirmation links expire over time. You can log in to resend your confirmation email. Always check your Spam, Junk, or Promotions tab if you do not see it.
+                </p>
+                <Link
+                  href="/auth/login"
+                  style={{ color: '#fbbf24', fontFamily: 'var(--font-mono)', fontSize: '11px', textDecoration: 'underline' }}
+                >
+                  Log In / Resend Confirmation Email →
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -318,12 +343,28 @@ function ConfirmEmailContent() {
         </form>
       ) : (
         <div className="cq-confirm-missing-box">
-          <p className="font-mono text-xs text-stone-300 mb-4">
-            No verification token was detected in this link, or the link has expired.
+          <p className="font-mono text-xs text-stone-300 mb-3">
+            {isRecovery
+              ? 'No recovery token was detected, or this password reset link has expired.'
+              : 'No verification token was detected, or this confirmation link has expired.'}
           </p>
-          <Link href="/" className="cq-confirm-home-btn">
-            Return to Homepage to Request New Link
-          </Link>
+          <p className="font-mono text-[11px] text-stone-400 mb-4">
+            If you need a new link, check your Spam or Junk folder after requesting it if it does not arrive promptly.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', width: '100%' }}>
+            {isRecovery ? (
+              <Link href="/auth/forgot-password" className="cq-confirm-home-btn">
+                Request New Password Reset Link
+              </Link>
+            ) : (
+              <Link href="/auth/login" className="cq-confirm-home-btn">
+                Log In / Resend Confirmation Link
+              </Link>
+            )}
+            <Link href="/" style={{ color: '#a8a29e', fontFamily: 'var(--font-mono)', fontSize: '12px', textDecoration: 'underline' }}>
+              Return to Homepage
+            </Link>
+          </div>
         </div>
       )}
 

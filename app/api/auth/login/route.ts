@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   signInWithPassword,
   sendPasswordResetEmail,
+  resendConfirmationEmail,
   sendEmailOtp,
   verifyEmailOtp,
   resolveAuthenticatedSession,
@@ -52,9 +53,15 @@ export async function POST(request: Request) {
       if (!loginRes.success || !loginRes.player) {
         logAuthDiagnostic('POST /api/auth/login:password_login_failed', {
           error: loginRes.error || 'Invalid credentials',
+          isUnconfirmed: Boolean(loginRes.isUnconfirmed),
         });
         return NextResponse.json(
-          { success: false, error: loginRes.error || 'Invalid email or password.' },
+          {
+            success: false,
+            isUnconfirmed: Boolean(loginRes.isUnconfirmed),
+            email: loginRes.isUnconfirmed ? email.trim() : undefined,
+            error: loginRes.error || 'Invalid email or password.',
+          },
           { status: 401 }
         );
       }
@@ -80,7 +87,11 @@ export async function POST(request: Request) {
     }
 
     // 2. Forgot Password / Send Recovery Link
-    if (action === 'forgot_password' || action === 'send_recovery') {
+    if (
+      action === 'forgot_password' ||
+      action === 'send_recovery' ||
+      action === 'resend_password_reset'
+    ) {
       if (!email || typeof email !== 'string' || !email.includes('@')) {
         return NextResponse.json(
           { success: false, error: 'Valid email address is required.' },
@@ -102,6 +113,32 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         message: recoveryRes.message,
+      });
+    }
+
+    // 2b. Resend Confirmation Email
+    if (action === 'resend_confirmation') {
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return NextResponse.json(
+          { success: false, error: 'Valid email address is required.' },
+          { status: 400 }
+        );
+      }
+
+      const resendRes = await resendConfirmationEmail(email.trim(), {
+        redirectTo,
+      });
+
+      if (!resendRes.success) {
+        return NextResponse.json(
+          { success: false, error: resendRes.error || resendRes.message },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: resendRes.message,
       });
     }
 

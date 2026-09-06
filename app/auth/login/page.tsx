@@ -19,6 +19,7 @@ import SecureAccess from '@/components/auth/SecureAccess';
 import FieldStatusHud from '@/components/cq/FieldStatusHud';
 import AgentNetworkHud from '@/components/cq/AgentNetworkHud';
 import TacticalMapOverlay from '@/components/cq/TacticalMapOverlay';
+import SpamJunkNotice from '@/components/auth/SpamJunkNotice';
 
 // ─────────────────────────────────────────────────────────────────
 // LoginBackground
@@ -190,6 +191,8 @@ interface LoginCardProps {
   onTogglePassword: () => void;
   isLoading: boolean;
   errorMessage: string;
+  unconfirmedError?: string | null;
+  onResendConfirmation?: () => Promise<{ success: boolean; message?: string; error?: string }>;
   onSubmit: (e: React.FormEvent) => void;
 }
 
@@ -205,6 +208,8 @@ function LoginCard({
   onTogglePassword,
   isLoading,
   errorMessage,
+  unconfirmedError,
+  onResendConfirmation,
   onSubmit,
 }: LoginCardProps) {
   const [rememberMe, setRememberMe] = useState(false);
@@ -319,8 +324,26 @@ function LoginCard({
           Sign in to access your Player Command Center and continue your missions.
         </p>
 
+        {/* Unconfirmed Account Guidance */}
+        {unconfirmedError && (
+          <div className="cq-unconfirmed-card" role="alert">
+            <div className="cq-unconfirmed-title">
+              <AlertCircle size={16} className="shrink-0 text-amber-400" />
+              <span>Account Confirmation Required</span>
+            </div>
+            <p className="cq-unconfirmed-body">
+              {unconfirmedError}
+            </p>
+            <SpamJunkNotice
+              type="unconfirmed_login"
+              email={email}
+              onResend={onResendConfirmation}
+            />
+          </div>
+        )}
+
         {/* Error panel */}
-        {errorMessage && (
+        {errorMessage && !unconfirmedError && (
           <div
             aria-live="polite"
             role="alert"
@@ -544,6 +567,7 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [unconfirmedError, setUnconfirmedError] = useState<string | null>(null);
 
   // If already authenticated, redirect to next or /profile
   useEffect(() => {
@@ -561,6 +585,30 @@ function LoginContent() {
       .catch(() => {});
   }, [router, nextParam]);
 
+  const handleResendConfirmation = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter your email address first.' };
+    }
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'resend_confirmation',
+        email: cleanEmail,
+        redirectTo: nextParam,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.error || 'Failed to resend confirmation email.' };
+    }
+    return {
+      success: true,
+      message: data.message || `Confirmation email resent to ${cleanEmail}! Check your inbox — and your Spam, Junk, or Promotions folder.`,
+    };
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
@@ -577,6 +625,7 @@ function LoginContent() {
 
     setIsLoading(true);
     setErrorMessage('');
+    setUnconfirmedError(null);
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -592,6 +641,19 @@ function LoginContent() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
+        if (
+          data.isUnconfirmed ||
+          (data.error && data.error.toLowerCase().includes('email confirmation')) ||
+          (data.error && data.error.toLowerCase().includes('email not confirmed'))
+        ) {
+          setUnconfirmedError(
+            data.error ||
+              'Your account still needs email confirmation. Check your inbox — and your Spam/Junk folder — for the Canton Quests confirmation email.'
+          );
+          setErrorMessage('');
+          setIsLoading(false);
+          return;
+        }
         throw new Error(data.error || 'Invalid email or password.');
       }
 
@@ -647,13 +709,18 @@ function LoginContent() {
         <div className="login-shell">
           <LoginCard
             email={email}
-            setEmail={setEmail}
+            setEmail={(val) => {
+              setEmail(val);
+              if (unconfirmedError) setUnconfirmedError(null);
+            }}
             password={password}
             setPassword={setPassword}
             showPassword={showPassword}
             onTogglePassword={() => setShowPassword((p) => !p)}
             isLoading={isLoading}
             errorMessage={errorMessage}
+            unconfirmedError={unconfirmedError}
+            onResendConfirmation={handleResendConfirmation}
             onSubmit={handleLogin}
           />
         </div>
