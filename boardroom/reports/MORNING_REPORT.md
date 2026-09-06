@@ -1,39 +1,88 @@
 # CANTON QUESTS — BOARDROOM MORNING REPORT
 
-Run: `20260906-135634-ab4a` on branch `boardroom/astra-overnight-20260906-135634-ab4a` (base `2427ada71d8b`)
-Window: 2026-09-06T13:56:34.300Z → 2026-09-06T14:04:27.661Z
-Sleep prevention: ACTIVE — ACTIVE (caffeinate -w 81532)
-Stop reason: EXACT_STAGING_VERIFICATION_FAILED
+Run: `20260906-145610-fbec` on branch `boardroom/astra-overnight-20260906-145610-fbec` (base `b3cf6a403906`)
+Window: 2026-09-06T14:56:10.225Z → 2026-09-06T17:24:01.830Z
+Sleep prevention: ACTIVE — ACTIVE (caffeinate -w 39157)
+Stop reason: PHASE_BARRIER_BLOCKED
 
 ## ACTION REQUIRED
-- ACTION REQUIRED: Boardroom refused to commit because the staged set did not exactly match the approved set for TASK-20260906-060642-jq1v.
+- ASTRA is probe-confirmed usage-exhausted. Reset redemption is DEFERRED while fallbacks can continue; Boardroom will request it only at protected final integration or if every agent becomes unavailable.
+- ACTION REQUIRED: PHASE_2_CORE_EXPERIENCE_SYSTEM cannot advance because TASK-20260906-060724-zvme[BLOCKED], TASK-20260906-060727-3kic[BLOCKED], TASK-20260906-060730-96yy[BLOCKED] must be resolved first.
 
-## SUMMARY (this run only — 1 task(s) touched)
-- Tasks completed this run: 0
-- Tasks blocked this run: 1
+## SUMMARY (this run only — 6 task(s) touched)
+- Tasks completed this run: 3
+- Tasks blocked this run: 3
 - Tasks checkpointed this run (in progress, resumable): 0
 - Tasks rejected this run: 0
-- Commits made by Boardroom this run: 0
+- Commits made by Boardroom this run: 3
 
 ## QUEUE STATE (all-time — for context only, NOT this run's output)
-- Total tasks in the ledger: 20 (1 touched this run, 19 untouched — prior runs or still waiting)
-- Done (any run, ever): 0
-- Blocked (any run, ever): 1
-- Still queued (never yet attempted): 16
+- Total tasks in the ledger: 20 (6 touched this run, 14 untouched — prior runs or still waiting)
+- Done (any run, ever): 3
+- Blocked (any run, ever): 3
+- Still queued (never yet attempted): 11
 
 ## ASTRA USAGE (self-reported only — never inferred)
 - No self-report was recorded this run. Treat Astra allowance as unknown, not full.
 - Reset credits used: 0/2.
 
 ## COMMITS THIS RUN
-_none_
+- `c4a333bfb2f4` Phase 1: Player-journey + experiential audit; unified cinematic interaction language
+- `24fa7b07bbc7` Phase 1: Performance/bundle/network baseline + architecture audit
+- `1afeb78ba294` Phase 1: Route/state/visual inconsistency inventory
 
 ## TASKS TOUCHED THIS RUN
 ### TASK-20260906-060642-jq1v — Phase 1: Player-journey + experiential audit; unified cinematic interaction language
-- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_1_RECON
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_1_RECON
 - Primary agent: ASTRA (fallback: CLAUDE, AGY)
+- Current commit: `c4a333bfb2f4`
+- What was done: ASTRA committed 1 file(s) as c4a333bfb2f4.
+- Remaining work: None recorded — task may be DONE or may need a follow-up task.
 - Blockers: Agent ASTRA touched paths outside WRITE_SCOPE: boardroom/recon/. Nothing was staged or committed.; Exact staging verification failed. Unexpected: boardroom/recon/astra-experiential-audit.md; missing: boardroom/recon/.
 - Handoff doc: `boardroom/handoffs/TASK-20260906-060642-jq1v.md`
+
+### TASK-20260906-060647-kvoi — Phase 1: Performance/bundle/network baseline + architecture audit
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_1_RECON
+- Primary agent: CLAUDE (fallback: AGY, ASTRA)
+- Current commit: `24fa7b07bbc7`
+- What was done: AGY committed 1 file(s) as 24fa7b07bbc7.
+- Remaining work: None recorded — task may be DONE or may need a follow-up task.
+- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: boardroom/recon/. Nothing was staged or committed.
+- Failed attempts: 1 (see handoff doc for detail)
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060647-kvoi.md`
+
+### TASK-20260906-060651-z5ss — Phase 1: Route/state/visual inconsistency inventory
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_1_RECON
+- Primary agent: AGY (fallback: CLAUDE, ASTRA)
+- Current commit: `1afeb78ba294`
+- What was done: AGY committed 1 file(s) as 1afeb78ba294.
+- Remaining work: None recorded — task may be DONE or may need a follow-up task.
+- Blockers: Agent AGY touched paths outside WRITE_SCOPE: boardroom/recon/. Nothing was staged or committed.
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060651-z5ss.md`
+
+### TASK-20260906-060724-zvme — Phase 2: Core experience system -- sound, motion & reduced-motion primitives
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
+- Primary agent: ASTRA (fallback: CLAUDE, AGY)
+- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: boardroom/recon/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
+- Failed attempts: 3 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260906-145610-fbec/TASK-20260906-060724-zvme-attempt2, boardroom-salvage/20260906-145610-fbec/TASK-20260906-060724-zvme-attempt3
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060724-zvme.md`
+
+### TASK-20260906-060727-3kic — Phase 2: Core experience system -- HUD states, cinematic transitions & interaction feedback
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
+- Primary agent: ASTRA (fallback: CLAUDE, AGY)
+- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: lib/audio/index.ts, boardroom/recon/, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
+- Failed attempts: 2 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260906-145610-fbec/TASK-20260906-060727-3kic-attempt2, boardroom-salvage/20260906-145610-fbec/TASK-20260906-060727-3kic-attempt3
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060727-3kic.md`
+
+### TASK-20260906-060730-96yy — Phase 2: Core experience system -- loading, success/failure & reward/transmission presentation
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
+- Primary agent: ASTRA (fallback: CLAUDE, AGY)
+- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: app/globals.css, lib/audio/index.ts, boardroom/recon/, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
+- Failed attempts: 2 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260906-145610-fbec/TASK-20260906-060730-96yy-attempt2
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060730-96yy.md`
 
 
 ## OTHER TASKS IN THE QUEUE (untouched this run — status is from a prior run or still QUEUED)
@@ -59,36 +108,6 @@ _none_
 - What was done: AGY committed 1 file(s) as 5c585b891e46.
 - Remaining work: None recorded — task may be DONE or may need a follow-up task.
 - Handoff doc: `boardroom/handoffs/TASK-20260906-041826-623o.md`
-
-### TASK-20260906-060647-kvoi — Phase 1: Performance/bundle/network baseline + architecture audit
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_1_RECON
-- Primary agent: CLAUDE (fallback: AGY, ASTRA)
-- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: boardroom/recon/. Nothing was staged or committed.
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060647-kvoi.md`
-
-### TASK-20260906-060651-z5ss — Phase 1: Route/state/visual inconsistency inventory
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_1_RECON
-- Primary agent: AGY (fallback: CLAUDE, ASTRA)
-- Blockers: Agent AGY touched paths outside WRITE_SCOPE: boardroom/recon/. Nothing was staged or committed.
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060651-z5ss.md`
-
-### TASK-20260906-060724-zvme — Phase 2: Core experience system -- sound, motion & reduced-motion primitives
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
-- Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: boardroom/recon/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060724-zvme.md`
-
-### TASK-20260906-060727-3kic — Phase 2: Core experience system -- HUD states, cinematic transitions & interaction feedback
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
-- Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: lib/audio/index.ts, boardroom/recon/, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060727-3kic.md`
-
-### TASK-20260906-060730-96yy — Phase 2: Core experience system -- loading, success/failure & reward/transmission presentation
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
-- Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: app/globals.css, lib/audio/index.ts, boardroom/recon/, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060730-96yy.md`
 
 ### TASK-20260906-060752-y6w3 — Phase 3: Flagship moment -- Mission entry / cold open
 - Status: QUEUED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
