@@ -149,6 +149,146 @@ describe('git-history guard', () => {
   });
 });
 
+describe('agent-staged-file quarantine', () => {
+  it('quarantines the task and fails over to a fallback agent when an agent stages files without committing', async () => {
+    const task = createTask({
+      title: 'Agent must not stage its own work',
+      goal: 'Boardroom owns staging and commits',
+      priority: 'HIGH',
+      phase: 'PHASE_1_RECON',
+      primaryAgent: 'AGY',
+      fallbackAgent1: 'CLAUDE',
+      fallbackAgent2: 'ASTRA',
+      writeScope: ['staged-owned.txt'],
+      testsRequired: [],
+      root: repoDir,
+    });
+
+    // Stages but deliberately does NOT commit and does NOT move HEAD —
+    // distinct from the git-history-guard scenario above.
+    const agy = script('agy-stages.sh', `printf 'agent staged this\n' > staged-owned.txt\ngit add staged-owned.txt`);
+    const claude = script('claude-fallback.sh', `printf 'fixed properly\n' > staged-owned.txt`);
+
+    const result = await runSupervisor({
+      root: repoDir,
+      git: gitOps(),
+      binaryOverrides: { AGY: agy, CLAUDE: claude },
+      registerProcessHandlers: false,
+      startSleepPrevention: () => ({ active: false, reason: 'test' }),
+      maxIterations: 10,
+      perTaskTimeoutMs: 5_000,
+    });
+
+    const updated = getTask(task.taskId, repoDir)!;
+    expect(updated.status).toBe('DONE');
+    expect(updated.attempts.some((a) => a.agent === 'AGY' && a.outcome === 'FAILED' && /staged files/i.test(a.approachSummary))).toBe(true);
+    expect(updated.attempts.some((a) => a.agent === 'CLAUDE' && a.outcome === 'SUCCEEDED')).toBe(true);
+    // AGY's staged-but-uncommitted work was salvaged, not silently discarded
+    // or accidentally committed under Boardroom's name.
+    expect(updated.salvage.length).toBeGreaterThanOrEqual(1);
+    expect(git(['status', '--short']).trim()).toBe('');
+    expect(fs.readFileSync(path.join(repoDir, 'staged-owned.txt'), 'utf8')).toBe('fixed properly\n');
+  });
+});
+
+describe('exact staged-set verification', () => {
+  it('refuses to commit when the actual git index contains a path Boardroom did not approve', async () => {
+    createTask({
+      title: 'Only note.txt is approved',
+      goal: 'Boardroom must stage exactly what it approved',
+      priority: 'HIGH',
+      phase: 'PHASE_1_RECON',
+      primaryAgent: 'AGY',
+      writeScope: ['note.txt'],
+      testsRequired: [],
+      root: repoDir,
+    });
+
+    const agy = script('agy-ok.sh', `printf 'note\n' > note.txt`);
+
+    // Simulates something outside Boardroom's own bookkeeping getting into
+    // the git index at exactly the moment Boardroom stages its approved
+    // paths (e.g. a stray concurrent process) — not something a well-behaved
+    // agent would do on its own (that's the out-of-scope BLOCK path, already
+    // covered elsewhere), and the file must not exist before bootstrap's own
+    // clean-tree check runs, so it's created lazily inside the 'add' hook.
+    const instrumentedGit: GitOps = {
+      run(args: string[]): string {
+        const result = git(args);
+        if (args[0] === 'add') {
+          try {
+            fs.writeFileSync(path.join(repoDir, 'unexpected.txt'), 'sneaked in\n');
+            git(['add', '--', 'unexpected.txt']);
+          } catch {
+            /* ignore if already staged */
+          }
+        }
+        return result;
+      },
+    };
+
+    const result = await runSupervisor({
+      root: repoDir,
+      git: instrumentedGit,
+      binaryOverrides: { AGY: agy },
+      registerProcessHandlers: false,
+      startSleepPrevention: () => ({ active: false, reason: 'test' }),
+      maxIterations: 5,
+      perTaskTimeoutMs: 5_000,
+    });
+
+    expect(result.stopReason).toBe('EXACT_STAGING_VERIFICATION_FAILED');
+    // Nothing was committed under Boardroom's name with the extra file smuggled in.
+    expect(git(['log', '--oneline']).split('\n').filter(Boolean)).toHaveLength(1); // init only
+  });
+});
+
+describe('post-commit clean invariant', () => {
+  it('stops if the source worktree is unexpectedly dirty immediately after Boardroom commits', async () => {
+    createTask({
+      title: 'Tree must be clean after commit',
+      goal: 'Post-commit invariant',
+      priority: 'HIGH',
+      phase: 'PHASE_1_RECON',
+      primaryAgent: 'AGY',
+      writeScope: ['note.txt'],
+      testsRequired: [],
+      root: repoDir,
+    });
+
+    const agy = script('agy-ok.sh', `printf 'note\n' > note.txt`);
+
+    // Simulates something dirtying the tree at exactly the moment Boardroom
+    // finishes its own commit — e.g. a stray concurrent process — by piggy-
+    // backing on the commit git call itself.
+    const instrumentedGit: GitOps = {
+      run(args: string[]): string {
+        const result = git(args);
+        if (args[0] === 'commit') {
+          fs.writeFileSync(path.join(repoDir, 'post-commit-stray.txt'), 'stray\n');
+        }
+        return result;
+      },
+    };
+
+    const result = await runSupervisor({
+      root: repoDir,
+      git: instrumentedGit,
+      binaryOverrides: { AGY: agy },
+      registerProcessHandlers: false,
+      startSleepPrevention: () => ({ active: false, reason: 'test' }),
+      maxIterations: 5,
+      perTaskTimeoutMs: 5_000,
+    });
+
+    expect(result.stopReason).toBe('POST_COMMIT_DIRTY_WORKTREE');
+    // The real task commit still landed (this invariant is a post-commit
+    // safety check, not a pre-commit gate) — it just refuses to continue
+    // dispatching more agents onto an unexpectedly dirty tree.
+    expect(git(['log', '--oneline']).split('\n').filter(Boolean)).toHaveLength(2);
+  });
+});
+
 describe('Astra exhaustion failover and reset conservation', () => {
   it('fails over the task after probe-confirmed Astra exhaustion without immediately asking for reset #1', async () => {
     const task = createTask({

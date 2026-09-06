@@ -10,6 +10,7 @@
  *   npm run boardroom:task -- list
  *   npm run boardroom:task -- show <TASK_ID>
  *   npm run boardroom:task -- update-scope <TASK_ID> --scope "app/foo/,lib/bar.ts,tests/"
+ *   npm run boardroom:task -- set-status <TASK_ID> --status QUEUED
  *
  * --scope, --tests, and --acceptance are each a single flag holding a
  * delimited list — --scope/--tests split on "," (paths/commands rarely
@@ -22,9 +23,19 @@
  * task expected to add new test files, or boardroom/recon/ for a task that
  * legitimately collaborates on the shared recon docs). It never appends
  * silently and never disables the commit gate — see commitGate.ts.
+ *
+ * set-status is the supported way to change ONLY a task's status field —
+ * e.g. returning a task that was BLOCKED by a since-fixed orchestration bug
+ * back to QUEUED, or marking an old rehearsal/test task REJECTED so it's
+ * permanently excluded from scheduling (the supervisor's phase barrier
+ * already treats REJECTED as resolved/non-gating, same as DONE). It never
+ * touches attempts, blockers, salvage, filesTouched, or any other history —
+ * that provenance is preserved exactly as-is.
  */
-import { createTask, listTasks, getTask, setWriteScope } from '../lib/boardroom/tasks';
-import type { AgentName, Phase, Priority } from '../lib/boardroom/types';
+import { createTask, listTasks, getTask, setWriteScope, updateTaskStatus } from '../lib/boardroom/tasks';
+import type { AgentName, Phase, Priority, TaskStatus } from '../lib/boardroom/types';
+
+const VALID_STATUSES: TaskStatus[] = ['QUEUED', 'SCOUTING', 'READY', 'ACTIVE', 'VERIFYING', 'BLOCKED', 'CHECKPOINTED', 'HANDOFF', 'DONE', 'REJECTED'];
 
 function flag(args: string[], name: string): string | undefined {
   const idx = args.indexOf(`--${name}`);
@@ -114,7 +125,29 @@ function main() {
     return;
   }
 
-  console.error(`Unknown command: ${cmd}. Use "create", "list", "show", or "update-scope".`);
+  if (cmd === 'set-status') {
+    const taskId = rest[0];
+    const statusRaw = flag(rest.slice(1), 'status');
+    if (!taskId || !statusRaw) {
+      console.error('Usage: boardroom:task set-status <TASK_ID> --status QUEUED');
+      process.exit(1);
+    }
+    if (!VALID_STATUSES.includes(statusRaw as TaskStatus)) {
+      console.error(`Invalid status "${statusRaw}". Valid values: ${VALID_STATUSES.join(', ')}`);
+      process.exit(1);
+    }
+    const before = getTask(taskId);
+    if (!before) {
+      console.error(`Task not found: ${taskId}`);
+      process.exit(1);
+    }
+    const updated = updateTaskStatus(taskId, statusRaw as TaskStatus, undefined);
+    console.log(`${taskId} status updated: ${before!.status} -> ${updated.status}`);
+    console.log(`  (attempts=${updated.attempts.length}, blockers=${updated.blockers.length}, salvage=${updated.salvage.length} — all preserved)`);
+    return;
+  }
+
+  console.error(`Unknown command: ${cmd}. Use "create", "list", "show", "update-scope", or "set-status".`);
   process.exit(1);
 }
 
