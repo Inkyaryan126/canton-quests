@@ -11,6 +11,7 @@
  *   npm run boardroom:task -- show <TASK_ID>
  *   npm run boardroom:task -- update-scope <TASK_ID> --scope "app/foo/,lib/bar.ts,tests/"
  *   npm run boardroom:task -- set-status <TASK_ID> --status QUEUED
+ *   npm run boardroom:task -- record-decision <TASK_ID> --by BOARDROOM --summary "..."
  *
  * --scope, --tests, and --acceptance are each a single flag holding a
  * delimited list — --scope/--tests split on "," (paths/commands rarely
@@ -31,9 +32,15 @@
  * already treats REJECTED as resolved/non-gating, same as DONE). It never
  * touches attempts, blockers, salvage, filesTouched, or any other history —
  * that provenance is preserved exactly as-is.
+ *
+ * record-decision appends one durable, timestamped note to the task's
+ * `decisions` array — e.g. pointing a future agent at a specific, verified
+ * salvage tag worth reusing, or at the exact known defect blocking reuse of
+ * an otherwise-coherent salvaged attempt. Never overwrites or removes
+ * anything; --by defaults to BOARDROOM.
  */
-import { createTask, listTasks, getTask, setWriteScope, updateTaskStatus } from '../lib/boardroom/tasks';
-import type { AgentName, Phase, Priority, TaskStatus } from '../lib/boardroom/types';
+import { createTask, listTasks, getTask, setWriteScope, updateTaskStatus, recordDecision } from '../lib/boardroom/tasks';
+import type { AgentName, Phase, Priority, TaskStatus, Decision } from '../lib/boardroom/types';
 
 const VALID_STATUSES: TaskStatus[] = ['QUEUED', 'SCOUTING', 'READY', 'ACTIVE', 'VERIFYING', 'BLOCKED', 'CHECKPOINTED', 'HANDOFF', 'DONE', 'REJECTED'];
 
@@ -147,7 +154,24 @@ function main() {
     return;
   }
 
-  console.error(`Unknown command: ${cmd}. Use "create", "list", "show", "update-scope", or "set-status".`);
+  if (cmd === 'record-decision') {
+    const taskId = rest[0];
+    const rawBy = flag(rest.slice(1), 'by') || 'BOARDROOM';
+    const summary = flag(rest.slice(1), 'summary');
+    if (!taskId || !summary) {
+      console.error('Usage: boardroom:task record-decision <TASK_ID> --summary "..." [--by BOARDROOM|DUSTIN|ASTRA|CLAUDE|AGY]');
+      process.exit(1);
+    }
+    if (!getTask(taskId)) {
+      console.error(`Task not found: ${taskId}`);
+      process.exit(1);
+    }
+    const updated = recordDecision(taskId, { by: rawBy as Decision['by'], summary }, undefined);
+    console.log(`${taskId} decision recorded (${updated.decisions.length} total).`);
+    return;
+  }
+
+  console.error(`Unknown command: ${cmd}. Use "create", "list", "show", "update-scope", "set-status", or "record-decision".`);
   process.exit(1);
 }
 
