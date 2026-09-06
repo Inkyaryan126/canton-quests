@@ -29,7 +29,7 @@ import { acquireLock, releaseLock, assessStaleLock, recoverStaleLock, LockHeldBy
 import { listTasks, getTask, updateTaskStatus, checkpoint, recordFilesTouched, recordTestResult, addBlocker, setCurrentCommit, recordSalvage } from './tasks';
 import { recordAttempt, checkThreshold } from './attempts';
 import { getBudgetState, selfReportAllowance, requestReset, classifyTier } from './budget';
-import { defaultAssignment, applyBudgetConservation, type WorkCategory, type RoutingAssignment } from './routing';
+import { defaultAssignment, applyBudgetConservation, isAstraWorthy, type WorkCategory, type RoutingAssignment } from './routing';
 import { evaluateChangedPaths, parseGitStatusShort, isBoardroomBookkeepingPath } from './commitGate';
 import { getAdapter } from './adapters/registry';
 import { probeAgentHealth } from './adapters/probe';
@@ -254,8 +254,31 @@ export interface SupervisorResult {
   reportContent?: string;
 }
 
-const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
+const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000; // 1200s — routine/undeclared-category tasks
+const COMPLEX_TASK_TIMEOUT_MULTIPLIER = 2; // Astra-worthy categories get 2x the configured default (2400s at the real default)
+const MAX_TASK_TIMEOUT_MS = 45 * 60 * 1000; // 2700s — explicit hard ceiling, never exceeded regardless of category, multiplier, or override
 const DEFAULT_MAX_ITERATIONS = 200;
+
+/**
+ * Task-class-aware timeout, not a global increase. Evidence from the real
+ * run that motivated this: on all three Phase 2 tasks (CINEMATIC_UX_SYSTEM,
+ * an Astra-worthy category), Claude's own generation alone ran 646-1154s —
+ * already approaching the flat 1200s ceiling before validation even started
+ * — and Agy (the last-resort fallback for the same Astra-worthy work) hit
+ * the 1200s ceiling on every single attempt with little to no salvageable
+ * output. Routine/undeclared-category tasks keep the configured default
+ * unchanged; only categories routing.ts already treats as Astra-worthy get
+ * a multiplied budget, capped at an explicit upper bound so no task,
+ * however complex, can occupy the write lock indefinitely. Scales off the
+ * caller's configured default (not a hardcoded absolute number) so tests
+ * can exercise the real multiplier/cap logic with sub-second timeouts
+ * instead of waiting on real minutes. Exported for direct unit testing.
+ */
+export function resolveTaskTimeoutMs(task: Task, configuredDefault: number): number {
+  const isComplex = task.category !== undefined && isAstraWorthy(task.category as WorkCategory);
+  const base = isComplex ? configuredDefault * COMPLEX_TASK_TIMEOUT_MULTIPLIER : configuredDefault;
+  return Math.min(base, MAX_TASK_TIMEOUT_MS);
+}
 
 export async function runSupervisor(deps: SupervisorDeps = {}): Promise<SupervisorResult> {
   const root = deps.root;
@@ -421,8 +444,9 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
       const logFile = invocationLogFile(task.taskId, agent, attemptNumber, root);
       const adapter = getAdapter(agent);
       const prompt = buildPrompt(task);
+      const taskTimeoutMs = resolveTaskTimeoutMs(task, perTaskTimeoutMs);
 
-      console.log(`[boardroom] START ${agent} ${task.taskId} — ${task.title}`);
+      console.log(`[boardroom] START ${agent} ${task.taskId} — ${task.title} (timeout ${Math.round(taskTimeoutMs / 1000)}s)`);
       const workerStartedAt = Date.now();
       const heartbeat = setInterval(() => {
         const elapsedMinutes = Math.max(1, Math.floor((Date.now() - workerStartedAt) / 60_000));
@@ -433,7 +457,7 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
       try {
         runResult = await adapter.run(prompt, {
           cwd: root ?? process.cwd(),
-          timeoutMs: perTaskTimeoutMs,
+          timeoutMs: taskTimeoutMs,
           logFile,
           binaryOverride: deps.binaryOverrides?.[agent],
         });
@@ -488,7 +512,7 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
         const beforeProbePaths = [...postRunChangedPaths].sort();
         const probe = await probeAgentHealth(adapter, {
           cwd: root ?? process.cwd(),
-          timeoutMs: perTaskTimeoutMs,
+          timeoutMs: taskTimeoutMs,
           binaryOverride: deps.binaryOverrides?.[agent],
         });
         const afterProbePaths = nonBookkeepingDirtyPaths(git).sort();
