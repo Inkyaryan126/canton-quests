@@ -5,6 +5,8 @@
 // (with a mocked Supabase client so DB writes can be asserted directly),
 // and the admin analytics endpoint's authorization gate.
 
+import fs from 'fs';
+import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ANALYTICS_PERIODS,
@@ -389,7 +391,6 @@ describe('Period math — the exact timestamps behind 1H | 2H | 6H | 24H | 7D', 
 const insertedRows: Record<string, any[]> = {};
 
 function resetInsertedRows() {
-  insertedRows.site_visits = [];
   insertedRows.site_visit_events = [];
 }
 
@@ -437,6 +438,20 @@ describe('/api/track route wiring (mocked Supabase)', () => {
     expect(insertedRows.site_visit_events).toHaveLength(1);
     expect(insertedRows.site_visit_events[0].path).toBe('/quests');
     expect(insertedRows.site_visit_events[0].is_bot).toBe(false);
+  });
+
+  it('never writes to the retired legacy site_visits table — only site_visit_events is used', async () => {
+    resetInsertedRows();
+    await postTrack({ page: '/quests', referrer: '' });
+    await postTrack({ page: '/leaderboard', referrer: '' });
+    expect(insertedRows.site_visits).toBeUndefined();
+    expect(Object.keys(insertedRows)).toEqual(['site_visit_events']);
+  });
+
+  it('the route source no longer references the retired site_visits table', () => {
+    const source = fs.readFileSync(path.join(process.cwd(), 'app/api/track/route.ts'), 'utf8');
+    expect(source).not.toContain('site_visits');
+    expect(source).toContain('site_visit_events');
   });
 
   it('reusing the cq_vid cookie across two requests (two page views) keeps the same visitor_id — one unique visitor, two page views', async () => {

@@ -331,6 +331,18 @@ FROM public.prize_draw_records pdr
 WHERE pdr.status = 'published';
 
 -- 6. Privacy & Minor-Safe Public Drawing Ledger Projection View
+--
+-- players.is_minor is otherwise only added later, in
+-- 20260814000000_player_identity_three_path_architecture.sql — added here
+-- too (IF NOT EXISTS, so that later ADD COLUMN is a harmless no-op) so this
+-- view's own minor-safety check has the column it needs the moment this
+-- migration runs, without reordering or duplicating the view itself across
+-- files. Fixes a fresh-environment replay failure (42703: column
+-- p.is_minor does not exist) that never surfaced against the live
+-- production database, since production's real historical apply order
+-- differed from these files' timestamps.
+ALTER TABLE public.players ADD COLUMN IF NOT EXISTS is_minor BOOLEAN DEFAULT false;
+
 CREATE OR REPLACE VIEW public.public_drawing_ledger_projection
 WITH (security_barrier = true) AS
 SELECT
