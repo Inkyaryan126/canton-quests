@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { X, FastForward } from 'lucide-react';
 import {
   GameEffectsState,
@@ -8,22 +9,41 @@ import {
   GameMoment,
 } from '@/lib/game-effects';
 import CityScanOverlay from './CityScanOverlay';
-import PathLockEffect from './PathLockEffect';
-import QuestCompleteEffect from './QuestCompleteEffect';
-import RankUpEffect from './RankUpEffect';
-import AchievementEffect from './AchievementEffect';
-import FlashDropEffect from './FlashDropEffect';
-import ChainCompleteEffect from './ChainCompleteEffect';
-import FinaleQualificationEffect from './FinaleQualificationEffect';
-import ThreeLocksFragmentEffect from './ThreeLocksFragmentEffect';
 import CommanderTransmissionEffect from './CommanderTransmissionEffect';
 import CommanderTextTransmission from '../commander/CommanderTextTransmission';
-import RewardTokenEffect from './RewardTokenEffect';
-import UnlockEffect from './UnlockEffect';
-import FieldEventEffect from './FieldEventEffect';
-import ProgressionEffect from './ProgressionEffect';
-import MajorCinematicEffect from './MajorCinematicEffect';
+import FlashDropEffect from './FlashDropEffect';
 import SoundToggleControl from './SoundToggleControl';
+import SystemStatusBadge from './SystemStatusBadge';
+
+// Every moment below renders through HudParticlesCanvas — a <canvas>
+// particle field. They're only ever needed once a matching game moment
+// fires, so they're kept out of the initial bundle for every route
+// (most never trigger one) and fetched on demand instead.
+const dynamicMomentOptions = {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+} as const;
+
+const PathLockEffect = dynamic(() => import('./PathLockEffect'), dynamicMomentOptions);
+const QuestCompleteEffect = dynamic(() => import('./QuestCompleteEffect'), dynamicMomentOptions);
+const RankUpEffect = dynamic(() => import('./RankUpEffect'), dynamicMomentOptions);
+const AchievementEffect = dynamic(() => import('./AchievementEffect'), dynamicMomentOptions);
+const ChainCompleteEffect = dynamic(() => import('./ChainCompleteEffect'), dynamicMomentOptions);
+const FinaleQualificationEffect = dynamic(() => import('./FinaleQualificationEffect'), dynamicMomentOptions);
+const ThreeLocksFragmentEffect = dynamic(() => import('./ThreeLocksFragmentEffect'), dynamicMomentOptions);
+const RewardTokenEffect = dynamic(() => import('./RewardTokenEffect'), dynamicMomentOptions);
+const UnlockEffect = dynamic(() => import('./UnlockEffect'), dynamicMomentOptions);
+const FieldEventEffect = dynamic(() => import('./FieldEventEffect'), dynamicMomentOptions);
+const ProgressionEffect = dynamic(() => import('./ProgressionEffect'), dynamicMomentOptions);
+const MajorCinematicEffect = dynamic(() => import('./MajorCinematicEffect'), dynamicMomentOptions);
+
+// CityScanOverlay, CommanderTransmissionEffect, CommanderTextTransmission,
+// and FlashDropEffect render no canvas/particles, so they stay as regular
+// imports above — no lazy-loading tradeoff needed for those.
 
 export const BACKDROP_DISMISS_GRACE_MS = 300;
 

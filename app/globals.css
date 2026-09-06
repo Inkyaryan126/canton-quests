@@ -2766,6 +2766,129 @@ code, pre, .font-mono {
 }
 
 /* ==========================================================================
+   FIELD-EQUIPMENT MOTION PRIMITIVES
+   Shared duration/easing tokens for HUD state changes and section/overlay
+   transitions. Apply `.cq-motion-scope` to a container to expose the
+   custom properties to its own scoped rules; apply `.cq-transition-*`
+   directly to an element that should animate. No JS animation scheduler —
+   these are CSS-only and collapse to instant under reduced motion.
+   ========================================================================== */
+
+.cq-motion-scope,
+.cq-transition-reveal,
+.cq-transition-settle {
+  --cq-motion-instant: 0ms;
+  --cq-motion-press: 100ms;
+  --cq-motion-settle: 180ms;
+  --cq-motion-reveal: 280ms;
+  --cq-motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --cq-motion-ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --cq-motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* Section/overlay arrival: the default page- and card-transition primitive. */
+.cq-transition-reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--cq-motion-reveal) var(--cq-motion-ease-enter),
+    transform var(--cq-motion-reveal) var(--cq-motion-ease-enter);
+}
+
+.cq-transition-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Smaller in-place state changes (a stage flip, a badge swapping label). */
+.cq-transition-settle {
+  transition:
+    opacity var(--cq-motion-settle) var(--cq-motion-ease-standard),
+    transform var(--cq-motion-settle) var(--cq-motion-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cq-motion-scope,
+  .cq-transition-reveal,
+  .cq-transition-settle {
+    --cq-motion-press: var(--cq-motion-instant);
+    --cq-motion-settle: var(--cq-motion-instant);
+    --cq-motion-reveal: var(--cq-motion-instant);
+  }
+
+  .cq-transition-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   SYSTEM-STATUS BADGE — armed / scanning / confirmed / denied
+   Command-terminal status pill reused across HUD moments (city scan,
+   path lock, quest scan, etc). Color and icon are driven by `.is-<state>`;
+   the label swap uses the settle transition above, not a one-off value.
+   ========================================================================== */
+
+.cq-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid;
+  background: rgba(7, 9, 14, 0.6);
+  transition:
+    color var(--cq-motion-settle, 180ms) var(--cq-motion-ease-standard, ease),
+    border-color var(--cq-motion-settle, 180ms) var(--cq-motion-ease-standard, ease),
+    background-color var(--cq-motion-settle, 180ms) var(--cq-motion-ease-standard, ease);
+}
+
+.cq-status-badge.is-sm {
+  padding: 0.2rem 0.55rem;
+  font-size: 10px;
+  gap: 0.3rem;
+}
+
+.cq-status-badge.is-armed {
+  color: var(--cq-hud-gold-bright);
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.cq-status-badge.is-scanning {
+  color: var(--cq-hud-cyan);
+  border-color: rgba(6, 182, 212, 0.5);
+  background: rgba(6, 182, 212, 0.1);
+}
+
+.cq-status-badge.is-scanning .cq-status-badge-icon {
+  animation: cqReticleSpin 1.4s linear infinite;
+}
+
+.cq-status-badge.is-confirmed {
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.5);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.cq-status-badge.is-denied {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cq-status-badge.is-scanning .cq-status-badge-icon {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
    THREE DOORS PATH SELECTOR (MASTER VISUAL & INTERACTIVE HOTSPOTS)
    ========================================================================== */
 .cq-three-doors-section {
@@ -4579,6 +4702,21 @@ code, pre, .font-mono {
   justify-content: space-between;
   padding: 1rem 1.5rem;
   pointer-events: auto;
+}
+
+/* Lazy-load fallback for canvas/particle-heavy moment effects (see
+   GameMomentOverlay's dynamic() imports) — same full-screen backdrop as
+   .cq-moment-overlay, just centered on a single status badge. */
+.cq-moment-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .cq-moment-queue-badge {
