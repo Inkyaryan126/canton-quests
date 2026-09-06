@@ -8,7 +8,7 @@
  */
 import { taskFile, tasksDir } from './paths';
 import { writeJsonAtomic, readJsonIfExists, listJsonFiles } from './atomicFile';
-import type { Task, TaskStatus, Decision, Attempt, TestResult, ConfidenceState, AgentName, Priority, Phase } from './types';
+import type { Task, TaskStatus, Decision, Attempt, TestResult, ConfidenceState, AgentName, Priority, Phase, SalvageEntry } from './types';
 
 export function generateTaskId(): string {
   const now = new Date();
@@ -48,6 +48,7 @@ export function createTask(params: {
     writeScope: params.writeScope ?? [],
     acceptanceCriteria: params.acceptanceCriteria ?? [],
     checkpointExpectations: params.checkpointExpectations,
+    salvage: [],
     decisions: [],
     filesTouched: [],
     testsRequired: params.testsRequired ?? [],
@@ -63,14 +64,30 @@ export function createTask(params: {
   return task;
 }
 
+/**
+ * Backfills fields added to the Task schema after some on-disk task files
+ * were already written, so an older task record never crashes a function
+ * that assumes e.g. `task.salvage` is always an array. Never used to change
+ * a field that's actually present — only to default a genuinely missing one.
+ */
+function normalizeTask(task: Task): Task {
+  return {
+    ...task,
+    acceptanceCriteria: task.acceptanceCriteria ?? [],
+    salvage: task.salvage ?? [],
+  };
+}
+
 export function getTask(taskId: string, root?: string): Task | null {
-  return readJsonIfExists<Task>(taskFile(taskId, root));
+  const task = readJsonIfExists<Task>(taskFile(taskId, root));
+  return task ? normalizeTask(task) : null;
 }
 
 export function listTasks(root?: string): Task[] {
   return listJsonFiles(tasksDir(root))
     .map((f) => readJsonIfExists<Task>(f))
     .filter((t): t is Task => t !== null)
+    .map(normalizeTask)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
@@ -114,6 +131,26 @@ export function recordTestResult(taskId: string, result: Omit<TestResult, 'at'>,
 export function addBlocker(taskId: string, blocker: string, root?: string): Task {
   const task = requireTask(taskId, root);
   if (!task.blockers.includes(blocker)) task.blockers.push(blocker);
+  return saveTask(task, root);
+}
+
+export function recordSalvage(taskId: string, entry: Omit<SalvageEntry, 'at'>, root?: string): Task {
+  const task = requireTask(taskId, root);
+  task.salvage.push({ ...entry, at: new Date().toISOString() });
+  return saveTask(task, root);
+}
+
+/**
+ * Replaces a task's declared writeScope entirely (used by
+ * `boardroom:task update-scope` to broaden a scope after a real run reveals
+ * it was too narrow for legitimate shared/cross-cutting work — see
+ * commitGate.ts and boardroom/BOARDROOM.md's WRITE_SCOPE section). Takes the
+ * full replacement list rather than an append to keep the resulting scope
+ * unambiguous and reviewable in one place.
+ */
+export function setWriteScope(taskId: string, writeScope: string[], root?: string): Task {
+  const task = requireTask(taskId, root);
+  task.writeScope = writeScope;
   return saveTask(task, root);
 }
 

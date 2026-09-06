@@ -63,6 +63,27 @@ export interface TestResult {
 }
 
 /**
+ * A Boardroom-owned snapshot of an agent's uncommitted edits, taken right
+ * before the working tree is restored to the last clean Boardroom commit —
+ * used whenever a task is BLOCKED (out-of-scope changes) or fails validation
+ * so the real work is never silently discarded, and never left sitting in
+ * the shared tree to contaminate the next task. `tagRef` is a stable git tag
+ * pointing at the stash commit (stable even after later stashes are
+ * pushed/popped, unlike the shifting `stash@{N}` index); `stashLabel` is the
+ * human-readable message visible in `git stash list` at creation time.
+ */
+export interface SalvageEntry {
+  at: string; // ISO timestamp
+  agent: AgentName;
+  attempt: number;
+  stashLabel: string;
+  tagRef: string;
+  commitHash: string;
+  pathsSalvaged: string[];
+  reason: string;
+}
+
+/**
  * The full Section 3 task ledger schema. One JSON file per task under
  * .boardroom/runtime/tasks/<TASK_ID>.json while active; a durable summary is
  * written to boardroom/handoffs/<TASK_ID>.md only at real handoff/completion
@@ -105,6 +126,8 @@ export interface Task {
   checkpointExpectations?: string;
   startingCommit?: string;
   currentCommit?: string;
+  /** Snapshots of uncommitted edits preserved before a contamination-safe tree reset. See SalvageEntry. */
+  salvage: SalvageEntry[];
   decisions: Decision[];
   filesTouched: string[];
   testsRequired: string[];

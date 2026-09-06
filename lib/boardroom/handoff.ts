@@ -10,6 +10,7 @@
  */
 import { handoffFile } from './paths';
 import { writeFileAtomic } from './atomicFile';
+import { describeSalvage } from './salvage';
 import type { Task } from './types';
 
 export function renderHandoff(task: Task): string {
@@ -69,6 +70,13 @@ export function renderHandoff(task: Task): string {
   lines.push('');
   lines.push('## CURRENT BLOCKER');
   lines.push(task.blockers.length ? task.blockers.map((b) => `- ${b}`).join('\n') : '_none_');
+  lines.push('');
+  lines.push('## SALVAGED WORK');
+  lines.push(
+    task.salvage.length
+      ? task.salvage.map((s) => `- [${s.at}] (${s.agent}, attempt ${s.attempt}) ${s.reason}\n  ${describeSalvage(s)}`).join('\n')
+      : '_none — no uncommitted edits from this task have ever needed salvaging_'
+  );
   lines.push('');
   lines.push('## EXACT REMAINING WORK');
   lines.push(task.remainingWork || '_not recorded_');

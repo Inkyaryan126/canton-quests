@@ -11,11 +11,31 @@
 #   FAKE_CLI_TOUCH_FILE  — if set, a path (relative to cwd) to write, simulating
 #                          an agent actually editing a file in the repo
 #   FAKE_CLI_TOUCH_CONTENT — content for FAKE_CLI_TOUCH_FILE (default: a marker line)
+#   FAKE_CLI_COUNTER_FILE — if set, a path used to count invocations of THIS
+#                          exact script instance across calls (e.g. a task
+#                          run followed by a supervisor health probe)
+#   FAKE_CLI_FAIL_FIRST_N — with FAKE_CLI_COUNTER_FILE set, invocations at or
+#                          below this count use the configured
+#                          FAKE_CLI_EXIT_CODE/STDOUT/STDERR; invocations
+#                          after it are forced to a clean success instead —
+#                          lets a test simulate "failed once, healthy on retry"
 
 sleep_ms="${FAKE_CLI_SLEEP_MS:-0}"
 if [ "$sleep_ms" -gt 0 ] 2>/dev/null; then
   sleep_seconds=$(awk "BEGIN { print $sleep_ms / 1000 }")
   sleep "$sleep_seconds"
+fi
+
+if [ -n "$FAKE_CLI_COUNTER_FILE" ]; then
+  count=0
+  [ -f "$FAKE_CLI_COUNTER_FILE" ] && count=$(cat "$FAKE_CLI_COUNTER_FILE")
+  count=$((count + 1))
+  printf '%s' "$count" > "$FAKE_CLI_COUNTER_FILE"
+  if [ "$count" -gt "${FAKE_CLI_FAIL_FIRST_N:-0}" ]; then
+    FAKE_CLI_EXIT_CODE=0
+    FAKE_CLI_STDERR=""
+    FAKE_CLI_STDOUT="${FAKE_CLI_STDOUT:-OK}"
+  fi
 fi
 
 if [ -n "$FAKE_CLI_STDOUT" ]; then

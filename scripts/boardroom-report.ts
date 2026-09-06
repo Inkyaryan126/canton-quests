@@ -39,6 +39,11 @@ function main() {
     budget,
     commits: [],
     actionsRequired: [],
+    // This is a manual, out-of-band regeneration, not a real runSupervisor()
+    // call — it has no way to know which tasks a real run would have picked
+    // up, so every task is honestly reported as "other" (untouched by any
+    // run this command knows about) rather than guessing.
+    touchedThisRunTaskIds: [],
   });
 
   console.log(content);

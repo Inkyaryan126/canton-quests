@@ -21,8 +21,12 @@ export const codexAdapter: AgentAdapter = {
 
     const result = await spawnAndCapture(binary, args, { cwd: opts.cwd, timeoutMs: opts.timeoutMs, logFile: opts.logFile });
 
-    const combined = `${result.stdout}\n${result.stderr}`;
-    const likelyUsageExhausted = looksLikeUsageExhaustion(combined);
+    // A clean exit is never scanned for exhaustion — a real false positive on
+    // the first overnight run had Astra's own successful transcript quote
+    // BOARDROOM.md's documentation of these very patterns (it read the file
+    // as required reading), matching nearly every phrase in the list purely
+    // from Astra's own SUCCESSFUL output.
+    const likelyUsageExhausted = result.exitCode !== 0 && looksLikeUsageExhaustion(`${result.stdout}\n${result.stderr}`);
     let outputText: string | undefined;
     if (outputFile && fs.existsSync(outputFile)) {
       try {

@@ -7,7 +7,7 @@
  * regardless. No usage/quota introspection exists on this CLI either.
  */
 import { spawnAndCapture } from '../runner';
-import { looksLikeUsageExhaustion } from './exhaustionPatterns';
+import { looksLikeUsageExhaustion, structuredExhaustionSignal } from './exhaustionPatterns';
 import type { AgentAdapter, AdapterRunOptions } from './types';
 import type { AgentRunResult } from '../types';
 
@@ -26,8 +26,15 @@ export const agyAdapter: AgentAdapter = {
 
     const result = await spawnAndCapture(binary, args, { cwd: opts.cwd, timeoutMs: opts.timeoutMs, logFile: opts.logFile });
 
-    const combined = `${result.stdout}\n${result.stderr}`;
-    const likelyUsageExhausted = looksLikeUsageExhaustion(combined);
+    // See claudeAdapter.ts: a clean exit is never scanned for exhaustion —
+    // a real false positive on the first overnight run matched the bare
+    // digits "429" inside an unrelated usage-stats number
+    // (`"input_tokens":1034296`) in Agy's own successful JSON output.
+    let likelyUsageExhausted = false;
+    if (result.exitCode !== 0) {
+      const structured = structuredExhaustionSignal(result.stdout);
+      likelyUsageExhausted = structured ?? looksLikeUsageExhaustion(`${result.stdout}\n${result.stderr}`);
+    }
 
     return {
       exitCode: result.exitCode,

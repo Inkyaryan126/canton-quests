@@ -26,12 +26,14 @@ import { execFileSync } from 'child_process';
 import { bootstrap, assertNoExtraWorktrees, realGit, type GitRunner, type BootstrapOptions } from './preflight';
 import { checkAndRecoverMarker, writeMarker, clearMarker, registerCleanupHandlers, startSleepPrevention } from './runLifecycle';
 import { acquireLock, releaseLock, assessStaleLock, recoverStaleLock, LockHeldByAnotherAgentError } from './lock';
-import { listTasks, getTask, updateTaskStatus, checkpoint, recordFilesTouched, recordTestResult, addBlocker, setCurrentCommit } from './tasks';
+import { listTasks, getTask, updateTaskStatus, checkpoint, recordFilesTouched, recordTestResult, addBlocker, setCurrentCommit, recordSalvage } from './tasks';
 import { recordAttempt, checkThreshold } from './attempts';
 import { getBudgetState, selfReportAllowance, requestReset, classifyTier } from './budget';
 import { defaultAssignment, applyBudgetConservation, type WorkCategory, type RoutingAssignment } from './routing';
 import { evaluateChangedPaths, parseGitStatusShort, isBoardroomBookkeepingPath } from './commitGate';
 import { getAdapter } from './adapters/registry';
+import { probeAgentHealth } from './adapters/probe';
+import { salvageWorkingTree, describeSalvage } from './salvage';
 import { invocationLogFile } from './paths';
 import { writeHandoff } from './handoff';
 import { writeMorningReport, type RunSummary } from './report';
@@ -63,6 +65,43 @@ function currentHead(git: GitOps): string {
     return git.run(['rev-parse', 'HEAD']).trim();
   } catch {
     return '';
+  }
+}
+
+/**
+ * Preserves a blocked/failed task's uncommitted edits in a Boardroom-owned
+ * stash+tag (see salvage.ts) and, as a side effect of `git stash push`,
+ * restores the working tree to the last clean commit — the mechanism that
+ * fixes the first overnight run's contamination bug (a blocked task's edits
+ * sitting in the tree and getting blamed on the NEXT task's WRITE_SCOPE
+ * check). A salvage failure is surfaced, never swallowed — the caller must
+ * stop the run rather than risk proceeding on a tree that might still be
+ * dirty from this task.
+ */
+function salvageAndRecord(params: {
+  git: GitOps;
+  task: Task;
+  agent: AgentName;
+  attempt: number;
+  runId: string;
+  paths: string[];
+  reason: string;
+  root?: string;
+}): { ok: true; note: string } | { ok: false; error: string } {
+  try {
+    const entry = salvageWorkingTree(params.git, {
+      taskId: params.task.taskId,
+      agent: params.agent,
+      attempt: params.attempt,
+      runId: params.runId,
+      paths: params.paths,
+      reason: params.reason,
+    });
+    if (!entry) return { ok: true, note: 'Nothing to salvage — no in-scope changes were present.' };
+    recordSalvage(params.task.taskId, entry, params.root);
+    return { ok: true, note: describeSalvage(entry) };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || String(err) };
   }
 }
 
@@ -207,6 +246,7 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
 
   const unavailable = new Set<AgentName>();
   const crashCounts: Record<AgentName, number> = { ASTRA: 0, CLAUDE: 0, AGY: 0 };
+  const touchedThisRun = new Set<string>();
   let iterations = 0;
   let stopReason = 'UNKNOWN';
 
@@ -228,6 +268,8 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
         stopReason = 'ALL_AGENTS_UNAVAILABLE';
         break;
       }
+
+      touchedThisRun.add(task.taskId);
 
       const budget = getBudgetState(root);
       const assignment = resolveAssignment(task, budget.tier);
@@ -293,17 +335,35 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
       }
 
       if (runResult.likelyUsageExhausted) {
-        unavailable.add(agent);
-        if (agent === 'ASTRA') {
-          const nextReset: 1 | 2 = budget.resetCreditsUsed === 0 ? 1 : 2;
-          if (budget.resetCreditsUsed < 2) {
-            const reset = requestReset(nextReset, root);
-            actionsRequired.push(reset.message);
-          } else {
-            actionsRequired.push('ACTION REQUIRED: ASTRA appears usage-exhausted and both reset credits are already used. Astra is unavailable for the rest of this run.');
-          }
+        // A single pattern/structured match is still only HIGH_CONFIDENCE, never
+        // VERIFIED (real false positives were observed on the first overnight
+        // run — see exhaustionPatterns.ts). Spend one cheap probe to check
+        // whether the agent is ACTUALLY still blocked before exiling it for
+        // the rest of the run — a real account-wide exhaustion will still
+        // fail the probe; a transient/session-level throttle often won't.
+        const probe = await probeAgentHealth(adapter, {
+          cwd: root ?? process.cwd(),
+          timeoutMs: perTaskTimeoutMs,
+          binaryOverride: deps.binaryOverrides?.[agent],
+        });
+
+        if (probe.healthy) {
+          actionsRequired.push(
+            `${agent} showed a possible usage-exhaustion signal on ${task.taskId}, but a cheap follow-up probe succeeded immediately afterward — treating the original signal as transient and NOT marking ${agent} unavailable.`
+          );
         } else {
-          actionsRequired.push(`${agent} appears usage-exhausted (HIGH_CONFIDENCE, pattern-matched — not verified) and has been marked unavailable for the rest of this run.`);
+          unavailable.add(agent);
+          if (agent === 'ASTRA') {
+            const nextReset: 1 | 2 = budget.resetCreditsUsed === 0 ? 1 : 2;
+            if (budget.resetCreditsUsed < 2) {
+              const reset = requestReset(nextReset, root);
+              actionsRequired.push(`${reset.message} (confirmed by a follow-up probe, not a single sample.)`);
+            } else {
+              actionsRequired.push('ACTION REQUIRED: ASTRA appears usage-exhausted (confirmed by a follow-up probe) and both reset credits are already used. Astra is unavailable for the rest of this run.');
+            }
+          } else {
+            actionsRequired.push(`${agent} appears usage-exhausted (HIGH_CONFIDENCE, confirmed by a follow-up probe — still not VERIFIED) and has been marked unavailable for the rest of this run.`);
+          }
         }
       }
 
@@ -316,7 +376,20 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
 
       if (gate.decision === 'BLOCK') {
         recordAttempt(task.taskId, { agent, approachSummary: `Run produced out-of-scope changes: ${gate.outOfScope.join(', ')}`, outcome: 'BLOCKED', whyFailed: `Out-of-scope paths: ${gate.outOfScope.join(', ')}` }, root);
-        addBlocker(task.taskId, `Agent ${agent} touched paths outside WRITE_SCOPE: ${gate.outOfScope.join(', ')}. Nothing was staged or committed.`, root);
+        const salvage = salvageAndRecord({ git, task, agent, attempt: attemptNumber, runId: boot.runId, paths: changedPaths, reason: `BLOCKED: out-of-scope changes (${gate.outOfScope.join(', ')})`, root });
+        if (!salvage.ok) {
+          addBlocker(
+            task.taskId,
+            `Agent ${agent} touched paths outside WRITE_SCOPE: ${gate.outOfScope.join(', ')}. SALVAGE FAILED (${salvage.error}) — the working tree may still contain this task's edits. Stopping the run rather than risk contaminating further tasks.`,
+            root
+          );
+          updateTaskStatus(task.taskId, 'BLOCKED', root);
+          writeHandoff(getTask(task.taskId, root)!, root);
+          releaseLock({ holder: agent, taskId: task.taskId, root });
+          stopReason = `SALVAGE_FAILED (${task.taskId}): ${salvage.error}`;
+          break;
+        }
+        addBlocker(task.taskId, `Agent ${agent} touched paths outside WRITE_SCOPE: ${gate.outOfScope.join(', ')}. Nothing was staged or committed. ${salvage.note}`, root);
         updateTaskStatus(task.taskId, 'BLOCKED', root);
         writeHandoff(getTask(task.taskId, root)!, root);
         releaseLock({ holder: agent, taskId: task.taskId, root });
@@ -341,8 +414,22 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
       const allPassed = testResults.every((t) => t.passed);
 
       if (!allPassed) {
+        const failedCommands = testResults.filter((t) => !t.passed).map((t) => t.command).join(', ');
         recordAttempt(task.taskId, { agent, approachSummary: `Implementation attempt (${gate.inScope.length} files)`, outcome: 'FAILED', whyFailed: testResults.filter((t) => !t.passed).map((t) => `${t.command}: ${t.summary}`).join(' | ') }, root);
-        addBlocker(task.taskId, `Validation failed after ${agent}'s changes: ${testResults.filter((t) => !t.passed).map((t) => t.command).join(', ')}. Nothing was staged or committed.`, root);
+        const salvage = salvageAndRecord({ git, task, agent, attempt: attemptNumber, runId: boot.runId, paths: gate.inScope, reason: `VALIDATION FAILED: ${failedCommands}`, root });
+        if (!salvage.ok) {
+          addBlocker(
+            task.taskId,
+            `Validation failed after ${agent}'s changes: ${failedCommands}. SALVAGE FAILED (${salvage.error}) — the working tree may still contain this task's edits. Stopping the run rather than risk contaminating further tasks.`,
+            root
+          );
+          updateTaskStatus(task.taskId, 'BLOCKED', root);
+          writeHandoff(getTask(task.taskId, root)!, root);
+          releaseLock({ holder: agent, taskId: task.taskId, root });
+          stopReason = `SALVAGE_FAILED (${task.taskId}): ${salvage.error}`;
+          break;
+        }
+        addBlocker(task.taskId, `Validation failed after ${agent}'s changes: ${failedCommands}. Nothing was staged or committed. ${salvage.note}`, root);
         updateTaskStatus(task.taskId, 'BLOCKED', root);
         writeHandoff(getTask(task.taskId, root)!, root);
         releaseLock({ holder: agent, taskId: task.taskId, root });
@@ -381,7 +468,7 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
     sleepPrevention: { active: sleep.active, reason: sleep.reason },
     stopReason,
   };
-  const reportContent = writeMorningReport({ run, tasks: finalTasks, budget, commits, actionsRequired }, root);
+  const reportContent = writeMorningReport({ run, tasks: finalTasks, budget, commits, actionsRequired, touchedThisRunTaskIds: Array.from(touchedThisRun) }, root);
 
   // Sweep any remaining Boardroom bookkeeping (a final task's own handoff doc,
   // which is written after its commit and so is never included in it, plus

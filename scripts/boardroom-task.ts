@@ -9,13 +9,21 @@
  *       [--checkpoint-expectations "what a checkpoint on this task should look like"]
  *   npm run boardroom:task -- list
  *   npm run boardroom:task -- show <TASK_ID>
+ *   npm run boardroom:task -- update-scope <TASK_ID> --scope "app/foo/,lib/bar.ts,tests/"
  *
  * --scope, --tests, and --acceptance are each a single flag holding a
  * delimited list — --scope/--tests split on "," (paths/commands rarely
  * contain a literal comma), --acceptance splits on "|" instead since
  * acceptance-criteria sentences routinely contain commas.
+ *
+ * update-scope REPLACES the task's writeScope with the exact list given —
+ * it's the deliberate, reviewable way to broaden a task's scope after a
+ * real run shows it needs a shared/cross-cutting path (e.g. tests/ for a
+ * task expected to add new test files, or boardroom/recon/ for a task that
+ * legitimately collaborates on the shared recon docs). It never appends
+ * silently and never disables the commit gate — see commitGate.ts.
  */
-import { createTask, listTasks, getTask } from '../lib/boardroom/tasks';
+import { createTask, listTasks, getTask, setWriteScope } from '../lib/boardroom/tasks';
 import type { AgentName, Phase, Priority } from '../lib/boardroom/types';
 
 function flag(args: string[], name: string): string | undefined {
@@ -86,7 +94,27 @@ function main() {
     return;
   }
 
-  console.error(`Unknown command: ${cmd}. Use "create", "list", or "show".`);
+  if (cmd === 'update-scope') {
+    const taskId = rest[0];
+    const scopeRaw = flag(rest.slice(1), 'scope');
+    if (!taskId || scopeRaw === undefined) {
+      console.error('Usage: boardroom:task update-scope <TASK_ID> --scope "path/one,path/two"');
+      process.exit(1);
+    }
+    const before = getTask(taskId);
+    if (!before) {
+      console.error(`Task not found: ${taskId}`);
+      process.exit(1);
+    }
+    const newScope = scopeRaw.split(',').map((s) => s.trim()).filter(Boolean);
+    const updated = setWriteScope(taskId, newScope, undefined);
+    console.log(`${taskId} writeScope updated.`);
+    console.log(`  before: ${JSON.stringify(before!.writeScope)}`);
+    console.log(`  after:  ${JSON.stringify(updated.writeScope)}`);
+    return;
+  }
+
+  console.error(`Unknown command: ${cmd}. Use "create", "list", "show", or "update-scope".`);
   process.exit(1);
 }
 

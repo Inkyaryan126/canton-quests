@@ -77,6 +77,22 @@ function exhaustedWrapper(name: string, phrase = 'usage limit reached'): string 
   return makeWrapper({ FAKE_CLI_EXIT_CODE: '1', FAKE_CLI_STDERR: phrase }, name);
 }
 
+/** Fails with an exhaustion-looking signal on the FIRST invocation only, then succeeds cleanly — models the real Claude 429 that had already cleared by the time of a follow-up probe. */
+function transientExhaustionWrapper(name: string, touchFileOnRecovery: string): string {
+  const counterFile = path.join(wrapperDir, `${name}-counter`);
+  return makeWrapper(
+    {
+      FAKE_CLI_COUNTER_FILE: counterFile,
+      FAKE_CLI_FAIL_FIRST_N: '1',
+      FAKE_CLI_EXIT_CODE: '1',
+      FAKE_CLI_STDOUT: '{"is_error":true,"api_error_status":429,"result":"You\'ve hit your session limit"}',
+      FAKE_CLI_TOUCH_FILE: touchFileOnRecovery,
+      FAKE_CLI_TOUCH_CONTENT: 'recovered',
+    },
+    name
+  );
+}
+
 const passingTests: TestResult[] = [{ command: 'fake-test', passed: true, summary: 'ok', at: new Date().toISOString() }];
 const noopRunTests = () => passingTests;
 
@@ -145,6 +161,60 @@ describe('happy path', () => {
 
     const log = execFileSync('git', ['log', '--oneline'], { cwd: repoDir, encoding: 'utf8' });
     expect(log.split('\n').filter(Boolean)).toHaveLength(1); // only the init commit — nothing was committed
+
+    // The agent's edit is neither committed NOR left sitting in the tree —
+    // it's salvaged into a Boardroom-owned stash+tag, and the tree is clean.
+    expect(updated.salvage).toHaveLength(1);
+    expect(updated.salvage[0].pathsSalvaged).toEqual(['not-in-scope.txt']);
+    const gitStatus = execFileSync('git', ['status', '--short'], { cwd: repoDir, encoding: 'utf8' });
+    expect(gitStatus.trim()).toBe('');
+    expect(fs.existsSync(path.join(repoDir, 'not-in-scope.txt'))).toBe(false);
+    const stashContent = execFileSync('git', ['stash', 'show', '-p', '-u', updated.salvage[0].tagRef], { cwd: repoDir, encoding: 'utf8' });
+    expect(stashContent).toContain('not-in-scope.txt');
+  });
+
+  it('CONTAMINATION FIX: a blocked task never leaves its edits for the next task to inherit', async () => {
+    // Reproduces the exact first-overnight-run bug: task1 (AGY) gets blocked
+    // with an out-of-scope leftover file sitting in the tree; task2 (CLAUDE,
+    // a completely different, correctly-scoped task) must NOT see task1's
+    // leftover file when ITS OWN write-scope check runs — before the fix,
+    // task2 would inherit task1's leftover and get falsely blocked too.
+    const task1 = createTask({ title: 'Task 1', goal: 'G', priority: 'HIGH', phase: 'PHASE_1_RECON', primaryAgent: 'AGY', writeScope: ['scope-a.txt'], testsRequired: [], root: repoDir });
+    const task2 = createTask({ title: 'Task 2', goal: 'G', priority: 'MEDIUM', phase: 'PHASE_1_RECON', primaryAgent: 'CLAUDE', writeScope: ['scope-b.txt'], testsRequired: [], root: repoDir });
+
+    const result = await runSupervisor({
+      root: repoDir,
+      git: gitAt(repoDir),
+      runTests: noopRunTests,
+      binaryOverrides: {
+        AGY: successWrapper('agy-contaminator', 'leftover-from-task1.txt'), // out of task1's own scope
+        CLAUDE: successWrapper('claude-clean', 'scope-b.txt'), // correctly in task2's scope
+      },
+      registerProcessHandlers: false,
+      startSleepPrevention: () => ({ active: false, reason: 'NOT ACTIVE (test)' }),
+    });
+
+    expect(result.ok).toBe(true);
+
+    const updated1 = getTask(task1.taskId, repoDir)!;
+    expect(updated1.status).toBe('BLOCKED');
+    expect(updated1.blockers.join(' ')).toMatch(/leftover-from-task1\.txt/);
+    expect(updated1.salvage).toHaveLength(1);
+
+    // The critical assertion: task2 succeeds cleanly. If task1's leftover
+    // file had contaminated the shared tree, task2's own git-status check
+    // would have picked it up too (it's not in task2's declared scope
+    // either) and task2 would have been wrongly BLOCKED — exactly what
+    // happened on the real first overnight run.
+    const updated2 = getTask(task2.taskId, repoDir)!;
+    expect(updated2.status).toBe('DONE');
+    expect(updated2.blockers).toEqual([]);
+    expect(updated2.filesTouched).toEqual(['scope-b.txt']);
+
+    const gitStatus = execFileSync('git', ['status', '--short'], { cwd: repoDir, encoding: 'utf8' });
+    expect(gitStatus.trim()).toBe('');
+    expect(fs.existsSync(path.join(repoDir, 'leftover-from-task1.txt'))).toBe(false);
+    expect(fs.existsSync(path.join(repoDir, 'scope-b.txt'))).toBe(true); // task2's real, committed work
   });
 
   it('holds the write lock through validation and the commit, releasing only after the checkpoint lands', async () => {
@@ -202,6 +272,28 @@ describe('Scenario A — Astra hits a usage limit mid-task', () => {
     });
 
     expect(result.actionsRequired.some((a) => a.includes('ASTRA RESET CREDIT #1'))).toBe(true);
+    expect(getBudgetState(repoDir).resetCreditsUsed).toBe(0);
+  });
+
+  it('FALSE-POSITIVE FIX: a transient exhaustion signal that clears on a follow-up probe does NOT exile the agent or request a reset', async () => {
+    // Reproduces the real incident: Claude's actual task hit a genuine 429
+    // ("You've hit your session limit"), and a manual claude -p "Reply with
+    // exactly: OK" run immediately afterward succeeded — proving Claude was
+    // not actually unavailable. The fixed supervisor now performs exactly
+    // that kind of follow-up probe itself before exiling an agent.
+    createTask({ title: 'Hard bug', goal: 'Fix it', priority: 'HIGH', phase: 'PHASE_1_RECON', primaryAgent: 'ASTRA', writeScope: ['fix.txt'], testsRequired: [], root: repoDir });
+
+    const result = await runSupervisor({
+      root: repoDir,
+      git: gitAt(repoDir),
+      runTests: noopRunTests,
+      binaryOverrides: { ASTRA: transientExhaustionWrapper('astra-transient', 'fix.txt') },
+      registerProcessHandlers: false,
+      startSleepPrevention: () => ({ active: false, reason: 'NOT ACTIVE (test)' }),
+    });
+
+    expect(result.actionsRequired.some((a) => a.includes('treating the original signal as transient'))).toBe(true);
+    expect(result.actionsRequired.some((a) => a.includes('RESET CREDIT'))).toBe(false);
     expect(getBudgetState(repoDir).resetCreditsUsed).toBe(0);
   });
 });
@@ -345,17 +437,14 @@ describe('Scenario G — same approach fails twice, no silent third retry', () =
       registerProcessHandlers: false,
       startSleepPrevention: () => ({ active: false, reason: 'NOT ACTIVE (test)' }),
     });
-    expect(getTask(task.taskId, repoDir)!.status).toBe('BLOCKED');
+    const afterFirstFailure = getTask(task.taskId, repoDir)!;
+    expect(afterFirstFailure.status).toBe('BLOCKED');
+    // The failed attempt's edit is salvaged (never silently discarded) and the
+    // tree is automatically restored to clean — no manual cleanup needed
+    // before a second overnight pass, unlike before the contamination fix.
+    expect(afterFirstFailure.salvage).toHaveLength(1);
+    expect(execFileSync('git', ['status', '--short'], { cwd: repoDir, encoding: 'utf8' }).trim()).toBe('');
     updateTaskStatus(task.taskId, 'READY', repoDir); // simulate a second overnight pass picking the same open task back up
-    // The failed attempt's uncommitted edit is left on disk for inspection (never silently discarded) —
-    // a real second run would need a human to look at it first. For this test we simulate that review
-    // having happened and the tree being reset, since we're proving the attempts/threshold wiring here,
-    // not bootstrap's dirty-tree refusal (covered separately).
-    // Targeted removal only — NOT `git clean -fd`, which would also delete the
-    // untracked (and, in this bare test repo, un-ignored) .boardroom/runtime/
-    // task ledger and boardroom/ handoff docs, destroying the very attempt
-    // history this scenario is testing.
-    fs.rmSync(path.join(repoDir, 'stubborn.txt'), { force: true });
 
     await runSupervisor({
       root: repoDir,
@@ -369,15 +458,14 @@ describe('Scenario G — same approach fails twice, no silent third retry', () =
     const afterTwoFailures = getTask(task.taskId, repoDir)!;
     expect(afterTwoFailures.status).toBe('BLOCKED');
     expect(afterTwoFailures.attempts.filter((a) => a.outcome === 'FAILED')).toHaveLength(2);
+    // Both failed attempts are independently salvaged — nothing was ever
+    // silently discarded across the two runs, and each has its own stable tag.
+    expect(afterTwoFailures.salvage).toHaveLength(2);
+    expect(new Set(afterTwoFailures.salvage.map((s) => s.tagRef)).size).toBe(2);
+    expect(execFileSync('git', ['status', '--short'], { cwd: repoDir, encoding: 'utf8' }).trim()).toBe('');
     const forced = checkThreshold(task.taskId, repoDir);
     expect(forced).not.toBeNull();
     expect(forced?.options).toContain('CHANGE_APPROACH');
-
-    // Targeted removal only — NOT `git clean -fd`, which would also delete the
-    // untracked (and, in this bare test repo, un-ignored) .boardroom/runtime/
-    // task ledger and boardroom/ handoff docs, destroying the very attempt
-    // history this scenario is testing.
-    fs.rmSync(path.join(repoDir, 'stubborn.txt'), { force: true });
 
     // A third run must NOT silently retry the same BLOCKED task.
     const thirdRun = await runSupervisor({
