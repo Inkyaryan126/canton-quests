@@ -7,7 +7,7 @@
 ## 20 Mandatory Agent Rules
 
 1. **Read `PROJECT-BRAIN.md` First**: Before undertaking any non-trivial task or feature implementation, read [`PROJECT-BRAIN.md`](file:///Users/inkyaryan126/Desktop/canton-quests/PROJECT-BRAIN.md) to align with the canonical product vision.
-2. **Consult Domain Guidance**: Read the specific domain documents (`GAME-SYSTEM.md`, `TECH-ARCHITECTURE.md`, `DATABASE.md`, `SAFETY-AND-RULES.md`) and specialized skills in `skills/` relevant to your active task.
+2. **Consult Domain Guidance**: Read the specific domain documents (`GAME-SYSTEM.md`, `TECH-ARCHITECTURE.md`, `DATABASE.md`, `SAFETY-AND-RULES.md`) and specialized skills in `skills/` relevant to your active task. If you are operating as Astra, Claude, or Agy under the Boardroom overnight supervisor, also read [`boardroom/BOARDROOM.md`](file:///Users/inkyaryan126/Desktop/canton-quests/boardroom/BOARDROOM.md) first — it governs commit ownership, write scope, and production safety for that mode.
 3. **Do Not Silently Change Decisions**: Never modify confirmed product or technical decisions without explicit user approval.
 4. **Record Architecture Changes in `DECISIONS.md`**: If a new technical or product trade-off is accepted, log it immediately in [`DECISIONS.md`](file:///Users/inkyaryan126/Desktop/canton-quests/DECISIONS.md).
 5. **No Speculative Features**: Do not build hypothetical, unused abstractions or unrequested features. Build only what is needed for the active phase.

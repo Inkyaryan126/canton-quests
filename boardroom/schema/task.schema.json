@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Boardroom Task",
+  "description": "Documents the shape of lib/boardroom/types.ts#Task — the source of truth is that TypeScript type; this file is a human/tool-readable mirror, not independently authoritative.",
+  "type": "object",
+  "required": [
+    "taskId", "title", "goal", "priority", "phase", "primaryAgent", "status",
+    "writeScope", "decisions", "filesTouched", "testsRequired", "testResults",
+    "knownFailures", "attempts", "confidence", "blockers", "createdAt", "updatedAt"
+  ],
+  "properties": {
+    "taskId": { "type": "string", "pattern": "^TASK-" },
+    "title": { "type": "string" },
+    "goal": { "type": "string" },
+    "priority": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+    "phase": {
+      "enum": [
+        "PHASE_1_RECON",
+        "PHASE_2_CORE_EXPERIENCE_SYSTEM",
+        "PHASE_3_FLAGSHIP_MOMENTS",
+        "PHASE_4_SECONDARY_POLISH",
+        "PHASE_5_PERFORMANCE_ACCESSIBILITY",
+        "PHASE_6_ASTRA_FINAL_PASS"
+      ]
+    },
+    "primaryAgent": { "enum": ["ASTRA", "CLAUDE", "AGY"] },
+    "fallbackAgent1": { "enum": ["ASTRA", "CLAUDE", "AGY"] },
+    "fallbackAgent2": { "enum": ["ASTRA", "CLAUDE", "AGY"] },
+    "category": {
+      "type": "string",
+      "description": "Optional WorkCategory (lib/boardroom/routing.ts). When set, the supervisor dynamically re-routes this task as the Astra budget tier changes instead of using the static primary/fallback chain."
+    },
+    "status": {
+      "enum": ["QUEUED", "SCOUTING", "READY", "ACTIVE", "VERIFYING", "BLOCKED", "CHECKPOINTED", "HANDOFF", "DONE", "REJECTED"]
+    },
+    "writeScope": { "type": "array", "items": { "type": "string" }, "description": "Path prefixes this task may touch. Empty = undeclared scope (everything accepted, still enumerated explicitly — never `git add -A`)." },
+    "startingCommit": { "type": "string" },
+    "currentCommit": { "type": "string" },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["at", "by", "summary"],
+        "properties": {
+          "at": { "type": "string", "format": "date-time" },
+          "by": { "type": "string" },
+          "summary": { "type": "string" }
+        }
+      }
+    },
+    "filesTouched": { "type": "array", "items": { "type": "string" } },
+    "testsRequired": { "type": "array", "items": { "type": "string" } },
+    "testResults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["command", "passed", "summary", "at"],
+        "properties": {
+          "command": { "type": "string" },
+          "passed": { "type": "boolean" },
+          "summary": { "type": "string" },
+          "at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "knownFailures": { "type": "array", "items": { "type": "string" } },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["at", "agent", "approachSummary", "outcome"],
+        "properties": {
+          "at": { "type": "string", "format": "date-time" },
+          "agent": { "enum": ["ASTRA", "CLAUDE", "AGY"] },
+          "approachSummary": { "type": "string" },
+          "outcome": { "enum": ["FAILED", "SUCCEEDED", "BLOCKED"] },
+          "whyFailed": { "type": "string" }
+        }
+      }
+    },
+    "confidence": { "enum": ["VERIFIED", "HIGH_CONFIDENCE", "ASSUMPTION", "BLOCKED"] },
+    "usageState": { "type": "string" },
+    "checkpointSummary": { "type": "string" },
+    "remainingWork": { "type": "string" },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

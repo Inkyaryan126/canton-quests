@@ -9,7 +9,12 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "qr:campaign": "node --env-file=.env.local ./node_modules/vite-node/vite-node.mjs scripts/qr-campaign-cli.ts"
+    "qr:campaign": "node --env-file=.env.local ./node_modules/vite-node/vite-node.mjs scripts/qr-campaign-cli.ts",
+    "boardroom:start": "node --env-file=.env.local ./node_modules/vite-node/vite-node.mjs scripts/boardroom-start.ts",
+    "boardroom:lock": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-lock.ts",
+    "boardroom:task": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-task.ts",
+    "boardroom:budget": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-budget.ts",
+    "boardroom:report": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-report.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.1",

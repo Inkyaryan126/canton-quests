@@ -45,3 +45,6 @@ site-design/
 
 # Generated Fair QR Hunt print package (regenerate via scripts/generate-fair-qr-print-package.ts)
 /output/
+
+# Boardroom V2 runtime state (fast-changing lock/budget/task-ledger files — see boardroom/BOARDROOM.md)
+/.boardroom/runtime/
