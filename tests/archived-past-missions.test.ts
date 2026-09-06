@@ -53,8 +53,17 @@ describe('Archived past Missions — event data', () => {
     resetGameEngineStore();
     initializeGameEngine();
     const events = getEvents();
-    const ended = events.filter((e) => getOperationStatus(e) === 'ENDED');
-    expect(ended.map((e) => e.slug)).toEqual(['the-missing-signal', 'the-midnight-ledger']);
+    const endedSlugs = events.filter((e) => getOperationStatus(e) === 'ENDED').map((e) => e.slug);
+
+    // Assert only that both archived Missions are present and correctly
+    // ordered relative to EACH OTHER — not the full membership of the ended
+    // bucket. Other real, time-limited events (e.g. the Fair QR Hunt) also
+    // legitimately transition to ENDED once their own end date passes, and
+    // this test should keep passing when that happens rather than pinning
+    // an exact snapshot of "whatever has ended as of whenever this ran".
+    expect(endedSlugs).toContain('the-missing-signal');
+    expect(endedSlugs).toContain('the-midnight-ledger');
+    expect(endedSlugs.indexOf('the-missing-signal')).toBeLessThan(endedSlugs.indexOf('the-midnight-ledger'));
   });
 
   it('current Founder\'s Cipher and Fair QR Hunt Missions are completely unchanged', () => {
