@@ -22,6 +22,12 @@ export function renderHandoff(task: Task): string {
   lines.push('## GOAL');
   lines.push(task.goal);
   lines.push('');
+  lines.push('## ACCEPTANCE CRITERIA');
+  lines.push(task.acceptanceCriteria.length ? task.acceptanceCriteria.map((c) => `- ${c}`).join('\n') : '_none declared_');
+  lines.push('');
+  lines.push('## CHECKPOINT EXPECTATIONS');
+  lines.push(task.checkpointExpectations || '_none declared_');
+  lines.push('');
   lines.push('## DECISIONS ALREADY MADE');
   if (task.decisions.length === 0) {
     lines.push('_None recorded yet._');

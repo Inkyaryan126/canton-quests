@@ -4,9 +4,16 @@
  *   npm run boardroom:task -- create --title "..." --goal "..." --priority HIGH \
  *       --phase PHASE_1_RECON --primary CLAUDE [--fallback1 AGY] [--fallback2 ASTRA] \
  *       [--category ROUTINE_IMPLEMENTATION] [--scope "app/foo/,lib/bar.ts"] \
- *       [--tests "npm test,npm run build"]
+ *       [--tests "npm test,npm run build"] \
+ *       [--acceptance "criterion one|criterion two|criterion three"] \
+ *       [--checkpoint-expectations "what a checkpoint on this task should look like"]
  *   npm run boardroom:task -- list
  *   npm run boardroom:task -- show <TASK_ID>
+ *
+ * --scope, --tests, and --acceptance are each a single flag holding a
+ * delimited list — --scope/--tests split on "," (paths/commands rarely
+ * contain a literal comma), --acceptance splits on "|" instead since
+ * acceptance-criteria sentences routinely contain commas.
  */
 import { createTask, listTasks, getTask } from '../lib/boardroom/tasks';
 import type { AgentName, Phase, Priority } from '../lib/boardroom/types';
@@ -53,6 +60,8 @@ function main() {
     const category = flag(rest, 'category');
     const scopeRaw = flag(rest, 'scope');
     const testsRaw = flag(rest, 'tests');
+    const acceptanceRaw = flag(rest, 'acceptance');
+    const checkpointExpectations = flag(rest, 'checkpoint-expectations');
 
     if (!title || !goal) {
       console.error('Usage: boardroom:task create --title "..." --goal "..." [options]');
@@ -70,6 +79,8 @@ function main() {
       category,
       writeScope: scopeRaw ? scopeRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
       testsRequired: testsRaw ? testsRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
+      acceptanceCriteria: acceptanceRaw ? acceptanceRaw.split('|').map((s) => s.trim()).filter(Boolean) : [],
+      checkpointExpectations,
     });
     console.log(`Created ${task.taskId}`);
     return;

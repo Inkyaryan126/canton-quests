@@ -419,6 +419,8 @@ function buildPrompt(task: Task): string {
     `TASK: ${task.title}`,
     `GOAL: ${task.goal}`,
     `WRITE_SCOPE (stay within these paths): ${scope}`,
+    task.acceptanceCriteria.length ? `ACCEPTANCE CRITERIA:\n${task.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}` : '',
+    task.checkpointExpectations ? `CHECKPOINT EXPECTATIONS: ${task.checkpointExpectations}` : '',
     task.checkpointSummary ? `PRIOR CHECKPOINT: ${task.checkpointSummary}` : '',
     task.remainingWork ? `REMAINING WORK: ${task.remainingWork}` : '',
     task.blockers.length ? `KNOWN BLOCKERS TO ADDRESS: ${task.blockers.join('; ')}` : '',

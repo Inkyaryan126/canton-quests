@@ -88,6 +88,21 @@ export interface Task {
   status: TaskStatus;
   /** Paths (glob-able prefixes) this task is allowed to touch. Empty/undefined = undeclared scope (see commitGate.ts). */
   writeScope: string[];
+  /**
+   * Concrete, checkable statements of "done" for this task — distinct from
+   * the free-text `goal`. Not mechanically enforced by the supervisor today
+   * (TESTS_REQUIRED is what actually gates a commit); this is the durable
+   * record of what a human or a reviewing agent checks a checkpoint against.
+   */
+  acceptanceCriteria: string[];
+  /**
+   * What a checkpoint on this task is expected to look like when the work is
+   * genuinely complete or at a sensible pause point — e.g. "one working
+   * flagship moment behind a feature-safe fallback" rather than "50% of a
+   * page rewritten". Declared up front so a checkpoint can be judged against
+   * an actual expectation instead of whatever the agent happened to reach.
+   */
+  checkpointExpectations?: string;
   startingCommit?: string;
   currentCommit?: string;
   decisions: Decision[];

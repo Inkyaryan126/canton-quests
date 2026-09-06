@@ -5,7 +5,7 @@
   "type": "object",
   "required": [
     "taskId", "title", "goal", "priority", "phase", "primaryAgent", "status",
-    "writeScope", "decisions", "filesTouched", "testsRequired", "testResults",
+    "writeScope", "acceptanceCriteria", "decisions", "filesTouched", "testsRequired", "testResults",
     "knownFailures", "attempts", "confidence", "blockers", "createdAt", "updatedAt"
   ],
   "properties": {
@@ -34,6 +34,8 @@
       "enum": ["QUEUED", "SCOUTING", "READY", "ACTIVE", "VERIFYING", "BLOCKED", "CHECKPOINTED", "HANDOFF", "DONE", "REJECTED"]
     },
     "writeScope": { "type": "array", "items": { "type": "string" }, "description": "Path prefixes this task may touch. Empty = undeclared scope (everything accepted, still enumerated explicitly — never `git add -A`)." },
+    "acceptanceCriteria": { "type": "array", "items": { "type": "string" }, "description": "Concrete, checkable statements of \"done\", distinct from the free-text goal. Not mechanically enforced by the supervisor (testsRequired is what actually gates a commit) — this is the durable record a human or reviewing agent checks a checkpoint against." },
+    "checkpointExpectations": { "type": "string", "description": "What a checkpoint on this task should look like at a genuine completion or sensible pause point, declared up front rather than judged after the fact." },
     "startingCommit": { "type": "string" },
     "currentCommit": { "type": "string" },
     "decisions": {

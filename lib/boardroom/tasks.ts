@@ -27,6 +27,8 @@ export function createTask(params: {
   fallbackAgent2?: AgentName;
   category?: string;
   writeScope?: string[];
+  acceptanceCriteria?: string[];
+  checkpointExpectations?: string;
   testsRequired?: string[];
   taskId?: string;
   root?: string;
@@ -44,6 +46,8 @@ export function createTask(params: {
     category: params.category,
     status: 'QUEUED',
     writeScope: params.writeScope ?? [],
+    acceptanceCriteria: params.acceptanceCriteria ?? [],
+    checkpointExpectations: params.checkpointExpectations,
     decisions: [],
     filesTouched: [],
     testsRequired: params.testsRequired ?? [],
