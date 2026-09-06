@@ -1,0 +1,1410 @@
+
+> canton-quests@0.1.0 build
+> next build
+
+ ⚠ You are using a non-standard "NODE_ENV" value in your environment. This creates inconsistencies in the project and is strongly advised against. Read more: https://nextjs.org/docs/messages/non-standard-node-env
+  ▲ Next.js 14.2.35
+  - Environments: .env.production.local, .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/73) ...
+Error: <Html> should not be imported outside of pages/_document.
+Read more: https://nextjs.org/docs/messages/no-document-import-in-page
+    at Q (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/pages.runtime.prod.js:16:5430)
+    at I (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/1682.js:6:1263)
+    at renderWithHooks (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5658:16)
+    at renderIndeterminateComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5732:15)
+    at renderElement (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5957:7)
+    at renderNodeDestructiveImpl (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6115:11)
+    at renderNodeDestructive (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6087:14)
+    at finishClassComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5688:3)
+    at renderClassComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5696:3)
+    at renderElement (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5954:7)
+
+Error occurred prerendering page "/500". Read more: https://nextjs.org/docs/messages/prerender-error
+
+Error: <Html> should not be imported outside of pages/_document.
+Read more: https://nextjs.org/docs/messages/no-document-import-in-page
+    at Q (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/pages.runtime.prod.js:16:5430)
+    at I (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/1682.js:6:1263)
+    at renderWithHooks (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5658:16)
+    at renderIndeterminateComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5732:15)
+    at renderElement (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5957:7)
+    at renderNodeDestructiveImpl (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6115:11)
+    at renderNodeDestructive (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6087:14)
+    at finishClassComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5688:3)
+    at renderClassComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5696:3)
+    at renderElement (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5954:7)
+Error: <Html> should not be imported outside of pages/_document.
+Read more: https://nextjs.org/docs/messages/no-document-import-in-page
+    at Q (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/pages.runtime.prod.js:16:5430)
+    at I (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/1682.js:6:1263)
+    at renderWithHooks (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5658:16)
+    at renderIndeterminateComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5732:15)
+    at renderElement (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5957:7)
+    at renderNodeDestructiveImpl (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6115:11)
+    at renderNodeDestructive (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6087:14)
+    at finishClassComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5688:3)
+    at renderClassComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5696:3)
+    at renderElement (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5954:7)
+
+Error occurred prerendering page "/404". Read more: https://nextjs.org/docs/messages/prerender-error
+
+Error: <Html> should not be imported outside of pages/_document.
+Read more: https://nextjs.org/docs/messages/no-document-import-in-page
+    at Q (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/pages.runtime.prod.js:16:5430)
+    at I (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/1682.js:6:1263)
+    at renderWithHooks (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5658:16)
+    at renderIndeterminateComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5732:15)
+    at renderElement (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5957:7)
+    at renderNodeDestructiveImpl (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6115:11)
+    at renderNodeDestructive (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:6087:14)
+    at finishClassComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5688:3)
+    at renderClassComponent (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5696:3)
+    at renderElement (/Users/inkyaryan126/Desktop/canton-quests/node_modules/react-dom/cjs/react-dom-server.browser.development.js:5954:7)
+   Generating static pages (18/73) 
+[API /game/city-state] GET error: B [Error]: Dynamic server usage: Route /api/game/city-state couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/app/api/game/city-state/route.js:1:3355)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/game/city-state couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[API /game/field-npcs] GET error: B [Error]: Dynamic server usage: Route /api/game/field-npcs couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at c (/Users/inkyaryan126/Desktop/canton-quests/.next/server/app/api/game/field-npcs/route.js:1:881)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/game/field-npcs couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[API /game/live-events] GET error: B [Error]: Dynamic server usage: Route /api/game/live-events couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at l (/Users/inkyaryan126/Desktop/canton-quests/.next/server/app/api/game/live-events/route.js:1:882)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/game/live-events couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[API /game/personal-roles] GET error: B [Error]: Dynamic server usage: Route /api/game/personal-roles couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at c (/Users/inkyaryan126/Desktop/canton-quests/.next/server/app/api/game/personal-roles/route.js:1:893)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/game/personal-roles couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[API /game/rivalries] GET error: B [Error]: Dynamic server usage: Route /api/game/rivalries couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at m (/Users/inkyaryan126/Desktop/canton-quests/.next/server/app/api/game/rivalries/route.js:1:2641)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/game/rivalries couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[API /game/roster] Server error: B [Error]: Dynamic server usage: Route /api/game/roster couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at p (/Users/inkyaryan126/Desktop/canton-quests/.next/server/app/api/game/roster/route.js:1:885)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/game/roster couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[API /game/transmissions] GET error: B [Error]: Dynamic server usage: Route /api/game/transmissions couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at f (/Users/inkyaryan126/Desktop/canton-quests/.next/server/app/api/game/transmissions/route.js:1:1787)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/game/transmissions couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[API /game/watchers] GET error: B [Error]: Dynamic server usage: Route /api/game/watchers couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at c (/Users/inkyaryan126/Desktop/canton-quests/.next/server/app/api/game/watchers/route.js:1:893)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/game/watchers couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+   Generating static pages (36/73) 
+[API /qr/lookup] Server error: B [Error]: Dynamic server usage: Route /api/qr/lookup couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at p (/Users/inkyaryan126/Desktop/canton-quests/.next/server/app/api/qr/lookup/route.js:1:883)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/qr/lookup couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/admin/fair-qr". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/_not-found". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/admin/live". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/admin/qr/print". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/admin/drawing". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/admin/qr-campaigns". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/auth/confirm". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/auth/forgot-password". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/auth/reset-password". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/admin". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/auth/login". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/events/fair-qr-hunt". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/fair/family". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+   Generating static pages (54/73) 
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/events". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/fair/secret". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/fair/challenge". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/leaderboard". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/login". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/how-it-works". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/profile". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/quests". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/roster". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/rules". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/watch". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/register". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/start/challenge". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/start/family". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/privacy". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/terms". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908) {
+  digest: '927140414'
+}
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+
+Error occurred prerendering page "/start/secret". Read more: https://nextjs.org/docs/messages/prerender-error
+
+TypeError: Cannot read properties of null (reading 'useContext')
+    at t.useContext (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:109421)
+    at d (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:31929)
+    at h (/Users/inkyaryan126/Desktop/canton-quests/.next/server/chunks/7505.js:1:23896)
+    at au (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:10446)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:15122
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+    at a_ (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:49776)
+    at ab (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:11808)
+    at /Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16871
+    at aw (/Users/inkyaryan126/Desktop/canton-quests/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:16908)
+ ✓ Generating static pages (73/73)
+
+> Export encountered errors on following paths:
+	/_error: /404
+	/_error: /500
+	/_not-found/page: /_not-found
+	/admin/drawing/page: /admin/drawing
+	/admin/fair-qr/page: /admin/fair-qr
+	/admin/live/page: /admin/live
+	/admin/page: /admin
+	/admin/qr-campaigns/page: /admin/qr-campaigns
+	/admin/qr/print/page: /admin/qr/print
+	/auth/confirm/page: /auth/confirm
+	/auth/forgot-password/page: /auth/forgot-password
+	/auth/login/page: /auth/login
+	/auth/reset-password/page: /auth/reset-password
+	/events/fair-qr-hunt/page: /events/fair-qr-hunt
+	/events/page: /events
+	/fair/challenge/page: /fair/challenge
+	/fair/family/page: /fair/family
+	/fair/secret/page: /fair/secret
+	/how-it-works/page: /how-it-works
+	/leaderboard/page: /leaderboard
+	/login/page: /login
+	/page: /
+	/privacy/page: /privacy
+	/profile/page: /profile
+	/quests/page: /quests
+	/register/page: /register
+	/roster/page: /roster
+	/rules/page: /rules
+	/start/challenge/page: /start/challenge
+	/start/family/page: /start/family
+	/start/secret/page: /start/secret
+	/terms/page: /terms
+	/watch/page: /watch
