@@ -58,7 +58,7 @@ describe('salvageWorkingTree', () => {
 
     expect(entry).not.toBeNull();
     expect(entry!.pathsSalvaged).toEqual(['tracked.txt', 'untracked.txt']);
-    expect(entry!.tagRef).toBe('boardroom-salvage/TASK-1-attempt1');
+    expect(entry!.tagRef).toBe('boardroom-salvage/R1/TASK-1-attempt1');
     expect(entry!.stashLabel).toContain('TASK-1');
     expect(entry!.stashLabel).toContain('AGY');
     expect(entry!.commitHash).toMatch(/^[0-9a-f]{40}$/);
@@ -91,17 +91,24 @@ describe('salvageWorkingTree', () => {
     expect(showOutput).toContain('a.txt');
   });
 
-  it('a second salvage for the same task+attempt overwrites the tag rather than erroring (force-tag)', () => {
+  it('a second salvage for the same task+attempt under a different run gets its own immutable recovery tag instead of overwriting the first (no force-tag)', () => {
+    // Old behavior force-tagged (`git tag -f`), silently destroying the
+    // previous run's recovery pointer. That's exactly the kind of history
+    // mutation Boardroom hardening is meant to prevent: each run's salvage
+    // is immutable, independently addressable provenance.
     fs.writeFileSync(path.join(repoDir, 'first.txt'), '1\n');
     const first = salvageWorkingTree(gitAt(repoDir), { taskId: 'TASK-3', agent: 'AGY', attempt: 1, runId: 'R1', paths: ['first.txt'], reason: 'first' })!;
 
     fs.writeFileSync(path.join(repoDir, 'second.txt'), '2\n');
     const second = salvageWorkingTree(gitAt(repoDir), { taskId: 'TASK-3', agent: 'AGY', attempt: 1, runId: 'R2', paths: ['second.txt'], reason: 'second' })!;
 
-    expect(second.tagRef).toBe(first.tagRef);
+    expect(second.tagRef).not.toBe(first.tagRef);
     expect(second.commitHash).not.toBe(first.commitHash);
-    const resolved = execFileSync('git', ['rev-parse', second.tagRef], { cwd: repoDir, encoding: 'utf8' }).trim();
-    expect(resolved).toBe(second.commitHash);
+
+    const resolvedFirst = execFileSync('git', ['rev-parse', first.tagRef], { cwd: repoDir, encoding: 'utf8' }).trim();
+    const resolvedSecond = execFileSync('git', ['rev-parse', second.tagRef], { cwd: repoDir, encoding: 'utf8' }).trim();
+    expect(resolvedFirst).toBe(first.commitHash);
+    expect(resolvedSecond).toBe(second.commitHash);
   });
 
   it('propagates a real git failure rather than swallowing it (e.g. salvaging a path outside the repo)', () => {

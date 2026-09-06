@@ -13,7 +13,7 @@
 import type { AgentAdapter, AdapterRunOptions } from './types';
 import type { AgentRunResult } from '../types';
 
-export const PROBE_PROMPT = 'Reply with exactly: OK';
+export const PROBE_PROMPT = 'Reply with exactly: OK. Do not use tools, do not edit files, and do not run git commands.';
 const PROBE_TIMEOUT_MS = 60_000;
 
 export interface ProbeOutcome {

@@ -21,7 +21,11 @@ export interface CommitGateResult {
  */
 function pathInScope(changedPath: string, writeScope: string[]): boolean {
   if (writeScope.length === 0) return true;
-  return writeScope.some((scope) => changedPath === scope || changedPath.startsWith(scope.endsWith('/') ? scope : scope + '/') || changedPath.startsWith(scope));
+  return writeScope.some((rawScope) => {
+    const scope = rawScope.trim();
+    if (!scope) return false;
+    return changedPath === scope || changedPath.startsWith(scope.endsWith('/') ? scope : scope + '/');
+  });
 }
 
 /**

@@ -33,11 +33,9 @@ describe('evaluateChangedPaths', () => {
   });
 
   it('does not falsely match a sibling directory that merely shares a prefix string', () => {
-    // "lib/board" should NOT match "lib/boardroom/x.ts" as a directory prefix.
     const result = evaluateChangedPaths(['lib/board'], ['lib/boardroom/x.ts']);
-    // NOTE: startsWith('lib/board') is true for 'lib/boardroom/x.ts' since 'lib/boardroom/x.ts'.startsWith('lib/board') is true.
-    // This documents the current (intentionally simple, prefix-based) behavior rather than a stricter segment-aware match.
-    expect(result.decision).toBe('COMMIT');
+    expect(result.decision).toBe('BLOCK');
+    expect(result.outOfScope).toEqual(['lib/boardroom/x.ts']);
   });
 
   it('an exact-file scope entry matches only that file', () => {

@@ -259,7 +259,7 @@ describe('happy path', () => {
 });
 
 describe('Scenario A — Astra hits a usage limit mid-task', () => {
-  it('marks Astra unavailable, surfaces ACTION REQUIRED for reset #1, and never auto-increments reset credits', async () => {
+  it('marks Astra unavailable but DEFERS reset redemption (no fallback exists for this task, yet Boardroom still does not spend a reset credit until final integration or total exhaustion)', async () => {
     createTask({ title: 'Hard bug', goal: 'Fix it', priority: 'HIGH', phase: 'PHASE_1_RECON', primaryAgent: 'ASTRA', writeScope: ['fix.txt'], testsRequired: [], root: repoDir });
 
     const result = await runSupervisor({
@@ -271,7 +271,8 @@ describe('Scenario A — Astra hits a usage limit mid-task', () => {
       startSleepPrevention: () => ({ active: false, reason: 'NOT ACTIVE (test)' }),
     });
 
-    expect(result.actionsRequired.some((a) => a.includes('ASTRA RESET CREDIT #1'))).toBe(true);
+    expect(result.actionsRequired.some((a) => a.includes('DEFERRED'))).toBe(true);
+    expect(result.actionsRequired.some((a) => a.includes('RESET CREDIT'))).toBe(false);
     expect(getBudgetState(repoDir).resetCreditsUsed).toBe(0);
   });
 
@@ -292,7 +293,7 @@ describe('Scenario A — Astra hits a usage limit mid-task', () => {
       startSleepPrevention: () => ({ active: false, reason: 'NOT ACTIVE (test)' }),
     });
 
-    expect(result.actionsRequired.some((a) => a.includes('treating the original signal as transient'))).toBe(true);
+    expect(result.actionsRequired.some((a) => a.includes('treating it as transient'))).toBe(true);
     expect(result.actionsRequired.some((a) => a.includes('RESET CREDIT'))).toBe(false);
     expect(getBudgetState(repoDir).resetCreditsUsed).toBe(0);
   });
@@ -378,7 +379,7 @@ describe('Scenario D — Astra allowance drops to CRITICAL mid-run', () => {
 });
 
 describe('Scenario E — Reset #1 already used, Astra exhausts again', () => {
-  it('requests reset #2 specifically, and refuses to let #2 be confirmed before #1 (already proven at the budget layer) while never auto-incrementing either', async () => {
+  it('defers reset #2 the same way it deferred #1 — a single-task probe-confirmed exhaustion never auto-spends a credit', async () => {
     confirmResetRedeemed(1, repoDir);
     createTask({ title: 'Another hard bug', goal: 'G', priority: 'HIGH', phase: 'PHASE_1_RECON', primaryAgent: 'ASTRA', writeScope: ['z.txt'], testsRequired: [], root: repoDir });
 
@@ -391,8 +392,9 @@ describe('Scenario E — Reset #1 already used, Astra exhausts again', () => {
       startSleepPrevention: () => ({ active: false, reason: 'NOT ACTIVE (test)' }),
     });
 
-    expect(result.actionsRequired.some((a) => a.includes('ASTRA RESET CREDIT #2'))).toBe(true);
-    expect(getBudgetState(repoDir).resetCreditsUsed).toBe(1); // still only #1 — #2 was requested, not redeemed
+    expect(result.actionsRequired.some((a) => a.includes('DEFERRED'))).toBe(true);
+    expect(result.actionsRequired.some((a) => a.includes('RESET CREDIT'))).toBe(false);
+    expect(getBudgetState(repoDir).resetCreditsUsed).toBe(1); // unchanged — #1 already redeemed earlier; #2 deferred, not requested
   });
 });
 

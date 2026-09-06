@@ -68,6 +68,26 @@ function currentHead(git: GitOps): string {
   }
 }
 
+function currentBranch(git: GitOps): string {
+  try {
+    return git.run(['branch', '--show-current']).trim();
+  } catch {
+    return '';
+  }
+}
+
+function stagedPaths(git: GitOps): string[] {
+  try {
+    return git.run(['diff', '--cached', '--name-only']).split('\n').map((s) => s.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function nonBookkeepingDirtyPaths(git: GitOps): string[] {
+  return parseGitStatusShort(statusShort(git)).filter((p) => !isBoardroomBookkeepingPath(p));
+}
+
 /**
  * Preserves a blocked/failed task's uncommitted edits in a Boardroom-owned
  * stash+tag (see salvage.ts) and, as a side effect of `git stash push`,
@@ -136,16 +156,32 @@ export const defaultRunTests: RunTestsFn = (commands, cwd) => {
 };
 
 const PRIORITY_ORDER: Record<Priority, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+const PHASE_ORDER: Record<Task['phase'], number> = {
+  PHASE_1_RECON: 1,
+  PHASE_2_CORE_EXPERIENCE_SYSTEM: 2,
+  PHASE_3_FLAGSHIP_MOMENTS: 3,
+  PHASE_4_SECONDARY_POLISH: 4,
+  PHASE_5_PERFORMANCE_ACCESSIBILITY: 5,
+  PHASE_6_ASTRA_FINAL_PASS: 6,
+};
 
-function pickNextTask(tasks: Task[]): Task | null {
-  const candidates = tasks.filter((t) => t.status === 'QUEUED' || t.status === 'READY');
-  if (candidates.length === 0) return null;
+function pickNextTask(tasks: Task[], runQueue: ReadonlySet<string>): { task: Task | null; barrier: Task[] } {
+  const runTasks = tasks.filter((t) => runQueue.has(t.taskId));
+  const unresolved = runTasks.filter((t) => t.status !== 'DONE' && t.status !== 'REJECTED');
+  if (unresolved.length === 0) return { task: null, barrier: [] };
+
+  const earliestPhase = Math.min(...unresolved.map((t) => PHASE_ORDER[t.phase]));
+  const phaseTasks = unresolved.filter((t) => PHASE_ORDER[t.phase] === earliestPhase);
+  const candidates = phaseTasks.filter((t) => t.status === 'QUEUED' || t.status === 'READY');
+
+  if (candidates.length === 0) return { task: null, barrier: phaseTasks };
+
   candidates.sort((a, b) => {
     const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
     if (p !== 0) return p;
     return a.createdAt.localeCompare(b.createdAt);
   });
-  return candidates[0];
+  return { task: candidates[0], barrier: [] };
 }
 
 /** Determines the current agent chain for a task, applying live budget conservation when the task declares a category. */
@@ -158,9 +194,13 @@ function resolveAssignment(task: Task, budgetTier: ReturnType<typeof classifyTie
   return applyBudgetConservation(base, category, budgetTier, { protectedFinalIntegration: task.phase === 'PHASE_6_ASTRA_FINAL_PASS' });
 }
 
-function firstAvailable(assignment: RoutingAssignment, unavailable: ReadonlySet<AgentName>): AgentName | null {
+function firstAvailable(
+  assignment: RoutingAssignment,
+  unavailable: ReadonlySet<AgentName>,
+  taskUnavailable: ReadonlySet<AgentName> = new Set()
+): AgentName | null {
   for (const candidate of [assignment.primary, assignment.fallback1, assignment.fallback2]) {
-    if (!unavailable.has(candidate)) return candidate;
+    if (!unavailable.has(candidate) && !taskUnavailable.has(candidate)) return candidate;
   }
   return null;
 }
@@ -245,8 +285,14 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
   if (registerProcessHandlers) registerCleanupHandlers(cleanup);
 
   const unavailable = new Set<AgentName>();
+  const taskUnavailable = new Map<string, Set<AgentName>>();
   const crashCounts: Record<AgentName, number> = { ASTRA: 0, CLAUDE: 0, AGY: 0 };
   const touchedThisRun = new Set<string>();
+  const runQueue = new Set(
+    listTasks(root)
+      .filter((t) => t.status === 'QUEUED' || t.status === 'READY')
+      .map((t) => t.taskId)
+  );
   let iterations = 0;
   let stopReason = 'UNKNOWN';
 
@@ -257,14 +303,38 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
         break;
       }
 
-      const tasks = listTasks(root);
-      const task = pickNextTask(tasks);
-      if (!task) {
-        stopReason = tasks.length === 0 ? 'NO_TASKS_QUEUED' : 'NO_MORE_READY_TASKS';
+      if (currentBranch(git) !== boot.branch) {
+        stopReason = 'BRANCH_DRIFT';
+        actionsRequired.push(`ACTION REQUIRED: expected Boardroom branch ${boot.branch} but found ${currentBranch(git) || '(detached)'}. Stopped before dispatching another agent.`);
         break;
       }
 
+      const preTaskDirty = nonBookkeepingDirtyPaths(git);
+      if (preTaskDirty.length > 0) {
+        stopReason = 'DIRTY_WORKTREE_BEFORE_TASK';
+        actionsRequired.push(`ACTION REQUIRED: source files were already dirty before task dispatch: ${preTaskDirty.join(', ')}. Boardroom refused to guess ownership.`);
+        break;
+      }
+
+      const tasks = listTasks(root);
+      const pick = pickNextTask(tasks, runQueue);
+      if (!pick.task) {
+        if (pick.barrier.length) {
+          stopReason = 'PHASE_BARRIER_BLOCKED';
+          actionsRequired.push(`ACTION REQUIRED: ${pick.barrier[0].phase} cannot advance because ${pick.barrier.map((t) => `${t.taskId}[${t.status}]`).join(', ')} must be resolved first.`);
+        } else {
+          stopReason = tasks.length === 0 ? 'NO_TASKS_QUEUED' : 'NO_MORE_READY_TASKS';
+        }
+        break;
+      }
+      const task = pick.task;
+
       if (unavailable.size >= 3) {
+        const exhaustedBudget = getBudgetState(root);
+        if (unavailable.has('ASTRA') && exhaustedBudget.resetCreditsUsed < 2) {
+          const nextReset: 1 | 2 = exhaustedBudget.resetCreditsUsed === 0 ? 1 : 2;
+          actionsRequired.push(requestReset(nextReset, root).message);
+        }
         stopReason = 'ALL_AGENTS_UNAVAILABLE';
         break;
       }
@@ -272,8 +342,21 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
       touchedThisRun.add(task.taskId);
 
       const budget = getBudgetState(root);
+      if (task.phase === 'PHASE_6_ASTRA_FINAL_PASS' && unavailable.has('ASTRA')) {
+        if (budget.resetCreditsUsed < 2) {
+          const nextReset: 1 | 2 = budget.resetCreditsUsed === 0 ? 1 : 2;
+          actionsRequired.push(requestReset(nextReset, root).message);
+          stopReason = 'ASTRA_RESET_REQUIRED_FOR_FINAL_INTEGRATION';
+        } else {
+          actionsRequired.push('ACTION REQUIRED: protected final Astra integration is blocked; Astra is unavailable and both reset credits are already used.');
+          stopReason = 'ASTRA_UNAVAILABLE_FOR_FINAL_INTEGRATION';
+        }
+        break;
+      }
+
       const assignment = resolveAssignment(task, budget.tier);
-      const agent = firstAvailable(assignment, unavailable);
+      const perTaskUnavailable = taskUnavailable.get(task.taskId) ?? new Set<AgentName>();
+      const agent = firstAvailable(assignment, unavailable, perTaskUnavailable);
       if (!agent) {
         addBlocker(task.taskId, `All candidate agents (${assignment.primary}/${assignment.fallback1}/${assignment.fallback2}) are unavailable this run.`, root);
         updateTaskStatus(task.taskId, 'BLOCKED', root);
@@ -294,9 +377,10 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
         recoverStaleLock({ root });
       }
 
+      const taskStartHead = currentHead(git);
       let lockAcquired = true;
       try {
-        acquireLock({ holder: agent, taskId: task.taskId, startingCommit: currentHead(git), pid, root });
+        acquireLock({ holder: agent, taskId: task.taskId, startingCommit: taskStartHead, pid, root });
       } catch (err) {
         if (err instanceof LockHeldByAnotherAgentError) {
           stopReason = `LOCK_CONTENTION_EXTERNAL (${err.lock.holder} pid ${err.lock.pid})`;
@@ -314,6 +398,13 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
       const adapter = getAdapter(agent);
       const prompt = buildPrompt(task);
 
+      console.log(`[boardroom] START ${agent} ${task.taskId} — ${task.title}`);
+      const workerStartedAt = Date.now();
+      const heartbeat = setInterval(() => {
+        const elapsedMinutes = Math.max(1, Math.floor((Date.now() - workerStartedAt) / 60_000));
+        console.log(`[boardroom] HEARTBEAT ${agent} ${task.taskId} — still running (${elapsedMinutes}m)`);
+      }, 60_000);
+
       let runResult;
       try {
         runResult = await adapter.run(prompt, {
@@ -323,7 +414,8 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
           binaryOverride: deps.binaryOverrides?.[agent],
         });
       } finally {
-        // Lock is released further below regardless of outcome; nothing to do here.
+        clearInterval(heartbeat);
+        console.log(`[boardroom] END ${agent} ${task.taskId} — ${Math.round((Date.now() - workerStartedAt) / 1000)}s`);
       }
 
       if (runResult.exitCode === null && !runResult.timedOut) {
@@ -334,40 +426,112 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
         }
       }
 
+      if (currentBranch(git) !== boot.branch || currentHead(git) !== taskStartHead) {
+        addBlocker(task.taskId, `Agent ${agent} changed git history/branch while Boardroom held the write lease. Boardroom will not reset or rewrite that history automatically.`, root);
+        updateTaskStatus(task.taskId, 'BLOCKED', root);
+        writeHandoff(getTask(task.taskId, root)!, root);
+        releaseLock({ holder: agent, taskId: task.taskId, root });
+        stopReason = 'AGENT_MUTATED_GIT_HISTORY';
+        actionsRequired.push(`ACTION REQUIRED: ${agent} changed git history during ${task.taskId}. State was preserved for manual inspection.`);
+        break;
+      }
+
+      const postRunRawChangedPaths = parseGitStatusShort(statusShort(git));
+      const postRunChangedPaths = postRunRawChangedPaths.filter((p) => !isBoardroomBookkeepingPath(p));
+      const stagedByAgent = stagedPaths(git).filter((p) => !isBoardroomBookkeepingPath(p));
+      if (stagedByAgent.length > 0) {
+        const salvage = salvageAndRecord({ git, task, agent, attempt: attemptNumber, runId: boot.runId, paths: postRunChangedPaths, reason: `FAILED: agent staged files (${stagedByAgent.join(', ')})`, root });
+        if (!salvage.ok) {
+          addBlocker(task.taskId, `Agent staged files and salvage failed: ${salvage.error}`, root);
+          updateTaskStatus(task.taskId, 'BLOCKED', root);
+          writeHandoff(getTask(task.taskId, root)!, root);
+          releaseLock({ holder: agent, taskId: task.taskId, root });
+          stopReason = `SALVAGE_FAILED (${task.taskId}): ${salvage.error}`;
+          break;
+        }
+        recordAttempt(task.taskId, { agent, approachSummary: 'Agent staged files despite Boardroom-owned commit protocol.', outcome: 'FAILED', whyFailed: stagedByAgent.join(', ') }, root);
+        const failedAgents = taskUnavailable.get(task.taskId) ?? new Set<AgentName>();
+        failedAgents.add(agent);
+        taskUnavailable.set(task.taskId, failedAgents);
+        updateTaskStatus(task.taskId, 'READY', root);
+        writeHandoff(getTask(task.taskId, root)!, root);
+        releaseLock({ holder: agent, taskId: task.taskId, root });
+        iterations++;
+        continue;
+      }
+
       if (runResult.likelyUsageExhausted) {
-        // A single pattern/structured match is still only HIGH_CONFIDENCE, never
-        // VERIFIED (real false positives were observed on the first overnight
-        // run — see exhaustionPatterns.ts). Spend one cheap probe to check
-        // whether the agent is ACTUALLY still blocked before exiling it for
-        // the rest of the run — a real account-wide exhaustion will still
-        // fail the probe; a transient/session-level throttle often won't.
+        const beforeProbePaths = [...postRunChangedPaths].sort();
         const probe = await probeAgentHealth(adapter, {
           cwd: root ?? process.cwd(),
           timeoutMs: perTaskTimeoutMs,
           binaryOverride: deps.binaryOverrides?.[agent],
         });
+        const afterProbePaths = nonBookkeepingDirtyPaths(git).sort();
+        if (JSON.stringify(afterProbePaths) !== JSON.stringify(beforeProbePaths)) {
+          addBlocker(task.taskId, 'Health probe unexpectedly changed the source worktree. Boardroom stopped instead of attributing probe edits to a task.', root);
+          updateTaskStatus(task.taskId, 'BLOCKED', root);
+          writeHandoff(getTask(task.taskId, root)!, root);
+          releaseLock({ holder: agent, taskId: task.taskId, root });
+          stopReason = 'PROBE_MODIFIED_WORKTREE';
+          actionsRequired.push(`ACTION REQUIRED: health probe for ${agent} modified source paths during ${task.taskId}.`);
+          break;
+        }
 
         if (probe.healthy) {
           actionsRequired.push(
-            `${agent} showed a possible usage-exhaustion signal on ${task.taskId}, but a cheap follow-up probe succeeded immediately afterward — treating the original signal as transient and NOT marking ${agent} unavailable.`
+            `${agent} showed a possible usage-exhaustion signal on ${task.taskId}, but a cheap follow-up probe succeeded — treating it as transient.`
           );
         } else {
-          unavailable.add(agent);
-          if (agent === 'ASTRA') {
-            const nextReset: 1 | 2 = budget.resetCreditsUsed === 0 ? 1 : 2;
-            if (budget.resetCreditsUsed < 2) {
-              const reset = requestReset(nextReset, root);
-              actionsRequired.push(`${reset.message} (confirmed by a follow-up probe, not a single sample.)`);
-            } else {
-              actionsRequired.push('ACTION REQUIRED: ASTRA appears usage-exhausted (confirmed by a follow-up probe) and both reset credits are already used. Astra is unavailable for the rest of this run.');
-            }
-          } else {
-            actionsRequired.push(`${agent} appears usage-exhausted (HIGH_CONFIDENCE, confirmed by a follow-up probe — still not VERIFIED) and has been marked unavailable for the rest of this run.`);
+          const salvage = salvageAndRecord({ git, task, agent, attempt: attemptNumber, runId: boot.runId, paths: postRunChangedPaths, reason: 'FAILED: probe-confirmed usage exhaustion', root });
+          if (!salvage.ok) {
+            addBlocker(task.taskId, `Usage exhaustion was detected but salvage failed: ${salvage.error}`, root);
+            updateTaskStatus(task.taskId, 'BLOCKED', root);
+            writeHandoff(getTask(task.taskId, root)!, root);
+            releaseLock({ holder: agent, taskId: task.taskId, root });
+            stopReason = `SALVAGE_FAILED (${task.taskId}): ${salvage.error}`;
+            break;
           }
+
+          unavailable.add(agent);
+          recordAttempt(task.taskId, { agent, approachSummary: 'Probe-confirmed usage exhaustion.', outcome: 'FAILED', whyFailed: runResult.stderr.slice(-500) || 'probe-confirmed exhaustion' }, root);
+          updateTaskStatus(task.taskId, 'READY', root);
+          writeHandoff(getTask(task.taskId, root)!, root);
+
+          if (agent === 'ASTRA') {
+            actionsRequired.push('ASTRA is probe-confirmed usage-exhausted. Reset redemption is DEFERRED while fallbacks can continue; Boardroom will request it only at protected final integration or if every agent becomes unavailable.');
+          } else {
+            actionsRequired.push(`${agent} is probe-confirmed usage-exhausted and is unavailable for the rest of this run.`);
+          }
+
+          releaseLock({ holder: agent, taskId: task.taskId, root });
+          iterations++;
+          continue;
         }
       }
 
-      const rawChangedPaths = parseGitStatusShort(statusShort(git));
+      if (runResult.timedOut || runResult.exitCode === null || runResult.exitCode !== 0) {
+        const salvage = salvageAndRecord({ git, task, agent, attempt: attemptNumber, runId: boot.runId, paths: postRunChangedPaths, reason: runResult.timedOut ? 'FAILED: timeout' : 'FAILED: non-zero/crashed process', root });
+        if (!salvage.ok) {
+          addBlocker(task.taskId, `Agent process failed and salvage failed: ${salvage.error}`, root);
+          updateTaskStatus(task.taskId, 'BLOCKED', root);
+          writeHandoff(getTask(task.taskId, root)!, root);
+          releaseLock({ holder: agent, taskId: task.taskId, root });
+          stopReason = `SALVAGE_FAILED (${task.taskId}): ${salvage.error}`;
+          break;
+        }
+        recordAttempt(task.taskId, { agent, approachSummary: runResult.timedOut ? 'Agent timed out.' : 'Agent process exited unsuccessfully.', outcome: 'FAILED', whyFailed: runResult.stderr.slice(-500) || `exit=${runResult.exitCode}` }, root);
+        const failedAgents = taskUnavailable.get(task.taskId) ?? new Set<AgentName>();
+        failedAgents.add(agent);
+        taskUnavailable.set(task.taskId, failedAgents);
+        updateTaskStatus(task.taskId, 'READY', root);
+        writeHandoff(getTask(task.taskId, root)!, root);
+        releaseLock({ holder: agent, taskId: task.taskId, root });
+        iterations++;
+        continue;
+      }
+
+      const rawChangedPaths = postRunRawChangedPaths;
       // Boardroom's own bookkeeping (a prior task's handoff doc, etc.) is never
       // subject to THIS task's write scope — it wasn't written by this agent.
       const boardroomOwnPendingPaths = rawChangedPaths.filter(isBoardroomBookkeepingPath);
@@ -398,10 +562,12 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
       }
 
       if (gate.inScope.length === 0) {
-        // Agent made no changes at all — nothing to validate or commit.
-        recordAttempt(task.taskId, { agent, approachSummary: 'Agent run produced no file changes.', outcome: runResult.exitCode === 0 ? 'FAILED' : 'FAILED', whyFailed: runResult.stderr?.slice(-500) || 'No changes and non-informative output.' }, root);
-        updateTaskStatus(task.taskId, 'BLOCKED', root);
-        addBlocker(task.taskId, `Agent ${agent} made no file changes this attempt.`, root);
+        recordAttempt(task.taskId, { agent, approachSummary: 'Agent run produced no file changes.', outcome: 'FAILED', whyFailed: 'No changes produced.' }, root);
+        const failedAgents = taskUnavailable.get(task.taskId) ?? new Set<AgentName>();
+        failedAgents.add(agent);
+        taskUnavailable.set(task.taskId, failedAgents);
+        updateTaskStatus(task.taskId, 'READY', root);
+        writeHandoff(getTask(task.taskId, root)!, root);
         releaseLock({ holder: agent, taskId: task.taskId, root });
         iterations++;
         continue;
@@ -429,8 +595,10 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
           stopReason = `SALVAGE_FAILED (${task.taskId}): ${salvage.error}`;
           break;
         }
-        addBlocker(task.taskId, `Validation failed after ${agent}'s changes: ${failedCommands}. Nothing was staged or committed. ${salvage.note}`, root);
-        updateTaskStatus(task.taskId, 'BLOCKED', root);
+        const failedAgents = taskUnavailable.get(task.taskId) ?? new Set<AgentName>();
+        failedAgents.add(agent);
+        taskUnavailable.set(task.taskId, failedAgents);
+        updateTaskStatus(task.taskId, 'READY', root);
         writeHandoff(getTask(task.taskId, root)!, root);
         releaseLock({ holder: agent, taskId: task.taskId, root });
         iterations++;
@@ -440,7 +608,22 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
       // Sweep in any pending Boardroom bookkeeping paths (e.g. a prior task's
       // handoff doc) alongside this task's approved paths — still an exact,
       // enumerated list, never `git add -A`.
-      stageExactPaths(git, [...gate.inScope, ...boardroomOwnPendingPaths]);
+      const approvedPaths = Array.from(new Set([...gate.inScope, ...boardroomOwnPendingPaths]));
+      stageExactPaths(git, approvedPaths);
+
+      const stagedNow = stagedPaths(git);
+      const unexpectedStaged = stagedNow.filter((p) => !approvedPaths.includes(p));
+      const missingStaged = gate.inScope.filter((p) => !stagedNow.includes(p));
+      if (unexpectedStaged.length || missingStaged.length) {
+        addBlocker(task.taskId, `Exact staging verification failed. Unexpected: ${unexpectedStaged.join(', ') || 'none'}; missing: ${missingStaged.join(', ') || 'none'}.`, root);
+        updateTaskStatus(task.taskId, 'BLOCKED', root);
+        writeHandoff(getTask(task.taskId, root)!, root);
+        releaseLock({ holder: agent, taskId: task.taskId, root });
+        stopReason = 'EXACT_STAGING_VERIFICATION_FAILED';
+        actionsRequired.push(`ACTION REQUIRED: Boardroom refused to commit because the staged set did not exactly match the approved set for ${task.taskId}.`);
+        break;
+      }
+
       const commitMessage = `${task.title}\n\nBoardroom task ${task.taskId} (${agent}).\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`;
       const commitHash = commitExact(git, commitMessage);
 
@@ -450,6 +633,14 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
       writeHandoff(getTask(task.taskId, root)!, root);
 
       releaseLock({ holder: agent, taskId: task.taskId, root });
+
+      const postCommitDirty = nonBookkeepingDirtyPaths(git);
+      if (postCommitDirty.length > 0) {
+        stopReason = 'POST_COMMIT_DIRTY_WORKTREE';
+        actionsRequired.push(`ACTION REQUIRED: source paths remained dirty after committing ${task.taskId}: ${postCommitDirty.join(', ')}.`);
+        break;
+      }
+
       iterations++;
     }
   } finally {
