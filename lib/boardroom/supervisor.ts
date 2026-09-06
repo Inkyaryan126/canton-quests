@@ -45,7 +45,22 @@ export const realGitOps: GitOps = realGit;
 
 function statusShort(git: GitOps): string {
   try {
-    return git.run(['status', '--short']);
+    // `--untracked-files=all` is load-bearing, not cosmetic: by default `git
+    // status --short` collapses a wholly-new, never-before-tracked directory
+    // into a single directory-level entry (e.g. `?? boardroom/recon/`)
+    // instead of listing the individual file(s) inside it. `git add`/`git
+    // diff --cached --name-only` never collapse like that — they always
+    // report real file paths. Without `=all` here, a task whose first-ever
+    // write lands in a brand-new scope directory gets a "changed path" of
+    // just the directory name, which then flows into gate.inScope as that
+    // same bare directory string; the file gets staged correctly, but the
+    // post-stage exact-set comparison then sees "approved: boardroom/recon/"
+    // vs "staged: boardroom/recon/astra-experiential-audit.md" — two
+    // different strings for the same real content — and falsely fails with
+    // EXACT_STAGING_VERIFICATION_FAILED. Reproduced and fixed after the
+    // second real overnight run; see the regression test in
+    // tests/boardroom-hardening-extra.test.ts.
+    return git.run(['status', '--short', '--untracked-files=all']);
   } catch {
     return '';
   }
@@ -55,8 +70,17 @@ function stageExactPaths(git: GitOps, paths: string[]): void {
   for (const p of paths) git.run(['add', '--', p]);
 }
 
-function commitExact(git: GitOps, message: string): string {
-  git.run(['commit', '-m', message]);
+/**
+ * Commits ONLY the given paths, never a bare `git commit -m` — a bare commit
+ * commits the ENTIRE index regardless of what this call staged, so if some
+ * other path ever leaves unrelated content sitting staged (e.g. a prior
+ * failure branch that didn't clean up), a bare commit would silently absorb
+ * it under this commit's message. Restricting to an explicit pathspec keeps
+ * every commit's contents exactly equal to what Boardroom decided to commit
+ * this call, regardless of index state left over from anything else.
+ */
+function commitExact(git: GitOps, message: string, paths: string[]): string {
+  git.run(['commit', '-m', message, '--', ...paths]);
   return git.run(['rev-parse', 'HEAD']).trim();
 }
 
@@ -615,17 +639,27 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
       const unexpectedStaged = stagedNow.filter((p) => !approvedPaths.includes(p));
       const missingStaged = gate.inScope.filter((p) => !stagedNow.includes(p));
       if (unexpectedStaged.length || missingStaged.length) {
-        addBlocker(task.taskId, `Exact staging verification failed. Unexpected: ${unexpectedStaged.join(', ') || 'none'}; missing: ${missingStaged.join(', ') || 'none'}.`, root);
+        recordAttempt(task.taskId, { agent, approachSummary: `Exact staging verification failed (unexpected: ${unexpectedStaged.join(', ') || 'none'}; missing: ${missingStaged.join(', ') || 'none'})`, outcome: 'BLOCKED', whyFailed: 'Staged set did not exactly match the approved set.' }, root);
+        // Whatever is currently staged/dirty must not be left sitting in the
+        // index for a later step (e.g. the end-of-run bookkeeping sweep) to
+        // accidentally absorb into an unrelated commit — same salvage-then-
+        // clean treatment as every other failure branch.
+        const salvage = salvageAndRecord({ git, task, agent, attempt: attemptNumber, runId: boot.runId, paths: Array.from(new Set([...stagedNow, ...nonBookkeepingDirtyPaths(git)])), reason: `EXACT_STAGING_VERIFICATION_FAILED (unexpected: ${unexpectedStaged.join(', ') || 'none'}; missing: ${missingStaged.join(', ') || 'none'})`, root });
+        if (!salvage.ok) {
+          addBlocker(task.taskId, `Exact staging verification failed AND salvage failed (${salvage.error}). The working tree may still contain this task's edits.`, root);
+        } else {
+          addBlocker(task.taskId, `Exact staging verification failed. Unexpected: ${unexpectedStaged.join(', ') || 'none'}; missing: ${missingStaged.join(', ') || 'none'}. ${salvage.note}`, root);
+        }
         updateTaskStatus(task.taskId, 'BLOCKED', root);
         writeHandoff(getTask(task.taskId, root)!, root);
         releaseLock({ holder: agent, taskId: task.taskId, root });
         stopReason = 'EXACT_STAGING_VERIFICATION_FAILED';
-        actionsRequired.push(`ACTION REQUIRED: Boardroom refused to commit because the staged set did not exactly match the approved set for ${task.taskId}.`);
+        actionsRequired.push(`ACTION REQUIRED: Boardroom refused to commit because the staged set did not exactly match the approved set for ${task.taskId}.${salvage.ok ? '' : ' Salvage also failed — inspect the working tree manually before proceeding.'}`);
         break;
       }
 
       const commitMessage = `${task.title}\n\nBoardroom task ${task.taskId} (${agent}).\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`;
-      const commitHash = commitExact(git, commitMessage);
+      const commitHash = commitExact(git, commitMessage, approvedPaths);
 
       recordAttempt(task.taskId, { agent, approachSummary: `Implementation attempt (${gate.inScope.length} files)`, outcome: 'SUCCEEDED' }, root);
       setCurrentCommit(task.taskId, commitHash, root);
@@ -670,7 +704,13 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
     const trailingPaths = parseGitStatusShort(statusShort(git)).filter(isBoardroomBookkeepingPath);
     if (trailingPaths.length > 0) {
       stageExactPaths(git, trailingPaths);
-      commitExact(git, `Boardroom bookkeeping for run ${boot.runId}\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`);
+      // Pathspec-restricted to exactly trailingPaths — never a bare `git
+      // commit -m`, which would commit the WHOLE index regardless of what
+      // this sweep staged. If some earlier failure branch ever left
+      // unrelated content sitting staged, a bare commit here would silently
+      // absorb it under a "Boardroom bookkeeping" message (this is exactly
+      // what happened on the second real overnight run before this fix).
+      commitExact(git, `Boardroom bookkeeping for run ${boot.runId}\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`, trailingPaths);
     }
   } catch {
     // Best-effort — a failure here must never prevent the report from being returned.

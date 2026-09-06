@@ -43,6 +43,62 @@ afterEach(() => {
   fs.rmSync(wrapperDir, { recursive: true, force: true });
 });
 
+describe('REGRESSION (second overnight run): brand-new scope directory vs exact-staging verification', () => {
+  it('does not falsely fail EXACT_STAGING_VERIFICATION when an agent writes the first-ever file into a never-before-tracked scope directory', async () => {
+    // Reproduces exactly what happened to TASK-20260906-060642-jq1v on run
+    // 20260906-135634-ab4a: `git status --short` (without --untracked-files=all)
+    // collapses a wholly-new, never-before-tracked directory into a single
+    // directory-level entry ("?? lib/motion/") instead of listing the real
+    // file inside it. That bare directory string then becomes the "approved"
+    // path, while `git add`/`git diff --cached` (which never collapse) report
+    // the real file — a false mismatch between two different string
+    // representations of the exact same, entirely-in-scope content.
+    //
+    // `lib/` itself must already be a known, tracked directory (as it always
+    // is in the real repo) so that ONLY `lib/motion/` collapses — otherwise
+    // git collapses all the way up to the shallowest wholly-untracked
+    // ancestor (`lib/` itself here), which produces a plain out-of-scope
+    // BLOCK instead of exercising the exact-staging-verification path.
+    fs.mkdirSync(path.join(repoDir, 'lib'), { recursive: true });
+    fs.writeFileSync(path.join(repoDir, 'lib', 'existing.ts'), 'export const already = true;\n');
+    git(['add', 'lib/existing.ts']);
+    git(['commit', '-q', '-m', 'lib/ already exists and is tracked']);
+
+    const task = createTask({
+      title: 'First write into a brand-new scope directory',
+      goal: 'lib/motion/ does not exist yet anywhere in this repo',
+      priority: 'HIGH',
+      phase: 'PHASE_2_CORE_EXPERIENCE_SYSTEM',
+      primaryAgent: 'AGY',
+      writeScope: ['lib/motion/'],
+      testsRequired: [],
+      root: repoDir,
+    });
+
+    const agy = script('agy-newdir.sh', `mkdir -p lib/motion\nprintf 'export const tokens = {};\n' > lib/motion/tokens.ts`);
+
+    const result = await runSupervisor({
+      root: repoDir,
+      git: gitOps(),
+      binaryOverrides: { AGY: agy },
+      registerProcessHandlers: false,
+      startSleepPrevention: () => ({ active: false, reason: 'test' }),
+      maxIterations: 5,
+      perTaskTimeoutMs: 5_000,
+    });
+
+    expect(result.stopReason).toBe('NO_MORE_READY_TASKS');
+    const updated = getTask(task.taskId, repoDir)!;
+    expect(updated.status).toBe('DONE');
+    expect(updated.currentCommit).toBeTruthy();
+    expect(fs.existsSync(path.join(repoDir, 'lib/motion/tokens.ts'))).toBe(true);
+
+    const committedFiles = git(['show', '--name-only', '--pretty=format:', updated.currentCommit!]).trim();
+    expect(committedFiles).toBe('lib/motion/tokens.ts');
+    expect(git(['status', '--short']).trim()).toBe('');
+  });
+});
+
 describe('extra write-scope hardening', () => {
   it('does not authorize a sibling path merely because it shares a string prefix', () => {
     expect(evaluateChangedPaths(['lib/board'], ['lib/boardroom/x.ts']).decision).toBe('BLOCK');
