@@ -1155,6 +1155,22 @@ export const SEED_QUESTS: Quest[] = [
       'Daylight only. Confirm cemetery hours before visiting. Stay on paved or gravel paths. No touching, climbing, rubbing, decorating, moving items, loud behavior, nighttime access, or interference with graves, markers, visitors, or staff.',
     gmNotes:
       'MUST complete site walk before launch: (1) confirm Frankenstein monument exact location and surname spelling, (2) confirm cemetery public visitor hours, (3) confirm photography rules. Chapter 1 of the West Lawn Archive chain.',
+    commanderTransmission: {
+      type: 'PHOTO_MESSAGE',
+      headline: 'WEST LAWN ARCHIVE // PROTOCOL',
+      message:
+        'Operative, West Lawn is active ground, but this is consecrated space. Tread lightly. Stay on paved paths, observe from a respectful distance, and record the stone that gave literature its monster.',
+      mediaKey: 'commander/frankenstein-west-lawn.jpg',
+      cta: 'ACKNOWLEDGE PROTOCOL',
+    },
+    completionTransmission: {
+      type: 'PHOTO_MESSAGE',
+      headline: 'SIGNAL INTERCEPT // WATCHER W-01',
+      message:
+        "Record confirmed. Hold... that's not right. I'm seeing another signature attached to the file. [SIGNAL INTERRUPT] 'You found the grave. We noticed, operative. You weren't the only one following the trail. WATCHER SIGNAL W-01: DORMANT // REACTIVATION: OCTOBER. We'll be watching.'",
+      mediaKey: 'commander/frankenstein-signal-intercept.jpg',
+      cta: 'ACKNOWLEDGE SIGNAL',
+    },
     // LEGACY CONTAINMENT (Phase 3A, per docs/FOUNDERS-CIPHER-LEGACY-QUEST-CONTAINMENT-PLAN.md):
     // this legacy record granted [KEEP IT] (secret-quiet-signal) — the same
     // fragment now canonically sourced from Monument Park (qst-mckinley-cipher).

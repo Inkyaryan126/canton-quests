@@ -23,6 +23,12 @@ import MobileStartBar from '@/components/MobileStartBar';
 import FastPlayerOnboardForm from '@/components/FastPlayerOnboardForm';
 import { ACQUISITION_ENTRY_HREF } from '@/lib/acquisition-landing-content';
 import { cqImages } from '@/lib/marketing-assets';
+import TransmissionPanel from '@/components/game-effects/TransmissionPanel';
+import SystemStatusBadge from '@/components/game-effects/SystemStatusBadge';
+import HudSystemState from '@/components/game-effects/HudSystemState';
+import VerificationResult from '@/components/game-effects/VerificationResult';
+import CqTransition from '@/components/game-effects/CqTransition';
+import WatcherHalloweenTeaseCard from '@/components/game-effects/WatcherHalloweenTeaseCard';
 
 export default function SecretLanding() {
   const [isDecrypted, setIsDecrypted] = useState(false);
@@ -35,9 +41,13 @@ export default function SecretLanding() {
         {/* HERO SECTION */}
         <section className="cq-fair-hero" aria-labelledby="secret-headline">
           <div className="cq-fair-copy">
-            <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-purple-500/15 border border-purple-400/40 text-purple-300 font-mono text-xs font-bold tracking-wider uppercase">
-              <KeyRound size={14} className="text-purple-400" aria-hidden="true" />
-              <span>CLASSIFIED ENTRY // UNLISTED SIGNAL</span>
+            <div className="mb-3">
+              <HudSystemState
+                state="armed"
+                label="CLASSIFIED ENTRY // UNLISTED SIGNAL"
+                detail="FREQUENCY: UNLISTED"
+                size="sm"
+              />
             </div>
 
             <h1 id="secret-headline" className="text-white">
@@ -107,46 +117,67 @@ export default function SecretLanding() {
         </section>
 
         {/* INTERACTIVE SIGNAL DECRYPTION CARD */}
-        <section className="cq-fair-objection mt-6 bg-[#0a0810]/90 border border-purple-500/35 p-6 md:p-8 rounded-2xl" aria-labelledby="signal-decrypt">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-xs font-mono font-bold tracking-widest text-purple-400 uppercase">
-              FIELD SIGNAL INTERCEPT
-            </span>
-            <span className="text-[11px] font-mono text-gray-400">UNLISTED DOSSIER #00</span>
-          </div>
+        <section className="cq-fair-objection mt-6" aria-labelledby="signal-decrypt">
+          <TransmissionPanel
+            eyebrow="FIELD SIGNAL INTERCEPT // UNLISTED DOSSIER #00"
+            icon={KeyRound}
+            tone="purple"
+            action={
+              <SystemStatusBadge
+                status={isDecrypted ? 'confirmed' : 'armed'}
+                label={isDecrypted ? 'COORDINATE CONFIRMED' : 'SIGNAL ENCRYPTED'}
+                size="sm"
+              />
+            }
+          >
+            <div>
+              <h2 id="signal-decrypt" className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+                INITIAL COORDINATE DECRYPTION
+              </h2>
 
-          <h2 id="signal-decrypt" className="text-2xl sm:text-3xl font-extrabold text-white mt-2">
-            INITIAL COORDINATE DECRYPTION
-          </h2>
+              <p className="text-gray-300 text-sm mt-1 max-w-2xl">
+                Click to decrypt the first physical rendezvous coordinate before entering the game.
+              </p>
 
-          <p className="text-gray-300 text-sm mt-1 max-w-2xl">
-            Click to decrypt the first physical rendezvous coordinate before entering the game.
-          </p>
+              <div className="mt-4 p-4 rounded-xl bg-[#040407] border border-purple-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="font-mono text-xs text-left w-full space-y-1">
+                  <span className="text-gray-400 block text-[10px] uppercase">Rendezvous Signal:</span>
+                  <strong className="text-purple-300 text-sm block">
+                    {isDecrypted
+                      ? 'CENTENNIAL PLAZA / ARTS CORRIDOR // GRID 40.7989° N, 81.3748° W'
+                      : '•••••••• ••••• // •••••••••• ••••••• [ENCRYPTED]'}
+                  </strong>
+                </div>
 
-          <div className="mt-4 p-4 rounded-xl bg-[#040407] border border-purple-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="font-mono text-xs text-left w-full">
-              <span className="text-gray-400 block text-[10px] uppercase">Rendezvous Signal:</span>
-              <strong className="text-purple-300 text-sm block mt-0.5">
-                {isDecrypted ? 'CENTENNIAL PLAZA / ARTS CORRIDOR // GRID 40.7989° N, 81.3748° W' : '•••••••• ••••• // •••••••••• ••••••• [ENCRYPTED]'}
-              </strong>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDecrypted(!isDecrypted)}
+                  className="btn btn-secondary !border-purple-500/50 !text-purple-300 hover:!bg-purple-950/40 text-xs font-mono font-bold py-2.5 px-4 whitespace-nowrap cursor-pointer"
+                >
+                  {isDecrypted ? (
+                    <>
+                      <CheckCircle size={14} className="inline mr-1 text-emerald-400" /> SIGNAL DECRYPTED
+                    </>
+                  ) : (
+                    <>
+                      <Unlock size={14} className="inline mr-1 text-purple-400" /> DECRYPT SIGNAL
+                    </>
+                  )}
+                </button>
+              </div>
 
-            <button
-              type="button"
-              onClick={() => setIsDecrypted(!isDecrypted)}
-              className="btn btn-secondary !border-purple-500/50 !text-purple-300 hover:!bg-purple-950/40 text-xs font-mono font-bold py-2.5 px-4 whitespace-nowrap"
-            >
-              {isDecrypted ? (
-                <>
-                  <CheckCircle size={14} className="inline mr-1 text-emerald-400" /> SIGNAL DECRYPTED
-                </>
-              ) : (
-                <>
-                  <Unlock size={14} className="inline mr-1 text-purple-400" /> DECRYPT SIGNAL
-                </>
+              {isDecrypted && (
+                <CqTransition show={true} className="mt-3">
+                  <VerificationResult
+                    status="success"
+                    variant="inline"
+                    title="RENDEZVOUS VERIFIED"
+                    message="Centennial Plaza / Arts Corridor grid lock confirmed."
+                  />
+                </CqTransition>
               )}
-            </button>
-          </div>
+            </div>
+          </TransmissionPanel>
         </section>
 
         {/* ACTIVE CLASSIFIED DOSSIERS */}
@@ -161,35 +192,58 @@ export default function SecretLanding() {
             </p>
           </div>
 
-          <article className="bg-[#09070e]/95 border border-purple-500/25 p-5 rounded-2xl">
-            <span className="text-purple-400 font-mono text-xs font-bold uppercase flex items-center gap-1.5">
-              <KeyRound size={15} /> DOSSIER 01 // MULTI-STEP
-            </span>
-            <h3 className="text-lg font-bold text-white mt-2">The Founder&apos;s Three Locks</h3>
+          <TransmissionPanel
+            eyebrow="DOSSIER 01 // MULTI-STEP"
+            icon={KeyRound}
+            tone="purple"
+            action={<SystemStatusBadge status="armed" label="3 LOCKS" size="sm" />}
+          >
+            <h3 className="text-lg font-bold text-white mt-1">The Founder&apos;s Three Locks</h3>
             <p className="text-gray-300 text-xs leading-relaxed mt-1">
               A 3-step sequential cipher chain hidden across downtown Canton. Solving Lock One reveals the Painted Fragment; all three locks yield 650 XP and 4 prize entries.
             </p>
-          </article>
+          </TransmissionPanel>
 
-          <article className="bg-[#09070e]/95 border border-purple-500/25 p-5 rounded-2xl">
-            <span className="text-purple-400 font-mono text-xs font-bold uppercase flex items-center gap-1.5">
-              <Search size={15} /> DOSSIER 02 // HISTORIC NODE
-            </span>
-            <h3 className="text-lg font-bold text-white mt-2">Frankenstein&apos;s Quiet Signal</h3>
+          <TransmissionPanel
+            eyebrow="DOSSIER 02 // HISTORIC NODE"
+            icon={Search}
+            tone="purple"
+            action={<SystemStatusBadge status="confirmed" label="WEST LAWN" size="sm" />}
+          >
+            <h3 className="text-lg font-bold text-white mt-1">Frankenstein&apos;s Quiet Signal</h3>
             <p className="text-gray-300 text-xs leading-relaxed mt-1">
               West Lawn Cemetery holds an unexpected piece of Canton lore. A quiet daytime historical node requiring respectful observation from a safe standing distance.
             </p>
-          </article>
+          </TransmissionPanel>
 
-          <article className="bg-[#09070e]/95 border border-purple-500/25 p-5 rounded-2xl">
-            <span className="text-purple-400 font-mono text-xs font-bold uppercase flex items-center gap-1.5">
-              <Radio size={15} /> DOSSIER 03 // ROAMING NPC
-            </span>
-            <h3 className="text-lg font-bold text-white mt-2">The Courier&apos;s Secret Code</h3>
+          <TransmissionPanel
+            eyebrow="DOSSIER 03 // ROAMING NPC"
+            icon={Radio}
+            tone="purple"
+            action={<SystemStatusBadge status="scanning" label="4TH STREET" size="sm" />}
+          >
+            <h3 className="text-lg font-bold text-white mt-1">The Courier&apos;s Secret Code</h3>
             <p className="text-gray-300 text-xs leading-relaxed mt-1">
               A roaming Game Master agent spotted in the 4th Street Arts Corridor carrying physical passcode drops for alert puzzle solvers.
             </p>
-          </article>
+          </TransmissionPanel>
+        </section>
+
+        {/* SEASONAL PAYOFF // WATCHERS HALLOWEEN TEASE */}
+        <section className="mt-6" aria-labelledby="seasonal-watchers-tease">
+          <div className="col-span-full mb-2">
+            <span className="text-xs font-mono font-bold tracking-widest text-purple-400 uppercase">
+              SEASONAL CLASSIFIED PAYOFF
+            </span>
+            <h2 id="seasonal-watchers-tease" className="text-2xl sm:text-4xl font-extrabold text-white mt-1">
+              THE OCTOBER WATCHERS PREVIEW
+            </h2>
+            <p className="text-gray-300 text-sm mt-1 max-w-2xl">
+              An unlisted signal layer active beneath Canton&apos;s physical grid. What you uncover at West Lawn connects directly to the October campaign.
+            </p>
+          </div>
+
+          <WatcherHalloweenTeaseCard />
         </section>
 
         {/* UNWRITTEN DIRECTIVES & SAFETY PROTOCOLS */}

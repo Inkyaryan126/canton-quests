@@ -34,3 +34,45 @@ export interface WatcherStatus {
   /** Free-form, private, per-player scratch state for future Watcher content — empty until that content exists. */
   privateClueState: Record<string, unknown>;
 }
+
+export interface WatcherHalloweenTease {
+  signalId: string;
+  status: 'DORMANT' | 'ACTIVE' | 'SIGNAL_DETECTED';
+  reactivationWindow: string;
+  eyebrow: string;
+  headline: string;
+  interceptMessage: string;
+  dossierCode: string;
+  footnote: string;
+  transmission: {
+    type: 'PHOTO_MESSAGE' | 'VIDEO';
+    headline: string;
+    message: string;
+    mediaKey: string;
+    cta: string;
+  };
+}
+
+export const WATCHER_HALLOWEEN_TEASE: WatcherHalloweenTease = {
+  signalId: 'W-01',
+  status: 'DORMANT',
+  reactivationWindow: 'OCTOBER',
+  eyebrow: 'CLASSIFIED INTERCEPT // WATCHER SIGNAL W-01',
+  headline: 'WATCHER FREQUENCY DORMANT // REACTIVATION: OCTOBER',
+  interceptMessage:
+    "You weren't the only one following the trail through Canton. A passive monitoring layer has logged your callsign. When the autumn frost hits West Lawn, the frequency reopens.",
+  dossierCode: 'OCTOBER-CAMPAIGN-PREVIEW',
+  footnote: 'WATCHER STATUS: FLAGGED [W-01] · SIGNAL ARCHIVED FOR OCTOBER CAMPAIGN',
+  transmission: {
+    type: 'PHOTO_MESSAGE',
+    headline: 'WATCHER SIGNAL W-01 // OCTOBER TEASE',
+    message:
+      "You found the grave. We noticed, operative. You weren't the only one following the trail. WATCHER SIGNAL W-01: DORMANT // REACTIVATION: OCTOBER. We'll be watching.",
+    mediaKey: 'commander/watchers-halloween-tease.jpg',
+    cta: 'ACKNOWLEDGE SIGNAL',
+  },
+};
+
+export function getWatcherHalloweenTease(): WatcherHalloweenTease {
+  return WATCHER_HALLOWEEN_TEASE;
+}
