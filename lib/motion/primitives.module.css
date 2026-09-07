@@ -1,0 +1,49 @@
+/* Apply scope to a container, or control directly to an interactive element.
+   These tokens are the source of truth: no animation scheduler or JS timers. */
+.cq-motion-scope,
+.cq-motion-control {
+  --cq-motion-instant: 0ms;
+  --cq-motion-press: 100ms;
+  --cq-motion-settle: 180ms;
+  --cq-motion-reveal: 280ms;
+  --cq-motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --cq-motion-ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --cq-motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* Extra specificity overrides legacy transition: all regardless of import order. */
+.cq-motion-control.cq-motion-control {
+  transition-property: color, background-color, border-color, opacity;
+  transition-duration: var(--cq-motion-press);
+  transition-timing-function: var(--cq-motion-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cq-motion-scope,
+  .cq-motion-control {
+    --cq-motion-press: var(--cq-motion-instant);
+    --cq-motion-settle: var(--cq-motion-instant);
+    --cq-motion-reveal: var(--cq-motion-instant);
+  }
+
+  .cq-motion-control.cq-motion-control {
+    animation: none;
+    transition-delay: 0ms;
+  }
+}
+
+/* Section arrival shares the sound/motion task's settle and enter tokens. */
+.cq-motion-open {
+  animation: cq-motion-open var(--cq-motion-settle) var(--cq-motion-ease-enter) both;
+}
+
+@keyframes cq-motion-open {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cq-motion-open[data-reduced-motion='true'] { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cq-motion-open { animation: none; }
+}
