@@ -25,7 +25,7 @@
  *     shows in the archive once delivered — proven below.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET as transmissionsGET } from '../app/api/game/transmissions/route';
 import {
   registerPlayer,
@@ -37,6 +37,13 @@ import {
 } from '../lib/game-engine';
 import { SEED_EVENT } from '../lib/seed-data';
 import { hasViewedTransmission } from '../lib/transmission-viewed-state';
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: null,
+  supabaseAdmin: null,
+  isSupabaseConfigured: false,
+  isSupabaseAdminConfigured: false,
+}));
 
 function authedRequest(url: string, userId: string): Request {
   return new Request(url, { headers: { Authorization: `Bearer mock-jwt-${userId}` } });
@@ -56,19 +63,23 @@ function enterWithPath(playerId: string, path: 'family' | 'challenge' | 'secret'
 
 function installLocalStorageShim() {
   const store = new Map<string, string>();
-  (globalThis as any).window = {
-    localStorage: {
-      getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
-      setItem: (k: string, v: string) => {
-        store.set(k, v);
-      },
-      removeItem: (k: string) => {
-        store.delete(k);
-      },
+  const shim = {
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => {
+      store.set(k, v);
+    },
+    removeItem: (k: string) => {
+      store.delete(k);
+    },
+    clear: () => {
+      store.clear();
     },
   };
+  (globalThis as any).localStorage = shim;
+  (globalThis as any).window = { localStorage: shim };
 }
 function removeLocalStorageShim() {
+  delete (globalThis as any).localStorage;
   delete (globalThis as any).window;
 }
 
@@ -80,8 +91,13 @@ async function fetchArchive(userId: string): Promise<{ transmissions: Array<{ id
 
 describe('Transmissions archive — reveal-only visibility (real persisted player state)', () => {
   beforeEach(() => {
+    installLocalStorageShim();
     resetGameEngineStore();
     initializeGameEngine();
+  });
+
+  afterEach(() => {
+    removeLocalStorageShim();
   });
 
   it('a future (not-yet-unlocked) transmission is entirely absent from the archive — no id, title, or placeholder', async () => {
@@ -126,7 +142,6 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
   });
 
   it('viewed state does not control reveal visibility — a delivered transmission the player never manually replayed still shows', async () => {
-    installLocalStorageShim();
     const player = registerPlayer({ displayName: 'ArchiveUnviewed', email: 'archiveunviewed@example.com', userId: 'usr-archive-unviewed' });
     enterWithPath(player.id, 'family');
 
@@ -137,7 +152,6 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
 
     const body = await fetchArchive('usr-archive-unviewed');
     expect(body.transmissions.some((t) => t.id === 1)).toBe(true);
-    removeLocalStorageShim();
   });
 
   it('revealed state persists across repeated fetches (refresh) with no drift', async () => {

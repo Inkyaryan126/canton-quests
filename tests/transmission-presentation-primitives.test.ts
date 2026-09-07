@@ -124,6 +124,44 @@ describe('Real call sites compose the primitives instead of re-implementing the 
     const source = readSource('components/game-effects/CommanderTransmissionEffect.tsx');
     expect(source).toMatch(/<CommanderMedia[^>]*reducedMotion=\{reducedMotion\}/);
   });
+
+  it('the cinematic transmission overlay implements a genuine decode-to-reveal sequence using TransmissionLoader and CqTransition', () => {
+    const source = readSource('components/game-effects/CommanderTransmissionEffect.tsx');
+    expect(source).toMatch(/import TransmissionLoader from '\.\/TransmissionLoader';/);
+    expect(source).toMatch(/import CqTransition from '\.\/CqTransition';/);
+    expect(source).toMatch(/label="DECODING TRANSMISSION"/);
+    expect(source).toMatch(/<CqTransition/);
+    expect(source).toMatch(/phase === 'revealed'/);
+    // Instantaneous under reduced motion (delay is 0)
+    expect(source).toMatch(/reducedMotion \? DECODE_MS_REDUCED : DECODE_MS/);
+  });
+
+  it('CommanderTransmission forwards reducedMotion to CommanderMedia', () => {
+    const source = readSource('components/CommanderTransmission.tsx');
+    expect(source).toMatch(/reducedMotion = false/);
+    expect(source).toMatch(/<CommanderMedia[^>]*reducedMotion=\{reducedMotion\}/);
+  });
+
+  it('the archive list page uses TransmissionLoader while loading and TransmissionPanel for Field Log entries', () => {
+    const source = readSource('app/events/[slug]/transmissions/page.tsx');
+    expect(source).toMatch(/import TransmissionLoader from '@\/components\/game-effects\/TransmissionLoader';/);
+    expect(source).toMatch(/import TransmissionPanel from '@\/components\/game-effects\/TransmissionPanel';/);
+    expect(source).toMatch(/import \{ useReducedMotion \} from '@\/lib\/motion';/);
+    expect(source).toMatch(/<TransmissionLoader label="ACCESSING ARCHIVE"/);
+    expect(source).toMatch(/<TransmissionPanel[\s\S]*?tone="cyan"/);
+  });
+
+  it('the transmission player page uses TransmissionLoader, TransmissionPanel, and CqTransition', () => {
+    const source = readSource('app/events/[slug]/transmissions/[id]/page.tsx');
+    expect(source).toMatch(/import TransmissionLoader from '@\/components\/game-effects\/TransmissionLoader';/);
+    expect(source).toMatch(/import TransmissionPanel from '@\/components\/game-effects\/TransmissionPanel';/);
+    expect(source).toMatch(/import CqTransition from '@\/components\/game-effects\/CqTransition';/);
+    expect(source).toMatch(/import \{ useReducedMotion \} from '@\/lib\/motion';/);
+    expect(source).toMatch(/<TransmissionLoader label="ACQUIRING SIGNAL"/);
+    expect(source).toMatch(/<TransmissionLoader label="DECODING TRANSMISSION"/);
+    expect(source).toMatch(/<TransmissionPanel/);
+    expect(source).toMatch(/<CqTransition/);
+  });
 });
 
 describe('TransmissionPanel/VerificationResult icon typing uses the real lucide-react component type', () => {
