@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { gameMomentManager } from '@/lib/game-effects';
-import { cqSoundManager } from '@/lib/audio';
+import { cqSoundManager, useSoundPreference } from '@/lib/audio';
+import { triggerHaptic } from '@/lib/motion';
+import motionStyles from '@/lib/motion/primitives.module.css';
 
 interface SoundToggleControlProps {
   soundEnabled?: boolean;
@@ -18,33 +20,20 @@ export default function SoundToggleControl({
   showLabel = true,
   compact = false,
 }: SoundToggleControlProps) {
-  const [internalEnabled, setInternalEnabled] = useState<boolean>(() =>
-    controlledEnabled !== undefined ? controlledEnabled : cqSoundManager.isSoundEnabled()
-  );
-
-  useEffect(() => {
-    if (controlledEnabled !== undefined) {
-      setInternalEnabled(controlledEnabled);
-    }
-  }, [controlledEnabled]);
-
-  useEffect(() => {
-    // Subscribe to sound manager updates for live sync across views
-    const unsubscribe = cqSoundManager.subscribe((state) => {
-      setInternalEnabled(state.soundEnabled);
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  const isEnabled = controlledEnabled !== undefined ? controlledEnabled : internalEnabled;
+  // useSoundPreference is the shared primitive (lib/audio) — it subscribes
+  // to cqSoundManager directly, so this control never tracks a duplicate
+  // enabled/disabled flag of its own.
+  const soundPreference = useSoundPreference();
+  const isEnabled = controlledEnabled !== undefined ? controlledEnabled : soundPreference.enabled;
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const next = cqSoundManager.toggleSound();
+    const next = soundPreference.toggle();
     gameMomentManager.setSoundEnabled(next);
-    setInternalEnabled(next);
+
+    // Sparing, optional confirmation haptic — feature-detected, never
+    // required, and never blocks the (already-instant) toggle.
+    triggerHaptic();
 
     // Play subtle confirm tone on unmuting
     if (next) {
@@ -56,7 +45,7 @@ export default function SoundToggleControl({
     <button
       type="button"
       onClick={handleToggle}
-      className={`cq-sound-toggle-btn ${compact ? 'is-compact' : ''} ${
+      className={`cq-sound-toggle-btn ${motionStyles.transitionBase} ${compact ? 'is-compact' : ''} ${
         isEnabled ? 'is-enabled' : 'is-muted'
       } ${className}`}
       aria-label={isEnabled ? 'Mute Canton Quests sound effects' : 'Unmute Canton Quests sound effects'}
