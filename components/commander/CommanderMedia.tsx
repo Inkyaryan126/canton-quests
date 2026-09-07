@@ -4,12 +4,15 @@ import { useState } from 'react';
 import { Radio } from 'lucide-react';
 import { QuestCommanderTransmission } from '@/lib/types';
 import { resolveTransmissionMediaMode } from '@/lib/commander-transmission-utils';
+import TransmissionLoader from '../game-effects/TransmissionLoader';
+import VerificationResult from '../game-effects/VerificationResult';
 
 interface CommanderMediaProps {
   transmission: QuestCommanderTransmission;
   /** 'inline' for the briefing-card treatment, 'cinematic' for the full-overlay treatment. */
   variant?: 'inline' | 'cinematic';
   className?: string;
+  reducedMotion?: boolean;
   /**
    * Fires on the video element's real `ended` event — playback genuinely
    * reaching its end, never a guessed duration. Pausing, buffering, or
@@ -33,8 +36,15 @@ interface CommanderMediaProps {
  * this renders a placeholder "Commander photo" treatment instead — never a
  * broken image/video element.
  */
-export default function CommanderMedia({ transmission, variant = 'inline', className = '', onVideoEnded }: CommanderMediaProps) {
+export default function CommanderMedia({
+  transmission,
+  variant = 'inline',
+  className = '',
+  reducedMotion = false,
+  onVideoEnded,
+}: CommanderMediaProps) {
   const [videoFailed, setVideoFailed] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
 
   const isCinematic = variant === 'cinematic';
   const isPortrait = transmission.mediaAspect === 'portrait';
@@ -44,6 +54,11 @@ export default function CommanderMedia({ transmission, variant = 'inline', class
     const aspectClass = isPortrait ? 'aspect-[9/16] max-h-[75vh] mx-auto max-w-[min(100%,420px)]' : 'aspect-video';
     return (
       <div className={`relative w-full ${aspectClass} bg-black overflow-hidden ${isCinematic ? 'rounded-t-2xl' : 'rounded-lg border border-amber-500/20'} ${className}`}>
+        {!videoReady && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+            <TransmissionLoader label="BUFFERING SIGNAL" size="sm" reducedMotion={reducedMotion} />
+          </div>
+        )}
         <video
           className="w-full h-full object-contain"
           src={transmission.mediaKey}
@@ -52,6 +67,7 @@ export default function CommanderMedia({ transmission, variant = 'inline', class
           playsInline
           onError={() => setVideoFailed(true)}
           onEnded={onVideoEnded}
+          onLoadedData={() => setVideoReady(true)}
         >
           Your browser does not support video playback.
         </video>
@@ -85,10 +101,19 @@ export default function CommanderMedia({ transmission, variant = 'inline', class
       ) : null}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10" aria-hidden="true" />
       <div className="relative flex flex-col items-center gap-2 text-stone-500">
-        <Radio size={isCinematic ? 40 : 22} className="text-amber-500/70" />
-        <span className="text-[10px] font-mono uppercase tracking-widest">
-          {videoFailed ? 'Transmission unstable — audio only' : 'Photo transmission — media pending'}
-        </span>
+        {videoFailed ? (
+          <VerificationResult
+            status="failure"
+            title="Transmission unstable"
+            message="Audio only"
+            reducedMotion={reducedMotion}
+          />
+        ) : (
+          <>
+            <Radio size={isCinematic ? 40 : 22} className="text-amber-500/70" />
+            <span className="text-[10px] font-mono uppercase tracking-widest">Photo transmission — media pending</span>
+          </>
+        )}
       </div>
     </div>
   );

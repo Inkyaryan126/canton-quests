@@ -3,6 +3,7 @@
 import { Radio, Video, RotateCcw } from 'lucide-react';
 import { QuestCommanderTransmission } from '@/lib/types';
 import CommanderMedia from './commander/CommanderMedia';
+import TransmissionPanel from './game-effects/TransmissionPanel';
 
 interface CommanderTransmissionProps {
   transmission: QuestCommanderTransmission;
@@ -23,15 +24,13 @@ export default function CommanderTransmission({ transmission, className = '', on
   const Icon = transmission.type === 'VIDEO' ? Video : Radio;
 
   return (
-    <div className={`rounded-xl border border-amber-500/30 bg-[#0a0806] p-4 space-y-3 ${className}`}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Icon size={14} className="text-amber-400" />
-          <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">
-            {transmission.headline || 'Commander Transmission'}
-          </span>
-        </div>
-        {onReplay && (
+    <TransmissionPanel
+      eyebrow={transmission.headline || 'Commander Transmission'}
+      icon={Icon}
+      tone="amber"
+      className={className}
+      action={
+        onReplay ? (
           <button
             type="button"
             onClick={onReplay}
@@ -40,12 +39,12 @@ export default function CommanderTransmission({ transmission, className = '', on
             <RotateCcw size={11} />
             Replay
           </button>
-        )}
-      </div>
-
+        ) : undefined
+      }
+    >
       <CommanderMedia transmission={transmission} variant="inline" />
 
       <p className="text-sm text-stone-200 leading-relaxed italic">&ldquo;{transmission.message}&rdquo;</p>
-    </div>
+    </TransmissionPanel>
   );
 }

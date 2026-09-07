@@ -73,7 +73,7 @@ export default function CommanderTransmissionEffect({ moment, onDismiss, reduced
           </span>
         </div>
 
-        <CommanderMedia transmission={transmission} variant="cinematic" onVideoEnded={handleContinue} />
+        <CommanderMedia transmission={transmission} variant="cinematic" reducedMotion={reducedMotion} onVideoEnded={handleContinue} />
 
         {/* Body */}
         <div className="p-5 sm:p-6 space-y-4 text-center">
