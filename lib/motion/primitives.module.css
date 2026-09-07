@@ -1,0 +1,79 @@
+/**
+ * Canton Quests — CSS-first motion primitives.
+ *
+ * Import this module wherever a component needs the shared transition
+ * tokens or a reduced-motion-safe transition utility class, instead of
+ * writing one-off `transition: ... 150ms ease` values inline.
+ *
+ * Values here MUST stay numerically in sync with lib/motion/tokens.ts.
+ *
+ * The custom properties below live under `:root` so they are also readable
+ * as plain `var(--cq-duration-base)` / `var(--cq-ease-standard)` by any
+ * global stylesheet rule, once this module has been imported by at least
+ * one mounted component.
+ */
+
+:root {
+  --cq-duration-instant: 0ms;
+  --cq-duration-fast: 120ms;
+  --cq-duration-base: 220ms;
+  --cq-duration-slow: 360ms;
+
+  --cq-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --cq-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --cq-ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+.transitionFast {
+  transition-duration: var(--cq-duration-fast);
+  transition-timing-function: var(--cq-ease-standard);
+}
+
+.transitionBase {
+  transition-duration: var(--cq-duration-base);
+  transition-timing-function: var(--cq-ease-standard);
+}
+
+.transitionSlow {
+  transition-duration: var(--cq-duration-slow);
+  transition-timing-function: var(--cq-ease-standard);
+}
+
+.fadeIn {
+  animation: cqFadeIn var(--cq-duration-base) var(--cq-ease-out);
+}
+
+@keyframes cqFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * The shared reduced-motion switch. Any component using the classes above
+ * automatically gets a near-instant, non-animated experience when the user
+ * has requested reduced motion at the OS/browser level — components must
+ * not write their own ad hoc `@media (prefers-reduced-motion: reduce)`
+ * block; rely on this one.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cq-duration-instant: 0ms;
+    --cq-duration-fast: 0ms;
+    --cq-duration-base: 0ms;
+    --cq-duration-slow: 0ms;
+  }
+
+  .transitionFast,
+  .transitionBase,
+  .transitionSlow,
+  .fadeIn {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
