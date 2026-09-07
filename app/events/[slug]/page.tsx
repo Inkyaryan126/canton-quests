@@ -45,6 +45,7 @@ import ThreePathSelector from '@/components/ThreePathSelector';
 import LiveCityStatusPanel from '@/components/LiveCityStatusPanel';
 import CityPulseStrip from '@/components/CityPulseStrip';
 import WatchTransmissionButton from '@/components/commander/WatchTransmissionButton';
+import MissionColdOpen from '@/components/game-effects/MissionColdOpen';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -150,6 +151,11 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
 
   // Feedback Modal State
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+
+  // Mission cold-open — the field-equipment "powering on" boot sequence
+  // that plays once per browser tab per Operation before any real content
+  // (loading, gated, or dashboard) is revealed. See MissionColdOpen.
+  const [coldOpenComplete, setColdOpenComplete] = useState(false);
 
   // Operation Entry State — the permanent, authenticated player (never the
   // localStorage display-cache fallback) and their Operation participation
@@ -318,11 +324,11 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
     setLoadError(null);
 
     // A request that never settles (dropped connection, an intermediary
-    // that swallows the response, etc.) must not leave the UI on
-    // "Loading Mission Grid..." forever — abort and surface a real error
-    // with a retry action instead. 15s is generous for this endpoint's
-    // normal response time while still giving up well before a visitor
-    // assumes the app is simply broken.
+    // that swallows the response, etc.) must not leave the cold-open boot
+    // sequence "scanning" forever — abort and surface a real error with a
+    // retry action instead. 15s is generous for this endpoint's normal
+    // response time while still giving up well before a visitor assumes
+    // the app is simply broken.
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -502,12 +508,20 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
     refreshData();
   };
 
-  if (isLoading) {
+  // Field-equipment cold open: gates every branch below (loading, gated,
+  // pre-launch, or the live dashboard) behind a single once-per-tab boot
+  // sequence, so the first entry into any real Operation status reads as
+  // hardware powering on rather than a webpage loading. 'pending' holds the
+  // scanning stage open until the real fetch settles; 'error' resolves to
+  // an honest denied frame instead of falsely confirming a signal lock.
+  if (!coldOpenComplete) {
     return (
-      <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent mb-4" />
-        <p className="text-xs text-amber-300 tracking-wider uppercase">Loading Mission Grid...</p>
-      </div>
+      <MissionColdOpen
+        eventSlug={eventSlug}
+        outcome={isLoading ? 'pending' : loadError && !event ? 'error' : 'ready'}
+        onDone={() => setColdOpenComplete(true)}
+        missionLabel={event?.title}
+      />
     );
   }
 
