@@ -11,6 +11,8 @@ import MobileStartBar from '@/components/MobileStartBar';
 import CinematicFooter from '@/components/CinematicFooter';
 import QuestRewardBreakdown from '@/components/QuestRewardBreakdown';
 import CommanderTransmission from '@/components/CommanderTransmission';
+import QuestStartEffect from '@/components/game-effects/QuestStartEffect';
+import SystemStatusBadge from '@/components/game-effects/SystemStatusBadge';
 import { QuestEvent, Player, QuestSubmission, SubmitProofResult, PublicQuestView, PlayerEventProgress } from '@/lib/types';
 import { cleanQuestTitle, cqImages, getQuestImage, isStandaloneQuestCard, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
 import { triggerQuestRewardSequence, triggerGameMomentSequence, showGameMoment } from '@/lib/game-effects';
@@ -762,6 +764,13 @@ export default function QuestDetailPage({
           ← Back to Quest Hub
         </Link>
 
+        {/* Quest-start flagship moment — only for a quest the player can
+            still actually attempt; keyed by quest id so the HUD reveal and
+            cue replay when navigating from one quest straight into another. */}
+        {!isAlreadyCompleted && !isAlreadyPending && !isLocked && (
+          <QuestStartEffect key={quest.id} questTitle={cleanQuestTitle(quest.title)} />
+        )}
+
         {/* Flash Quest Banner if Active */}
         {quest.isFlash && (
           <div
@@ -942,7 +951,7 @@ export default function QuestDetailPage({
         ) : isAlreadyCompleted ? (
           /* COMPLETED STATE */
           <div className="glass-panel p-6 border-emerald-500/50 bg-emerald-950/20 text-center space-y-3 animate-fade-in mb-6">
-            <span className="text-4xl block">🎉</span>
+            <SystemStatusBadge status="confirmed" label="SERVER VERIFIED & COMPLETE" />
             <h2 className="text-3xl font-extrabold text-emerald-400 tracking-wider">QUEST COMPLETE</h2>
             <div className="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-xl inline-block text-center max-w-md w-full my-2">
               <div className="text-2xl font-black text-amber-300 font-mono">+{quest.pointValue} XP</div>

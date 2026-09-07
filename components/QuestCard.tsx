@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { MapPin, Zap, Lock, CheckCircle2, Sparkles } from 'lucide-react';
 import { PublicQuestView, QuestState } from '@/lib/types';
 import { cqSoundManager } from '@/lib/audio';
+import { confirmHaptic } from '@/lib/motion';
+import SystemStatusBadge from '@/components/game-effects/SystemStatusBadge';
 import {
   cqImages,
   getQuestImage,
@@ -156,15 +158,9 @@ export default function QuestCard({
               ⚡ FLASH {timeLeftStr && `(${timeLeftStr})`}
             </span>
           ) : isComplete ? (
-            <span className="bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1">
-              <Sparkles size={11} className="text-amber-400" />
-              COLLECTED
-            </span>
+            <SystemStatusBadge status="confirmed" label="COLLECTED" size="sm" />
           ) : isLocked ? (
-            <span className="bg-stone-900/90 text-stone-400 border border-stone-700 text-[10px] font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1">
-              <Lock size={11} />
-              LOCKED
-            </span>
+            <SystemStatusBadge status="denied" label="LOCKED" size="sm" />
           ) : (
             <span className="bg-stone-900/80 text-stone-300 border border-stone-700 text-[10px] font-mono px-2 py-0.5 rounded">
               {categoryIcon} {questCategoryLabels[quest.category] || quest.category}
@@ -244,6 +240,7 @@ export default function QuestCard({
         className="block h-full cursor-not-allowed"
         onClick={() => {
           cqSoundManager.play('ui_locked');
+          confirmHaptic({ enabled: true });
         }}
       >
         {cardContent}
@@ -257,6 +254,7 @@ export default function QuestCard({
       className="block h-full cursor-pointer"
       onClick={() => {
         cqSoundManager.play('quest_select');
+        confirmHaptic({ enabled: true });
       }}
     >
       {cardContent}
