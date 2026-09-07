@@ -2823,6 +2823,84 @@ code, pre, .font-mono {
 }
 
 /* ==========================================================================
+   SYSTEM-STATUS BADGE — armed / scanning / confirmed / denied
+   Command-terminal status pill reused across HUD moments (city scan,
+   path lock, quest scan, etc). Color and icon are driven by `.is-<state>`;
+   the label swap uses the settle transition above, not a one-off value.
+   ========================================================================== */
+
+.cq-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid;
+  background: rgba(7, 9, 14, 0.6);
+  transition:
+    color var(--cq-motion-settle, 180ms) var(--cq-motion-ease-standard, ease),
+    border-color var(--cq-motion-settle, 180ms) var(--cq-motion-ease-standard, ease),
+    background-color var(--cq-motion-settle, 180ms) var(--cq-motion-ease-standard, ease);
+}
+
+.cq-status-badge.is-sm {
+  padding: 0.2rem 0.55rem;
+  font-size: 10px;
+  gap: 0.3rem;
+}
+
+.cq-status-badge.is-armed {
+  color: var(--cq-hud-gold-bright);
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.cq-status-badge.is-scanning {
+  color: var(--cq-hud-cyan);
+  border-color: rgba(6, 182, 212, 0.5);
+  background: rgba(6, 182, 212, 0.1);
+}
+
+.cq-status-badge.is-scanning .cq-status-badge-icon {
+  animation: cqReticleSpin 1.4s linear infinite;
+}
+
+.cq-status-badge.is-confirmed {
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.5);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.cq-status-badge.is-denied {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cq-status-badge.is-scanning .cq-status-badge-icon {
+    animation: none;
+  }
+}
+
+.cq-hud-system-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cq-hud-system-state-detail {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: #d6d3d1;
+}
+
+/* ==========================================================================
    THREE DOORS PATH SELECTOR (MASTER VISUAL & INTERACTIVE HOTSPOTS)
    ========================================================================== */
 .cq-three-doors-section {
@@ -4624,6 +4702,18 @@ code, pre, .font-mono {
   pointer-events: auto;
   isolation: isolate;
   background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.cq-moment-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }

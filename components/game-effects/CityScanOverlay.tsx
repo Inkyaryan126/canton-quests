@@ -4,28 +4,32 @@ import React, { useEffect, useState } from 'react';
 import { Radar, Target, MapPin } from 'lucide-react';
 import { CityScanMoment } from '@/lib/game-effects';
 import { proceduralSoundEngine } from '@/lib/game-audio';
+import SystemStatusBadge from './SystemStatusBadge';
+import CqTransition from './CqTransition';
 
 interface CityScanOverlayProps {
   moment: CityScanMoment;
-  onDismiss: () => void;
+  onDismiss?: () => void;
   reducedMotion?: boolean;
 }
 
 export default function CityScanOverlay({
   moment,
-  onDismiss,
   reducedMotion = false,
 }: CityScanOverlayProps) {
   const [phase, setPhase] = useState<'scanning' | 'acquired'>('scanning');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     proceduralSoundEngine.playCityScan();
 
+    const raf = requestAnimationFrame(() => setMounted(true));
     const t1 = setTimeout(() => {
       setPhase('acquired');
     }, reducedMotion ? 300 : 500);
 
     return () => {
+      cancelAnimationFrame(raf);
       clearTimeout(t1);
     };
   }, [reducedMotion]);
@@ -55,7 +59,11 @@ export default function CityScanOverlay({
       />
 
       {/* Central HUD Scanner Pod */}
-      <div className="relative z-10 max-w-sm w-full bg-[#07090e]/95 border border-amber-500/50 rounded-2xl p-6 shadow-[0_0_50px_rgba(245,158,11,0.25)] text-center space-y-4 overflow-hidden">
+      <CqTransition
+        show={mounted}
+        reducedMotion={reducedMotion}
+        className="relative z-10 max-w-sm w-full bg-[#07090e]/95 border border-amber-500/50 rounded-2xl p-6 shadow-[0_0_50px_rgba(245,158,11,0.25)] text-center space-y-4 overflow-hidden"
+      >
         {/* HUD Corner Brackets */}
         <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-amber-400" />
         <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-amber-400" />
@@ -75,7 +83,8 @@ export default function CityScanOverlay({
         </div>
 
         {/* Scanning Text */}
-        <div className="space-y-1">
+        <div className="space-y-1.5">
+          <SystemStatusBadge status={phase === 'scanning' ? 'scanning' : 'confirmed'} size="sm" />
           <span className="text-[10px] font-mono tracking-widest text-amber-400/80 font-bold uppercase block">
             {districtLabel}
           </span>
@@ -102,7 +111,7 @@ export default function CityScanOverlay({
             style={{ width: phase === 'scanning' ? '45%' : '100%' }}
           />
         </div>
-      </div>
+      </CqTransition>
     </div>
   );
 }
