@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, lazy, Suspense, useContext, useEffect, useState } from 'react';
 import {
   GameEffectsState,
   gameMomentManager,
@@ -9,7 +9,7 @@ import {
   GameMomentOptions,
   triggerQuestRewardSequence,
 } from '@/lib/game-effects';
-import GameMomentOverlay from './GameMomentOverlay';
+const GameMomentOverlay = lazy(() => import('./GameMomentOverlay'));
 
 interface GameEffectsContextValue {
   state: GameEffectsState;
@@ -43,7 +43,9 @@ export function GameEffectsProvider({ children }: { children: React.ReactNode })
   return (
     <GameEffectsContext.Provider value={value}>
       {children}
-      <GameMomentOverlay />
+      {state.currentMoment && (
+        <Suspense fallback={null}><GameMomentOverlay /></Suspense>
+      )}
     </GameEffectsContext.Provider>
   );
 }

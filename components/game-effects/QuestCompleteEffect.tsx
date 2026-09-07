@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Zap, Trophy, Ticket, ArrowRight, Sparkles } from 'lucide-react';
 import { QuestCompleteMoment } from '@/lib/game-effects';
-import HudParticlesCanvas from './HudParticlesCanvas';
+import HudParticlesCanvas from './LazyHudParticles';
 import { proceduralSoundEngine } from '@/lib/game-audio';
 
 interface QuestCompleteEffectProps {

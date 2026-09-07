@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { Layers, ArrowRight, Sparkles, CheckCheck } from 'lucide-react';
 import { ChainCompleteMoment } from '@/lib/game-effects';
-import HudParticlesCanvas from './HudParticlesCanvas';
+import HudParticlesCanvas from './LazyHudParticles';
 import { cqSoundManager } from '@/lib/audio';
 
 interface ChainCompleteEffectProps {

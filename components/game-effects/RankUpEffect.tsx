@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { ArrowUpRight, Crown, Medal, Trophy, Sparkles, ArrowRight } from 'lucide-react';
 import { RankUpMoment, RankTier } from '@/lib/game-effects';
-import HudParticlesCanvas from './HudParticlesCanvas';
+import HudParticlesCanvas from './LazyHudParticles';
 import { proceduralSoundEngine } from '@/lib/game-audio';
 
 interface RankUpEffectProps {

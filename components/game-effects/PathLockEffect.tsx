@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Compass, Zap, KeyRound, CheckCircle2, ArrowRight, Shield } from 'lucide-react';
 import { PathLockMoment } from '@/lib/game-effects';
 import HudReticle from './HudReticle';
-import HudParticlesCanvas, { ParticleMode } from './HudParticlesCanvas';
+import HudParticlesCanvas, { ParticleMode } from './LazyHudParticles';
 import { proceduralSoundEngine } from '@/lib/game-audio';
 
 interface PathLockEffectProps {

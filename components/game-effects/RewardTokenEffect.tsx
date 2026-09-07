@@ -3,7 +3,10 @@
 import React, { useEffect } from 'react';
 import { Zap, Ticket, Flag, ArrowRight } from 'lucide-react';
 import { RewardTokenMoment } from '@/lib/game-effects';
-import HudParticlesCanvas from './HudParticlesCanvas';
+import HudParticlesCanvas from './LazyHudParticles';
+import HudSystemState from './HudSystemState';
+import HudTransition from './HudTransition';
+import motion from '@/lib/motion/primitives.module.css';
 import { cqSoundManager } from '@/lib/audio';
 
 interface RewardTokenEffectProps {
@@ -39,61 +42,47 @@ export default function RewardTokenEffect({ moment, onDismiss, reducedMotion = f
 
   return (
     <div
-      className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none"
-      aria-live="assertive"
+      className="cq-field-effect"
       role="dialog"
       aria-modal="true"
+      aria-label={moment.headline}
     >
       <HudParticlesCanvas mode="xp-burst" color={color} reducedMotion={reducedMotion} />
 
-      <div
-        className="relative z-10 max-w-sm w-full max-h-[90vh] overflow-y-auto bg-[#07090e]/95 border-2 rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-2xl"
-        style={{ borderColor: color, boxShadow: `0 0 50px ${color}55` }}
-      >
-        <div className="relative mx-auto w-16 h-16 flex items-center justify-center">
-          {!reducedMotion && <div className="absolute inset-0 rounded-full border" style={{ borderColor: color }} />}
-          <div className="w-14 h-14 rounded-2xl border-2 flex items-center justify-center" style={{ borderColor: color, background: `${color}22` }}>
-            <Icon size={26} style={{ color }} />
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <span className="inline-block text-[10px] font-mono font-black uppercase tracking-widest px-3 py-1 rounded-full border" style={{ borderColor: color, color, backgroundColor: `${color}18` }}>
-            {pillLabel}
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-black font-display text-white tracking-tight">{moment.headline}</h2>
-          {moment.secondaryText && <p className="text-xs text-stone-300 font-mono">{moment.secondaryText}</p>}
-        </div>
+      <HudTransition className="cq-field-panel" reducedMotion={reducedMotion}>
+        <div className="cq-field-reward-icon" style={{ color }} aria-hidden="true"><Icon size={28} /></div>
+        <HudSystemState state="confirmed" label={pillLabel} reducedMotion={reducedMotion} />
+        <h2 className="cq-field-title">{moment.headline}</h2>
+        {moment.secondaryText && <p className="cq-field-detail">{moment.secondaryText}</p>}
 
         {(moment.xpAmount !== undefined || moment.entryCount !== undefined) && (
-          <div className="py-3 px-4 rounded-2xl border flex items-center justify-center gap-6" style={{ borderColor: `${color}55`, backgroundColor: `${color}12` }}>
+          <div className="cq-field-reward-values">
             {moment.xpAmount !== undefined && (
               <div>
-                <span className="text-[10px] font-mono text-stone-400 uppercase block">XP</span>
-                <span className="font-display font-black text-3xl" style={{ color }}>+{moment.xpAmount}</span>
+                <span className="cq-field-value-label">XP</span>
+                <span className="cq-field-value">+{moment.xpAmount}</span>
               </div>
             )}
             {moment.entryCount !== undefined && (
               <div>
-                <span className="text-[10px] font-mono text-stone-400 uppercase block">{entryLabel}</span>
-                <span className="font-display font-black text-3xl" style={{ color }}>+{moment.entryCount}</span>
+                <span className="cq-field-value-label">{entryLabel}</span>
+                <span className="cq-field-value">+{moment.entryCount}</span>
               </div>
             )}
           </div>
         )}
 
-        {moment.primaryText && <p className="text-sm text-stone-200 font-mono">{moment.primaryText}</p>}
+        {moment.primaryText && <p className="cq-field-detail">{moment.primaryText}</p>}
 
         <button
           type="button"
           onClick={onDismiss}
-          className="w-full py-3.5 px-5 rounded-xl font-display font-extrabold text-sm uppercase tracking-wider text-black flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer hover:brightness-110 min-h-[48px]"
-          style={{ backgroundColor: color }}
+          className={`cq-field-continue ${motion['cq-motion-control']}`}
         >
           <span>{moment.cta || 'CONTINUE'}</span>
           <ArrowRight size={17} />
         </button>
-      </div>
+      </HudTransition>
     </div>
   );
 }

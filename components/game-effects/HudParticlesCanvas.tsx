@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 
 export type ParticleMode = 'gold-embers' | 'kinetic-streaks' | 'cryptic-glyphs' | 'xp-burst' | 'city-nodes';
 
-interface HudParticlesCanvasProps {
+export interface HudParticlesCanvasProps {
   mode?: ParticleMode;
   count?: number;
   color?: string;
