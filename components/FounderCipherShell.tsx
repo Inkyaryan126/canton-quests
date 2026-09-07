@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import React, { ReactNode, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -26,6 +26,7 @@ import { DOOR_HOTSPOTS } from '@/components/ThreePathSelector';
 import { OperationLifecycleStage } from '@/lib/launch-status';
 import { createPlayerFileClickHandler } from '@/lib/player-file-nav';
 import { getPathTone } from '@/lib/path-tone';
+import { FOUNDER_LOCK_LIST } from '@/lib/founders-cipher';
 
 const founderCipherSteps = [
   {
@@ -444,10 +445,93 @@ export default function FounderCipherShell({
                     <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
                       <span className="cq-door-pill-title">{door.label}</span>
                       <span className="cq-door-pill-district">{getPathTone(door.id)?.styleTag || door.district}</span>
+                      <span
+                        className="cq-door-pill-lock"
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 'clamp(0.5rem, 0.9vw, 0.6rem)',
+                          color: door.color,
+                          letterSpacing: '0.04em',
+                          opacity: 0.9,
+                          marginTop: '2px',
+                        }}
+                      >
+                        {door.founderLockBadge}
+                      </span>
                     </div>
                   </div>
                 </div>
               </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* FOUNDER'S THREE LOCKS OVERVIEW — Relic lineage & convergence preview */}
+        <div
+          className="cq-door-rules-bar"
+          style={{
+            marginTop: '1.25rem',
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            gap: '0.75rem',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <KeyRound size={16} style={{ color: '#f59e0b', flexShrink: 0 }} />
+              <strong style={{ color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                The Founder&apos;s Three Locks: The Mark · The Code · The Word
+              </strong>
+            </div>
+            <span style={{ fontSize: '0.72rem', color: '#fbbf24', letterSpacing: '0.04em' }}>
+              3 AUTHORIZATION KEYS → 1 MASTER CIPHER CONVERGENCE
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '0.5rem',
+              width: '100%',
+            }}
+          >
+            {FOUNDER_LOCK_LIST.map((lock) => (
+              <div
+                key={lock.key}
+                style={{
+                  backgroundColor: `${lock.hexColor}10`,
+                  borderColor: `${lock.hexColor}40`,
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderRadius: '0.5rem',
+                  padding: '0.5rem 0.75rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.2rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <strong style={{ color: lock.hexColor, fontSize: '0.75rem' }}>
+                    {lock.romanNumeral}. {lock.name}
+                  </strong>
+                  <span style={{ fontSize: '0.62rem', color: '#9ca3af', textTransform: 'uppercase' }}>
+                    {lock.districtName}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.68rem', color: '#d1d5db', fontStyle: 'italic' }}>
+                  &ldquo;{lock.inscription}&rdquo;
+                </span>
+              </div>
             ))}
           </div>
         </div>

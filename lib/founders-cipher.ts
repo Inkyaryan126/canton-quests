@@ -69,6 +69,138 @@ export function getDistrictDecodeDefinition(key: CipherDistrictKey): DistrictDec
   return DISTRICT_BY_KEY.get(key);
 }
 
+export type FounderLockKey = 'mark' | 'code' | 'word';
+
+export interface FounderLockDefinition {
+  key: FounderLockKey;
+  romanNumeral: 'I' | 'II' | 'III';
+  name: string;
+  title: string;
+  collectibleId: string;
+  collectibleSlug: string;
+  districtKey: CipherDistrictKey;
+  districtName: string;
+  associatedPath: QuestPath;
+  tone: 'violet' | 'crimson' | 'amber';
+  hexColor: string;
+  badgeSymbol: string;
+  loreTitle: string;
+  loreSnippet: string;
+  inscription: string;
+  reticleVariant: 'cryptic' | 'kinetic' | 'compass';
+  particleMode: 'cryptic-glyphs' | 'kinetic-streaks' | 'gold-embers';
+  relicName: string;
+  verificationSubtitle: string;
+}
+
+export const FOUNDER_LOCK_DEFINITIONS: Record<FounderLockKey, FounderLockDefinition> = {
+  mark: {
+    key: 'mark',
+    romanNumeral: 'I',
+    name: 'THE MARK',
+    title: 'The Mark',
+    collectibleId: 'col-founder-mark',
+    collectibleSlug: 'founder-mark',
+    districtKey: 'secret',
+    districtName: 'Monument Park',
+    associatedPath: 'secret',
+    tone: 'violet',
+    hexColor: '#a855f7',
+    badgeSymbol: '🔶',
+    loreTitle: 'THE GRANITE ENGRAVING',
+    loreSnippet: "Lock I of The Founder's Three Locks. Hewn into chiseled stone high on the McKinley steps.",
+    inscription: 'THE DEAD KEEP IT AT WEST LAWN',
+    reticleVariant: 'cryptic',
+    particleMode: 'cryptic-glyphs',
+    relicName: 'Granite Seal Matrix',
+    verificationSubtitle: 'RELIC I // MONUMENT PARK ARCHIVE // THE STONE STAIR CIPHER',
+  },
+  code: {
+    key: 'code',
+    romanNumeral: 'II',
+    name: 'THE CODE',
+    title: 'The Code',
+    collectibleId: 'col-founder-code',
+    collectibleSlug: 'founder-code',
+    districtKey: 'challenge',
+    districtName: 'Mother Goose Land',
+    associatedPath: 'challenge',
+    tone: 'crimson',
+    hexColor: '#ef4444',
+    badgeSymbol: '🔴',
+    loreTitle: 'THE KINETIC TUMBLER',
+    loreSnippet: "Lock II of The Founder's Three Locks. Forged in the brass telemetry of Canton's athletic grounds.",
+    inscription: 'THE WORLD GAVE A MONSTER HIS NAME',
+    reticleVariant: 'kinetic',
+    particleMode: 'kinetic-streaks',
+    relicName: 'Brass Tumbler Cylinder',
+    verificationSubtitle: 'RELIC II // ATHLETIC CORRIDOR // THE BRASS KEY',
+  },
+  word: {
+    key: 'word',
+    romanNumeral: 'III',
+    name: 'THE WORD',
+    title: 'The Word',
+    collectibleId: 'col-founder-word',
+    collectibleSlug: 'founder-word',
+    districtKey: 'arts',
+    districtName: 'Arts District',
+    associatedPath: 'family',
+    tone: 'amber',
+    hexColor: '#f59e0b',
+    badgeSymbol: '🟣',
+    loreTitle: 'THE LIVING COVENANT',
+    loreSnippet: "Lock III of The Founder's Three Locks. Carried across the civic murals and the open signal.",
+    inscription: 'A NAME OUTLIVES THE MAN',
+    reticleVariant: 'compass',
+    particleMode: 'gold-embers',
+    relicName: 'Harmonic Signal Core',
+    verificationSubtitle: 'RELIC III // ARTS DISTRICT CORRIDOR // THE FOUNDER SIGNAL',
+  },
+};
+
+export const FOUNDER_LOCK_LIST: FounderLockDefinition[] = [
+  FOUNDER_LOCK_DEFINITIONS.mark,
+  FOUNDER_LOCK_DEFINITIONS.code,
+  FOUNDER_LOCK_DEFINITIONS.word,
+];
+
+export function isFounderLockKey(value: unknown): value is FounderLockKey {
+  return value === 'mark' || value === 'code' || value === 'word';
+}
+
+export function getFounderLockDefinition(key: FounderLockKey): FounderLockDefinition {
+  return FOUNDER_LOCK_DEFINITIONS[key];
+}
+
+export function getFounderLockByCollectibleId(collectibleId: string): FounderLockDefinition | undefined {
+  const norm = collectibleId.trim().toLowerCase();
+  return FOUNDER_LOCK_LIST.find((l) => l.collectibleId.toLowerCase() === norm || l.collectibleSlug.toLowerCase() === norm);
+}
+
+export function getFounderLockByPath(path: QuestPath): FounderLockDefinition | undefined {
+  return FOUNDER_LOCK_LIST.find((l) => l.associatedPath === path);
+}
+
+export function evaluateThreeLocksStatus(ownedKeys: Set<string> | string[]): {
+  mark: boolean;
+  code: boolean;
+  word: boolean;
+  count: number;
+  allOwned: boolean;
+} {
+  const keySet = Array.isArray(ownedKeys)
+    ? new Set(ownedKeys.map((k) => k.toLowerCase()))
+    : new Set([...ownedKeys].map((k) => k.toLowerCase()));
+
+  const mark = keySet.has('col-founder-mark') || keySet.has('founder-mark') || keySet.has('mark');
+  const code = keySet.has('col-founder-code') || keySet.has('founder-code') || keySet.has('code');
+  const word = keySet.has('col-founder-word') || keySet.has('founder-word') || keySet.has('word');
+  const count = (mark ? 1 : 0) + (code ? 1 : 0) + (word ? 1 : 0);
+
+  return { mark, code, word, count, allOwned: count === 3 };
+}
+
 function normalizePhrase(text: string): string {
   return text
     .trim()

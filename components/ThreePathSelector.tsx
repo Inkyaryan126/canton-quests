@@ -16,6 +16,7 @@ import { StartingPath } from '@/lib/types';
 import { cqImages } from '@/lib/marketing-assets';
 import { showGameMoment } from '@/lib/game-effects';
 import { getPathTone } from '@/lib/path-tone';
+import { getFounderLockByPath, FounderLockKey } from '@/lib/founders-cipher';
 import FastPlayerOnboardForm from './FastPlayerOnboardForm';
 
 interface ThreePathSelectorProps {
@@ -112,6 +113,8 @@ export const DOOR_HOTSPOTS: {
   district: string;
   label: string;
   tag: string;
+  founderLockBadge: string;
+  founderLockKey: FounderLockKey;
 }[] = [
   {
     id: 'challenge',
@@ -122,6 +125,8 @@ export const DOOR_HOTSPOTS: {
     district: 'Mother Goose Land',
     label: 'CHALLENGE',
     tag: 'Red Door',
+    founderLockBadge: 'Lock II · THE CODE',
+    founderLockKey: 'code',
   },
   {
     id: 'family',
@@ -132,6 +137,8 @@ export const DOOR_HOTSPOTS: {
     district: 'Arts District',
     label: 'FAMILY',
     tag: 'Gold Door',
+    founderLockBadge: 'Lock III · THE WORD',
+    founderLockKey: 'word',
   },
   {
     id: 'secret',
@@ -142,6 +149,8 @@ export const DOOR_HOTSPOTS: {
     district: 'Monument Park',
     label: 'SECRET',
     tag: 'Purple Door',
+    founderLockBadge: 'Lock I · THE MARK',
+    founderLockKey: 'mark',
   },
 ];
 
@@ -296,6 +305,19 @@ export default function ThreePathSelector({
                       <span className="cq-door-pill-district">
                         {getPathTone(door.id)?.styleTag || door.district}
                       </span>
+                      <span
+                        className="cq-door-pill-lock"
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 'clamp(0.5rem, 0.9vw, 0.6rem)',
+                          color: door.color,
+                          letterSpacing: '0.04em',
+                          opacity: 0.9,
+                          marginTop: '2px',
+                        }}
+                      >
+                        {door.founderLockBadge}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -321,6 +343,11 @@ export default function ThreePathSelector({
                 <span style={{ fontSize: '0.68rem', color: '#9ca3af', display: 'block', marginTop: '4px' }}>
                   Suggested Founder&apos;s Cipher starting point: {activeOption.district}
                 </span>
+                {getFounderLockByPath(activeOption.id) && (
+                  <span style={{ fontSize: '0.68rem', color: activeOption.color, display: 'block', marginTop: '3px', fontFamily: 'var(--font-mono)' }}>
+                    Affiliated Founder Lock: {getFounderLockByPath(activeOption.id)?.name} ({getFounderLockByPath(activeOption.id)?.romanNumeral}) — {getFounderLockByPath(activeOption.id)?.relicName}
+                  </span>
+                )}
               </div>
             </div>
             <button

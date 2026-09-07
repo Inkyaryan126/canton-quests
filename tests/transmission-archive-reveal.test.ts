@@ -56,20 +56,23 @@ function enterWithPath(playerId: string, path: 'family' | 'challenge' | 'secret'
 
 function installLocalStorageShim() {
   const store = new Map<string, string>();
-  (globalThis as any).window = {
-    localStorage: {
-      getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
-      setItem: (k: string, v: string) => {
-        store.set(k, v);
-      },
-      removeItem: (k: string) => {
-        store.delete(k);
-      },
+  const storage = {
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => {
+      store.set(k, v);
+    },
+    removeItem: (k: string) => {
+      store.delete(k);
     },
   };
+  (globalThis as any).window = {
+    localStorage: storage,
+  };
+  (globalThis as any).localStorage = storage;
 }
 function removeLocalStorageShim() {
   delete (globalThis as any).window;
+  delete (globalThis as any).localStorage;
 }
 
 async function fetchArchive(userId: string): Promise<{ transmissions: Array<{ id: number; order: number; title: string; posterUrl: string }> }> {
@@ -82,6 +85,10 @@ describe('Transmissions archive — reveal-only visibility (real persisted playe
   beforeEach(() => {
     resetGameEngineStore();
     initializeGameEngine();
+  });
+
+  afterEach(() => {
+    removeLocalStorageShim();
   });
 
   it('a future (not-yet-unlocked) transmission is entirely absent from the archive — no id, title, or placeholder', async () => {
