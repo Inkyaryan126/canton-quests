@@ -1,7 +1,7 @@
 'use client';
 
+import React, { type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
 
 export type TransmissionPanelTone = 'amber' | 'stone' | 'cyan' | 'emerald' | 'purple' | 'red';
 
