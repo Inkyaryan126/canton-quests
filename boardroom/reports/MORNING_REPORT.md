@@ -1,26 +1,27 @@
 # CANTON QUESTS — BOARDROOM MORNING REPORT
 
-Run: `20260906-234245-1bd6` on branch `boardroom/astra-overnight-20260906-234245-1bd6` (base `a17c7fe1e07a`)
-Window: 2026-09-06T23:42:45.613Z → 2026-09-07T02:10:05.437Z
-Sleep prevention: ACTIVE — ACTIVE (caffeinate -w 57047)
+Run: `20260907-173004-3cb3` on branch `boardroom/astra-overnight-20260907-173004-3cb3` (base `c118cb37116e`)
+Window: 2026-09-07T17:30:04.837Z → 2026-09-07T20:43:53.097Z
+Sleep prevention: ACTIVE — ACTIVE (caffeinate -w 5708)
 Stop reason: PHASE_BARRIER_BLOCKED
 
 ## ACTION REQUIRED
 - ASTRA is probe-confirmed usage-exhausted. Reset redemption is DEFERRED while fallbacks can continue; Boardroom will request it only at protected final integration or if every agent becomes unavailable.
-- ACTION REQUIRED: PHASE_2_CORE_EXPERIENCE_SYSTEM cannot advance because TASK-20260906-060724-zvme[BLOCKED], TASK-20260906-060727-3kic[BLOCKED], TASK-20260906-060730-96yy[BLOCKED] must be resolved first.
+- CLAUDE is probe-confirmed usage-exhausted and is unavailable for the rest of this run.
+- ACTION REQUIRED: PHASE_3_FLAGSHIP_MOMENTS cannot advance because TASK-20260906-060752-y6w3[BLOCKED], TASK-20260906-060755-200l[BLOCKED], TASK-20260906-060758-lmyt[BLOCKED], TASK-20260906-060825-n168[BLOCKED], TASK-20260906-060828-xlws[BLOCKED], TASK-20260906-060831-0pc9[BLOCKED], TASK-20260906-060833-d3cu[BLOCKED] must be resolved first.
 
-## SUMMARY (this run only — 3 task(s) touched)
+## SUMMARY (this run only — 7 task(s) touched)
 - Tasks completed this run: 0
-- Tasks blocked this run: 3
+- Tasks blocked this run: 7
 - Tasks checkpointed this run (in progress, resumable): 0
 - Tasks rejected this run: 0
 - Commits made by Boardroom this run: 0
 
 ## QUEUE STATE (all-time — for context only, NOT this run's output)
-- Total tasks in the ledger: 20 (3 touched this run, 17 untouched — prior runs or still waiting)
-- Done (any run, ever): 3
-- Blocked (any run, ever): 3
-- Still queued (never yet attempted): 11
+- Total tasks in the ledger: 20 (7 touched this run, 13 untouched — prior runs or still waiting)
+- Done (any run, ever): 6
+- Blocked (any run, ever): 7
+- Still queued (never yet attempted): 4
 
 ## ASTRA USAGE (self-reported only — never inferred)
 - No self-report was recorded this run. Treat Astra allowance as unknown, not full.
@@ -30,29 +31,61 @@ Stop reason: PHASE_BARRIER_BLOCKED
 _none_
 
 ## TASKS TOUCHED THIS RUN
-### TASK-20260906-060724-zvme — Phase 2: Core experience system -- sound, motion & reduced-motion primitives
-- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
+### TASK-20260906-060752-y6w3 — Phase 3: Flagship moment -- Mission entry / cold open
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
 - Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: boardroom/recon/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
-- Failed attempts: 6 (see handoff doc for detail)
-- Salvaged snapshots: boardroom-salvage/20260906-145610-fbec/TASK-20260906-060724-zvme-attempt2, boardroom-salvage/20260906-145610-fbec/TASK-20260906-060724-zvme-attempt3, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060724-zvme-attempt5, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060724-zvme-attempt6, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060724-zvme-attempt7
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060724-zvme.md`
+- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: app/globals.css, components/CommanderTransmission.tsx, components/QuestRewardBreakdown.tsx, components/game-effects/CityScanOverlay.tsx, components/game-effects/GameMomentOverlay.tsx, components/game-effects/PathLockEffect.tsx, components/game-effects/QuestCompleteEffect.tsx, components/game-effects/QuestListScanEffect.tsx, components/game-effects/SoundToggleControl.tsx, lib/audio/index.ts, boardroom/recon/, components/game-effects/HudStateBadge.tsx, components/game-effects/HudTransitionPanel.tsx, components/game-effects/OutcomeState.tsx, components/game-effects/TransmissionDecodeState.tsx, components/game-effects/TransmissionPanel.tsx, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; Same approach failed twice: "Implementation attempt (4 files)" and "Implementation attempt (4 files)". Forced options: DIAGNOSE_ROOT_CAUSE, CHANGE_APPROACH, REDUCE_SCOPE, REQUEST_PEER_REVIEW, HANDOFF.
+- Failed attempts: 2 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060752-y6w3-attempt2, boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060752-y6w3-attempt3
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060752-y6w3.md`
 
-### TASK-20260906-060727-3kic — Phase 2: Core experience system -- HUD states, cinematic transitions & interaction feedback
-- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
+### TASK-20260906-060755-200l — Phase 3: Flagship moment -- Quest-start & quest-completion/reward presentation
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
 - Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: lib/audio/index.ts, boardroom/recon/, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
-- Failed attempts: 5 (see handoff doc for detail)
-- Salvaged snapshots: boardroom-salvage/20260906-145610-fbec/TASK-20260906-060727-3kic-attempt2, boardroom-salvage/20260906-145610-fbec/TASK-20260906-060727-3kic-attempt3, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060727-3kic-attempt4, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060727-3kic-attempt5, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060727-3kic-attempt6
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060727-3kic.md`
-
-### TASK-20260906-060730-96yy — Phase 2: Core experience system -- loading, success/failure & reward/transmission presentation
-- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
-- Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: app/globals.css, lib/audio/index.ts, boardroom/recon/, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.; Same approach failed twice: "Implementation attempt (8 files)" and "Implementation attempt (8 files)". Forced options: DIAGNOSE_ROOT_CAUSE, CHANGE_APPROACH, REDUCE_SCOPE, REQUEST_PEER_REVIEW, HANDOFF.
+- Blockers: Agent AGY touched paths outside WRITE_SCOPE: app/globals.css, components/CommanderTransmission.tsx, components/QuestRewardBreakdown.tsx, components/game-effects/CityScanOverlay.tsx, components/game-effects/GameMomentOverlay.tsx, components/game-effects/PathLockEffect.tsx, components/game-effects/QuestListScanEffect.tsx, components/game-effects/SoundToggleControl.tsx, lib/audio/index.ts, boardroom/recon/, components/game-effects/HudStateBadge.tsx, components/game-effects/HudTransitionPanel.tsx, components/game-effects/OutcomeState.tsx, components/game-effects/TransmissionDecodeState.tsx, components/game-effects/TransmissionPanel.tsx, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
 - Failed attempts: 3 (see handoff doc for detail)
-- Salvaged snapshots: boardroom-salvage/20260906-145610-fbec/TASK-20260906-060730-96yy-attempt2, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060730-96yy-attempt4
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060730-96yy.md`
+- Salvaged snapshots: boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060755-200l-attempt2, boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060755-200l-attempt3, boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060755-200l-attempt4
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060755-200l.md`
+
+### TASK-20260906-060758-lmyt — Phase 3: Flagship moment -- Commander transmissions
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
+- Primary agent: ASTRA (fallback: CLAUDE, AGY)
+- Blockers: Agent AGY touched paths outside WRITE_SCOPE: app/events/[slug]/quests/[questId]/page.tsx, app/globals.css, components/QuestCard.tsx, components/QuestRewardBreakdown.tsx, components/game-effects/CityScanOverlay.tsx, components/game-effects/GameMomentOverlay.tsx, components/game-effects/PathLockEffect.tsx, components/game-effects/QuestCompleteEffect.tsx, components/game-effects/QuestListScanEffect.tsx, components/game-effects/SoundToggleControl.tsx, lib/audio/index.ts, boardroom/recon/, components/game-effects/HudStateBadge.tsx, components/game-effects/HudTransitionPanel.tsx, components/game-effects/OutcomeState.tsx, components/game-effects/TransmissionDecodeState.tsx, components/game-effects/TransmissionPanel.tsx, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
+- Failed attempts: 2 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060758-lmyt-attempt2, boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060758-lmyt-attempt3
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060758-lmyt.md`
+
+### TASK-20260906-060825-n168 — Phase 3: Flagship moment -- Cipher fragment acquisition & district sigil/progress reveal
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
+- Primary agent: ASTRA (fallback: CLAUDE, AGY)
+- Blockers: Agent AGY touched paths outside WRITE_SCOPE: app/events/[slug]/quests/[questId]/page.tsx, app/events/[slug]/transmissions/[id]/page.tsx, app/events/[slug]/transmissions/page.tsx, app/globals.css, components/CommanderTransmission.tsx, components/QuestCard.tsx, components/QuestRewardBreakdown.tsx, components/commander/CommanderTextTransmission.tsx, components/game-effects/CityScanOverlay.tsx, components/game-effects/GameMomentOverlay.tsx, components/game-effects/PathLockEffect.tsx, components/game-effects/QuestCompleteEffect.tsx, components/game-effects/QuestListScanEffect.tsx, components/game-effects/SoundToggleControl.tsx, lib/audio/index.ts, boardroom/recon/, components/game-effects/HudStateBadge.tsx, components/game-effects/HudTransitionPanel.tsx, components/game-effects/OutcomeState.tsx, components/game-effects/TransmissionDecodeState.tsx, components/game-effects/TransmissionPanel.tsx, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
+- Failed attempts: 2 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060825-n168-attempt2, boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060825-n168-attempt3
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060825-n168.md`
+
+### TASK-20260906-060828-xlws — Phase 3: Flagship moment -- Founder Lock acquisition (THE MARK / THE CODE / THE WORD)
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
+- Primary agent: ASTRA (fallback: CLAUDE, AGY)
+- Blockers: Validation failed after AGY's changes: npm test, npm run build. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
+- Failed attempts: 3 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060828-xlws-attempt3
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060828-xlws.md`
+
+### TASK-20260906-060831-0pc9 — Phase 3: Flagship moment -- Founder's Cipher finale sequence (qualification + master convergence)
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
+- Primary agent: ASTRA (fallback: CLAUDE, AGY)
+- Blockers: All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
+- Failed attempts: 1 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060831-0pc9-attempt1
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060831-0pc9.md`
+
+### TASK-20260906-060833-d3cu — Phase 3: Seasonal payoffs -- Frankenstein's grave & Watchers Halloween tease
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
+- Primary agent: AGY (fallback: CLAUDE, ASTRA)
+- Blockers: All candidate agents (AGY/CLAUDE/ASTRA) are unavailable this run.
+- Failed attempts: 1 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260907-173004-3cb3/TASK-20260906-060833-d3cu-attempt1
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060833-d3cu.md`
 
 
 ## OTHER TASKS IN THE QUEUE (untouched this run — status is from a prior run or still QUEUED)
@@ -107,46 +140,29 @@ _none_
 - Blockers: Agent AGY touched paths outside WRITE_SCOPE: boardroom/recon/. Nothing was staged or committed.
 - Handoff doc: `boardroom/handoffs/TASK-20260906-060651-z5ss.md`
 
-### TASK-20260906-060752-y6w3 — Phase 3: Flagship moment -- Mission entry / cold open
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
+### TASK-20260906-060724-zvme — Phase 2: Core experience system -- sound, motion & reduced-motion primitives
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
 - Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: app/globals.css, components/CommanderTransmission.tsx, components/QuestRewardBreakdown.tsx, components/game-effects/CityScanOverlay.tsx, components/game-effects/GameMomentOverlay.tsx, components/game-effects/PathLockEffect.tsx, components/game-effects/QuestCompleteEffect.tsx, components/game-effects/QuestListScanEffect.tsx, components/game-effects/SoundToggleControl.tsx, lib/audio/index.ts, boardroom/recon/, components/game-effects/HudStateBadge.tsx, components/game-effects/HudTransitionPanel.tsx, components/game-effects/OutcomeState.tsx, components/game-effects/TransmissionDecodeState.tsx, components/game-effects/TransmissionPanel.tsx, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060752-y6w3.md`
+- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: boardroom/recon/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
+- Failed attempts: 6 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260906-145610-fbec/TASK-20260906-060724-zvme-attempt2, boardroom-salvage/20260906-145610-fbec/TASK-20260906-060724-zvme-attempt3, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060724-zvme-attempt5, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060724-zvme-attempt6, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060724-zvme-attempt7
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060724-zvme.md`
 
-### TASK-20260906-060755-200l — Phase 3: Flagship moment -- Quest-start & quest-completion/reward presentation
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
+### TASK-20260906-060727-3kic — Phase 2: Core experience system -- HUD states, cinematic transitions & interaction feedback
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
 - Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Agent AGY touched paths outside WRITE_SCOPE: app/globals.css, components/CommanderTransmission.tsx, components/QuestRewardBreakdown.tsx, components/game-effects/CityScanOverlay.tsx, components/game-effects/GameMomentOverlay.tsx, components/game-effects/PathLockEffect.tsx, components/game-effects/QuestListScanEffect.tsx, components/game-effects/SoundToggleControl.tsx, lib/audio/index.ts, boardroom/recon/, components/game-effects/HudStateBadge.tsx, components/game-effects/HudTransitionPanel.tsx, components/game-effects/OutcomeState.tsx, components/game-effects/TransmissionDecodeState.tsx, components/game-effects/TransmissionPanel.tsx, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060755-200l.md`
+- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: lib/audio/index.ts, boardroom/recon/, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.
+- Failed attempts: 5 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260906-145610-fbec/TASK-20260906-060727-3kic-attempt2, boardroom-salvage/20260906-145610-fbec/TASK-20260906-060727-3kic-attempt3, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060727-3kic-attempt4, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060727-3kic-attempt5, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060727-3kic-attempt6
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060727-3kic.md`
 
-### TASK-20260906-060758-lmyt — Phase 3: Flagship moment -- Commander transmissions
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
+### TASK-20260906-060730-96yy — Phase 2: Core experience system -- loading, success/failure & reward/transmission presentation
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
 - Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Agent AGY touched paths outside WRITE_SCOPE: app/events/[slug]/quests/[questId]/page.tsx, app/globals.css, components/QuestCard.tsx, components/QuestRewardBreakdown.tsx, components/game-effects/CityScanOverlay.tsx, components/game-effects/GameMomentOverlay.tsx, components/game-effects/PathLockEffect.tsx, components/game-effects/QuestCompleteEffect.tsx, components/game-effects/QuestListScanEffect.tsx, components/game-effects/SoundToggleControl.tsx, lib/audio/index.ts, boardroom/recon/, components/game-effects/HudStateBadge.tsx, components/game-effects/HudTransitionPanel.tsx, components/game-effects/OutcomeState.tsx, components/game-effects/TransmissionDecodeState.tsx, components/game-effects/TransmissionPanel.tsx, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060758-lmyt.md`
-
-### TASK-20260906-060825-n168 — Phase 3: Flagship moment -- Cipher fragment acquisition & district sigil/progress reveal
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
-- Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Agent AGY touched paths outside WRITE_SCOPE: app/events/[slug]/quests/[questId]/page.tsx, app/events/[slug]/transmissions/[id]/page.tsx, app/events/[slug]/transmissions/page.tsx, app/globals.css, components/CommanderTransmission.tsx, components/QuestCard.tsx, components/QuestRewardBreakdown.tsx, components/commander/CommanderTextTransmission.tsx, components/game-effects/CityScanOverlay.tsx, components/game-effects/GameMomentOverlay.tsx, components/game-effects/PathLockEffect.tsx, components/game-effects/QuestCompleteEffect.tsx, components/game-effects/QuestListScanEffect.tsx, components/game-effects/SoundToggleControl.tsx, lib/audio/index.ts, boardroom/recon/, components/game-effects/HudStateBadge.tsx, components/game-effects/HudTransitionPanel.tsx, components/game-effects/OutcomeState.tsx, components/game-effects/TransmissionDecodeState.tsx, components/game-effects/TransmissionPanel.tsx, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060825-n168.md`
-
-### TASK-20260906-060828-xlws — Phase 3: Flagship moment -- Founder Lock acquisition (THE MARK / THE CODE / THE WORD)
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
-- Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Blockers: Validation failed after AGY's changes: npm test, npm run build. Nothing was staged or committed.
-- Failed attempts: 1 (see handoff doc for detail)
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060828-xlws.md`
-
-### TASK-20260906-060831-0pc9 — Phase 3: Flagship moment -- Founder's Cipher finale sequence (qualification + master convergence)
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
-- Primary agent: ASTRA (fallback: CLAUDE, AGY)
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060831-0pc9.md`
-
-### TASK-20260906-060833-d3cu — Phase 3: Seasonal payoffs -- Frankenstein's grave & Watchers Halloween tease
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_3_FLAGSHIP_MOMENTS
-- Primary agent: AGY (fallback: CLAUDE, ASTRA)
-- Handoff doc: `boardroom/handoffs/TASK-20260906-060833-d3cu.md`
+- Blockers: Agent CLAUDE touched paths outside WRITE_SCOPE: app/globals.css, lib/audio/index.ts, boardroom/recon/, lib/audio/cq-sound-preference.ts, lib/motion/, tests/motion-and-sound-preference-primitives.test.ts. Nothing was staged or committed.; All candidate agents (ASTRA/CLAUDE/AGY) are unavailable this run.; Same approach failed twice: "Implementation attempt (8 files)" and "Implementation attempt (8 files)". Forced options: DIAGNOSE_ROOT_CAUSE, CHANGE_APPROACH, REDUCE_SCOPE, REQUEST_PEER_REVIEW, HANDOFF.
+- Failed attempts: 3 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260906-145610-fbec/TASK-20260906-060730-96yy-attempt2, boardroom-salvage/20260906-234245-1bd6/TASK-20260906-060730-96yy-attempt4
+- Handoff doc: `boardroom/handoffs/TASK-20260906-060730-96yy.md`
 
 ### TASK-20260906-060857-21hk — Phase 4: Secondary polish -- Player File, operation cards & navigation
 - Status: QUEUED | Confidence: ASSUMPTION | Priority: LOW | Phase: PHASE_4_SECONDARY_POLISH
