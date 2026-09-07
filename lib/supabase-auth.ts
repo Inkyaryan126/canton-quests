@@ -940,7 +940,7 @@ export async function verifyTokenHash(
       ? crypto.randomUUID()
       : '00000000-0000-4000-8000-000000000001';
 
-    let email = `player_${testUserId.slice(0, 8)}@example.com`;
+    let email = `test_only_player_${testUserId.slice(0, 8)}@example.invalid`;
 
     if (cleanTokenHash.startsWith('mock-recovery-')) {
       const emailPart = cleanTokenHash.replace(/^mock-recovery-/, '').replace(/_/g, '@');

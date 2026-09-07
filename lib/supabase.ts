@@ -1,11 +1,23 @@
 // Supabase Client Integration with dev-safe fallback
 
 import { createClient } from '@supabase/supabase-js';
+import {
+  assertSafeTestSupabaseEnvironment,
+  assertSafeTestSupabaseMutationTarget,
+} from './supabase-test-safety';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const isAutomatedTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+if (isAutomatedTest) {
+  // Independent of Vitest global setup: no test may initialize a client for
+  // a remote project, and an admin key additionally requires a local URL.
+  assertSafeTestSupabaseEnvironment(process.env);
+  if (serviceRoleKey) assertSafeTestSupabaseMutationTarget(supabaseUrl);
+}
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
