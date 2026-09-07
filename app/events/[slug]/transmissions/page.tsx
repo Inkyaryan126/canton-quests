@@ -9,6 +9,8 @@ import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
 import { Play, Radio, Satellite, FileText } from 'lucide-react';
 import { showGameMoment } from '@/lib/game-effects';
 import { getFounderCipherMessageLog, LoggedFounderCipherMessage } from '@/lib/gameplay/founders-cipher/message-log';
+import TransmissionLoader from '@/components/game-effects/TransmissionLoader';
+import { useReducedMotion } from '@/lib/motion';
 
 // Only ever contains transmissions already revealed to this player — the
 // API never returns a not-yet-unlocked entry at all (see
@@ -35,6 +37,7 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
   const isFounderCipher = isKnownCantonLaunchSlug(params.slug);
   const [entries, setEntries] = useState<ArchiveEntry[] | null>(null);
   const [fieldLog, setFieldLog] = useState<LoggedFounderCipherMessage[]>([]);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!isFounderCipher) return;
@@ -98,7 +101,9 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
             </div>
 
             {entries === null ? (
-              <p className="text-center text-xs font-mono text-stone-500 uppercase tracking-widest">Loading archive...</p>
+              <div className="flex justify-center py-10">
+                <TransmissionLoader label="ACCESSING ARCHIVE" reducedMotion={reducedMotion} />
+              </div>
             ) : entries.length === 0 ? (
               <div className="max-w-md mx-auto text-center space-y-3 py-10">
                 <Satellite size={28} className="mx-auto text-stone-600" />
