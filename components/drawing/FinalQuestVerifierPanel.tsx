@@ -19,6 +19,8 @@ import {
   PERMANENT_CANTON_QUESTS_NUMBER,
   extractAuthoritativeDrawingMetrics,
 } from '@/lib/final-quest-verifier';
+import { cqSoundManager } from '@/lib/audio';
+import { confirmHaptic } from '@/lib/motion';
 
 interface FinalQuestVerifierPanelProps {
   events?: QuestEvent[];
@@ -124,6 +126,7 @@ export default function FinalQuestVerifierPanel({
     if (!metrics.finalQuestNumber) return;
     navigator.clipboard.writeText(metrics.finalQuestNumber);
     setCopiedNumber(true);
+    cqSoundManager.play('ui_confirm');
     setTimeout(() => setCopiedNumber(false), 2000);
   };
 
@@ -131,6 +134,7 @@ export default function FinalQuestVerifierPanel({
     if (!metrics.substitutedEquation) return;
     navigator.clipboard.writeText(metrics.substitutedEquation);
     setCopiedEquation(true);
+    cqSoundManager.play('ui_confirm');
     setTimeout(() => setCopiedEquation(false), 2000);
   };
 
@@ -151,6 +155,7 @@ export default function FinalQuestVerifierPanel({
       !/^\d+$/.test(qClean)
     ) {
       setCalcError('Please enter positive whole integers only (digits 0-9).');
+      cqSoundManager.play('ui_error');
       return;
     }
 
@@ -166,8 +171,11 @@ export default function FinalQuestVerifierPanel({
 
       setCalcResult(productStr);
       setCalcSubstitutedEquation(`${cq.toString()} × ${p.toString()} × ${entries.toString()} × ${quests.toString()} = ${productStr}`);
+      cqSoundManager.play('ui_confirm');
+      confirmHaptic({ enabled: true });
     } catch {
       setCalcError('Calculation error. Please verify that all inputs contain valid integer digits.');
+      cqSoundManager.play('ui_error');
     }
   };
 
@@ -180,6 +188,7 @@ export default function FinalQuestVerifierPanel({
     setCalcSubstitutedEquation(metrics.substitutedEquation);
     setCalcError(null);
     setHasUserEdited(false);
+    cqSoundManager.play('ui_click');
   };
 
   const selectedEvent = eventList.find((e) => e.slug === selectedSlug);

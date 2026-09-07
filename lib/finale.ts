@@ -116,3 +116,65 @@ export function evaluateFinaleSubmission(
 
   return { stage: 'incorrect' };
 }
+
+export interface ConvergenceTelemetry {
+  stage: ConvergenceStage;
+  label: string;
+  sublabel: string;
+  percent: number;
+  sigilsNeeded: number;
+  isConvergenceReady: boolean;
+}
+
+/**
+ * Pure telemetry descriptor for the master convergence UI.
+ * Does not check or modify eligibility rules — only derives presentation
+ * labels, progress percentages, and remaining requirements from sigil counts.
+ */
+export function getConvergenceTelemetry(unlockedSigilCount: number, requiredSigilCount: number = 3): ConvergenceTelemetry {
+  const stage = getConvergenceStage(unlockedSigilCount);
+  const count = Math.max(0, Math.min(unlockedSigilCount, requiredSigilCount));
+  const percent = Math.round((count / requiredSigilCount) * 100);
+  const sigilsNeeded = Math.max(0, requiredSigilCount - unlockedSigilCount);
+
+  switch (stage) {
+    case 'convergence_ready':
+      return {
+        stage,
+        label: 'CONVERGENCE READY',
+        sublabel: 'All district sigils decoded — Master Cipher instrument armed',
+        percent: 100,
+        sigilsNeeded: 0,
+        isConvergenceReady: true,
+      };
+    case 'two_sigils':
+      return {
+        stage,
+        label: 'HARMONIC ALIGNMENT',
+        sublabel: `2 of ${requiredSigilCount} district sigils decoded — final district required`,
+        percent,
+        sigilsNeeded,
+        isConvergenceReady: false,
+      };
+    case 'one_sigil':
+      return {
+        stage,
+        label: 'INITIAL RESONANCE',
+        sublabel: `1 of ${requiredSigilCount} district sigils decoded — two districts remaining`,
+        percent,
+        sigilsNeeded,
+        isConvergenceReady: false,
+      };
+    case 'no_sigils':
+    default:
+      return {
+        stage: 'no_sigils',
+        label: 'CIPHER DORMANT',
+        sublabel: `0 of ${requiredSigilCount} district sigils decoded — recover district fragments across Canton`,
+        percent: 0,
+        sigilsNeeded: requiredSigilCount,
+        isConvergenceReady: false,
+      };
+  }
+}
+
