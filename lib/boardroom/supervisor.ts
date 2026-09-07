@@ -36,6 +36,7 @@ import { invocationLogFile } from './paths';
 import { writeHandoff } from './handoff';
 import { writeMorningReport, type RunSummary } from './report';
 import type { Task, AgentName, TestResult, Priority } from './types';
+import { TEST_SUPABASE_URL_ENV_KEYS } from '../supabase-test-safety';
 
 export interface GitOps extends GitRunner {}
 
@@ -83,11 +84,27 @@ function logSince(git: GitOps, baseCommit: string): Array<{ hash: string; subjec
 
 export type RunTestsFn = (commands: string[], cwd: string) => TestResult[];
 
+export function safeEnvironmentForValidationCommand(command: string): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  if (/\bnpm\s+test\b/.test(command)) {
+    for (const key of TEST_SUPABASE_URL_ENV_KEYS) delete env[key];
+    delete env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    delete env.SUPABASE_ANON_KEY;
+    delete env.SUPABASE_SERVICE_ROLE_KEY;
+  }
+  return env;
+}
+
 export const defaultRunTests: RunTestsFn = (commands, cwd) => {
   const now = () => new Date().toISOString();
   return commands.map((command) => {
     try {
-      execFileSync(command, { cwd, shell: '/bin/bash', stdio: 'pipe' });
+      execFileSync(command, {
+        cwd,
+        shell: '/bin/bash',
+        stdio: 'pipe',
+        env: safeEnvironmentForValidationCommand(command),
+      });
       return { command, passed: true, summary: 'exit 0', at: now() };
     } catch (err: any) {
       const output = (err?.stdout?.toString?.() || '') + (err?.stderr?.toString?.() || '');

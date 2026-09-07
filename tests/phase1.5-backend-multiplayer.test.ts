@@ -17,17 +17,17 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
   });
 
   it('1. MULTI-PLAYER SETUP: Creates separate persistent player agents A and B', async () => {
-    const playerA = await upsertPlayerDB('Agent_Alpha_126', '⚡');
-    const playerB = await upsertPlayerDB('Agent_Beta_330', '🧭');
+    const playerA = await upsertPlayerDB('TEST_ONLY_Agent_Alpha_126', '⚡');
+    const playerB = await upsertPlayerDB('TEST_ONLY_Agent_Beta_330', '🧭');
 
-    expect(playerA.displayName).toBe('Agent_Alpha_126');
-    expect(playerB.displayName).toBe('Agent_Beta_330');
+    expect(playerA.displayName).toBe('TEST_ONLY_Agent_Alpha_126');
+    expect(playerB.displayName).toBe('TEST_ONLY_Agent_Beta_330');
     expect(playerA.id).not.toBe(playerB.id);
   });
 
   it('2. SHARED SCORING & LEADERBOARD: Player A completes quest, Player B sees updated leaderboard', async () => {
-    const playerA = await upsertPlayerDB('Agent_Alpha_126', '⚡');
-    const playerB = await upsertPlayerDB('Agent_Beta_330', '🧭');
+    const playerA = await upsertPlayerDB('TEST_ONLY_Agent_Alpha_126', '⚡');
+    const playerB = await upsertPlayerDB('TEST_ONLY_Agent_Beta_330', '🧭');
 
     const quest1 = SEED_QUESTS.find((quest) => quest.id === 'qst-centennial-discovery')!;
 
@@ -55,8 +55,8 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
   });
 
   it('3. TWO-WAY MULTIPLAYER STATE: Player B completes another quest, Player A sees updated leaderboard', async () => {
-    const playerA = await upsertPlayerDB('Agent_Alpha_126', '⚡');
-    const playerB = await upsertPlayerDB('Agent_Beta_330', '🧭');
+    const playerA = await upsertPlayerDB('TEST_ONLY_Agent_Alpha_126', '⚡');
+    const playerB = await upsertPlayerDB('TEST_ONLY_Agent_Beta_330', '🧭');
 
     const quest2 = SEED_QUESTS.find((quest) => quest.id === 'qst-grand-finale-cipher')!;
 
@@ -82,7 +82,7 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
   });
 
   it('4. DUPLICATE SCORING GUARD: Blocks repeat point awards on backend engine', async () => {
-    const playerA = await upsertPlayerDB('Agent_Alpha_126', '⚡');
+    const playerA = await upsertPlayerDB('TEST_ONLY_Agent_Alpha_126', '⚡');
     const quest = SEED_QUESTS[1]; // McKinley Monument (150 XP)
 
     // First attempt succeeds

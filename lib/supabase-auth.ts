@@ -944,7 +944,7 @@ export async function verifyTokenHash(
     mockConsumedTokenHashStore.add(cleanTokenHash);
     let testUserId = `usr-token-${cleanTokenHash.replace(/[^a-z0-9]/gi, '_').slice(-40)}`;
 
-    let email = `player_${testUserId.slice(0, 8)}@example.com`;
+    let email = `test_only_player_${testUserId.slice(0, 8)}@example.invalid`;
 
     if (cleanTokenHash.startsWith('mock-recovery-')) {
       const emailPart = cleanTokenHash.replace(/^mock-recovery-/, '').replace(/_/g, '@');

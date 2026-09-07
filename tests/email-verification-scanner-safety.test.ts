@@ -127,7 +127,7 @@ describe('Canton Quests — Email Verification Flow & Scanner Safety Suite', () 
         body: JSON.stringify({
           token_hash: 'mock-token-verified-user-999',
           type: 'email',
-          displayName: 'NeonRider_330',
+          displayName: 'TEST_ONLY_NeonRider_330',
           selectedStartingPath: 'challenge',
           next: '/events/canton-weekend-1',
         }),
@@ -139,7 +139,7 @@ describe('Canton Quests — Email Verification Flow & Scanner Safety Suite', () 
       expect(res.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.player).toBeDefined();
-      expect(data.player.displayName).toBe('NeonRider_330');
+      expect(data.player.displayName).toBe('TEST_ONLY_NeonRider_330');
       expect(data.player.selectedStartingPath).toBe('challenge');
       expect(data.redirectTo).toBe('/events/canton-weekend-1');
       expect(res.headers.get('set-cookie')).toContain('canton_player_id');
