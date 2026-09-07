@@ -2766,6 +2766,63 @@ code, pre, .font-mono {
 }
 
 /* ==========================================================================
+   FIELD-EQUIPMENT MOTION PRIMITIVES
+   Shared duration/easing tokens for HUD state changes and section/overlay
+   transitions. Apply `.cq-motion-scope` to a container to expose the
+   custom properties to its own scoped rules; apply `.cq-transition-*`
+   directly to an element that should animate. No JS animation scheduler —
+   these are CSS-only and collapse to instant under reduced motion.
+   ========================================================================== */
+
+.cq-motion-scope,
+.cq-transition-reveal,
+.cq-transition-settle {
+  --cq-motion-instant: 0ms;
+  --cq-motion-press: 100ms;
+  --cq-motion-settle: 180ms;
+  --cq-motion-reveal: 280ms;
+  --cq-motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --cq-motion-ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --cq-motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* Section/overlay arrival: the default page- and card-transition primitive. */
+.cq-transition-reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--cq-motion-reveal) var(--cq-motion-ease-enter),
+    transform var(--cq-motion-reveal) var(--cq-motion-ease-enter);
+}
+
+.cq-transition-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Smaller in-place state changes (a stage flip, a badge swapping label). */
+.cq-transition-settle {
+  transition:
+    opacity var(--cq-motion-settle) var(--cq-motion-ease-standard),
+    transform var(--cq-motion-settle) var(--cq-motion-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cq-motion-scope,
+  .cq-transition-reveal,
+  .cq-transition-settle {
+    --cq-motion-press: var(--cq-motion-instant);
+    --cq-motion-settle: var(--cq-motion-instant);
+    --cq-motion-reveal: var(--cq-motion-instant);
+  }
+
+  .cq-transition-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ==========================================================================
    THREE DOORS PATH SELECTOR (MASTER VISUAL & INTERACTIVE HOTSPOTS)
    ========================================================================== */
 .cq-three-doors-section {

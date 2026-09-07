@@ -1,54 +1,39 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { gameMomentManager } from '@/lib/game-effects';
 import { cqSoundManager } from '@/lib/audio';
+import { useSoundPreference } from '@/lib/audio/sound-preference';
+import { confirmHaptic } from '@/lib/motion';
 
 interface SoundToggleControlProps {
+  /** @deprecated cqSoundManager is authoritative; retained for existing callers. */
   soundEnabled?: boolean;
+  /** Opt-in only: a brief confirmation pulse when sound is enabled. */
+  hapticsEnabled?: boolean;
   className?: string;
   showLabel?: boolean;
   compact?: boolean;
 }
 
 export default function SoundToggleControl({
-  soundEnabled: controlledEnabled,
+  hapticsEnabled = false,
   className = '',
   showLabel = true,
   compact = false,
 }: SoundToggleControlProps) {
-  const [internalEnabled, setInternalEnabled] = useState<boolean>(() =>
-    controlledEnabled !== undefined ? controlledEnabled : cqSoundManager.isSoundEnabled()
-  );
-
-  useEffect(() => {
-    if (controlledEnabled !== undefined) {
-      setInternalEnabled(controlledEnabled);
-    }
-  }, [controlledEnabled]);
-
-  useEffect(() => {
-    // Subscribe to sound manager updates for live sync across views
-    const unsubscribe = cqSoundManager.subscribe((state) => {
-      setInternalEnabled(state.soundEnabled);
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  const isEnabled = controlledEnabled !== undefined ? controlledEnabled : internalEnabled;
+  const isEnabled = useSoundPreference();
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     const next = cqSoundManager.toggleSound();
     gameMomentManager.setSoundEnabled(next);
-    setInternalEnabled(next);
 
     // Play subtle confirm tone on unmuting
     if (next) {
       cqSoundManager.play('ui_confirm', { overrideCooldown: true, volume: 0.4 });
+      confirmHaptic({ enabled: hapticsEnabled });
     }
   };
 
@@ -56,7 +41,7 @@ export default function SoundToggleControl({
     <button
       type="button"
       onClick={handleToggle}
-      className={`cq-sound-toggle-btn ${compact ? 'is-compact' : ''} ${
+      className={`cq-sound-toggle-btn cq-transition-settle ${compact ? 'is-compact' : ''} ${
         isEnabled ? 'is-enabled' : 'is-muted'
       } ${className}`}
       aria-label={isEnabled ? 'Mute Canton Quests sound effects' : 'Unmute Canton Quests sound effects'}
