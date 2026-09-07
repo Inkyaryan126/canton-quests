@@ -1,0 +1,31 @@
+/* Local tokens travel with each primitive, without a provider or runtime style injection. */
+.cq-motion-control {
+  --cq-motion-press: 100ms;
+  --cq-motion-settle: 180ms;
+  --cq-motion-ease-engage: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --cq-motion-ease-release: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* Repeat the class to beat the existing global button transition regardless of CSS order. */
+.cq-motion-control.cq-motion-control {
+  transition-property: color, background-color, border-color, transform;
+  transition-duration: var(--cq-motion-settle);
+  transition-timing-function: var(--cq-motion-ease-engage);
+}
+
+.cq-motion-control.cq-motion-control:active:not(:disabled) {
+  transform: translateY(1px);
+  transition-duration: var(--cq-motion-press);
+  transition-timing-function: var(--cq-motion-ease-release);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cq-motion-control.cq-motion-control,
+  .cq-motion-control.cq-motion-control:active:not(:disabled) {
+    --cq-motion-press: 0ms;
+    --cq-motion-settle: 0ms;
+    transition: none;
+    animation: none;
+    transform: none;
+  }
+}
