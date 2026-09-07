@@ -3,6 +3,7 @@
 import { Camera, Flag, Gem, KeyRound, Nfc, Radio, Ticket, Trophy, Zap } from 'lucide-react';
 import { Quest, PublicQuestView } from '@/lib/types';
 import { getQuestRewardSummary, QuestBonusKey } from '@/lib/quest-rewards';
+import TransmissionPanel from '@/components/game-effects/TransmissionPanel';
 
 interface QuestRewardBreakdownProps {
   quest: Quest | PublicQuestView;
@@ -94,16 +95,17 @@ export default function QuestRewardBreakdown({ quest, compact = false, className
   }
 
   return (
-    <div className={`rounded-xl border border-stone-800 bg-[#090b0c] p-4 space-y-4 ${className}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">
-          Full Reward Breakdown
-        </span>
-        {summary.hasBonusContent && (
+    <TransmissionPanel
+      eyebrow="Full Reward Breakdown"
+      tone="stone"
+      className={className}
+      bodyClassName="mt-4 space-y-4"
+      action={
+        summary.hasBonusContent ? (
           <span className="text-[10px] font-mono text-stone-400">Up to <strong className="text-amber-300">{summary.maxXp} XP</strong></span>
-        )}
-      </div>
-
+        ) : undefined
+      }
+    >
       {/* Base completion — XP and its Entry Token, shown as two distinct figures */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-sm">
@@ -198,6 +200,6 @@ export default function QuestRewardBreakdown({ quest, compact = false, className
           </div>
         </div>
       )}
-    </div>
+    </TransmissionPanel>
   );
 }
