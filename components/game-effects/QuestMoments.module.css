@@ -1,0 +1,107 @@
+.cq-quest-start {
+  padding: 1rem;
+  border-bottom: 1px solid #39727a;
+  background: linear-gradient(110deg, #08282d, #080d12);
+}
+
+.cq-quest-dialog {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 1rem;
+  background: rgba(3, 6, 10, 0.94);
+  overflow-y: auto;
+}
+
+.cq-quest-panel {
+  position: relative;
+  width: 100%;
+  max-width: 30rem;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(1.25rem, 5vw, 2rem);
+  border: 1px solid #c69130;
+  border-radius: 1.5rem;
+  background: radial-gradient(ellipse at top, #35250e, #080d12 65%);
+  box-shadow: 0 0 64px #e5a32630;
+  color: #fafaf9;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.cq-quest-panel > * + * { margin-top: 1.25rem; }
+.cq-quest-panel h2 {
+  margin-bottom: 0;
+  font-family: var(--font-display, sans-serif);
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  font-weight: 900;
+  line-height: 1.15;
+}
+.cq-quest-icon { color: #fbbf24; margin-inline: auto; }
+.cq-quest-reward {
+  padding: 1.25rem 0.75rem;
+  border: 1px solid #88622a;
+  border-radius: 1rem;
+  background: #080d12;
+}
+.cq-quest-label {
+  display: block;
+  color: #e8c579;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+}
+.cq-quest-xp {
+  display: block;
+  font-family: var(--font-display, sans-serif);
+  font-size: clamp(2.5rem, 10vw, 3.5rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: #fcd568;
+  line-height: 1.2;
+  margin-top: 0.5rem;
+}
+.cq-quest-entries {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+  border-top: 1px solid #654e30;
+  color: #e9d5ff;
+}
+.cq-quest-next { text-align: left; color: #cffafe; }
+.cq-quest-next strong { display: block; margin-top: 0.5rem; }
+.cq-quest-next a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  color: #67e8f9;
+  text-decoration: underline;
+}
+.cq-quest-continue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #fbbf24;
+  color: #090b0c;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+.cq-quest-continue:hover { background: #fde68a; }
+.cq-quest-continue:focus-visible, .cq-quest-next a:focus-visible {
+  outline: 3px solid #67e8f9;
+  outline-offset: 4px;
+}
