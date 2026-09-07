@@ -45,6 +45,9 @@ import ThreePathSelector from '@/components/ThreePathSelector';
 import LiveCityStatusPanel from '@/components/LiveCityStatusPanel';
 import CityPulseStrip from '@/components/CityPulseStrip';
 import WatchTransmissionButton from '@/components/commander/WatchTransmissionButton';
+import OperationEntry, { type OperationEntrySnapshot } from '@/components/game-effects/OperationEntry';
+import TransmissionLoader from '@/components/game-effects/TransmissionLoader';
+import { useReducedMotion } from '@/lib/motion';
 
 interface FeedbackState {
   type: 'quest_completed';
@@ -108,7 +111,12 @@ function getEventCountdown(event: QuestEvent) {
   };
 }
 
-function EventHubPageContent({ params }: { params: { slug: string } }) {
+function EventHubPageContent({ params, entryReady, onEntryData }: {
+  params: { slug: string };
+  entryReady: boolean;
+  onEntryData: (snapshot: OperationEntrySnapshot) => void;
+}) {
+  const reducedMotion = useReducedMotion();
   const eventSlug = params.slug;
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get('tab');
@@ -117,6 +125,9 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [isPreLaunch, setIsPreLaunch] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  useEffect(() => {
+    onEntryData({ event, loading: isLoading });
+  }, [event, isLoading, onEntryData]);
   // A genuine fetch failure (network error, request timeout, or a 500 from
   // the API) is never disguised as "Mission hasn't started yet" — it gets
   // its own honest error state with a retry action, so a real outage never
@@ -263,7 +274,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
   // manual WatchTransmissionButton placements in the Mission overview hero
   // below, so entering the Mission never queues more than this single video.
   useEffect(() => {
-    if (!isKnownCantonLaunchSlug(eventSlug)) return;
+    if (!entryReady || !isKnownCantonLaunchSlug(eventSlug)) return;
     if (!authenticatedPlayer || !participation) return;
     const pid = authenticatedPlayer.id;
     if (!shouldAutoShowTransmission('cipher_cold_open', 'video-1', pid)) return;
@@ -290,14 +301,14 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
         }
       },
     });
-  }, [eventSlug, authenticatedPlayer, participation]);
+  }, [entryReady, eventSlug, authenticatedPlayer, participation]);
 
   // "Three Doors — One Competition" (video 9) — fires around the first
   // genuine path-selection moment (Gate 3 below), never after the player's
   // universal path is already on file (that condition is baked into the
   // same check that renders Gate 3 at all).
   useEffect(() => {
-    if (!isKnownCantonLaunchSlug(eventSlug)) return;
+    if (!entryReady || !isKnownCantonLaunchSlug(eventSlug)) return;
     if (!event || !authenticatedPlayer || !participation) return;
     if (!(event.requiresPath && !authenticatedPlayer.selectedStartingPath)) return;
     const pid = authenticatedPlayer.id;
@@ -310,7 +321,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
       trigger: 'cipher_three_doors',
       transmission: toGameplayTransmission(entry),
     });
-  }, [eventSlug, event, authenticatedPlayer, participation]);
+  }, [entryReady, eventSlug, event, authenticatedPlayer, participation]);
 
   const refreshData = useCallback(() => {
     const player = authenticatedPlayer || getClientPlayer();
@@ -505,8 +516,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent mb-4" />
-        <p className="text-xs text-amber-300 tracking-wider uppercase">Loading Mission Grid...</p>
+        <TransmissionLoader label="ACQUIRING MISSION SIGNAL" reducedMotion={reducedMotion} />
       </div>
     );
   }
@@ -716,8 +726,7 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
   if (authChecked && authenticatedPlayer && !participation) {
     return (
       <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-amber-400 border-t-transparent mb-4" />
-        <p className="text-xs text-amber-300 tracking-wider uppercase">Entering Mission...</p>
+        <TransmissionLoader label="OPENING MISSION ACCESS" reducedMotion={reducedMotion} />
         {enterError && (
           <div className="mt-4 text-center space-y-3">
             <p className="text-xs text-red-400">{enterError}</p>
@@ -1317,10 +1326,21 @@ function EventHubPageContent({ params }: { params: { slug: string } }) {
   );
 }
 
+function EventHubSession({ params }: { params: { slug: string } }) {
+  const [snapshot, setSnapshot] = useState<OperationEntrySnapshot>({ event: null, loading: true });
+  const [entryReady, setEntryReady] = useState(false);
+  const finishEntry = useCallback(() => setEntryReady(true), []);
+  return (
+    <OperationEntry {...snapshot} complete={entryReady} onComplete={finishEntry}>
+      <EventHubPageContent params={params} entryReady={entryReady} onEntryData={setSnapshot} />
+    </OperationEntry>
+  );
+}
+
 export default function EventHubPage({ params }: { params: { slug: string } }) {
   return (
-    <Suspense fallback={null}>
-      <EventHubPageContent params={params} />
+    <Suspense fallback={<TransmissionLoader label="ACQUIRING MISSION SIGNAL" reducedMotion />} >
+      <EventHubSession key={params.slug} params={params} />
     </Suspense>
   );
 }
