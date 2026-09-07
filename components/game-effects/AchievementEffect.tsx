@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { Award, Zap, Ticket, ArrowRight, Sparkles } from 'lucide-react';
 import { AchievementMoment } from '@/lib/game-effects';
-import HudParticlesCanvas from './HudParticlesCanvas';
+import HudParticlesCanvas from './LazyHudParticles';
 import { cqSoundManager } from '@/lib/audio';
 
 interface AchievementEffectProps {

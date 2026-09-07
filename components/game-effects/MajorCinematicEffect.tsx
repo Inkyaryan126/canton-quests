@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { Gift, Crown, ArrowRight } from 'lucide-react';
 import { MajorCinematicMoment } from '@/lib/game-effects';
-import HudParticlesCanvas from './HudParticlesCanvas';
+import HudParticlesCanvas from './LazyHudParticles';
 import { cqSoundManager } from '@/lib/audio';
 
 interface MajorCinematicEffectProps {

@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { Ticket, ShieldCheck, ShieldAlert, Trophy, Sparkles, ArrowRight, Lock, Clock } from 'lucide-react';
 import { FinaleQualifiedMoment } from '@/lib/game-effects';
-import HudParticlesCanvas from './HudParticlesCanvas';
+import HudParticlesCanvas from './LazyHudParticles';
 import { cqSoundManager } from '@/lib/audio';
 
 interface FinaleQualificationEffectProps {

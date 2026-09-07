@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { Gem, KeyRound, ArrowRight } from 'lucide-react';
 import { UnlockMoment } from '@/lib/game-effects';
-import HudParticlesCanvas from './HudParticlesCanvas';
+import HudParticlesCanvas from './LazyHudParticles';
 import { cqSoundManager } from '@/lib/audio';
 
 interface UnlockEffectProps {

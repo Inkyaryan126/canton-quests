@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { MapPin, Nfc, Radio, ArrowRight } from 'lucide-react';
 import { FieldEventMoment } from '@/lib/game-effects';
-import HudParticlesCanvas from './HudParticlesCanvas';
+import HudParticlesCanvas from './LazyHudParticles';
 import { cqSoundManager } from '@/lib/audio';
 
 interface FieldEventEffectProps {

@@ -6904,3 +6904,99 @@ code, pre, .font-mono {
   cursor: not-allowed;
 }
 
+/* Phase 2 field terminal states. Motion timing comes from lib/motion. */
+.cq-hud-state {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow: hidden;
+  padding: 0.875rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  color: #fbbf24;
+  background: #0b0f17;
+  text-align: left;
+}
+.cq-hud-state[data-state='confirmed'] { color: #6ee7b7; }
+.cq-hud-state[data-state='denied'] { color: #fda4af; }
+.cq-hud-state-marker {
+  display: inline-flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+}
+.cq-hud-state-copy { display: grid; gap: 0.3rem; min-width: 0; overflow-wrap: anywhere; }
+.cq-hud-state-copy strong { font: 700 0.8rem/1.4 var(--font-mono, monospace); letter-spacing: 0.04em; }
+.cq-hud-state-copy > span { color: #d6d3d1; font-size: 0.875rem; line-height: 1.5; }
+.cq-hud-state-sweep {
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: currentColor;
+  transform-origin: left;
+  animation: cq-field-acquire var(--cq-motion-reveal) var(--cq-motion-ease-standard) both;
+}
+@keyframes cq-field-acquire { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.cq-hud-state[data-reduced-motion='true'] .cq-hud-state-sweep { animation: none; }
+.cq-field-effect {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cq-field-effect-passive { pointer-events: none; }
+.cq-field-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 26rem;
+  max-height: 70vh;
+  max-height: 70dvh;
+  overflow-y: auto;
+  padding: clamp(1rem, 4vw, 1.75rem);
+  border: 1px solid #b88939;
+  border-radius: 8px;
+  background: #07090e;
+  color: #f9fafb;
+  box-shadow: 0 0 28px #f59e0b18;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.cq-field-panel > * + * { margin-top: 1rem; }
+.cq-field-eyebrow { margin: 0; color: #fbbf24; font: 700 0.75rem/1.5 var(--font-mono, monospace); letter-spacing: 0.06em; }
+.cq-field-title { font: 800 clamp(1.3rem, 5vw, 1.8rem)/1.2 var(--font-display, sans-serif); }
+.cq-field-detail { color: #d6d3d1; font-size: 0.9rem; line-height: 1.5; }
+.cq-field-reward-icon { display: flex; justify-content: center; }
+.cq-field-reward-values { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5rem; padding: 1rem; border-block: 1px solid #44403c; }
+.cq-field-value-label { display: block; color: #d6d3d1; font: 0.75rem/1.5 var(--font-mono, monospace); }
+.cq-field-value { color: #fbbf24; font: 800 2rem/1.3 var(--font-display, sans-serif); }
+.cq-field-continue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  border: 1px solid #fbbf24;
+  border-radius: 4px;
+  background: #fbbf24;
+  color: #07090e;
+  font: 800 0.875rem/1.4 var(--font-mono, monospace);
+  cursor: pointer;
+}
+.cq-field-continue:hover { background: #fde68a; }
+.cq-field-continue:active { background: #f59e0b; }
+.cq-field-continue:focus-visible { outline: 3px solid #f9fafb; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .cq-hud-state-sweep { animation: none; }
+}
+
