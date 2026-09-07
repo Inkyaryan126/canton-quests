@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Compass, Zap, KeyRound, CheckCircle2, ArrowRight, Shield } from 'lucide-react';
+import { Compass, Zap, KeyRound, CheckCircle2, ArrowRight } from 'lucide-react';
 import { PathLockMoment } from '@/lib/game-effects';
 import HudReticle from './HudReticle';
 import HudParticlesCanvas, { ParticleMode } from './HudParticlesCanvas';
 import { proceduralSoundEngine } from '@/lib/game-audio';
+import SystemStatusBadge from './SystemStatusBadge';
+import CqTransition from './CqTransition';
 
 interface PathLockEffectProps {
   moment: PathLockMoment;
@@ -58,6 +60,7 @@ export default function PathLockEffect({
   reducedMotion = false,
 }: PathLockEffectProps) {
   const [stage, setStage] = useState<'locking' | 'confirmed'>('locking');
+  const [mounted, setMounted] = useState(false);
   const path = moment.path || 'family';
   const theme = PATH_THEMES[path] || PATH_THEMES.family;
   const Icon = theme.icon;
@@ -65,11 +68,13 @@ export default function PathLockEffect({
   useEffect(() => {
     proceduralSoundEngine.playPathLock(path);
 
+    const raf = requestAnimationFrame(() => setMounted(true));
     const t1 = setTimeout(() => {
       setStage('confirmed');
     }, reducedMotion ? 400 : 700);
 
     return () => {
+      cancelAnimationFrame(raf);
       clearTimeout(t1);
     };
   }, [path, reducedMotion]);
@@ -100,8 +105,10 @@ export default function PathLockEffect({
       )}
 
       {/* Main HUD Card */}
-      <div
-        className="relative z-10 max-w-md w-full bg-[#07090e]/95 border-2 rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-2xl overflow-hidden transition-all duration-500"
+      <CqTransition
+        show={mounted}
+        reducedMotion={reducedMotion}
+        className="relative z-10 max-w-md w-full bg-[#07090e]/95 border-2 rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-2xl overflow-hidden transition-all duration-500 cq-transition-settle"
         style={{
           borderColor: theme.color,
           boxShadow: `0 0 60px ${theme.glow}`,
@@ -131,10 +138,10 @@ export default function PathLockEffect({
 
         {/* Lock Confirmation Badge */}
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-black uppercase tracking-widest bg-stone-900 border border-stone-700 text-stone-300">
-            <Shield size={13} style={{ color: theme.color }} />
-            <span>{stage === 'locking' ? 'LOCKING PROTOCOL...' : 'PATH LOCKED'}</span>
-          </div>
+          <SystemStatusBadge
+            status={stage === 'locking' ? 'armed' : 'confirmed'}
+            label={stage === 'locking' ? 'LOCKING PROTOCOL...' : 'PATH LOCKED'}
+          />
 
           <h2
             className="text-2xl sm:text-3xl font-black font-display text-white tracking-tight uppercase"
@@ -179,7 +186,7 @@ export default function PathLockEffect({
           <span>ENTER CANTON GRID</span>
           <ArrowRight size={17} />
         </button>
-      </div>
+      </CqTransition>
     </div>
   );
 }

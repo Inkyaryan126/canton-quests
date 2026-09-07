@@ -5,3 +5,4 @@
 
 export * from './cq-sound-map';
 export * from './cq-sound-manager';
+export * from './sound-preference';

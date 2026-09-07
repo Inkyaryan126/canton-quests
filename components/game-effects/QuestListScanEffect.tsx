@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Radar, RefreshCw, Sparkles } from 'lucide-react';
+import { Radar, RefreshCw } from 'lucide-react';
 import { showGameMoment } from '@/lib/game-effects';
+import SystemStatusBadge from './SystemStatusBadge';
 
 interface QuestListScanEffectProps {
   questCount: number;
@@ -74,9 +75,11 @@ export default function QuestListScanEffect({
             <strong className="text-white font-mono uppercase tracking-wider">
               {districtName}
             </strong>
-            <span className="px-2 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold">
-              {isLoading ? 'SCANNING GRID...' : `${questCount} TARGETS ONLINE`}
-            </span>
+            <SystemStatusBadge
+              status={isScanning || isLoading ? 'scanning' : 'confirmed'}
+              label={isScanning || isLoading ? 'SCANNING GRID...' : `${questCount} TARGETS ONLINE`}
+              size="sm"
+            />
           </div>
           <span className="text-[11px] text-stone-400 block font-body">
             {isLoading

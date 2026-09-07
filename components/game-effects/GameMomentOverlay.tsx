@@ -7,23 +7,115 @@ import {
   gameMomentManager,
   GameMoment,
 } from '@/lib/game-effects';
+import dynamic from 'next/dynamic';
 import CityScanOverlay from './CityScanOverlay';
-import PathLockEffect from './PathLockEffect';
-import QuestCompleteEffect from './QuestCompleteEffect';
-import RankUpEffect from './RankUpEffect';
-import AchievementEffect from './AchievementEffect';
-import FlashDropEffect from './FlashDropEffect';
-import ChainCompleteEffect from './ChainCompleteEffect';
-import FinaleQualificationEffect from './FinaleQualificationEffect';
-import ThreeLocksFragmentEffect from './ThreeLocksFragmentEffect';
 import CommanderTransmissionEffect from './CommanderTransmissionEffect';
 import CommanderTextTransmission from '../commander/CommanderTextTransmission';
-import RewardTokenEffect from './RewardTokenEffect';
-import UnlockEffect from './UnlockEffect';
-import FieldEventEffect from './FieldEventEffect';
-import ProgressionEffect from './ProgressionEffect';
-import MajorCinematicEffect from './MajorCinematicEffect';
+import FlashDropEffect from './FlashDropEffect';
 import SoundToggleControl from './SoundToggleControl';
+import SystemStatusBadge from './SystemStatusBadge';
+
+// Every moment below renders through HudParticlesCanvas — a <canvas>
+// particle field. They're only ever needed once a matching game moment
+// fires, so they're kept out of the initial bundle for every route
+// (most never trigger one) and fetched on demand instead.
+// Note: Next.js static analysis requires options to be an inline object literal.
+const PathLockEffect = dynamic(() => import('./PathLockEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const QuestCompleteEffect = dynamic(() => import('./QuestCompleteEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const RankUpEffect = dynamic(() => import('./RankUpEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const AchievementEffect = dynamic(() => import('./AchievementEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const ChainCompleteEffect = dynamic(() => import('./ChainCompleteEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const FinaleQualificationEffect = dynamic(() => import('./FinaleQualificationEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const ThreeLocksFragmentEffect = dynamic(() => import('./ThreeLocksFragmentEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const RewardTokenEffect = dynamic(() => import('./RewardTokenEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const UnlockEffect = dynamic(() => import('./UnlockEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const FieldEventEffect = dynamic(() => import('./FieldEventEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const ProgressionEffect = dynamic(() => import('./ProgressionEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
+const MajorCinematicEffect = dynamic(() => import('./MajorCinematicEffect'), {
+  ssr: false,
+  loading: () => (
+    <div className="cq-moment-loading">
+      <SystemStatusBadge status="scanning" />
+    </div>
+  ),
+});
 
 export const BACKDROP_DISMISS_GRACE_MS = 300;
 
