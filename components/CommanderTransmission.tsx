@@ -10,6 +10,7 @@ interface CommanderTransmissionProps {
   className?: string;
   /** Shows a small "Replay Transmission" affordance — pass when this transmission has already auto-shown once as a cinematic moment and is replayable. */
   onReplay?: () => void;
+  reducedMotion?: boolean;
 }
 
 /**
@@ -20,7 +21,12 @@ interface CommanderTransmissionProps {
  * components/game-effects/CommanderTransmissionEffect.tsx — both share the
  * same media rendering via components/commander/CommanderMedia.tsx.
  */
-export default function CommanderTransmission({ transmission, className = '', onReplay }: CommanderTransmissionProps) {
+export default function CommanderTransmission({
+  transmission,
+  className = '',
+  onReplay,
+  reducedMotion = false,
+}: CommanderTransmissionProps) {
   const Icon = transmission.type === 'VIDEO' ? Video : Radio;
 
   return (
@@ -42,7 +48,7 @@ export default function CommanderTransmission({ transmission, className = '', on
         ) : undefined
       }
     >
-      <CommanderMedia transmission={transmission} variant="inline" />
+      <CommanderMedia transmission={transmission} variant="inline" reducedMotion={reducedMotion} />
 
       <p className="text-sm text-stone-200 leading-relaxed italic">&ldquo;{transmission.message}&rdquo;</p>
     </TransmissionPanel>

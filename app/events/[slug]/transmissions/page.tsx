@@ -9,6 +9,9 @@ import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
 import { Play, Radio, Satellite, FileText } from 'lucide-react';
 import { showGameMoment } from '@/lib/game-effects';
 import { getFounderCipherMessageLog, LoggedFounderCipherMessage } from '@/lib/gameplay/founders-cipher/message-log';
+import TransmissionLoader from '@/components/game-effects/TransmissionLoader';
+import TransmissionPanel from '@/components/game-effects/TransmissionPanel';
+import { useReducedMotion } from '@/lib/motion';
 
 // Only ever contains transmissions already revealed to this player — the
 // API never returns a not-yet-unlocked entry at all (see
@@ -35,6 +38,7 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
   const isFounderCipher = isKnownCantonLaunchSlug(params.slug);
   const [entries, setEntries] = useState<ArchiveEntry[] | null>(null);
   const [fieldLog, setFieldLog] = useState<LoggedFounderCipherMessage[]>([]);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!isFounderCipher) return;
@@ -98,7 +102,9 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
             </div>
 
             {entries === null ? (
-              <p className="text-center text-xs font-mono text-stone-500 uppercase tracking-widest">Loading archive...</p>
+              <div className="flex justify-center py-12">
+                <TransmissionLoader label="ACCESSING ARCHIVE" reducedMotion={reducedMotion} />
+              </div>
             ) : entries.length === 0 ? (
               <div className="max-w-md mx-auto text-center space-y-3 py-10">
                 <Satellite size={28} className="mx-auto text-stone-600" />
@@ -167,12 +173,17 @@ export default function TransmissionArchivePage({ params }: { params: { slug: st
                       key={`${entry.id}-${entry.loggedAt}-${i}`}
                       type="button"
                       onClick={() => reopenLoggedMessage(entry)}
-                      className="text-left rounded-xl border border-stone-800 bg-stone-900/70 hover:border-cyan-500/50 transition-colors p-3.5"
+                      className="text-left group cursor-pointer focus:outline-none"
                     >
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-300">
-                        {entry.title}
-                      </span>
-                      <p className="text-xs text-stone-400 mt-1 line-clamp-2">{entry.body}</p>
+                      <TransmissionPanel
+                        eyebrow={entry.title}
+                        icon={FileText}
+                        tone="cyan"
+                        accentClassName="text-cyan-300"
+                        className="group-hover:border-cyan-400/50 transition-colors h-full"
+                      >
+                        <p className="text-xs text-stone-300 line-clamp-2 leading-relaxed">{entry.body}</p>
+                      </TransmissionPanel>
                     </button>
                   ))}
                 </div>

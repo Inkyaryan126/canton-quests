@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Radio, ArrowRight, FastForward } from 'lucide-react';
 import { CommanderTransmissionMoment } from '@/lib/game-effects';
 import CommanderMedia from '../commander/CommanderMedia';
+import TransmissionLoader from './TransmissionLoader';
+import CqTransition from './CqTransition';
 import { cqSoundManager } from '@/lib/audio';
 import { resolveTransmissionCta, isTransmissionSkippable } from '@/lib/commander-transmission-utils';
 
@@ -13,6 +15,10 @@ interface CommanderTransmissionEffectProps {
   reducedMotion?: boolean;
 }
 
+/** Signal-decode beat before content reveals — instantaneous under reduced motion. */
+const DECODE_MS = 650;
+const DECODE_MS_REDUCED = 0;
+
 /**
  * The cinematic, full-screen "INCOMING TRANSMISSION" reveal — reusable
  * across every trigger (sector intro, quest intro/milestone/completion,
@@ -20,6 +26,13 @@ interface CommanderTransmissionEffectProps {
  * Three Locks fragment recovery, finale beats, leaderboard milestones).
  * Nothing here is Challenge-sector-specific; all copy/media comes from the
  * `transmission` payload.
+ *
+ * Arrives in two beats: the header HUD and its arrival ping land instantly,
+ * then a brief DECODING TRANSMISSION readout (TransmissionLoader) plays
+ * before the real media/message content reveals (CqTransition) — the
+ * equipment locking onto and decoding the signal, rather than content just
+ * appearing. Purely cosmetic: never gates or delays the real advance logic
+ * below, which only ever runs off onEnded/Skip.
  *
  * Advances only from an authoritative event: the video's real `onEnded`
  * (wired through CommanderMedia's onVideoEnded) or the player's explicit
@@ -34,6 +47,7 @@ export default function CommanderTransmissionEffect({ moment, onDismiss, reduced
   const cta = resolveTransmissionCta(transmission);
   const isPortrait = transmission.mediaAspect === 'portrait';
   const hasAdvancedRef = useRef(false);
+  const [phase, setPhase] = useState<'decoding' | 'revealed'>('decoding');
 
   useEffect(() => {
     cqSoundManager.play('transmission');
@@ -42,6 +56,17 @@ export default function CommanderTransmissionEffect({ moment, onDismiss, reduced
   useEffect(() => {
     hasAdvancedRef.current = false;
   }, [moment.id]);
+
+  useEffect(() => {
+    setPhase('decoding');
+    const delay = reducedMotion ? DECODE_MS_REDUCED : DECODE_MS;
+    if (delay === 0) {
+      setPhase('revealed');
+      return;
+    }
+    const timer = setTimeout(() => setPhase('revealed'), delay);
+    return () => clearTimeout(timer);
+  }, [moment.id, reducedMotion]);
 
   const handleContinue = () => {
     if (hasAdvancedRef.current) return;
@@ -73,36 +98,46 @@ export default function CommanderTransmissionEffect({ moment, onDismiss, reduced
           </span>
         </div>
 
-        <CommanderMedia transmission={transmission} variant="cinematic" reducedMotion={reducedMotion} onVideoEnded={handleContinue} />
+        <div className="relative">
+          <CqTransition show={phase === 'revealed'} reducedMotion={reducedMotion}>
+            <CommanderMedia transmission={transmission} variant="cinematic" reducedMotion={reducedMotion} onVideoEnded={handleContinue} />
 
-        {/* Body */}
-        <div className="p-5 sm:p-6 space-y-4 text-center">
-          {transmission.headline && (
-            <span className="inline-block text-[10px] sm:text-[11px] font-mono font-black uppercase tracking-widest text-amber-300 bg-amber-950/50 border border-amber-500/40 rounded-full px-3 py-1">
-              {transmission.headline}
-            </span>
-          )}
+            {/* Body */}
+            <div className="p-5 sm:p-6 space-y-4 text-center">
+              {transmission.headline && (
+                <span className="inline-block text-[10px] sm:text-[11px] font-mono font-black uppercase tracking-widest text-amber-300 bg-amber-950/50 border border-amber-500/40 rounded-full px-3 py-1">
+                  {transmission.headline}
+                </span>
+              )}
 
-          <p className="text-base sm:text-lg text-white font-body leading-relaxed italic">
-            &ldquo;{transmission.message}&rdquo;
-          </p>
+              <p className="text-base sm:text-lg text-white font-body leading-relaxed italic">
+                &ldquo;{transmission.message}&rdquo;
+              </p>
 
-          {skippable && (
-            <button
-              type="button"
-              onClick={handleContinue}
-              className="w-full py-3.5 px-5 rounded-xl font-display font-extrabold text-sm uppercase tracking-wider bg-gradient-to-r from-amber-400 to-amber-500 text-black flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(245,158,11,0.4)] transition-transform active:scale-95 cursor-pointer hover:brightness-110 min-h-[48px]"
-            >
-              <span>{cta}</span>
-              <ArrowRight size={17} />
-            </button>
-          )}
+              {skippable && (
+                <button
+                  type="button"
+                  onClick={handleContinue}
+                  className="w-full py-3.5 px-5 rounded-xl font-display font-extrabold text-sm uppercase tracking-wider bg-gradient-to-r from-amber-400 to-amber-500 text-black flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(245,158,11,0.4)] transition-transform active:scale-95 cursor-pointer hover:brightness-110 min-h-[48px]"
+                >
+                  <span>{cta}</span>
+                  <ArrowRight size={17} />
+                </button>
+              )}
 
-          {!skippable && (
-            <span className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-stone-500 uppercase tracking-wider">
-              <FastForward size={11} />
-              Transmission in progress
-            </span>
+              {!skippable && (
+                <span className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-stone-500 uppercase tracking-wider">
+                  <FastForward size={11} />
+                  Transmission in progress
+                </span>
+              )}
+            </div>
+          </CqTransition>
+
+          {phase === 'decoding' && (
+            <div className="absolute inset-0 rounded-b-2xl flex flex-col items-center justify-center gap-3 py-20 bg-[#07090e]">
+              <TransmissionLoader label="DECODING TRANSMISSION" reducedMotion={reducedMotion} />
+            </div>
           )}
         </div>
       </div>
