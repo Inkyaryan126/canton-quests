@@ -2,6 +2,7 @@
 
 import { LeaderboardEntry } from '@/lib/types';
 import PlayerAvatar from '@/components/PlayerAvatar';
+import SystemStatusBadge from '@/components/game-effects/SystemStatusBadge';
 
 interface LeaderboardProps {
   entries: LeaderboardEntry[];
@@ -10,26 +11,21 @@ interface LeaderboardProps {
 
 export default function Leaderboard({ entries, currentPlayerId }: LeaderboardProps) {
   return (
-    <div className="glass-panel overflow-hidden border-amber-500/20">
-      {/* Leaderboard Header */}
-      <div className="p-4 bg-obsidian/60 border-b border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-3">
+    <section className="cq-hud-panel cq-motion-scope" style={{ overflow: 'hidden' }}>
+      <header style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '1rem', borderBottom: '1px solid var(--border-subtle)' }}>
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            🏆 Event Leaderboard
-          </h2>
-          <p className="text-xs text-gray-400 font-mono">Live verified scoring leaderboard ({entries.length} agents)</p>
+          <h2 style={{ margin: 0 }}>Event Leaderboard</h2>
+          <p className="cq-section-note">Live verified scoring leaderboard ({entries.length} agents)</p>
         </div>
-      </div>
+        <SystemStatusBadge status={entries.length > 0 ? 'confirmed' : 'armed'} label={entries.length > 0 ? 'LIVE VERIFIED' : 'STANDBY'} size="sm" />
+      </header>
 
-      {/* INDIVIDUAL LEADERBOARD VIEW */}
-      <div className="divide-y divide-[var(--border-subtle)]">
+      <div>
         {entries.length === 0 ? (
-          <div className="p-8 text-center space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
-              PRE-SEASON • OPENS SEPTEMBER 11
-            </div>
-            <h3 className="text-base font-bold text-white font-display uppercase tracking-wide">Leaderboard Activates at Kickoff</h3>
-            <p className="text-xs text-stone-400 font-mono max-w-sm mx-auto">
+          <div className="cq-empty-state" style={{ padding: '2rem' }}>
+            <SystemStatusBadge status="armed" label="PRE-SEASON • OPENS SEPTEMBER 11" size="sm" />
+            <h3>Leaderboard Activates at Kickoff</h3>
+            <p>
               Live verified scores and rankings will stream here in real time as agents complete field missions across Canton.
             </p>
           </div>
@@ -38,72 +34,42 @@ export default function Leaderboard({ entries, currentPlayerId }: LeaderboardPro
             const isCurrentPlayer = entry.playerId === currentPlayerId;
 
             let rankBadge = `#${entry.rank}`;
-            let rankColor = 'text-gray-400 bg-gray-800/60 border-gray-700';
 
             if (entry.rank === 1) {
               rankBadge = '🥇 1st';
-              rankColor = 'text-yellow-300 bg-yellow-500/20 border-yellow-500/50 glow-amber';
             } else if (entry.rank === 2) {
               rankBadge = '🥈 2nd';
-              rankColor = 'text-gray-200 bg-gray-400/20 border-gray-400/50';
             } else if (entry.rank === 3) {
               rankBadge = '🥉 3rd';
-              rankColor = 'text-amber-500 bg-amber-700/20 border-amber-600/50';
             }
 
             return (
-              <div
+              <article
                 key={entry.playerId}
-                className={`p-4 flex items-center justify-between gap-3 transition-colors ${
-                  isCurrentPlayer
-                    ? 'bg-amber-500/10 border-l-4 border-l-amber-500'
-                    : 'hover:bg-gray-900/40'
-                }`}
+                className={`cq-rank-row${isCurrentPlayer ? ' is-me' : ''}`}
               >
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg border ${rankColor}`}>
-                    {rankBadge}
-                  </span>
-
-                  <PlayerAvatar
-                    avatarUrl={entry.avatarUrl}
-                    cropZoom={entry.profileImageCropZoom}
-                    cropX={entry.profileImageCropX}
-                    cropY={entry.profileImageCropY}
-                    size={36}
-                    className="cq-leaderboard-avatar"
-                    ariaLabel={`${entry.displayName} avatar`}
-                    style={{ background: '#1f2937', border: '1px solid #374151', fontSize: '1.125rem' }}
-                  />
-
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-display font-bold text-white text-sm">
-                        {entry.displayName}
-                      </span>
-                      {isCurrentPlayer && (
-                        <span className="text-[10px] bg-amber-500 text-obsidian px-1.5 py-0.5 rounded font-mono font-bold">
-                          YOU
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-400 font-mono">
-                      {entry.questsCompletedCount} quest{entry.questsCompletedCount === 1 ? '' : 's'} completed
-                    </span>
-                  </div>
+                <span className="cq-rank-row-num">{rankBadge}</span>
+                <PlayerAvatar
+                  avatarUrl={entry.avatarUrl}
+                  cropZoom={entry.profileImageCropZoom}
+                  cropX={entry.profileImageCropX}
+                  cropY={entry.profileImageCropY}
+                  size={36}
+                  className="cq-rank-row-avatar"
+                  ariaLabel={`${entry.displayName} avatar`}
+                />
+                <div className="cq-rank-row-name">
+                  {entry.displayName} {isCurrentPlayer && <small>YOU</small>}
+                  <small style={{ display: 'block', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 400 }}>
+                    {entry.questsCompletedCount} quest{entry.questsCompletedCount === 1 ? '' : 's'} completed
+                  </small>
                 </div>
-
-                <div className="text-right">
-                  <span className="font-display font-extrabold text-amber-400 text-lg block leading-none">
-                    {entry.totalPoints}
-                  </span>
-                  <span className="text-[10px] font-mono text-gray-400 uppercase">XP Points</span>
-                </div>
-              </div>
+                <strong className="cq-rank-row-xp">{entry.totalPoints} XP</strong>
+              </article>
             );
           })
         )}
       </div>
-    </div>
+    </section>
   );
 }

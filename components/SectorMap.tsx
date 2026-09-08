@@ -327,7 +327,7 @@ export default function SectorMap({
   }, []);
 
   return (
-    <div className={`cq-sector-map-root ${className}`}>
+    <div className={`cq-sector-map-root cq-motion-scope ${className}`}>
       <style jsx global>{`
         .cq-sector-map-root {
           --bg-void: #0a0d12;
@@ -753,7 +753,7 @@ export default function SectorMap({
         {/* Tactical 2-Panel Grid */}
         <div className="grid-layout">
           {/* Left Panel: Live Sector Map */}
-          <div className="panel">
+          <div className="panel cq-hud-panel">
             <div className="panel-head">
               <span>SECTOR MAP</span>
               <b>{SECTOR_ZONES.length} ZONES ONLINE</b>
@@ -772,14 +772,14 @@ export default function SectorMap({
           </div>
 
           {/* Right Panel: Live Activity Feed */}
-          <div className="panel">
+          <div className="panel cq-hud-panel">
             <div className="panel-head">
               <span>PUBLIC FIELD INTEL</span>
               <b>{internalFeed && internalFeed.length > 0 ? `${internalFeed.length} DISPATCHES` : 'STANDBY'}</b>
             </div>
 
             {tickerItems.length === 0 ? (
-              <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+              <div className="cq-empty-state" style={{ padding: '48px 20px', textAlign: 'center' }}>
                 <div style={{ fontSize: '28px', marginBottom: '10px' }}>📡</div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: 'var(--signal)', letterSpacing: '0.08em', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>
                   STANDBY // AWAITING FIELD DISPATCHES

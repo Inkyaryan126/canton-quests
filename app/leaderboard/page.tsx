@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Crown, Medal, Radio, Trophy, Zap } from 'lucide-react';
@@ -10,10 +9,12 @@ import CinematicNav from '@/components/CinematicNav';
 import MobileStartBar from '@/components/MobileStartBar';
 import PageHeader from '@/components/PageHeader';
 import { GlobalXpLeaderboardEntry, LeaderboardEntry, Player, QuestEvent } from '@/lib/types';
-import { cqImages, formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
+import { formatEventWindow, getActiveEvent } from '@/lib/marketing-assets';
 import PlayerAvatar from "@/components/PlayerAvatar";
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
 import WatchTransmissionButton from '@/components/commander/WatchTransmissionButton';
+import HudSystemState from '@/components/game-effects/HudSystemState';
+import SystemStatusBadge from '@/components/game-effects/SystemStatusBadge';
 
 function getClientPlayer(): Player {
   const stored = window.localStorage.getItem('canton_quests_current_player');
@@ -40,36 +41,59 @@ function LeaderboardContent() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<QuestEvent | null>(null);
   const [globalEntries, setGlobalEntries] = useState<GlobalXpLeaderboardEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
-    setCurrentPlayer(getClientPlayer());
-    fetch('/api/game/events')
-      .then((res) => res.json())
-      .then((data: { events?: QuestEvent[] }) => {
+    let cancelled = false;
+
+    async function loadStandings() {
+      setIsLoading(true);
+      setLoadError(null);
+      setCurrentPlayer(getClientPlayer());
+
+      try {
+        const eventsResponse = await fetch('/api/game/events');
+        if (!eventsResponse.ok) throw new Error('Mission directory unavailable');
+        const data = (await eventsResponse.json()) as { events?: QuestEvent[] };
         const loadedEvents = data.events || [];
-        setEvents(loadedEvents);
         const target = operationSlug
           ? loadedEvents.find((e) => e.slug === operationSlug)
           : getActiveEvent(loadedEvents);
-        setSelectedEvent(target || null);
-        if (!target) return;
-        return fetch(`/api/game/events/${target.slug}`);
-      })
-      .then((res) => res?.json())
-      .then((data: { leaderboard?: LeaderboardEntry[] } | undefined) => {
-        setEntries(data?.leaderboard || []);
-      });
 
-    // Cross-Mission, all-time XP ranking — independent of whichever
-    // Operation is "active," so it's fetched unconditionally rather than
-    // gated behind the viewMode tab (avoids a loading flash on first switch).
-    fetch('/api/game/leaderboard/global')
-      .then((res) => res.json())
-      .then((data: { leaderboard?: GlobalXpLeaderboardEntry[] }) => {
-        setGlobalEntries(data.leaderboard || []);
-      })
-      .catch(() => {});
-  }, [operationSlug]);
+        const [eventData, globalData] = await Promise.all([
+          target
+            ? fetch(`/api/game/events/${target.slug}`).then(async (response) => {
+                if (!response.ok) throw new Error('Mission standings unavailable');
+                return response.json() as Promise<{ leaderboard?: LeaderboardEntry[] }>;
+              })
+            : Promise.resolve({ leaderboard: [] }),
+          fetch('/api/game/leaderboard/global').then(async (response) => {
+            if (!response.ok) throw new Error('Global standings unavailable');
+            return response.json() as Promise<{ leaderboard?: GlobalXpLeaderboardEntry[] }>;
+          }),
+        ]);
+
+        if (cancelled) return;
+        setEvents(loadedEvents);
+        setSelectedEvent(target || null);
+        setEntries(eventData.leaderboard || []);
+        setGlobalEntries(globalData.leaderboard || []);
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(error instanceof Error ? error.message : 'Standings link unavailable');
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    void loadStandings();
+    return () => {
+      cancelled = true;
+    };
+  }, [operationSlug, loadAttempt]);
 
   const activeEvent = selectedEvent || getActiveEvent(events);
   const eventHref = activeEvent ? `/events/${activeEvent.slug}` : '/events';
@@ -105,23 +129,44 @@ function LeaderboardContent() {
           />
         </section>
 
+        {isLoading ? (
+          <section className="cq-page-section" aria-live="polite">
+            <div className="cq-hud-panel cq-empty-state">
+              <HudSystemState
+                state="scanning"
+                label="SYNCING STANDINGS"
+                detail="Receiving verified mission and all-time XP telemetry."
+              />
+            </div>
+          </section>
+        ) : loadError ? (
+          <section className="cq-page-section" role="alert">
+            <div className="cq-hud-panel cq-empty-state">
+              <HudSystemState state="denied" label="STANDINGS LINK INTERRUPTED" detail={loadError} />
+              <button type="button" className="cq-gold-button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+                Retry Standings
+              </button>
+            </div>
+          </section>
+        ) : (
+        <>
         <section className="cq-page-section" style={{ paddingTop: 0, paddingBottom: '1rem' }}>
-          <div className="flex items-center gap-2 p-1 rounded-xl bg-stone-950 border border-stone-800 text-xs font-mono max-w-xs">
+          <div className="cq-hud-panel" style={{ display: 'flex', gap: '0.4rem', maxWidth: '22rem', padding: '0.35rem' }}>
             <button
               type="button"
               onClick={() => setViewMode('mission')}
-              className={`flex-1 py-2 px-3 rounded-lg text-center font-bold transition-all cursor-pointer ${
-                viewMode === 'mission' ? 'bg-amber-500 text-black shadow-md' : 'text-stone-400 hover:text-stone-200'
-              }`}
+              className={viewMode === 'mission' ? 'cq-gold-button cq-btn-sm' : 'cq-dark-button cq-btn-sm'}
+              aria-pressed={viewMode === 'mission'}
+              style={{ flex: 1 }}
             >
               THIS MISSION
             </button>
             <button
               type="button"
               onClick={() => setViewMode('global')}
-              className={`flex-1 py-2 px-3 rounded-lg text-center font-bold transition-all cursor-pointer ${
-                viewMode === 'global' ? 'bg-amber-500 text-black shadow-md' : 'text-stone-400 hover:text-stone-200'
-              }`}
+              className={viewMode === 'global' ? 'cq-gold-button cq-btn-sm' : 'cq-dark-button cq-btn-sm'}
+              aria-pressed={viewMode === 'global'}
+              style={{ flex: 1 }}
             >
               ALL-TIME XP
             </button>
@@ -156,47 +201,34 @@ function LeaderboardContent() {
 
         {entries.length === 0 ? (
           <section className="cq-page-section cq-board-section">
-            <div className="relative overflow-hidden p-10 sm:p-14 rounded-3xl bg-stone-950 border border-stone-800 text-center space-y-4 max-w-3xl mx-auto my-8 shadow-2xl">
-              <Image
-                src={cqImages.leaderboardBg}
-                alt=""
-                fill
-                sizes="(max-width: 768px) 100vw, 800px"
-                className="object-cover opacity-20 pointer-events-none"
-              />
+            <div className="cq-hud-panel cq-empty-state cq-transition-reveal is-visible" style={{ maxWidth: '48rem', margin: '2rem auto', padding: 'clamp(2rem, 7vw, 3.5rem)' }}>
               {isFairOperation ? (
-                <div className="relative z-10 space-y-3">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 font-mono text-xs font-bold uppercase tracking-widest">
-                    <Trophy size={14} className="text-cyan-400" />
-                    <span>FAIR QR HUNT • SEPT 4 – SEPT 5</span>
-                  </div>
-                  <h2 className="text-3xl font-black font-display text-white uppercase tracking-tight">
+                <div>
+                  <SystemStatusBadge status="scanning" label="FAIR QR HUNT • SEPT 4 – SEPT 5" size="sm" />
+                  <h2>
                     No Fair Scores Yet
                   </h2>
-                  <p className="text-sm text-stone-300 font-body max-w-lg mx-auto leading-relaxed">
+                  <p>
                     Live Fair QR Hunt rankings will stream here as players secure Signals across the fairgrounds — no starting path required.
                   </p>
-                  <div className="pt-3">
-                    <Link href="/events/fair-qr-hunt" className="cq-gold-button inline-flex">
+                  <div style={{ marginTop: '1rem' }}>
+                    <Link href="/events/fair-qr-hunt" className="cq-gold-button">
                       ENTER THE FAIR QR HUNT
                       <Zap size={16} />
                     </Link>
                   </div>
                 </div>
               ) : (
-                <div className="relative z-10 space-y-3">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-widest">
-                    <Trophy size={14} className="text-amber-400" />
-                    <span>PRE-SEASON ACTIVE • KICKOFF SEPTEMBER 11</span>
-                  </div>
-                  <h2 className="text-3xl font-black font-display text-white uppercase tracking-tight">
+                <div>
+                  <SystemStatusBadge status="armed" label="PRE-SEASON ACTIVE • KICKOFF SEPTEMBER 11" size="sm" />
+                  <h2>
                     Leaderboard Activates September 11
                   </h2>
-                  <p className="text-sm text-stone-300 font-body max-w-lg mx-auto leading-relaxed">
+                  <p>
                     Live individual agent rankings and XP scoring will stream here in real time as players verify field missions across Canton.
                   </p>
-                  <div className="pt-3">
-                    <Link href="/events/canton-weekend-1" className="cq-gold-button inline-flex">
+                  <div style={{ marginTop: '1rem' }}>
+                    <Link href="/events/canton-weekend-1" className="cq-gold-button">
                       ENTER FOUNDER&apos;S CIPHER
                       <Zap size={16} />
                     </Link>
@@ -299,14 +331,11 @@ function LeaderboardContent() {
 
         {globalEntries.length === 0 ? (
           <section className="cq-page-section cq-board-section">
-            <div className="relative overflow-hidden p-10 sm:p-14 rounded-3xl bg-stone-950 border border-stone-800 text-center space-y-4 max-w-3xl mx-auto my-8 shadow-2xl">
-              <div className="relative z-10 space-y-3">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-widest">
-                  <Trophy size={14} className="text-amber-400" />
-                  <span>GLOBAL RANKINGS</span>
-                </div>
-                <h2 className="text-3xl font-black font-display text-white uppercase tracking-tight">No Agents Ranked Yet</h2>
-                <p className="text-sm text-stone-300 font-body max-w-lg mx-auto leading-relaxed">
+            <div className="cq-hud-panel cq-empty-state cq-transition-reveal is-visible" style={{ maxWidth: '48rem', margin: '2rem auto', padding: 'clamp(2rem, 7vw, 3.5rem)' }}>
+              <div>
+                <SystemStatusBadge status="armed" label="GLOBAL RANKINGS" size="sm" />
+                <h2>No Agents Ranked Yet</h2>
+                <p>
                   Create a Player Identity and start earning XP across any Mission to appear here.
                 </p>
               </div>
@@ -381,6 +410,8 @@ function LeaderboardContent() {
               </div>
             </section>
           </>
+        )}
+        </>
         )}
         </>
         )}

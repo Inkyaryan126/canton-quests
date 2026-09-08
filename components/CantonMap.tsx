@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PublicQuestView, QuestState } from '@/lib/types';
 import { calculateDistanceMeters, formatDistance } from '@/lib/geo';
+import SystemStatusBadge from '@/components/game-effects/SystemStatusBadge';
 
 interface CantonMapProps {
   quests: PublicQuestView[];
@@ -145,7 +146,7 @@ export default function CantonMap({
             box-shadow: 0 4px 12px rgba(0,0,0,0.6);
             cursor: pointer;
             transition: transform 0.2s ease;
-          " class="${state === 'flash' ? 'animate-bounce' : ''}">
+          ">
             <span>${iconSymbol}</span>
           </div>
         `,
@@ -198,74 +199,79 @@ export default function CantonMap({
   };
 
   return (
-    <div className="relative w-full h-[420px] rounded-2xl overflow-hidden border border-[var(--border-subtle)] shadow-2xl bg-obsidian">
+    <div className="relative w-full h-[420px] cq-hud-panel cq-motion-scope" style={{ overflow: 'hidden', borderRadius: '0.75rem' }}>
       {/* Map Container */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
       {/* Map Header Overlay Controls */}
-      <div className="absolute top-3 left-3 right-3 z-[400] flex justify-between items-center pointer-events-none">
-        <div className="bg-obsidian/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-amber-500/30 text-[11px] font-mono text-amber-400 font-bold shadow-lg pointer-events-auto flex items-center gap-1.5">
-          <span>🗺️ CANTON FIELD SCANNER</span>
-          <span className="text-gray-400">• {quests.length} Nodes</span>
+      <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', right: '0.75rem', zIndex: 400, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' }}>
+        <div style={{ pointerEvents: 'auto' }}>
+          <SystemStatusBadge status="scanning" label={`CANTON FIELD SCANNER • ${quests.length} NODES`} size="sm" />
         </div>
 
         <button
+          type="button"
           onClick={handleRecenterUser}
-          className="bg-obsidian/90 backdrop-blur-md hover:bg-obsidian text-cyan-400 border border-cyan-500/40 px-3 py-1.5 rounded-full text-xs font-mono font-bold shadow-lg pointer-events-auto flex items-center gap-1 transition-all active:scale-95"
+          className="cq-dark-button cq-btn-sm"
+          style={{ pointerEvents: 'auto' }}
         >
           📍 {userLat !== undefined ? 'My Location' : 'Locate Me'}
         </button>
       </div>
 
+      {quests.length === 0 && (
+        <div className="cq-hud-panel cq-empty-state" style={{ position: 'absolute', inset: '5rem 1rem auto', zIndex: 400, maxWidth: '28rem', margin: '0 auto', padding: '1.25rem' }}>
+          <SystemStatusBadge status="armed" label="NO FIELD NODES" size="sm" />
+          <p>No mission coordinates are currently assigned to this operation.</p>
+        </div>
+      )}
+
       {/* Selected Quest Floating Bottom Preview Card */}
       {selectedQuest && (
-        <div className="absolute bottom-3 left-3 right-3 z-[400] bg-obsidian/95 backdrop-blur-md border border-amber-500/40 p-4 rounded-2xl shadow-2xl text-white animate-slide-up">
-          <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="cq-hud-panel cq-transition-reveal is-visible" style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', right: '0.75rem', zIndex: 400, padding: '1rem', borderRadius: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <div>
-              <div className="flex items-center gap-2 mb-1">
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.25rem' }}>
                 <span className={`badge badge-${selectedQuest.quest.difficulty}`}>
                   {selectedQuest.quest.difficulty}
                 </span>
-                <span className="text-[11px] font-mono text-gray-400 uppercase tracking-wide">
+                <span className="cq-section-note">
                   {selectedQuest.quest.category}
                 </span>
                 {selectedQuest.distanceStr && (
-                  <span className="text-[11px] font-mono text-cyan-400 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/40">
+                  <span className="cq-kicker">
                     📍 {selectedQuest.distanceStr}
                   </span>
                 )}
               </div>
-              <h3 className="text-base font-extrabold text-white">{selectedQuest.quest.title}</h3>
+              <h3>{selectedQuest.quest.title}</h3>
             </div>
             <button
               onClick={() => setSelectedQuest(null)}
-              className="text-gray-400 hover:text-white text-lg font-bold px-1"
+              className="cq-dark-button cq-btn-sm"
+              aria-label="Close quest preview"
             >
               ✕
             </button>
           </div>
 
-          <p className="text-xs text-gray-300 line-clamp-2 mb-3">
+          <p className="cq-section-note">
             {selectedQuest.quest.description}
           </p>
 
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-display font-bold text-amber-400 text-sm">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <strong className="cq-kicker">
               +{selectedQuest.quest.pointValue} XP
-            </span>
+            </strong>
 
             {selectedQuest.state === 'completed' ? (
-              <span className="text-xs font-mono text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-800/40 px-3 py-1.5 rounded-xl">
-                ✓ Quest Completed
-              </span>
+              <SystemStatusBadge status="confirmed" label="QUEST COMPLETED" size="sm" />
             ) : selectedQuest.state === 'locked' ? (
-              <span className="text-xs font-mono text-gray-400 font-bold bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-xl">
-                🔒 Prerequisite Locked
-              </span>
+              <SystemStatusBadge status="denied" label="PREREQUISITE LOCKED" size="sm" />
             ) : (
               <a
                 href={`/events/${eventSlug}/quests/${selectedQuest.quest.id}`}
-                className="btn btn-primary text-xs py-1.5 px-4 font-bold"
+                className="cq-gold-button cq-btn-sm"
               >
                 Inspect Quest →
               </a>
