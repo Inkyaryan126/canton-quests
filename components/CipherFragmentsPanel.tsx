@@ -1,8 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { Eye, KeyRound, Lock, Sparkles, CheckCircle2, ArrowRight, X, AlertCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Eye, KeyRound, Lock, Sparkles, ArrowRight, X } from 'lucide-react';
 import { CipherDistrictKey, CipherDistrictProgressView, PlayerCipherProgressView } from '@/lib/types';
+import { useReducedMotion } from '@/lib/motion';
+import { cqSoundManager } from '@/lib/audio';
+import SystemStatusBadge, { SystemStatus } from '@/components/game-effects/SystemStatusBadge';
+import CqTransition from '@/components/game-effects/CqTransition';
+import VerificationResult from '@/components/game-effects/VerificationResult';
+import TransmissionPanel from '@/components/game-effects/TransmissionPanel';
+import HudParticlesCanvas from '@/components/game-effects/HudParticlesCanvas';
 
 function statusLabel(status: CipherDistrictProgressView['status']): string {
   if (status === 'token_unlocked') return 'Sigil unlocked';
@@ -10,6 +17,21 @@ function statusLabel(status: CipherDistrictProgressView['status']): string {
   if (status === 'in_progress') return 'Signal forming';
   return 'No signal';
 }
+
+/**
+ * Every real CipherDistrictStatus maps onto the shared command-terminal
+ * vocabulary (SystemStatusBadge) so a district's state reads the same way
+ * as every other confirm/deny surface in the game: locked = nothing
+ * recovered yet (denied), in_progress = actively picking up fragments
+ * (scanning), ready_to_decode = armed and awaiting the player's decode
+ * command (armed), token_unlocked = the sigil is confirmed.
+ */
+const DISTRICT_SYSTEM_STATUS: Record<CipherDistrictProgressView['status'], SystemStatus> = {
+  locked: 'denied',
+  in_progress: 'scanning',
+  ready_to_decode: 'armed',
+  token_unlocked: 'confirmed',
+};
 
 interface DecodeSuccessData {
   districtKey: CipherDistrictKey;
@@ -34,11 +56,37 @@ export default function CipherFragmentsPanel({
   onDecodeSuccess,
 }: CipherFragmentsPanelProps) {
   const districts = progress?.districts || [];
+  const reducedMotion = useReducedMotion();
   const [activeDecodingDistrict, setActiveDecodingDistrict] = useState<CipherDistrictKey | null>(null);
   const [tileOrder, setTileOrder] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [decodeError, setDecodeError] = useState<string | null>(null);
   const [decodeSuccessMsg, setDecodeSuccessMsg] = useState<string | null>(null);
+  const [decodeResult, setDecodeResult] = useState<DecodeSuccessData | null>(null);
+  const [modalMounted, setModalMounted] = useState(false);
+  const [successRevealMounted, setSuccessRevealMounted] = useState(false);
+
+  // Mount transition for the decode modal — matches the raf-then-reveal
+  // pattern every other Phase 2 HUD moment uses (see CityScanOverlay,
+  // PathLockEffect) so the card actually animates in instead of snapping
+  // straight to its visible state on the same render it's created.
+  useEffect(() => {
+    if (!activeDecodingDistrict) {
+      setModalMounted(false);
+      return;
+    }
+    const raf = requestAnimationFrame(() => setModalMounted(true));
+    return () => cancelAnimationFrame(raf);
+  }, [activeDecodingDistrict]);
+
+  useEffect(() => {
+    if (!decodeSuccessMsg) {
+      setSuccessRevealMounted(false);
+      return;
+    }
+    const raf = requestAnimationFrame(() => setSuccessRevealMounted(true));
+    return () => cancelAnimationFrame(raf);
+  }, [decodeSuccessMsg]);
 
   if (districts.length === 0) return null;
 
@@ -52,6 +100,7 @@ export default function CipherFragmentsPanel({
     setTileOrder(initialTiles);
     setDecodeError(null);
     setDecodeSuccessMsg(null);
+    setDecodeResult(null);
     setActiveDecodingDistrict(district.key);
   }
 
@@ -70,6 +119,7 @@ export default function CipherFragmentsPanel({
     if (!activeDecodingDistrict || !eventSlug || tileOrder.length !== 3) return;
     setIsSubmitting(true);
     setDecodeError(null);
+    cqSoundManager.play('scan');
 
     try {
       const response = await fetch('/api/game/cipher/decode', {
@@ -84,11 +134,14 @@ export default function CipherFragmentsPanel({
 
       const data = await response.json();
       if (!response.ok || !data.success) {
+        cqSoundManager.play('ui_error');
         setDecodeError(data.error || 'Incorrect fragment sequence. Rearrange the phrases and try again.');
         setIsSubmitting(false);
         return;
       }
 
+      cqSoundManager.play('secret_reveal');
+      setDecodeResult(data);
       setDecodeSuccessMsg(
         `Sigil Unlocked! Decoded sentence: "${data.decodedSentence || ''}"`
       );
@@ -98,13 +151,32 @@ export default function CipherFragmentsPanel({
       setTimeout(() => {
         setActiveDecodingDistrict(null);
         setDecodeSuccessMsg(null);
+        setDecodeResult(null);
       }, 2500);
     } catch (err: any) {
+      cqSoundManager.play('ui_error');
       setDecodeError(err?.message || 'Network error during decode.');
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  /** Live decode-verification state, mirroring the shared armed/scanning/confirmed/denied vocabulary. */
+  const verifyStatus: SystemStatus = decodeError
+    ? 'denied'
+    : decodeSuccessMsg
+      ? 'confirmed'
+      : isSubmitting
+        ? 'scanning'
+        : 'armed';
+  const verifyLabel =
+    verifyStatus === 'denied'
+      ? 'SEQUENCE REJECTED'
+      : verifyStatus === 'confirmed'
+        ? 'SIGIL CONFIRMED'
+        : verifyStatus === 'scanning'
+          ? 'VERIFYING SEQUENCE...'
+          : 'AWAITING SEQUENCE';
 
   return (
     <section className="mb-6 border border-cyan-400/25 bg-[#06090b] shadow-2xl shadow-black/35">
@@ -138,24 +210,19 @@ export default function CipherFragmentsPanel({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-base font-extrabold text-white">{district.name}</h3>
-                    <p
-                      className={`mt-1 text-[11px] font-mono uppercase tracking-wider ${
-                        unlocked
-                          ? 'text-amber-300'
-                          : readyToDecode
-                          ? 'text-emerald-400 font-bold'
-                          : 'text-cyan-300'
-                      }`}
-                    >
-                      {statusLabel(district.status)}
-                    </p>
+                    <SystemStatusBadge
+                      status={DISTRICT_SYSTEM_STATUS[district.status]}
+                      label={statusLabel(district.status)}
+                      size="sm"
+                      className="mt-1.5"
+                    />
                   </div>
                   <div
                     className={`grid h-10 w-10 place-items-center border ${
                       unlocked
                         ? 'border-amber-300 bg-amber-300/15 text-amber-200'
                         : readyToDecode
-                        ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 animate-pulse'
+                        ? `border-emerald-400 bg-emerald-500/20 text-emerald-300 ${reducedMotion ? '' : 'animate-pulse'}`
                         : 'border-stone-700 bg-black/35 text-stone-400'
                     }`}
                   >
@@ -226,20 +293,16 @@ export default function CipherFragmentsPanel({
                   </button>
                 )}
 
-                <div
-                  className={`border p-3 font-mono ${
-                    unlocked
-                      ? 'border-amber-300/45 bg-amber-300/10'
-                      : readyToDecode
-                      ? 'border-emerald-400/40 bg-emerald-950/20'
-                      : 'border-stone-800 bg-black/20'
-                  }`}
+                <TransmissionPanel
+                  eyebrow="District Sigil & Record"
+                  icon={unlocked ? KeyRound : readyToDecode ? Sparkles : Lock}
+                  tone={unlocked ? 'amber' : readyToDecode ? 'emerald' : 'stone'}
+                  accentClassName={unlocked ? 'text-amber-300' : readyToDecode ? 'text-emerald-300' : 'text-stone-500'}
+                  bodyClassName="mt-1"
+                  className="font-mono"
                 >
-                  <span className="block text-[10px] uppercase tracking-widest text-stone-400">
-                    District Sigil & Record
-                  </span>
                   <strong
-                    className={`mt-1 block text-sm uppercase ${
+                    className={`block text-sm uppercase ${
                       unlocked ? 'text-amber-200' : readyToDecode ? 'text-emerald-300' : 'text-stone-500'
                     }`}
                   >
@@ -254,17 +317,25 @@ export default function CipherFragmentsPanel({
                       &ldquo;{district.decodedSentence}&rdquo;
                     </p>
                   )}
-                </div>
+                </TransmissionPanel>
               </div>
             </article>
           );
         })}
       </div>
 
-      {/* Decode Modal */}
+      {/* Decode Modal — the flagship reveal: arranging real recovered
+          fragments into a working intelligence decode, not a checklist. */}
       {activeDecodingDistrict && currentDecodingDistrict && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg border border-cyan-400/40 bg-[#0c1216] p-6 shadow-2xl">
+          {decodeSuccessMsg && (
+            <HudParticlesCanvas mode="cryptic-glyphs" color="#34d399" reducedMotion={reducedMotion} />
+          )}
+          <CqTransition
+            show={modalMounted}
+            reducedMotion={reducedMotion}
+            className="relative w-full max-w-lg border border-cyan-400/40 bg-[#0c1216] p-6 shadow-2xl"
+          >
             <button
               type="button"
               onClick={() => setActiveDecodingDistrict(null)}
@@ -273,9 +344,12 @@ export default function CipherFragmentsPanel({
               <X size={20} aria-hidden="true" />
             </button>
 
-            <span className="text-[10px] font-mono font-extrabold uppercase tracking-widest text-cyan-300">
-              Manual District Decode · {currentDecodingDistrict.name}
-            </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
+              <span className="text-[10px] font-mono font-extrabold uppercase tracking-widest text-cyan-300">
+                Manual District Decode · {currentDecodingDistrict.name}
+              </span>
+              <SystemStatusBadge status={verifyStatus} label={verifyLabel} size="sm" />
+            </div>
             <h3 className="mt-1 font-display text-xl font-black uppercase text-white">
               Sequence the Fragments
             </h3>
@@ -298,7 +372,7 @@ export default function CipherFragmentsPanel({
                   <div className="flex gap-1">
                     <button
                       type="button"
-                      disabled={idx === 0}
+                      disabled={idx === 0 || isSubmitting || !!decodeSuccessMsg}
                       onClick={() => moveTile(idx, 'left')}
                       className="border border-stone-700 bg-stone-900 px-2.5 py-1 text-xs font-mono text-stone-300 disabled:opacity-30"
                     >
@@ -306,7 +380,7 @@ export default function CipherFragmentsPanel({
                     </button>
                     <button
                       type="button"
-                      disabled={idx === tileOrder.length - 1}
+                      disabled={idx === tileOrder.length - 1 || isSubmitting || !!decodeSuccessMsg}
                       onClick={() => moveTile(idx, 'right')}
                       className="border border-stone-700 bg-stone-900 px-2.5 py-1 text-xs font-mono text-stone-300 disabled:opacity-30"
                     >
@@ -318,17 +392,41 @@ export default function CipherFragmentsPanel({
             </div>
 
             {decodeError && (
-              <div className="mt-4 flex items-center gap-2 border border-red-500/40 bg-red-950/30 p-3 text-xs text-red-200">
-                <AlertCircle size={16} className="shrink-0 text-red-400" />
-                <span>{decodeError}</span>
-              </div>
+              <VerificationResult
+                status="failure"
+                variant="panel"
+                message={decodeError}
+                reducedMotion={reducedMotion}
+                className="mt-4"
+              />
             )}
 
-            {decodeSuccessMsg && (
-              <div className="mt-4 flex items-center gap-2 border border-emerald-500/40 bg-emerald-950/30 p-3 text-xs text-emerald-200">
-                <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
-                <span>{decodeSuccessMsg}</span>
-              </div>
+            {decodeSuccessMsg && decodeResult && (
+              <CqTransition show={successRevealMounted} reducedMotion={reducedMotion} className="mt-4 space-y-3">
+                <VerificationResult
+                  status="success"
+                  variant="panel"
+                  title="Sigil Unlocked"
+                  message={
+                    decodeResult.tokenLabel
+                      ? `${decodeResult.tokenLabel}: ${decodeResult.sigilSymbol || ''}`
+                      : undefined
+                  }
+                  reducedMotion={reducedMotion}
+                />
+                {decodeResult.decodedSentence && (
+                  <TransmissionPanel
+                    eyebrow="Decoded Transmission"
+                    icon={KeyRound}
+                    tone="emerald"
+                    accentClassName="text-emerald-300"
+                  >
+                    <p className="text-xs font-sans italic text-emerald-100/90">
+                      &ldquo;{decodeResult.decodedSentence}&rdquo;
+                    </p>
+                  </TransmissionPanel>
+                )}
+              </CqTransition>
             )}
 
             <div className="mt-6 flex justify-end gap-3">
@@ -349,7 +447,7 @@ export default function CipherFragmentsPanel({
                 <ArrowRight size={14} />
               </button>
             </div>
-          </div>
+          </CqTransition>
         </div>
       )}
     </section>
