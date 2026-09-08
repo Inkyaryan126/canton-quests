@@ -83,7 +83,7 @@ export default function Header({ eventSlug }: HeaderProps) {
   };
 
   return (
-    <header className="cq-header-bar">
+    <header className="cq-header-bar cq-motion-scope">
       <div className="cq-header-inner">
         <Link href="/" className="cq-header-logo-link" aria-label="Canton Quests home">
           <CantonQuestsLogo

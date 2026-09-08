@@ -136,7 +136,7 @@ export default function CinematicNav({ eventHref, context = 'global' }: Cinemati
   };
 
   return (
-    <nav className="cq-nav" aria-label="Primary navigation">
+    <nav className="cq-nav cq-motion-scope" aria-label="Primary navigation">
       <Link href="/" className="cq-nav-logo" aria-label="Canton Quests home">
         <CantonQuestsLogo variant="mark" size={44} priority className="cq-nav-logo-mark" />
         <div className="cq-nav-brand-lockup">

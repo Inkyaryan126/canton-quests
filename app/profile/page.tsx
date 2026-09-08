@@ -35,6 +35,7 @@ import {
 import { showGameMoment } from '@/lib/game-effects';
 import { getPathTone } from '@/lib/path-tone';
 import { SOCIAL_SHARE_XP } from '@/lib/xp';
+import HudSystemState from '@/components/game-effects/HudSystemState';
 
 type BadgeCatalogItem = Achievement & {
   iconPath: string;
@@ -420,7 +421,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {message && (
+        {message && data && (
           <div className={`cq-command-alert ${message.type === 'success' ? 'is-success' : 'is-error'}`} role="status">
             {message.type === 'success' ? <CheckCircle2 size={18} /> : <ShieldCheck size={18} />}
             <span>{message.text}</span>
@@ -428,11 +429,23 @@ export default function ProfilePage() {
         )}
 
         {loading ? (
-          <div className="cq-command-loading">Opening encrypted field terminal...</div>
-        ) : !data ? (
           <div className="cq-command-loading">
-            <p>Authentication required.</p>
-            <Link href="/" className="cq-command-primary-link">Return to Start</Link>
+            <HudSystemState
+              state="scanning"
+              label="OPENING PLAYER FILE"
+              detail="Decrypting field identity and service record..."
+            />
+          </div>
+        ) : !data ? (
+          <div className="cq-command-loading" role="alert">
+            <HudSystemState
+              state="denied"
+              label="PLAYER FILE UNAVAILABLE"
+              detail={message?.text || 'The field terminal could not open your Player File.'}
+            />
+            <button type="button" className="cq-command-primary-link" onClick={loadCommandCenter}>
+              Retry Player File
+            </button>
           </div>
         ) : (
           <form onSubmit={saveProfile} className="cq-command-grid">
