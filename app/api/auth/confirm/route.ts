@@ -147,3 +147,12 @@ export async function GET(request: Request) {
 
   return NextResponse.redirect(confirmPageUrl.toString(), 307);
 }
+
+/**
+ * HEAD /api/auth/confirm
+ * Link scanners may probe with HEAD before following the email link. Return no
+ * content and, critically, never pass the token to the verification function.
+ */
+export async function HEAD() {
+  return new Response(null, { status: 204 });
+}

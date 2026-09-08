@@ -146,6 +146,7 @@ export const mockUserPasswordStore = new Map<string, { password: string; user: A
 export const mockRefreshTokenStore = new Map<string, { userId: string; email?: string }>();
 const mockRecoveryTokenStore = new Map<string, { token: string; expiresAt: number }>();
 export const mockVerifiedUserStore = new Map<string, AuthSessionUser>();
+const mockConsumedTokenHashStore = new Set<string>();
 
 /**
  * Resolves the canonical site URL for authentication redirects.
@@ -936,9 +937,12 @@ export async function verifyTokenHash(
     !isSupabaseConfigured ||
     !supabase
   ) {
-    let testUserId = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : '00000000-0000-4000-8000-000000000001';
+    if (mockConsumedTokenHashStore.has(cleanTokenHash)) {
+      return { success: false, error: 'Invalid, expired, or already-used confirmation link. Please request a new link.' };
+    }
+
+    mockConsumedTokenHashStore.add(cleanTokenHash);
+    let testUserId = `usr-token-${cleanTokenHash.replace(/[^a-z0-9]/gi, '_').slice(-40)}`;
 
     let email = `player_${testUserId.slice(0, 8)}@example.com`;
 
@@ -1096,6 +1100,7 @@ export function resetMockAuthStores() {
   mockUserPasswordStore.clear();
   mockRecoveryTokenStore.clear();
   mockRefreshTokenStore.clear();
+  mockConsumedTokenHashStore.clear();
 }
 
 /**

@@ -335,7 +335,7 @@ function ConfirmEmailContent() {
             ) : (
               <span className="flex items-center justify-center gap-2">
                 <KeyRound size={18} />
-                <span>{isRecovery ? 'VERIFY & SET NEW PASSWORD' : 'CONFIRM & ENTER CANTON QUESTS'}</span>
+                <span>{isRecovery ? 'VERIFY & SET NEW PASSWORD' : 'Confirm email address'}</span>
                 <ArrowRight size={18} />
               </span>
             )}
