@@ -11,6 +11,7 @@ import MobileStartBar from '@/components/MobileStartBar';
 import CinematicFooter from '@/components/CinematicFooter';
 import QuestRewardBreakdown from '@/components/QuestRewardBreakdown';
 import CommanderTransmission from '@/components/CommanderTransmission';
+import QuestStartEffect from '@/components/game-effects/QuestStartEffect';
 import { QuestEvent, Player, QuestSubmission, SubmitProofResult, PublicQuestView, PlayerEventProgress } from '@/lib/types';
 import { cleanQuestTitle, cqImages, getQuestImage, isStandaloneQuestCard, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
 import { triggerQuestRewardSequence, triggerGameMomentSequence, showGameMoment } from '@/lib/game-effects';
@@ -761,6 +762,13 @@ export default function QuestDetailPage({
         >
           ← Back to Quest Hub
         </Link>
+
+        {/* Quest-start flagship moment — only for a quest the player can
+            still actually attempt; keyed by quest id so the HUD reveal and
+            cue replay when navigating from one quest straight into another. */}
+        {!isAlreadyCompleted && !isAlreadyPending && !isLocked && (
+          <QuestStartEffect key={quest.id} questTitle={cleanQuestTitle(quest.title)} />
+        )}
 
         {/* Flash Quest Banner if Active */}
         {quest.isFlash && (

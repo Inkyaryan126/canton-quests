@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Zap, Trophy, Ticket, ArrowRight, Sparkles } from 'lucide-react';
+import { Zap, Ticket, ArrowRight } from 'lucide-react';
 import { QuestCompleteMoment } from '@/lib/game-effects';
+import { cqSoundManager } from '@/lib/audio';
 import HudParticlesCanvas from './HudParticlesCanvas';
-import { proceduralSoundEngine } from '@/lib/game-audio';
+import QuestMomentReveal from './QuestMomentReveal';
+import SystemStatusBadge from './SystemStatusBadge';
 
 interface QuestCompleteEffectProps {
   moment: QuestCompleteMoment;
@@ -19,14 +21,12 @@ export default function QuestCompleteEffect({
   reducedMotion = false,
 }: QuestCompleteEffectProps) {
   const [displayXp, setDisplayXp] = useState(reducedMotion ? moment.xpAwarded : 0);
-  const [stage, setStage] = useState<'impact' | 'counted'>('impact');
 
   useEffect(() => {
-    proceduralSoundEngine.playQuestComplete(moment.xpAwarded);
+    cqSoundManager.play('quest_complete');
 
     if (reducedMotion) {
       setDisplayXp(moment.xpAwarded);
-      setStage('counted');
       return;
     }
 
@@ -43,7 +43,6 @@ export default function QuestCompleteEffect({
 
       if (progress >= 1) {
         clearInterval(interval);
-        setStage('counted');
       }
     }, 20);
 
@@ -72,22 +71,15 @@ export default function QuestCompleteEffect({
         <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_120px_rgba(245,158,11,0.4)] animate-pulse" />
       )}
 
-      {/* Main HUD Reward Panel */}
-      <div className="relative z-10 max-w-md w-full bg-[#07090e]/95 border-2 border-amber-500/80 rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-[0_0_60px_rgba(245,158,11,0.35)] overflow-hidden">
-        {/* Verification Icon */}
-        <div className="relative mx-auto w-16 h-16 flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full bg-amber-500/20 animate-ping" />
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.5)]">
-            <CheckCircle2 size={32} />
-          </div>
-        </div>
-
+      {/* Main HUD Reward Panel — arrives via the shared Phase 2 quest-moment
+          reveal (mount transition, both OS and app reduced-motion aware). */}
+      <QuestMomentReveal
+        reducedMotion={reducedMotion}
+        className="relative z-10 max-w-md w-full bg-[#07090e]/95 border-2 border-amber-500/80 rounded-3xl p-6 sm:p-8 text-center space-y-5 shadow-[0_0_60px_rgba(245,158,11,0.35)] overflow-hidden"
+      >
         {/* Verification Headline */}
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-black uppercase tracking-widest bg-amber-950/60 border border-amber-500/50 text-amber-300">
-            <Sparkles size={12} className="text-amber-400" />
-            <span>SERVER VERIFIED & COMPLETE</span>
-          </div>
+        <div className="space-y-2">
+          <SystemStatusBadge status="confirmed" label="SERVER VERIFIED & COMPLETE" />
 
           <h2 className="text-xl sm:text-2xl font-black font-display text-white tracking-tight leading-snug">
             {moment.questTitle}
@@ -97,7 +89,7 @@ export default function QuestCompleteEffect({
         {/* Big XP Counter Box */}
         <div className="py-4 px-6 bg-gradient-to-b from-amber-950/60 to-stone-950 border border-amber-500/50 rounded-2xl relative overflow-hidden shadow-inner">
           <div className="flex items-center justify-center gap-2 text-amber-400">
-            <Zap size={22} className="fill-amber-400 animate-bounce" />
+            <Zap size={22} className="fill-amber-400" />
             <span className="font-mono text-xs uppercase tracking-widest font-bold">XP REWARD ISSUED</span>
           </div>
           <div className="font-display font-black text-4xl sm:text-5xl text-amber-300 tracking-tight mt-1 drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]">
@@ -141,7 +133,7 @@ export default function QuestCompleteEffect({
           <span>CONTINUE</span>
           <ArrowRight size={17} />
         </button>
-      </div>
+      </QuestMomentReveal>
     </div>
   );
 }
