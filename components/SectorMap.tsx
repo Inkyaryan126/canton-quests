@@ -122,6 +122,7 @@ export default function SectorMap({
 
     let isMounted = true;
     const fetchFeed = async () => {
+      if (document.hidden) return;
       try {
         const res = await fetch('/api/game/spectator?action=feed');
         const data = await res.json();
@@ -316,6 +317,7 @@ export default function SectorMap({
   // Live HUD 24-hour clock
   useEffect(() => {
     const updateClock = () => {
+      if (document.hidden) return;
       const now = new Date();
       setClockString(now.toLocaleTimeString('en-US', { hour12: false }));
     };

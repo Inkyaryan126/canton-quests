@@ -324,6 +324,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   }, [entryReady, eventSlug, event, authenticatedPlayer, participation]);
 
   const refreshData = useCallback(() => {
+    if (document.hidden) return;
     const player = authenticatedPlayer || getClientPlayer();
     setCurrentPlayerState(player);
     setLoadError(null);
@@ -431,6 +432,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   // this is the single, real "you may now enter the Master Cipher" moment,
   // wherever the player happens to be standing when it becomes true.
   const refreshFinaleStatus = useCallback(() => {
+    if (document.hidden) return;
     if (!isKnownCantonLaunchSlug(eventSlug) || !authenticatedPlayer || !participation) return;
     fetch(`/api/game/finale?eventSlug=${encodeURIComponent(eventSlug)}`)
       .then((res) => res.json())

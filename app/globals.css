@@ -4704,6 +4704,8 @@ code, pre, .font-mono {
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .cq-moment-loading {
@@ -4739,6 +4741,7 @@ code, pre, .font-mono {
 }
 
 .cq-moment-skip-btn {
+  min-height: 44px;
   padding: 0.5rem 0.75rem;
   border-radius: 10px;
   background: rgba(28, 25, 23, 0.9);
@@ -4758,7 +4761,14 @@ code, pre, .font-mono {
   background: rgba(41, 37, 36, 0.95);
 }
 
+.cq-moment-skip-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
 .cq-moment-close-btn {
+  min-width: 44px;
+  min-height: 44px;
   padding: 0.5rem;
   border-radius: 10px;
   background: rgba(28, 25, 23, 0.9);
@@ -4775,6 +4785,11 @@ code, pre, .font-mono {
 .cq-moment-close-btn:hover {
   color: #ffffff;
   background: rgba(41, 37, 36, 0.95);
+}
+
+.cq-moment-close-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
 }
 
 .cq-moment-main {

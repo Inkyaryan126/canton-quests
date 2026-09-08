@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useReducedMotion } from '@/lib/motion';
 
 const DECODE_GLYPHS = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█', '▓', '▒', '░'] as const;
 const DECODE_BAR_LENGTH = 10;
@@ -40,14 +41,16 @@ export default function TransmissionLoader({
   className = '',
 }: TransmissionLoaderProps) {
   const [tick, setTick] = useState(0);
+  const systemReducedMotion = useReducedMotion();
+  const motionReduced = reducedMotion || systemReducedMotion;
 
   useEffect(() => {
-    if (reducedMotion) return;
+    if (motionReduced) return;
     const interval = setInterval(() => setTick((t) => t + 1), DECODE_TICK_MS);
     return () => clearInterval(interval);
-  }, [reducedMotion]);
+  }, [motionReduced]);
 
-  const bar = getDecodeBar(tick, reducedMotion);
+  const bar = getDecodeBar(tick, motionReduced);
   const textSize = size === 'sm' ? 'text-[10px]' : 'text-xs';
 
   return (
@@ -57,12 +60,12 @@ export default function TransmissionLoader({
       aria-label={label}
       className={`inline-flex items-center gap-2 font-mono ${textSize} uppercase tracking-widest text-cyan-300 ${className}`}
     >
-      <span className={`text-cyan-400 ${reducedMotion ? '' : 'animate-pulse'}`} aria-hidden="true">
+      <span className={`text-cyan-400 ${motionReduced ? '' : 'animate-pulse'}`} aria-hidden="true">
         [{bar}]
       </span>
       <span>
         {label}
-        {!reducedMotion && <span className="animate-pulse">_</span>}
+        {!motionReduced && <span className="animate-pulse">_</span>}
       </span>
     </div>
   );

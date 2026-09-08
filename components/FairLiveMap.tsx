@@ -276,6 +276,7 @@ export default function FairLiveMap({
 
     let isMounted = true;
     const fetchFairFeed = async () => {
+      if (document.hidden) return;
       try {
         const res = await fetch('/api/game/spectator?action=feed&eventSlug=fair-qr-hunt');
         const data = await res.json();
@@ -516,6 +517,7 @@ export default function FairLiveMap({
   // Live HUD 24-hour clock
   useEffect(() => {
     const updateClock = () => {
+      if (document.hidden) return;
       const now = new Date();
       setClockString(now.toLocaleTimeString('en-US', { hour12: false }));
     };

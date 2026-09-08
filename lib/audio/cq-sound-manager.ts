@@ -135,8 +135,9 @@ export class CQSoundManager {
       // Ignore
     }
 
-    // Preload critical sound assets asynchronously
-    this.preloadCriticalSounds();
+    // A muted player should not pay the network/memory cost for audio they
+    // explicitly disabled. Enabling sound later still creates assets lazily.
+    if (this.soundEnabled) this.preloadCriticalSounds();
   }
 
   /**

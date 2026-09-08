@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { X, FastForward } from 'lucide-react';
 import {
@@ -142,6 +142,9 @@ export function canBackdropDismissMoment(current: GameMoment, now = Date.now()):
 }
 
 export default function GameMomentOverlay() {
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [effectsState, setEffectsState] = useState<GameEffectsState>(() =>
     gameMomentManager.getState()
   );
@@ -151,22 +154,67 @@ export default function GameMomentOverlay() {
       setEffectsState(state);
     });
 
-    // Keyboard navigation (Escape to dismiss current moment)
+    return unsubscribe;
+  }, []);
+
+  const current = effectsState.currentMoment;
+
+  useEffect(() => {
+    if (!current) return;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
+    const focusableSelector = [
+      'button:not([disabled])',
+      'a[href]',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         gameMomentManager.dismissCurrent();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        const focusable = Array.from(
+          overlayRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? []
+        ).filter((element) => element.offsetParent !== null);
+        if (focusable.length === 0) {
+          e.preventDefault();
+          overlayRef.current?.focus({ preventScroll: true });
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
+    const focusFrame = requestAnimationFrame(() => {
+      (closeButtonRef.current ?? overlayRef.current)?.focus({ preventScroll: true });
+    });
 
     return () => {
-      unsubscribe();
       window.removeEventListener('keydown', handleKeyDown);
+      cancelAnimationFrame(focusFrame);
+      previousFocusRef.current?.focus({ preventScroll: true });
+      previousFocusRef.current = null;
     };
-  }, []);
+  }, [current]);
 
-  const current = effectsState.currentMoment;
   if (!current) return null;
 
   const handleDismiss = () => {
@@ -188,8 +236,11 @@ export default function GameMomentOverlay() {
 
   return (
     <div
+      ref={overlayRef}
       className="cq-moment-overlay"
       onClick={handleBackdropDismiss}
+      tabIndex={-1}
+      aria-label="Game moment controls"
     >
       {/* Top HUD Utility Bar */}
       <header
@@ -219,6 +270,7 @@ export default function GameMomentOverlay() {
           )}
 
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={handleDismiss}
             className="cq-moment-close-btn"

@@ -47,7 +47,8 @@ export default function HudParticlesCanvas({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animId: number;
+    let animId = 0;
+    let running = false;
     let width = (canvas.width = canvas.parentElement?.clientWidth || window.innerWidth);
     let height = (canvas.height = canvas.parentElement?.clientHeight || window.innerHeight);
 
@@ -134,6 +135,10 @@ export default function HudParticlesCanvas({
     }
 
     const render = () => {
+      if (document.hidden) {
+        running = false;
+        return;
+      }
       ctx.clearRect(0, 0, width, height);
 
       for (let i = 0; i < particles.length; i++) {
@@ -192,10 +197,27 @@ export default function HudParticlesCanvas({
       animId = requestAnimationFrame(render);
     };
 
-    render();
+    const startRendering = () => {
+      if (running || document.hidden) return;
+      running = true;
+      animId = requestAnimationFrame(render);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        running = false;
+        cancelAnimationFrame(animId);
+      } else {
+        startRendering();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startRendering();
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       cancelAnimationFrame(animId);
     };
   }, [mode, count, color, reducedMotion]);
