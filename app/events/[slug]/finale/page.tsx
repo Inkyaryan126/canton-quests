@@ -6,13 +6,17 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
 import CipherFragmentsPanel from '@/components/CipherFragmentsPanel';
-import { KeyRound, Lock, Radio, ShieldCheck, Sparkles } from 'lucide-react';
+import TransmissionLoader from '@/components/game-effects/TransmissionLoader';
+import SystemStatusBadge from '@/components/game-effects/SystemStatusBadge';
+import { Lock, Radio, ShieldCheck, Sparkles } from 'lucide-react';
 import { QuestEvent, Player, EventParticipation, PlayerCipherProgressView } from '@/lib/types';
 import type { PlayerFinaleStatus } from '@/lib/finale-db';
 import type { FinaleSubmissionOutcome } from '@/lib/finale';
 import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
 import { cqImages } from '@/lib/marketing-assets';
 import { showFounderCipherMessage, getFounderCipherMessage } from '@/lib/gameplay/founders-cipher/message-resolver';
+import { cqSoundManager } from '@/lib/audio';
+import { useReducedMotion, confirmHaptic } from '@/lib/motion';
 
 const LOCKED_REASON_TITLE: Record<string, string> = {
   not_configured: 'MASTER CIPHER OFFLINE',
@@ -27,6 +31,7 @@ const LOCKED_REASON_TITLE: Record<string, string> = {
 export default function FinalePage({ params }: { params: { slug: string } }) {
   const eventSlug = params.slug;
   const isCipher = isKnownCantonLaunchSlug(eventSlug);
+  const systemReduced = useReducedMotion();
 
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [isPreLaunch, setIsPreLaunch] = useState(false);
@@ -131,6 +136,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
     setSubmitting(true);
     setSubmitError(null);
     setAttemptOutcome(null);
+    cqSoundManager.play('ui_confirm');
 
     try {
       const res = await fetch('/api/game/finale', {
@@ -142,6 +148,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
 
       if (!res.ok || !data.success) {
         setSubmitError(data.error || 'Unable to submit the Master Cipher right now.');
+        cqSoundManager.play('ui_error');
         fetchFinaleStatus();
         return;
       }
@@ -151,6 +158,8 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
       setAnswerInput('');
 
       if (outcome.stage === 'completed') {
+        cqSoundManager.play('secret_reveal');
+        confirmHaptic({ enabled: true });
         showFounderCipherMessage({
           messageId: 'FINAL_SOLUTION_CORRECT',
           path,
@@ -167,6 +176,10 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
         fetchFinaleStatus();
       } else if (outcome.stage === 'already_completed') {
         fetchFinaleStatus();
+      } else if (outcome.stage === 'incorrect') {
+        cqSoundManager.play('ui_error');
+      } else if (outcome.stage === 'false_finale_solved') {
+        cqSoundManager.play('transmission');
       }
       // 'incorrect' and 'false_finale_solved' render inline below — see the
       // COMMANDER / SYSTEM FEEDBACK section. Deliberately no overlay here:
@@ -175,6 +188,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
       // against.
     } catch {
       setSubmitError('Unable to reach the Cipher right now. Check your connection and try again.');
+      cqSoundManager.play('ui_error');
     } finally {
       setSubmitting(false);
     }
@@ -184,8 +198,9 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
   if (!eventLoaded || !authChecked) {
     return (
       <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-cyan-400 border-t-transparent mb-4" />
-        <p className="text-xs text-cyan-300 tracking-wider uppercase">Establishing Cipher Link...</p>
+        <div className="p-8 rounded-2xl bg-[#06090c] border border-cyan-500/30 max-w-sm w-full text-center space-y-3">
+          <TransmissionLoader label="Establishing Cipher Link..." reducedMotion={systemReduced} />
+        </div>
       </div>
     );
   }
@@ -269,16 +284,17 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
   if (!participation) {
     return (
       <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-cyan-400 border-t-transparent mb-4" />
-        <p className="text-xs text-cyan-300 tracking-wider uppercase">Entering Mission...</p>
-        {enterError && (
-          <div className="mt-4 text-center space-y-3">
-            <p className="text-xs text-red-400">{enterError}</p>
-            <button type="button" onClick={() => enterOperation()} className="cq-gold-button text-xs py-2 px-5">
-              RETRY
-            </button>
-          </div>
-        )}
+        <div className="p-8 rounded-2xl bg-[#06090c] border border-cyan-500/30 max-w-sm w-full text-center space-y-4">
+          <TransmissionLoader label="Entering Mission..." reducedMotion={systemReduced} />
+          {enterError && (
+            <div className="mt-4 text-center space-y-3">
+              <p className="text-xs text-red-400">{enterError}</p>
+              <button type="button" onClick={() => enterOperation()} className="cq-gold-button text-xs py-2 px-5 font-mono">
+                RETRY
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -287,8 +303,9 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
   if (!finaleStatusLoaded || !finaleStatus) {
     return (
       <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-cyan-400 border-t-transparent mb-4" />
-        <p className="text-xs text-cyan-300 tracking-wider uppercase">Reading Convergence Signal...</p>
+        <div className="p-8 rounded-2xl bg-[#06090c] border border-cyan-500/30 max-w-sm w-full text-center space-y-3">
+          <TransmissionLoader label="Reading Convergence Signal..." reducedMotion={systemReduced} />
+        </div>
       </div>
     );
   }
@@ -297,23 +314,32 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
   const ready = !solved && finaleStatus.eligibility.ok;
 
   const missionStatus = (
-    <section className="mb-6 border border-cyan-400/25 bg-[#06090b] p-4 sm:p-5">
+    <section className="mb-6 border border-cyan-400/25 bg-[#06090b] p-4 sm:p-5 rounded-2xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <span className="text-[10px] font-mono font-extrabold uppercase tracking-[0.22em] text-cyan-300">Mission Status</span>
-          <h1 className="mt-1 font-display text-2xl sm:text-3xl font-black uppercase text-white">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-mono font-extrabold uppercase tracking-[0.22em] text-cyan-300">Mission Status</span>
+            <SystemStatusBadge
+              status={solved ? 'confirmed' : ready ? 'armed' : 'denied'}
+              size="sm"
+            />
+          </div>
+          <h1 className="font-display text-2xl sm:text-3xl font-black uppercase text-white">
             {solved ? 'Founder’s Cipher — Solved' : 'Master Cipher Convergence'}
           </h1>
         </div>
         <div
-          className={`rounded border px-3 py-2 text-right font-mono ${
+          className={`rounded-xl border px-3.5 py-2 text-right font-mono ${
             solved ? 'border-emerald-400/40 bg-emerald-400/10' : ready ? 'border-amber-400/40 bg-amber-400/10' : 'border-stone-700 bg-black/30'
           }`}
         >
           <span className="block text-[10px] uppercase tracking-widest text-stone-400">Sigils</span>
-          <strong className={`text-lg ${solved ? 'text-emerald-300' : ready ? 'text-amber-300' : 'text-stone-300'}`}>
-            {finaleStatus.unlockedSigilCount}
-          </strong>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <strong className={`text-lg ${solved ? 'text-emerald-300' : ready ? 'text-amber-300' : 'text-stone-300'}`}>
+              {finaleStatus.unlockedSigilCount}
+            </strong>
+            <span className="text-xs text-stone-500">/ 3</span>
+          </div>
         </div>
       </div>
     </section>
@@ -330,10 +356,30 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
         <Header eventSlug={eventSlug} />
         <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 sm:py-12">
           {missionStatus}
-          <section className="border border-stone-800 bg-[#06090b] p-6 sm:p-8 text-center space-y-4">
-            <Lock size={32} className="mx-auto text-stone-500" />
-            <h2 className="font-display text-xl sm:text-2xl font-black uppercase text-white">{title}</h2>
-            <p className="text-sm text-stone-400 leading-relaxed max-w-md mx-auto">{message}</p>
+          <section className="border border-stone-800 bg-[#06090b] p-6 sm:p-8 text-center space-y-5 rounded-2xl">
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-stone-900 border border-stone-700 flex items-center justify-center text-stone-400">
+              <Lock size={32} className="text-stone-500" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-center">
+                <SystemStatusBadge status="denied" label={title} size="sm" />
+              </div>
+              <h2 className="font-display text-xl sm:text-2xl font-black uppercase text-white">{title}</h2>
+              <p className="text-sm text-stone-400 leading-relaxed max-w-md mx-auto">{message}</p>
+            </div>
+
+            {/* Diagnostic requirement breakdown */}
+            <div className="max-w-md mx-auto border border-stone-800 bg-black/40 p-4 rounded-xl text-left space-y-3">
+              <div className="flex items-center justify-between text-xs font-mono border-b border-stone-800 pb-2">
+                <span className="text-stone-400 uppercase">3 Founder Locks</span>
+                <span className="text-amber-400 font-bold">THE MARK • THE CODE • THE WORD</span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="text-stone-400 uppercase">District Sigils Decoded</span>
+                <span className="text-white font-bold">{finaleStatus.unlockedSigilCount} / 3</span>
+              </div>
+            </div>
 
             {reason === 'insufficient_sigils' && cipherProgress && cipherProgress.districts.length > 0 && (
               <div className="pt-2 max-w-sm mx-auto text-left space-y-1.5">
@@ -343,7 +389,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
                 {cipherProgress.districts
                   .filter((d) => d.status !== 'token_unlocked')
                   .map((d) => (
-                    <div key={d.key} className="flex items-center justify-between text-xs font-mono border border-stone-800 bg-black/30 px-3 py-2">
+                    <div key={d.key} className="flex items-center justify-between text-xs font-mono border border-stone-800 bg-black/30 px-3 py-2 rounded-lg">
                       <span className="text-stone-300">{d.name}</span>
                       <span className="text-stone-500">
                         {d.collectedCount}/{d.requiredCount}
@@ -375,15 +421,20 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
         {missionStatus}
 
         {/* RECOVERED INTEL */}
-        <section className="mb-6 border border-cyan-400/25 bg-[#06090b] p-4 sm:p-5">
-          <span className="text-[10px] font-mono font-extrabold uppercase tracking-[0.22em] text-cyan-300">Recovered Intel</span>
+        <section className="mb-6 border border-cyan-400/25 bg-[#06090b] p-4 sm:p-5 rounded-2xl">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-mono font-extrabold uppercase tracking-[0.22em] text-cyan-300">Recovered Intel</span>
+            <span className="text-[10px] font-mono text-cyan-400/70 uppercase">
+              {finaleStatus.cluePieces.length} Clue Piece{finaleStatus.cluePieces.length === 1 ? '' : 's'}
+            </span>
+          </div>
           <h2 className="mt-1 mb-3 font-display text-lg font-black uppercase text-white">Clue Pieces</h2>
           {finaleStatus.cluePieces.length > 0 ? (
             <ul className="space-y-2">
               {finaleStatus.cluePieces.map((piece, i) => (
-                <li key={i} className="flex items-start gap-2 border border-cyan-300/25 bg-cyan-300/5 p-3 text-sm text-stone-200">
+                <li key={i} className="flex items-start gap-2.5 border border-cyan-300/25 bg-cyan-300/5 p-3 rounded-xl text-sm text-stone-200">
                   <Sparkles size={14} className="mt-0.5 shrink-0 text-cyan-300" aria-hidden="true" />
-                  <span>{piece}</span>
+                  <span className="font-mono text-xs sm:text-sm">{piece}</span>
                 </li>
               ))}
             </ul>
@@ -425,8 +476,13 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
             safe routes, and monument visibility are verified on-site.
         */}
         {solved ? (
-          <section className="mb-6 border border-emerald-400/40 bg-emerald-950/15 p-6 sm:p-8 text-center space-y-4">
-            <ShieldCheck size={36} className="mx-auto text-emerald-300" />
+          <section className="mb-6 border border-emerald-400/40 bg-emerald-950/15 p-6 sm:p-8 text-center space-y-4 rounded-2xl">
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-500/10 border-2 border-emerald-400/40 flex items-center justify-center text-emerald-300 mb-2">
+              <ShieldCheck size={36} className="text-emerald-300" />
+            </div>
+            <div className="flex justify-center">
+              <SystemStatusBadge status="confirmed" label="MASTER CIPHER SOLVED" size="sm" />
+            </div>
             <h2 className="font-display text-2xl font-black uppercase text-white">
               {getFounderCipherMessage('CIPHER_SOLVED', path).title}
             </h2>
@@ -434,9 +490,9 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
               {getFounderCipherMessage('CIPHER_SOLVED', path).body}
             </p>
             {finaleStatus.destinationReveal && (
-              <div className="max-w-md mx-auto border border-emerald-400/30 bg-black/25 p-4 text-left">
-                <span className="block text-[10px] font-mono uppercase tracking-widest text-emerald-300 mb-1">Final Reveal</span>
-                <p className="text-sm text-stone-200 leading-relaxed">{finaleStatus.destinationReveal}</p>
+              <div className="max-w-md mx-auto border border-emerald-400/30 bg-black/40 p-4 text-left rounded-xl">
+                <span className="block text-[10px] font-mono uppercase tracking-widest text-emerald-300 mb-1 font-bold">Final Reveal</span>
+                <p className="text-sm text-stone-200 leading-relaxed font-mono">{finaleStatus.destinationReveal}</p>
               </div>
             )}
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -449,9 +505,15 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
             </div>
           </section>
         ) : (
-          <section className="mb-6 border border-amber-400/40 bg-[#06090b] p-4 sm:p-5">
-            <span className="text-[10px] font-mono font-extrabold uppercase tracking-[0.22em] text-amber-300">Master Cipher</span>
-            <h2 className="mt-1 mb-4 font-display text-lg font-black uppercase text-white">Submit Your Solution</h2>
+          <section className="mb-6 border border-amber-400/40 bg-[#06090b] p-5 sm:p-6 rounded-2xl">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-mono font-extrabold uppercase tracking-[0.22em] text-amber-300">Master Cipher</span>
+              <SystemStatusBadge status="armed" label="CONVERGENCE READY" size="sm" />
+            </div>
+            <h2 className="mt-1 mb-2 font-display text-lg font-black uppercase text-white">Submit Your Solution</h2>
+            <p className="text-xs text-stone-400 font-mono mb-4">
+              Synthesize the decoded district sigils and recovered clue pieces into the Master Cipher keyword.
+            </p>
 
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
               <input
@@ -473,15 +535,15 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
 
             {/* COMMANDER / SYSTEM FEEDBACK */}
             {submitError && (
-              <div className="mt-4 border border-red-500/40 bg-red-950/30 p-3 text-xs text-red-300 font-mono">{submitError}</div>
+              <div className="mt-4 border border-red-500/40 bg-red-950/30 p-3 text-xs text-red-300 font-mono rounded-lg">{submitError}</div>
             )}
             {attemptOutcome?.stage === 'incorrect' && (
-              <div className="mt-4 border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-200">
+              <div className="mt-4 border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-200 rounded-lg font-mono">
                 {invalidAnswerCopy.body}
               </div>
             )}
             {attemptOutcome?.stage === 'false_finale_solved' && (
-              <div className="mt-4 border border-cyan-500/30 bg-cyan-950/20 p-3 text-sm text-cyan-200">
+              <div className="mt-4 border border-cyan-500/30 bg-cyan-950/20 p-3 text-sm text-cyan-200 rounded-lg font-mono">
                 {attemptOutcome.revealText || 'That signal resolves to something — but not the convergence itself. Keep decoding.'}
               </div>
             )}
