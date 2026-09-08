@@ -12,6 +12,8 @@ import CinematicFooter from '@/components/CinematicFooter';
 import QuestRewardBreakdown from '@/components/QuestRewardBreakdown';
 import CommanderTransmission from '@/components/CommanderTransmission';
 import QuestStartEffect from '@/components/game-effects/QuestStartEffect';
+import FrankensteinPayoffCard from '@/components/game-effects/FrankensteinPayoffCard';
+import WatcherHalloweenTeaseCard from '@/components/game-effects/WatcherHalloweenTeaseCard';
 import { QuestEvent, Player, QuestSubmission, SubmitProofResult, PublicQuestView, PlayerEventProgress } from '@/lib/types';
 import { cleanQuestTitle, cqImages, getQuestImage, isStandaloneQuestCard, proofTypeLabels, questCategoryLabels } from '@/lib/marketing-assets';
 import { triggerQuestRewardSequence, triggerGameMomentSequence, showGameMoment } from '@/lib/game-effects';
@@ -949,21 +951,30 @@ export default function QuestDetailPage({
           </div>
         ) : isAlreadyCompleted ? (
           /* COMPLETED STATE */
-          <div className="glass-panel p-6 border-emerald-500/50 bg-emerald-950/20 text-center space-y-3 animate-fade-in mb-6">
-            <span className="text-4xl block">🎉</span>
-            <h2 className="text-3xl font-extrabold text-emerald-400 tracking-wider">QUEST COMPLETE</h2>
-            <div className="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-xl inline-block text-center max-w-md w-full my-2">
-              <div className="text-2xl font-black text-amber-300 font-mono">+{quest.pointValue} XP</div>
-              <div className="text-xl font-extrabold text-purple-300 font-mono">+{quest.drawingEntryReward || 1} DRAWING ENTRIES</div>
+          <div className="space-y-4 mb-6">
+            <div className="glass-panel p-6 border-emerald-500/50 bg-emerald-950/20 text-center space-y-3 animate-fade-in">
+              <span className="text-4xl block">🎉</span>
+              <h2 className="text-3xl font-extrabold text-emerald-400 tracking-wider">QUEST COMPLETE</h2>
+              <div className="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-xl inline-block text-center max-w-md w-full my-2">
+                <div className="text-2xl font-black text-amber-300 font-mono">+{quest.pointValue} XP</div>
+                <div className="text-xl font-extrabold text-purple-300 font-mono">+{quest.drawingEntryReward || 1} DRAWING ENTRIES</div>
+              </div>
+              <p className="text-xs text-gray-300 font-mono">
+                Your proof has been verified and registered on the event drawing ledger.
+              </p>
+              <div className="pt-2">
+                <Link href={`/events/${eventSlug}`} className="btn btn-primary text-sm px-6">
+                  Choose Another Quest →
+                </Link>
+              </div>
             </div>
-            <p className="text-xs text-gray-300 font-mono">
-              Your proof has been verified and registered on the event drawing ledger.
-            </p>
-            <div className="pt-2">
-              <Link href={`/events/${eventSlug}`} className="btn btn-primary text-sm px-6">
-                Choose Another Quest →
-              </Link>
-            </div>
+
+            {quest.id === 'qst-frankenstein-west-lawn' && (
+              <section aria-label="West Lawn archive signal" className="space-y-4">
+                <FrankensteinPayoffCard />
+                <WatcherHalloweenTeaseCard />
+              </section>
+            )}
           </div>
         ) : isAlreadyPending ? (
           /* PENDING REVIEW STATE */
