@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { submitQuestProofDB } from '@/lib/supabase-db';
+import { getEventByIdDB, submitQuestProofDB } from '@/lib/supabase-db';
 import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
+import { resolveFieldTestAccess } from '@/lib/field-test-access';
 
 export async function POST(request: Request) {
   try {
@@ -59,6 +60,23 @@ export async function POST(request: Request) {
       return withCookies(
         { error: 'Missing required fields: questId, eventId, proofType' },
         { status: 400 }
+      );
+    }
+
+    // Independent, authoritative Operation-start-time enforcement — never
+    // relies on the client having honestly reported a pre-launch state.
+    // The only way past this before the real start time is a genuinely
+    // verified Admin Field Test session (see resolveFieldTestAccess);
+    // ?fieldTest=1 alone does nothing without it.
+    const event = await getEventByIdDB(eventId);
+    if (!event) {
+      return withCookies({ success: false, error: 'Operation not found.', awardedPoints: 0 }, { status: 404 });
+    }
+    const { isPreLaunch, fieldTestActive } = resolveFieldTestAccess(request, event, event.slug);
+    if (isPreLaunch && !fieldTestActive) {
+      return withCookies(
+        { success: false, error: 'This Mission has not launched yet.', awardedPoints: 0 },
+        { status: 403 }
       );
     }
 

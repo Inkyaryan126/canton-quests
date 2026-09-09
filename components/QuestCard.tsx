@@ -25,6 +25,7 @@ interface QuestCardProps {
   completedQuestIds?: string[];
   pendingQuestIds?: string[];
   distanceStr?: string;
+  fieldTestActive?: boolean;
 }
 
 function calculatePublicQuestState(
@@ -75,6 +76,7 @@ export default function QuestCard({
   completedQuestIds = [],
   pendingQuestIds = [],
   distanceStr,
+  fieldTestActive = false,
 }: QuestCardProps) {
   const categoryIcon = CATEGORY_ICONS[quest.category] || '🎯';
   const proofLabel = PROOF_ICONS[quest.verificationType] || quest.verificationType;
@@ -253,7 +255,7 @@ export default function QuestCard({
 
   return (
     <Link
-      href={`/events/${eventSlug}/quests/${quest.id}`}
+      href={`/events/${eventSlug}/quests/${quest.id}${fieldTestActive ? '?fieldTest=1' : ''}`}
       className="block h-full cursor-pointer"
       onClick={() => {
         cqSoundManager.play('quest_select');

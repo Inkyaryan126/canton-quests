@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import LocationVerifier from '@/components/LocationVerifier';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
@@ -64,6 +64,15 @@ export default function QuestDetailPage({
 }) {
   const { slug: eventSlug, questId } = params;
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // ?fieldTest=1 requests Admin Field Test Mode, but only the server's
+  // independent verification of the existing admin session (see
+  // lib/field-test-access.ts's resolveFieldTestAccess) can actually activate
+  // it — the query string alone grants nothing.
+  const fieldTestRequested = searchParams.get('fieldTest') === '1';
+  const fieldTestQuery = fieldTestRequested ? '&fieldTest=1' : '';
+  const [fieldTestActive, setFieldTestActive] = useState<boolean>(false);
+  const backToHubHref = fieldTestActive ? `/events/${eventSlug}?fieldTest=1` : `/events/${eventSlug}`;
 
   const [quest, setQuest] = useState<PublicQuestView | null>(null);
   const [event, setEvent] = useState<QuestEvent | null>(null);
@@ -88,10 +97,11 @@ export default function QuestDetailPage({
     const p = getClientPlayer();
     setPlayer(p);
 
-    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(p.id)}`)
+    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(p.id)}${fieldTestQuery}`)
       .then((res) => res.json())
-      .then((data: { event?: QuestEvent; quests?: PublicQuestView[]; progress?: PlayerEventProgress }) => {
+      .then((data: { event?: QuestEvent; quests?: PublicQuestView[]; progress?: PlayerEventProgress; fieldTestActive?: boolean }) => {
         if (cancelled) return;
+        setFieldTestActive(Boolean(data.fieldTestActive));
         const safeQuests = data.quests || [];
         const safeQuest = safeQuests.find((item) => item.id === questId) || null;
         setEvent(data.event || null);
@@ -135,7 +145,7 @@ export default function QuestDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [eventSlug, questId]);
+  }, [eventSlug, questId, fieldTestQuery]);
 
   const isPollingRef = useRef(false);
   const hasFiredApprovalRef = useRef(false);
@@ -152,7 +162,7 @@ export default function QuestDetailPage({
       isPollingRef.current = true;
 
       try {
-        const res = await fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`);
+        const res = await fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}${fieldTestQuery}`);
         if (!res.ok) return;
         const data = await res.json();
         if (!isMounted) return;
@@ -303,6 +313,7 @@ export default function QuestDetailPage({
     event?.id,
     allEventQuests,
     router,
+    fieldTestQuery,
   ]);
 
   // Auto-show the sector intro (once per player) or, failing that, this
@@ -415,7 +426,7 @@ export default function QuestDetailPage({
             </p>
             <div className="pt-2">
               <Link
-                href={`/events/${eventSlug}`}
+                href={backToHubHref}
                 className="cq-gold-button w-full text-xs py-3 px-5 font-mono font-bold inline-flex items-center justify-center gap-2"
               >
                 RETURN TO QUEST HUB →
@@ -460,7 +471,7 @@ export default function QuestDetailPage({
         content = 'Centennial GPS Location Checked In';
       }
 
-      const response = await fetch('/api/game/submit', {
+      const response = await fetch(`/api/game/submit${fieldTestRequested ? '?fieldTest=1' : ''}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -527,7 +538,7 @@ export default function QuestDetailPage({
           }
 
           if (result.cipherFragmentsAwarded && result.cipherFragmentsAwarded.length > 0) {
-            fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`)
+            fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}${fieldTestQuery}`)
               .then((res) => res.json())
               .then((data: { cipherProgress?: { totalCollected: number; totalRequired: number; districts?: Array<{ key: string; name: string; status: string; collectedCount: number; requiredCount: number }> } }) => {
                 const cp = data.cipherProgress;
@@ -755,11 +766,19 @@ export default function QuestDetailPage({
 
   return (
     <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
+      {fieldTestActive && (
+        <div
+          role="status"
+          className="sticky top-0 z-50 w-full bg-red-600 text-white text-center text-xs sm:text-sm font-mono font-bold uppercase tracking-wider py-2 px-4"
+        >
+          ⚠ ADMIN FIELD TEST — PRELAUNCH
+        </div>
+      )}
       <Header eventSlug={params.slug} />
 
       <main className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-6">
         <Link
-          href={`/events/${eventSlug}`}
+          href={backToHubHref}
           className="inline-flex items-center gap-1 text-xs font-mono text-cyan-400 hover:underline mb-4 font-bold"
         >
           ← Back to Quest Hub
@@ -944,7 +963,7 @@ export default function QuestDetailPage({
               You must complete the previous quest step in this chain before initializing this field mission.
             </p>
             <div className="pt-2">
-              <Link href={`/events/${eventSlug}`} className="btn btn-primary text-xs px-6">
+              <Link href={backToHubHref} className="btn btn-primary text-xs px-6">
                 Return to Quests List →
               </Link>
             </div>
@@ -963,7 +982,7 @@ export default function QuestDetailPage({
                 Your proof has been verified and registered on the event drawing ledger.
               </p>
               <div className="pt-2">
-                <Link href={`/events/${eventSlug}`} className="btn btn-primary text-sm px-6">
+                <Link href={backToHubHref} className="btn btn-primary text-sm px-6">
                   Choose Another Quest →
                 </Link>
               </div>
@@ -985,7 +1004,7 @@ export default function QuestDetailPage({
               Your proof submission has been routed to the Game Master review queue. XP and drawing entries will be awarded upon verification.
             </p>
             <div className="pt-2">
-              <Link href={`/events/${eventSlug}`} className="btn btn-secondary text-sm px-6">
+              <Link href={backToHubHref} className="btn btn-secondary text-sm px-6">
                 Return to Quest Hub →
               </Link>
             </div>
@@ -1173,7 +1192,7 @@ export default function QuestDetailPage({
       </main>
 
       <GameFeedbackModal feedback={feedback} onClose={() => setFeedback(null)} />
-      <MobileStartBar href={`/events/${eventSlug}`} label="Back to Quests" eyebrow="Need another mission?" />
+      <MobileStartBar href={backToHubHref} label="Back to Quests" eyebrow="Need another mission?" />
     </div>
   );
 }

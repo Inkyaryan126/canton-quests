@@ -121,6 +121,12 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get('tab');
   const initialTab: DashboardTab = VALID_TABS.includes(requestedTab as DashboardTab) ? (requestedTab as DashboardTab) : 'quests';
+  // Admin Field Test Mode is requested via ?fieldTest=1, but it only ever
+  // takes effect once the server independently verifies the existing admin
+  // session on every request (see lib/field-test-access.ts's
+  // resolveFieldTestAccess) — fieldTestRequested alone grants nothing here.
+  const fieldTestRequested = searchParams.get('fieldTest') === '1';
+  const [fieldTestActive, setFieldTestActive] = useState<boolean>(false);
 
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [isPreLaunch, setIsPreLaunch] = useState<boolean>(false);
@@ -338,7 +344,8 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`, {
+    const fieldTestQuery = fieldTestRequested ? '&fieldTest=1' : '';
+    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}${fieldTestQuery}`, {
       signal: controller.signal,
     })
       .then((res) => {
@@ -363,6 +370,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
         progress?: PlayerEventProgress;
         cipherProgress?: PlayerCipherProgressView | null;
         isPreLaunch?: boolean;
+        fieldTestActive?: boolean;
       } | null) => {
         setIsLoading(false);
         if (!data) return;
@@ -374,6 +382,8 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
         if (data.isPreLaunch) {
           setIsPreLaunch(true);
         }
+        // Server-verified only — never set from fieldTestRequested itself.
+        setFieldTestActive(Boolean(data.fieldTestActive));
         if (data.event) {
           const loadedQuests = data.quests || [];
           setEvent(data.event);
@@ -416,7 +426,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
       .finally(() => {
         clearTimeout(timeoutId);
       });
-  }, [authenticatedPlayer, eventSlug]);
+  }, [authenticatedPlayer, eventSlug, fieldTestRequested]);
 
   useEffect(() => {
     refreshData();
@@ -547,7 +557,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   const stage = getOperationLifecycleStage(event, eventSlug);
   const countdownValue = getEventCountdown(event || ({ startTime: CANONICAL_LAUNCH_DATE_ISO } as QuestEvent));
 
-  if (!event || isPreLaunch || isPreLaunchEvent(event, eventSlug)) {
+  if (!event || (!fieldTestActive && (isPreLaunch || isPreLaunchEvent(event, eventSlug)))) {
     // A real, known Operation (e.g. the Fair QR Hunt) that simply hasn't
     // started yet gets its own honest, event-aware "not started" screen —
     // never the hardcoded Sept 11 Main Operation copy below, which would
@@ -1198,6 +1208,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
                     completedQuestIds={progress?.completedQuestIds || []}
                     pendingQuestIds={progress?.pendingSubmissionQuestIds || []}
                     distanceStr={distStr}
+                    fieldTestActive={fieldTestActive}
                   />
                 );
               })}
@@ -1300,9 +1311,23 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     />
   );
 
+  // Persistent, unmissable notice — never confusable with real public play.
+  // Only ever rendered when the server has independently verified the admin
+  // session for this exact request (fieldTestActive), never from the raw
+  // ?fieldTest=1 query string alone.
+  const fieldTestBanner = fieldTestActive ? (
+    <div
+      role="status"
+      className="sticky top-0 z-50 w-full bg-red-600 text-white text-center text-xs sm:text-sm font-mono font-bold uppercase tracking-wider py-2 px-4"
+    >
+      ⚠ ADMIN FIELD TEST — PRELAUNCH
+    </div>
+  ) : null;
+
   if (isCipher) {
     return (
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
+        {fieldTestBanner}
         <Header eventSlug={eventSlug} />
         <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12">
           <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={authenticatedPlayer?.selectedStartingPath}>
@@ -1318,6 +1343,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
 
   return (
     <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
+      {fieldTestBanner}
       <Header eventSlug={eventSlug} />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6">{dashboardCore}</main>

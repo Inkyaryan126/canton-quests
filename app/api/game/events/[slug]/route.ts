@@ -7,7 +7,8 @@ import {
 } from '@/lib/supabase-db';
 import { getPlayerCipherProgressDB } from '@/lib/founders-cipher';
 import { getPublicQuestView } from '@/lib/game-engine';
-import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
+import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
+import { resolveFieldTestAccess } from '@/lib/field-test-access';
 import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 
 export async function GET(
@@ -46,6 +47,24 @@ export async function GET(
       return withCookies({ error: 'Event not found' }, { status: 404 });
     }
 
+    // Server-authoritative: a pre-launch event never exposes quest
+    // instructions, leaderboard, or reward/cipher progress to a public
+    // request, regardless of any client-supplied query string. The one
+    // exception is a genuinely verified Admin Field Test session (see
+    // resolveFieldTestAccess) — ?fieldTest=1 alone does nothing without it.
+    const { isPreLaunch, fieldTestActive } = resolveFieldTestAccess(request, event, slug);
+    if (isPreLaunch && !fieldTestActive) {
+      return withCookies({
+        event,
+        quests: [],
+        leaderboard: [],
+        progress: null,
+        cipherProgress: null,
+        isPreLaunch: true,
+        fieldTestActive: false,
+      });
+    }
+
     const quests = await getQuestsForEventDB(event.id);
     const safeQuests = quests.map(getPublicQuestView);
     const leaderboard = await getLeaderboardDB(event.id);
@@ -61,7 +80,8 @@ export async function GET(
       leaderboard,
       progress,
       cipherProgress,
-      isPreLaunch: isPreLaunchEvent(event, slug),
+      isPreLaunch,
+      fieldTestActive,
     });
   } catch (error: any) {
     // Log server error securely without leaking stack or paths

@@ -131,9 +131,16 @@ describe('Blocker 1 — quest submission cannot be forged to another player', ()
       selectedStartingPath: 'family',
     });
 
-    const req = authedRequest('http://localhost:3000/api/game/submit', 'usr-self-submit', {
+    // SEED_EVENT (the real Founder's Cipher launch event) is genuinely
+    // pre-launch as of this test run — see lib/launch-status.ts's
+    // resolveFieldTestAccess, independently enforced by the submit route.
+    // This test is about identity/forgery handling, not launch timing, so
+    // it authorizes past that gate the same way a real admin field test
+    // would (?fieldTest=1 + a verified admin session), never by weakening
+    // the gate itself.
+    const req = authedRequest('http://localhost:3000/api/game/submit?fieldTest=1', 'usr-self-submit', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': 'canton-gm-2026' },
       body: JSON.stringify({
         questId: CHECKIN_QUEST.id,
         eventId: SEED_EVENT.id,
@@ -159,9 +166,11 @@ describe('Blocker 1 — quest submission cannot be forged to another player', ()
       selectedStartingPath: 'family',
     });
 
-    const req = authedRequest('http://localhost:3000/api/game/submit', 'usr-self-submit-2', {
+    // Same pre-launch note as the test above — authorized via the real
+    // admin field-test mechanism, not by bypassing the timing gate.
+    const req = authedRequest('http://localhost:3000/api/game/submit?fieldTest=1', 'usr-self-submit-2', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': 'canton-gm-2026' },
       body: JSON.stringify({
         playerId: player.id,
         questId: CHECKIN_QUEST.id,

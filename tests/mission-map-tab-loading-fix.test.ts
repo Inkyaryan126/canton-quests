@@ -64,7 +64,12 @@ describe('Mission MAP tab — no longer permanently gated behind a stale client-
 
   it('the server API route computes isPreLaunch from the real event record, not a static slug list', () => {
     const routeSource = readSource('app/api/game/events/[slug]/route.ts');
-    expect(routeSource).toMatch(/isPreLaunch: isPreLaunchEvent\(event, slug\)/);
+    // isPreLaunch is now computed via resolveFieldTestAccess(request, event,
+    // slug) — lib/field-test-access.ts's shared admin-field-test-aware
+    // wrapper around isPreLaunchEvent(event, slug, ...) — still derived from
+    // the real event record, never a static slug list.
+    expect(routeSource).toMatch(/resolveFieldTestAccess\(request, event, slug\)/);
+    expect(routeSource).toContain("from '@/lib/field-test-access'");
   });
 });
 
