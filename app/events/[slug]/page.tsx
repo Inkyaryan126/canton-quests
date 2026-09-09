@@ -956,32 +956,33 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
         </div>
       )}
 
-      {/* Secondary navigation — 3 items, not 5. Everything that isn't the
-          core "find a quest / go to the map / everything else" loop lives
-          behind MISSION INTEL now. */}
+      {/* Mission Home utilities — intentionally secondary to the main
+          START / CONTINUE action, but always high-contrast and readable. */}
       <div
         data-testid="mission-secondary-nav"
-        className="flex bg-stone-950 border border-stone-800 rounded-2xl mb-6 font-display font-bold text-xs sm:text-sm overflow-x-auto scrollbar-none"
+        className="grid grid-cols-2 gap-2 mb-6 font-display font-bold text-xs sm:text-sm"
       >
         <button
+          type="button"
           onClick={() => setActiveTab('quests')}
-          className={`flex-1 min-w-[90px] py-3 text-center rounded-2xl transition-all ${
+          className={`py-3.5 px-4 text-center rounded-xl border transition-all ${
             activeTab === 'quests'
-              ? 'bg-amber-500 text-stone-950 font-black shadow'
-              : 'text-stone-200 hover:text-white hover:bg-stone-800'
+              ? 'bg-amber-500 text-stone-950 border-amber-400 font-black shadow'
+              : 'bg-stone-900 text-white border-stone-600 hover:bg-stone-800 hover:border-amber-500/70'
           }`}
         >
-          All Quests
+          ALL QUESTS
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('map')}
-          className={`flex-1 min-w-[90px] py-3 text-center rounded-2xl transition-all ${
+          className={`py-3.5 px-4 text-center rounded-xl border transition-all ${
             activeTab === 'map'
-              ? 'bg-amber-500 text-stone-950 font-black shadow'
-              : 'text-stone-200 hover:text-white hover:bg-stone-800'
+              ? 'bg-amber-500 text-stone-950 border-amber-400 font-black shadow'
+              : 'bg-stone-900 text-white border-stone-600 hover:bg-stone-800 hover:border-amber-500/70'
           }`}
         >
-          Map
+          MAP
         </button>
       </div>
 
