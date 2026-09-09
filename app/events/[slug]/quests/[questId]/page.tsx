@@ -878,23 +878,14 @@ export default function QuestDetailPage({
             <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-none">
               {cleanQuestTitle(quest.title)}
             </h1>
-            <p className="text-sm sm:text-base text-gray-200 leading-relaxed mt-3 max-w-2xl">
-              {quest.description}
-            </p>
-            {!isLocked && !isAlreadyCompleted && (
-              <a
-                href="#submit-proof-section"
-                data-testid="jump-to-submit-cta"
-                className="btn btn-primary text-sm px-6 py-3 font-extrabold inline-flex items-center gap-2 mt-4"
-              >
-                SUBMIT YOUR PROOF ↓
-              </a>
-            )}
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-px bg-amber-500/20">
+          {/* The core page: GO HERE and DO THIS, immediately followed by
+              SUBMIT below (no jump link needed — nothing optional sits
+              between the objective and the submission control anymore). */}
+          <div className="grid sm:grid-cols-2 gap-px bg-amber-500/20">
             <div className="bg-[#090b0c] p-4">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Where to go</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Go here</span>
               <strong className="block text-white mt-1">{quest.location?.name || 'Canton, Ohio'}</strong>
               {quest.location?.address && <p className="text-xs text-gray-400 mt-1">{quest.location.address}</p>}
               <a
@@ -907,83 +898,15 @@ export default function QuestDetailPage({
               </a>
             </div>
             <div className="bg-[#090b0c] p-4">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">What to do</span>
-              <strong className="block text-white mt-1">{questCategoryLabels[quest.category]}</strong>
-              <p className="text-xs text-gray-400 mt-1">{quest.instructions}</p>
-            </div>
-            <div className="bg-[#090b0c] p-4">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Rewards</span>
-              <QuestRewardBreakdown quest={quest} compact className="mt-1" />
-              <p className="text-xs text-gray-400 mt-1.5">Verify proof below to issue rewards.</p>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Do this</span>
+              <p className="text-sm text-gray-200 mt-1">{quest.instructions}</p>
             </div>
           </div>
-
-          {rewardSummary.hasBonusContent && (
-            <div className="p-4 sm:p-5 border-t border-amber-500/24">
-              <QuestRewardBreakdown quest={quest} />
-            </div>
-          )}
-
-          {quest.sectorIntroTransmission && (
-            <div className="p-4 sm:p-5 border-t border-amber-500/24">
-              <CommanderTransmission
-                transmission={quest.sectorIntroTransmission}
-                onReplay={
-                  quest.sectorIntroTransmission.replayable !== false
-                    ? () =>
-                        showGameMoment({
-                          type: 'commander-transmission',
-                          trigger: 'sector_intro',
-                          transmission: quest.sectorIntroTransmission!,
-                        })
-                    : undefined
-                }
-              />
-            </div>
-          )}
-
-          {quest.commanderTransmission && (
-            <div className="p-4 sm:p-5 border-t border-amber-500/24">
-              <CommanderTransmission
-                transmission={quest.commanderTransmission}
-                onReplay={
-                  quest.commanderTransmission.replayable !== false
-                    ? () =>
-                        showGameMoment({
-                          type: 'commander-transmission',
-                          trigger: 'quest_intro',
-                          transmission: quest.commanderTransmission!,
-                        })
-                    : undefined
-                }
-              />
-            </div>
-          )}
-
-          {(quest.location?.accessNotes || quest.location?.openingHours || quest.safetyNotes) && (
-            <div className="p-4 bg-cyan-950/25 border-t border-cyan-500/25 text-xs text-cyan-200 font-mono space-y-2">
-              {quest.location?.openingHours && (
-                <div>
-                  <span className="font-bold text-white">Access window:</span> {quest.location.openingHours}
-                </div>
-              )}
-              {quest.location?.accessNotes && (
-                <div>
-                  <span className="font-bold text-white">Location access:</span> {quest.location.accessNotes}
-                </div>
-              )}
-              {quest.safetyNotes && (
-                <div>
-                  <span className="font-bold text-white">Safety:</span> {quest.safetyNotes}
-                </div>
-              )}
-            </div>
-          )}
         </section>
 
         {/* Locked Prerequisite Warning */}
         {isLocked ? (
-          <div id="submit-proof-section" className="glass-panel p-6 border-slate-700 bg-slate-950/60 text-center space-y-3 mb-6">
+          <div className="glass-panel p-6 border-slate-700 bg-slate-950/60 text-center space-y-3 mb-6">
             <span className="text-4xl block">🔒</span>
             <h2 className="text-xl font-extrabold text-gray-300">QUEST PREREQUISITE LOCKED</h2>
             <p className="text-xs text-gray-400 font-mono">
@@ -1037,7 +960,7 @@ export default function QuestDetailPage({
           </div>
         ) : isAlreadyPending ? (
           /* PENDING REVIEW STATE */
-          <div id="submit-proof-section" className="glass-panel p-6 border-purple-500/50 bg-purple-950/20 text-center space-y-3 animate-fade-in mb-6">
+          <div className="glass-panel p-6 border-purple-500/50 bg-purple-950/20 text-center space-y-3 animate-fade-in mb-6">
             <span className="text-4xl block">⏳</span>
             <h2 className="text-2xl font-extrabold text-purple-300">SUBMISSION UNDER REVIEW</h2>
             <p className="text-sm text-gray-200 font-mono">
@@ -1051,12 +974,11 @@ export default function QuestDetailPage({
           </div>
         ) : (
           /* ACTIVE SUBMISSION FORM */
-          <div id="submit-proof-section" className="glass-panel p-6 space-y-5 mb-6 border-cyan-500/30">
+          <div className="glass-panel p-6 space-y-5 mb-6 border-cyan-500/30">
             <div className="border-b border-[var(--border-subtle)] pb-3">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                Submit Proof Verification
+                Submit
               </h2>
-              <p className="text-xs text-gray-400 font-mono">Complete the mission objective, then submit verification using the control below.</p>
             </div>
 
             {/* Geolocation Sensor Card */}
@@ -1227,6 +1149,75 @@ export default function QuestDetailPage({
                 </div>
               )}
             </form>
+          </div>
+        )}
+
+        {/* Everything below is optional context — it comes AFTER the
+            submission control, never between the objective and it. Rewards
+            are small secondary text here, not a competing grid cell. */}
+        <p className="text-xs text-gray-400 font-mono mt-4">
+          Reward: +{quest.pointValue} XP · +{quest.drawingEntryReward || 1} drawing {quest.drawingEntryReward === 1 ? 'entry' : 'entries'}
+        </p>
+
+        {rewardSummary.hasBonusContent && (
+          <div className="mt-3">
+            <QuestRewardBreakdown quest={quest} />
+          </div>
+        )}
+
+        {quest.sectorIntroTransmission && (
+          <div className="mt-4">
+            <CommanderTransmission
+              transmission={quest.sectorIntroTransmission}
+              onReplay={
+                quest.sectorIntroTransmission.replayable !== false
+                  ? () =>
+                      showGameMoment({
+                        type: 'commander-transmission',
+                        trigger: 'sector_intro',
+                        transmission: quest.sectorIntroTransmission!,
+                      })
+                  : undefined
+              }
+            />
+          </div>
+        )}
+
+        {quest.commanderTransmission && (
+          <div className="mt-4">
+            <CommanderTransmission
+              transmission={quest.commanderTransmission}
+              onReplay={
+                quest.commanderTransmission.replayable !== false
+                  ? () =>
+                      showGameMoment({
+                        type: 'commander-transmission',
+                        trigger: 'quest_intro',
+                        transmission: quest.commanderTransmission!,
+                      })
+                  : undefined
+              }
+            />
+          </div>
+        )}
+
+        {(quest.location?.accessNotes || quest.location?.openingHours || quest.safetyNotes) && (
+          <div className="p-4 bg-cyan-950/25 border border-cyan-500/25 rounded-xl text-xs text-cyan-200 font-mono space-y-2 mt-4">
+            {quest.location?.openingHours && (
+              <div>
+                <span className="font-bold text-white">Access window:</span> {quest.location.openingHours}
+              </div>
+            )}
+            {quest.location?.accessNotes && (
+              <div>
+                <span className="font-bold text-white">Location access:</span> {quest.location.accessNotes}
+              </div>
+            )}
+            {quest.safetyNotes && (
+              <div>
+                <span className="font-bold text-white">Safety:</span> {quest.safetyNotes}
+              </div>
+            )}
           </div>
         )}
       </main>

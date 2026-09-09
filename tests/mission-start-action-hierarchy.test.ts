@@ -177,26 +177,49 @@ describe('Field test propagation — every quest-navigation link on the hub pres
   });
 });
 
-describe('Quest detail page — WHERE TO GO / WHAT TO DO / SUBMIT hierarchy', () => {
-  it('exposes a labeled "Where to go" location panel with a map-directions action', () => {
-    expect(QUEST_DETAIL_SOURCE).toContain('Where to go');
+describe('Quest detail page — GO HERE / DO THIS / SUBMIT is the core page, nothing optional in between', () => {
+  it('exposes a labeled "Go here" location panel with a map-directions action', () => {
+    expect(QUEST_DETAIL_SOURCE).toContain('Go here');
     expect(QUEST_DETAIL_SOURCE).toContain('Open Map Directions');
   });
 
-  it('exposes a labeled "What to do" panel showing the player-facing instructions', () => {
-    expect(QUEST_DETAIL_SOURCE).toContain('What to do');
+  it('exposes a labeled "Do this" panel showing the player-facing instructions, nothing more', () => {
+    expect(QUEST_DETAIL_SOURCE).toContain('Do this');
     expect(QUEST_DETAIL_SOURCE).toContain('{quest.instructions}');
   });
 
-  it('a first-time player has an explicit, unmissable jump straight to the submission control', () => {
-    expect(QUEST_DETAIL_SOURCE).toContain('data-testid="jump-to-submit-cta"');
-    expect(QUEST_DETAIL_SOURCE).toContain('SUBMIT YOUR PROOF');
-    expect(QUEST_DETAIL_SOURCE).toContain('href="#submit-proof-section"');
-    expect(QUEST_DETAIL_SOURCE).toContain('id="submit-proof-section"');
+  it('the Go here / Do this grid is immediately followed by the submission section — no jump button, because nothing optional sits between them anymore', () => {
+    expect(QUEST_DETAIL_SOURCE).not.toContain('jump-to-submit-cta');
+    expect(QUEST_DETAIL_SOURCE).not.toContain('SUBMIT YOUR PROOF');
+    const briefingToSubmit = QUEST_DETAIL_SOURCE.slice(
+      QUEST_DETAIL_SOURCE.indexOf('Go here'),
+      QUEST_DETAIL_SOURCE.indexOf('Locked Prerequisite Warning')
+    );
+    // Between the Go-here/Do-this grid and the locked/completed/pending/
+    // active submission ternary, only the grid's own closing tags and the
+    // section wrapper may appear — no transmission, reward, or notes block.
+    expect(briefingToSubmit).not.toContain('CommanderTransmission');
+    expect(briefingToSubmit).not.toContain('QuestRewardBreakdown');
+    expect(briefingToSubmit).not.toContain('accessNotes');
   });
 
-  it('the submission control section itself is unambiguously labeled', () => {
-    expect(QUEST_DETAIL_SOURCE).toContain('Submit Proof Verification');
+  it('the submission control section itself is unambiguously labeled, with no explanatory copy about how to use the page', () => {
+    expect(QUEST_DETAIL_SOURCE).toMatch(/Submit\s*\n\s*<\/h2>/);
+    expect(QUEST_DETAIL_SOURCE).not.toContain('Complete the mission objective, then submit verification using the control below.');
+  });
+
+  it('rewards are small secondary text placed after the submission ternary, not a grid cell competing with Go here / Do this', () => {
+    const afterSubmit = QUEST_DETAIL_SOURCE.slice(
+      QUEST_DETAIL_SOURCE.indexOf('Everything below is optional context'),
+      QUEST_DETAIL_SOURCE.indexOf('<GameFeedbackModal')
+    );
+    expect(afterSubmit).toContain('Reward: +{quest.pointValue} XP');
+    // Transmissions, bonus reward breakdown, and access/safety notes all
+    // moved here too — after submission, never before it.
+    expect(afterSubmit).toContain('quest.sectorIntroTransmission');
+    expect(afterSubmit).toContain('quest.commanderTransmission');
+    expect(afterSubmit).toContain('accessNotes');
+    expect(afterSubmit).toContain('rewardSummary.hasBonusContent');
   });
 
   it('quest-completion next-action navigation also preserves ?fieldTest=1 via the shared buildQuestHref helper', () => {
