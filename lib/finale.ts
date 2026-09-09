@@ -19,6 +19,21 @@ export const LAUNCH_DISTRICT_QUESTS = {
   secret: ['mckinley-monument-year', 'eternal-flame', 'golden-mark-cipher', 'spring-water-shelter'],
 } as const;
 
+const LAUNCH_DISTRICT_QUEST_SLUGS = new Set<string>(Object.values(LAUNCH_DISTRICT_QUESTS).flat());
+
+/**
+ * Whether a quest slug belongs to the canonical 14-quest September launch
+ * roster (5 Family + 5 Challenge + 4 Secret) — the single source of truth
+ * for "which quest rows the live Founder's Cipher gameplay API/hub may
+ * expose", independent of each row's own status (draft/inactive/active).
+ * Every prototype, legacy, superseded, or not-yet-built quest record that
+ * still shares this event's event_id but isn't part of this list must
+ * never reach the public gameplay client.
+ */
+export function isLaunchDistrictQuestSlug(slug?: string | null): boolean {
+  return !!slug && LAUNCH_DISTRICT_QUEST_SLUGS.has(slug);
+}
+
 export interface LaunchDistrictProgress {
   districts: { path: string; completed: number; required: number }[];
   completedDistrictCount: number;

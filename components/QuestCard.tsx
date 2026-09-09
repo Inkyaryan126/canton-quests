@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { MapPin, Zap, Lock, CheckCircle2, Sparkles } from 'lucide-react';
@@ -114,6 +114,11 @@ export default function QuestCard({
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [quest.isFlash, quest.expiresAt]);
+
+  // Fail closed: a draft/inactive quest computes state 'hidden' — render
+  // nothing rather than a half-finished or confusing card. All hooks above
+  // have already run unconditionally, so this early return is safe.
+  if (state === 'hidden') return null;
 
   const isLocked = state === 'locked';
   const isComplete = state === 'completed';

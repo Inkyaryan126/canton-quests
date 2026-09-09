@@ -417,7 +417,7 @@ export function getQuestRarity(quest: Quest) {
   return 'COMMON';
 }
 
-export function getQuestImage(quest: Quest, index = 0) {
+export function getQuestImage(quest: Quest, index?: number) {
   if (quest.slug && questImageBySlug[quest.slug]) {
     return questImageBySlug[quest.slug];
   }
@@ -426,7 +426,18 @@ export function getQuestImage(quest: Quest, index = 0) {
     return questImageByLocation[quest.locationId];
   }
 
-  return questImagePool[index % questImagePool.length];
+  // No slug/location mapping. An explicit index (a caller intentionally
+  // cycling through the pool) is honored as-is; otherwise never silently
+  // default to questImagePool[0] (Palace Theatre) for every unmapped
+  // quest — spread deterministically across the existing pool using a
+  // stable hash of the quest's own identity instead, so different
+  // unmapped quests get visibly different fallback art.
+  if (index !== undefined) {
+    return questImagePool[index % questImagePool.length];
+  }
+  const fallbackKey = quest.slug || quest.id || '';
+  const hash = Array.from(fallbackKey).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return questImagePool[hash % questImagePool.length];
 }
 
 export function isStandaloneQuestCard(imagePath?: string): boolean {

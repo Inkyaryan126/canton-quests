@@ -8,6 +8,7 @@ import {
 import { getPlayerCipherProgressDB } from '@/lib/founders-cipher';
 import { getPublicQuestView } from '@/lib/game-engine';
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
+import { isLaunchDistrictQuestSlug } from '@/lib/finale';
 import { resolveFieldTestAccess } from '@/lib/field-test-access';
 import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 
@@ -66,7 +67,17 @@ export async function GET(
     }
 
     const quests = await getQuestsForEventDB(event.id);
-    const safeQuests = quests.map(getPublicQuestView);
+    // The Founder's Cipher launch event carries the canonical 14 district
+    // quests plus a long tail of prototype/legacy/superseded rows that
+    // still share its event_id (see docs/FOUNDERS-CIPHER-LEGACY-QUEST-CONTAINMENT-PLAN.md).
+    // getQuestsForEventDB is a shared read used by admin/audit tooling that
+    // legitimately needs the full raw roster, so the roster filter is
+    // applied only here, at the public gameplay API boundary — never send
+    // stale/prototype content to the live client for this event.
+    const rosterFilteredQuests = isKnownCantonLaunchSlug(slug)
+      ? quests.filter((q) => isLaunchDistrictQuestSlug(q.slug))
+      : quests;
+    const safeQuests = rosterFilteredQuests.map(getPublicQuestView);
     const leaderboard = await getLeaderboardDB(event.id);
     const progress = playerId ? await getPlayerProgressDB(playerId, event.id) : null;
     const cipherProgress =

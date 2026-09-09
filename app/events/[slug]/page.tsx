@@ -129,7 +129,11 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   const eventSlug = params.slug;
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get('tab');
-  const initialTab: DashboardTab = VALID_TABS.includes(requestedTab as DashboardTab) ? (requestedTab as DashboardTab) : 'quests';
+  // No default tab is open. The mission panel + the 3 secondary buttons
+  // are the entire default view — a secondary panel only ever opens
+  // because the player deliberately clicked one, or because the URL
+  // explicitly deep-links to it (?tab=quests / ?tab=map / ?tab=intel).
+  const initialTab: DashboardTab | null = VALID_TABS.includes(requestedTab as DashboardTab) ? (requestedTab as DashboardTab) : null;
   // Admin Field Test Mode is requested via ?fieldTest=1, but it only ever
   // takes effect once the server independently verifies the existing admin
   // session on every request (see lib/field-test-access.ts's
@@ -166,7 +170,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   // Navigation & View Filters — initialized from ?tab= so a deep link like
   // /events/canton-weekend-1/quests (which redirects here with ?tab=quests)
   // lands on the right tab instead of always defaulting to Missions.
-  const [activeTab, setActiveTab] = useState<DashboardTab>(initialTab);
+  const [activeTab, setActiveTab] = useState<DashboardTab | null>(initialTab);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'default' | 'nearest' | 'points'>('default');
 
@@ -691,9 +695,9 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   if (authChecked && !authenticatedPlayer) {
     // Preserve the requested tab (from a canonical /events/{slug}/quests,
     // /map, etc. redirect) through login/register so a deep link doesn't
-    // silently fall back to the default Missions tab after auth.
+    // silently fall back to the default closed overview after auth.
     const nextParam = encodeURIComponent(
-      activeTab !== 'quests' ? `/events/${eventSlug}?tab=${activeTab}` : `/events/${eventSlug}`
+      activeTab ? `/events/${eventSlug}?tab=${activeTab}` : `/events/${eventSlug}`
     );
     const gateCard = (
       <div className="relative overflow-hidden rounded-3xl border border-amber-500/40 bg-stone-900/90 shadow-2xl p-8 sm:p-10 w-full space-y-4">
@@ -953,33 +957,36 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
       {/* Secondary navigation — 3 items, not 5. Everything that isn't the
           core "find a quest / go to the map / everything else" loop lives
           behind MISSION INTEL now. */}
-      <div className="flex border-b border-[var(--border-subtle)] mb-6 font-display font-bold text-xs sm:text-sm overflow-x-auto scrollbar-none">
+      <div
+        data-testid="mission-secondary-nav"
+        className="flex bg-stone-950 border border-stone-800 rounded-2xl mb-6 font-display font-bold text-xs sm:text-sm overflow-x-auto scrollbar-none"
+      >
         <button
           onClick={() => setActiveTab('quests')}
-          className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
+          className={`flex-1 min-w-[90px] py-3 text-center rounded-2xl transition-all ${
             activeTab === 'quests'
-              ? 'border-amber-400 text-amber-400'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
+              ? 'bg-amber-500 text-stone-950 font-black shadow'
+              : 'text-stone-200 hover:text-white hover:bg-stone-800'
           }`}
         >
           All Quests ({quests.length})
         </button>
         <button
           onClick={() => setActiveTab('map')}
-          className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
+          className={`flex-1 min-w-[90px] py-3 text-center rounded-2xl transition-all ${
             activeTab === 'map'
-              ? 'border-amber-400 text-amber-400'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
+              ? 'bg-amber-500 text-stone-950 font-black shadow'
+              : 'text-stone-200 hover:text-white hover:bg-stone-800'
           }`}
         >
           Map
         </button>
         <button
           onClick={() => setActiveTab('intel')}
-          className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
+          className={`flex-1 min-w-[90px] py-3 text-center rounded-2xl transition-all ${
             activeTab === 'intel'
-              ? 'border-amber-400 text-amber-400'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
+              ? 'bg-amber-500 text-stone-950 font-black shadow'
+              : 'text-stone-200 hover:text-white hover:bg-stone-800'
           }`}
         >
           Mission Intel
@@ -993,7 +1000,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
             <WatchTransmissionButton trigger="cipher_first_quest" playerId={authenticatedPlayer?.id} label="How to Read a Quest" size="small" />
           )}
           {/* Sort & Filter Controls Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-obsidian/70 p-3 rounded-2xl border border-gray-800">
+          <div data-testid="quest-filter-bar" className="flex flex-wrap items-center justify-between gap-3 bg-stone-950 p-3 rounded-2xl border border-stone-700">
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-1">
               {[
                 { id: 'all', label: 'All' },
@@ -1008,10 +1015,10 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`text-[11px] px-3 py-1 rounded-full font-mono whitespace-nowrap border transition-all ${
+                  className={`text-[11px] px-3 py-1 rounded-full font-mono font-bold whitespace-nowrap border transition-all ${
                     selectedCategory === cat.id
-                      ? 'bg-amber-500 text-obsidian font-bold border-amber-400 shadow'
-                      : 'bg-card text-gray-300 border-gray-800 hover:border-gray-600'
+                      ? 'bg-amber-500 text-stone-950 border-amber-400 shadow'
+                      : 'bg-stone-900 text-stone-200 border-stone-600 hover:border-amber-500/60 hover:text-white'
                   }`}
                 >
                   {cat.label}
@@ -1020,11 +1027,11 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
             </div>
 
             <div className="flex items-center gap-2 font-mono text-xs">
-              <span className="text-gray-400">Sort:</span>
+              <span className="text-stone-300 font-bold">Sort:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-card text-amber-400 border border-gray-800 rounded-lg px-2 py-1 focus:outline-none"
+                className="bg-stone-900 text-amber-400 font-bold border border-stone-600 rounded-lg px-2 py-1 focus:outline-none focus:border-amber-500"
               >
                 <option value="default">Default Order</option>
                 <option value="points">Highest XP</option>
@@ -1217,7 +1224,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {collectibles.map((pc) => (
-                  <div key={pc.id} className="p-3 bg-obsidian border border-amber-500/30 rounded-xl flex items-center gap-3">
+                  <div key={pc.id} className="p-3 bg-stone-950 border border-amber-500/30 rounded-xl flex items-center gap-3">
                     <span className="text-3xl">{pc.collectible?.badgeSymbol || '🏅'}</span>
                     <div>
                       <span className="text-white font-bold text-xs block">{pc.collectible?.name}</span>
