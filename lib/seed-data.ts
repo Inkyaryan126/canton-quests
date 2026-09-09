@@ -236,10 +236,19 @@ export const SEED_LOCATIONS: LocationInfo[] = [
     id: 'loc-octopus-mural',
     cityId: SEED_CITY.id,
     name: 'Octopus Mural (Kraken Wall)',
-    locationNotes: 'FIELD VERIFICATION REQUIRED: exact street address and GPS coordinates not yet confirmed. Do not invent — confirm via site walk before printing final clue cards.',
+    // Address/coordinates per the launch-location reconciliation task
+    // brief, reusing the exact, already-verified coordinates of
+    // loc-4th-st-mural's same 4th St NW & Court Ave NW corridor — a
+    // distinct mural (the Butterfly Mural) at that address has its own
+    // location row; this is a separate dedicated pin for the Kraken/
+    // Octopus wall, not a merge (different physical artworks).
+    address: '4th St NW & Court Ave NW, Canton, OH 44702',
+    latitude: 40.7995,
+    longitude: -81.3755,
+    locationNotes: 'Octopus/Kraken tentacle mural, same downtown Arts District corridor as the Butterfly Mural.',
     isPartner: false,
-    accessNotes: 'FIELD VERIFICATION REQUIRED.',
-    openingHours: 'FIELD VERIFICATION REQUIRED.',
+    accessNotes: 'Public sidewalk access 24/7. Watch for downtown vehicular traffic.',
+    openingHours: '24/7 Public Access',
   },
   {
     id: 'loc-eternal-flame',
@@ -1514,7 +1523,7 @@ export const SEED_QUESTS: Quest[] = [
     slug: '9th-street-opening',
     description: 'The Challenge path starts here. Show up. Check in. The grid opens.',
     instructions:
-      'Report to the 9th Street Skate Corridor at 9th St NW and check in to activate your Challenge district field log. Tap CHECK IN when you are physically at the location. Your GPS will confirm the signal.',
+      'Report to the 9th Street Skate Corridor and check in to activate your Challenge district field log. Tap CHECK IN when you are physically at the location. Your GPS will confirm the signal.',
     pointValue: 75,
     xpReward: 75,
     drawingEntryReward: 1,
@@ -1646,7 +1655,7 @@ export const SEED_QUESTS: Quest[] = [
     description:
       'Stories crowd this wall — bears, pigs, mice, pumpkins, things that belong in fields and forests.',
     instructions:
-      'Go to Mother Goose Land at 714 12th St NW. Find the large illustrated mural wall. One creature on it belongs somewhere much deeper than the rest. Find the one that should be surrounded by water. What is it?',
+      'Go to Mother Goose Land. Find the large illustrated mural wall. One creature on it belongs somewhere much deeper than the rest. Find the one that should be surrounded by water. What is it?',
     pointValue: 175,
     xpReward: 175,
     drawingEntryReward: 1,
