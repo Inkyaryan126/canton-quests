@@ -36,11 +36,25 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
       expect(PLAYER_CARD_LAYOUT.callsign.height).toBe('8.59%');
     });
 
-    it('verifies the Motto panel occupies the exact former combined Path+District footprint', () => {
-      expect(PLAYER_CARD_LAYOUT.motto.left).toBe('51.17%');
-      expect(PLAYER_CARD_LAYOUT.motto.top).toBe('26.95%');
-      expect(PLAYER_CARD_LAYOUT.motto.width).toBe('45.02%');
-      expect(PLAYER_CARD_LAYOUT.motto.height).toBe('12.70%');
+    it('verifies Chosen Path occupies its own original guide-measured slot, separate from Motto', () => {
+      expect(PLAYER_CARD_LAYOUT.chosenPath.left).toBe('51.17%');
+      expect(PLAYER_CARD_LAYOUT.chosenPath.top).toBe('26.95%');
+      expect(PLAYER_CARD_LAYOUT.chosenPath.width).toBe('45.02%');
+      expect(PLAYER_CARD_LAYOUT.chosenPath.height).toBe('5.27%');
+    });
+
+    it('verifies Motto occupies its own slot directly below Chosen Path, not the old combined footprint', () => {
+      expect(PLAYER_CARD_LAYOUT.motto.left).toBe('51.27%');
+      expect(PLAYER_CARD_LAYOUT.motto.top).toBe('34.51%');
+      expect(PLAYER_CARD_LAYOUT.motto.width).toBe('44.92%');
+      expect(PLAYER_CARD_LAYOUT.motto.height).toBe('5.14%');
+    });
+
+    it('Chosen Path and Motto boxes do not overlap vertically', () => {
+      const pathTop = parseFloat(PLAYER_CARD_LAYOUT.chosenPath.top);
+      const pathHeight = parseFloat(PLAYER_CARD_LAYOUT.chosenPath.height);
+      const mottoTop = parseFloat(PLAYER_CARD_LAYOUT.motto.top);
+      expect(mottoTop).toBeGreaterThanOrEqual(pathTop + pathHeight);
     });
 
     it('verifies the 5 Player Level fill areas are pixel-measured interiors of the artwork\'s already-baked-in segment bar, not new boxes', () => {
@@ -122,10 +136,11 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
   });
 
   describe('3. Component Rendering & Real Production Stress Case', () => {
-    it('renders real user "dustinsigley126" cleanly with all artwork overlay elements, including a saved Motto', () => {
+    it('renders real user "dustinsigley126" cleanly with all artwork overlay elements, including a saved Chosen Path and Motto in separate slots', () => {
       const html = ReactDOMServer.renderToString(
         React.createElement(PlayerCard, {
           displayName: 'dustinsigley126',
+          chosenPath: 'family',
           motto: 'Trust the process.',
           avatarImage: '/canton-quests/1.png',
           cropZoom: 1,
@@ -148,9 +163,19 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
       expect(html).toContain('cq-card-callsign cq-callsign-sm');
       expect(html).toContain('dustinsigley126');
 
-      // Verify Motto is rendered
+      // Verify Chosen Path is rendered uppercase, in its own slot
+      expect(html).toContain('cq-card-chosen-path');
+      expect(html).toContain('FAMILY');
+      expect(html).not.toContain('>family<');
+
+      // Verify Motto is rendered in its own slot, distinct from Chosen Path
       expect(html).toContain('cq-card-motto');
       expect(html).toContain('Trust the process.');
+      // The motto text never appears inside the chosen-path element, and
+      // vice versa — they are two separate DOM nodes, not one merged field.
+      const chosenPathBlock = html.slice(html.indexOf('cq-card-chosen-path'), html.indexOf('cq-card-motto'));
+      expect(chosenPathBlock).toContain('FAMILY');
+      expect(chosenPathBlock).not.toContain('Trust the process.');
 
       // Verify Player Level segments: 3 of 5 filled, in order
       const segmentMatches = html.match(/cq-card-level-segment[^"]*/g) || [];
@@ -175,7 +200,7 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
       expect(html.match(/cq-card-badge-slot/g)).toHaveLength(6);
     });
 
-    it('renders an empty Motto without fabricating placeholder text, and 0 participated quests as 0 filled segments', () => {
+    it('renders an empty Chosen Path and Motto without fabricating placeholder text, and 0 participated quests as 0 filled segments', () => {
       const badges = [
         { name: 'Day 1 Champion', iconPath: '/canton-quests/badges/day1.png' },
         { name: 'Family Pathfinder', iconPath: '/canton-quests/badges/family.png' },
@@ -193,6 +218,11 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
           featuredBadges: badges,
         })
       );
+
+      // No path chosen yet — the slot renders blank, never the motto text.
+      expect(html).toContain('cq-card-chosen-path');
+      const chosenPathBlock = html.slice(html.indexOf('cq-card-chosen-path'), html.indexOf('cq-card-motto'));
+      expect(chosenPathBlock).not.toMatch(/<span>/);
 
       expect(html).toContain('cq-card-motto');
       // No quote marks rendered when motto is empty/absent

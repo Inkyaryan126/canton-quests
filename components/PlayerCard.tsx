@@ -18,6 +18,8 @@ const PLAYER_LEVEL_SEGMENT_COUNT = PLAYER_CARD_LAYOUT.playerLevel.segments.lengt
 
 export interface PlayerCardProps {
   displayName: string;
+  /** The player's selected starting path (Family/Challenge/Secret) — rendered uppercase in its own CHOSEN PATH slot, separate from Motto. */
+  chosenPath?: string;
   motto?: string;
   avatarImage: string;
   cropZoom?: number;
@@ -40,6 +42,7 @@ export interface PlayerCardProps {
 
 export default function PlayerCard({
   displayName,
+  chosenPath,
   motto,
   avatarImage,
   cropZoom = 1,
@@ -59,6 +62,7 @@ export default function PlayerCard({
 }: PlayerCardProps) {
   const cleanName = (displayName || 'Canton Agent').trim();
   const callsignClass = getCallsignFontScale(cleanName);
+  const cleanChosenPath = (chosenPath || '').trim().toUpperCase();
   const cleanMotto = (motto || '').trim();
   const filledLevelSegments = Math.max(0, Math.min(participatedQuestCount, PLAYER_LEVEL_SEGMENT_COUNT));
 
@@ -104,7 +108,17 @@ export default function PlayerCard({
         <span>{cleanName}</span>
       </div>
 
-      {/* 5. Motto (optional, replaces the old Starting Path + Starting District area) */}
+      {/* 5a. Chosen Path — own slot, restored separately from Motto. Blank
+          (never a placeholder motto) when the player has no path yet. */}
+      <div
+        className="cq-card-chosen-path"
+        style={PLAYER_CARD_LAYOUT.chosenPath}
+        title={cleanChosenPath || undefined}
+      >
+        {cleanChosenPath && <span>{cleanChosenPath}</span>}
+      </div>
+
+      {/* 5b. Motto — its own slot directly below Chosen Path. */}
       <div
         className="cq-card-motto"
         style={PLAYER_CARD_LAYOUT.motto}

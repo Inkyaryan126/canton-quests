@@ -40,16 +40,27 @@ export const PLAYER_CARD_LAYOUT = {
     height: '8.59%',
   },
   /**
-   * Replaces the old Starting Path + Starting District fields — the guide's
-   * Path/District area was consolidated into a single MOTTO panel occupying
-   * their exact combined footprint (path.top through district.bottom), so
-   * this reuses those retired coordinates rather than re-deriving new ones.
+   * CHOSEN PATH — the player's selected starting path (Family/Challenge/
+   * Secret), rendered uppercase. These are the original guide-measured
+   * coordinates for this slot (previously briefly consolidated into a
+   * combined Motto panel — restored to its own box here).
    */
-  motto: {
+  chosenPath: {
     left: '51.17%',
     top: '26.95%',
     width: '45.02%',
-    height: '12.70%',
+    height: '5.27%',
+  },
+  /**
+   * MOTTO — its own slot directly below CHOSEN PATH. These are the
+   * original guide-measured coordinates for the old Starting District
+   * slot, reused here since Motto occupies that exact footprint.
+   */
+  motto: {
+    left: '51.27%',
+    top: '34.51%',
+    width: '44.92%',
+    height: '5.14%',
   },
   /**
    * PLAYER LEVEL — the 5 segments are ALREADY BAKED INTO player_card.png as

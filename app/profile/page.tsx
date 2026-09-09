@@ -452,6 +452,7 @@ export default function ProfilePage() {
             <section className="cq-player-card-panel" aria-label="Player ID Card preview">
               <PlayerCard
                 displayName={displayName || 'Canton Agent'}
+                chosenPath={data.player.selectedStartingPath}
                 motto={motto}
                 avatarImage={avatarImage}
                 cropZoom={cropZoom}

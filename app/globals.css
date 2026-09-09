@@ -3583,6 +3583,7 @@ code, pre, .font-mono {
 .cq-card-photo,
 .cq-card-header-id,
 .cq-card-callsign,
+.cq-card-chosen-path,
 .cq-card-motto,
 .cq-card-level-segment,
 .cq-card-signal,
@@ -3655,7 +3656,25 @@ code, pre, .font-mono {
   font-size: clamp(0.58rem, 2.8cqi, 0.84rem);
 }
 
-/* 4. Motto (optional, replaces the old Starting Path + Starting District area) */
+/* 4a. Chosen Path (Family/Challenge/Secret) — its own slot above Motto */
+.cq-card-chosen-path {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 6%;
+  color: #fbbf24;
+  font-family: var(--font-mono, monospace);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-size: clamp(0.52rem, 2.4cqi, 0.78rem);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 4b. Motto — its own slot directly below Chosen Path (smaller box than
+   when the two fields were briefly combined, so clamp to 2 lines). */
 .cq-card-motto {
   display: -webkit-box;
   align-items: center;
@@ -3666,11 +3685,11 @@ code, pre, .font-mono {
   font-style: italic;
   font-weight: 700;
   letter-spacing: 0.02em;
-  font-size: clamp(0.5rem, 2.3cqi, 0.72rem);
-  line-height: 1.3;
+  font-size: clamp(0.46rem, 2.0cqi, 0.64rem);
+  line-height: 1.25;
   text-align: center;
   overflow: hidden;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
