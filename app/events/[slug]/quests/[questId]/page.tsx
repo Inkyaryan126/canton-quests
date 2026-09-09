@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -73,6 +73,10 @@ export default function QuestDetailPage({
   const fieldTestQuery = fieldTestRequested ? '&fieldTest=1' : '';
   const [fieldTestActive, setFieldTestActive] = useState<boolean>(false);
   const backToHubHref = fieldTestActive ? `/events/${eventSlug}?fieldTest=1` : `/events/${eventSlug}`;
+  const buildQuestHref = useCallback(
+    (targetQuestId: string) => `/events/${eventSlug}/quests/${targetQuestId}${fieldTestActive ? '?fieldTest=1' : ''}`,
+    [eventSlug, fieldTestActive]
+  );
 
   const [quest, setQuest] = useState<PublicQuestView | null>(null);
   const [event, setEvent] = useState<QuestEvent | null>(null);
@@ -208,7 +212,7 @@ export default function QuestDetailPage({
               xpAwarded: xp,
               verificationType: quest.verificationType,
               unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,
-              unlockedQuestUrl: nextInChain ? `/events/${eventSlug}/quests/${nextInChain.id}` : undefined,
+              unlockedQuestUrl: nextInChain ? buildQuestHref(nextInChain.id) : undefined,
               drawingEntriesAwarded: entries,
               isChainComplete: Boolean(quest.prerequisiteQuestId && !nextInChain),
               chainTitle: quest.title,
@@ -273,7 +277,7 @@ export default function QuestDetailPage({
               message: 'Game Master verified your submission. Rewards and progress unlocked.',
               pointsAwarded: xp,
               unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,
-              unlockedQuestUrl: nextInChain ? `/events/${eventSlug}/quests/${nextInChain.id}` : undefined,
+              unlockedQuestUrl: nextInChain ? buildQuestHref(nextInChain.id) : undefined,
             });
           }
         } else if (
@@ -314,6 +318,7 @@ export default function QuestDetailPage({
     allEventQuests,
     router,
     fieldTestQuery,
+    buildQuestHref,
   ]);
 
   // Auto-show the sector intro (once per player) or, failing that, this
@@ -444,6 +449,19 @@ export default function QuestDetailPage({
   const isAlreadyCompleted = existingSubmission?.status === 'verified' || submissionResult?.submission?.status === 'verified';
   const isAlreadyPending = existingSubmission?.status === 'pending' || submissionResult?.submission?.status === 'pending';
   const isLocked = Boolean(quest.prerequisiteQuestId && !completedIds.includes(quest.prerequisiteQuestId));
+
+  // One dominant next action after completion — never just a bare "back to
+  // hub" with no obvious next step. Prefers this quest's own chain
+  // successor (if any), otherwise the next unlocked, uncompleted quest.
+  const chainSuccessor = allEventQuests.find((q) => q.prerequisiteQuestId === quest.id && q.status === 'active');
+  const nextUnlockedIncomplete = allEventQuests.find(
+    (q) =>
+      q.id !== quest.id &&
+      q.status === 'active' &&
+      !completedIds.includes(q.id) &&
+      (!q.prerequisiteQuestId || completedIds.includes(q.prerequisiteQuestId))
+  );
+  const nextQuestAfterThis = chainSuccessor || nextUnlockedIncomplete;
 
   const currentStepIdx = Math.max(0, existingSubmission?.completedStepOrder || submissionResult?.currentStepCompleted || 0);
   const directionsUrl = getDirectionsUrl(quest);
@@ -632,7 +650,7 @@ export default function QuestDetailPage({
             xpAwarded: result.awardedPoints,
             verificationType: quest.verificationType,
             unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,
-            unlockedQuestUrl: nextInChain ? `/events/${eventSlug}/quests/${nextInChain.id}` : undefined,
+            unlockedQuestUrl: nextInChain ? buildQuestHref(nextInChain.id) : undefined,
             drawingEntriesAwarded: result.drawingEntriesAwarded !== undefined ? result.drawingEntriesAwarded : (quest.drawingEntryReward || 1),
             oldRank: result.oldRank,
             newRank: result.newRank,
@@ -677,7 +695,7 @@ export default function QuestDetailPage({
             message: result.message,
             pointsAwarded: result.awardedPoints,
             unlockedQuestTitle: nextInChain ? nextInChain.title : undefined,
-            unlockedQuestUrl: nextInChain ? `/events/${eventSlug}/quests/${nextInChain.id}` : undefined,
+            unlockedQuestUrl: nextInChain ? buildQuestHref(nextInChain.id) : undefined,
           });
 
           if (result.threeLocksFragmentAwarded && result.threeLocksOwned) {
@@ -863,11 +881,20 @@ export default function QuestDetailPage({
             <p className="text-sm sm:text-base text-gray-200 leading-relaxed mt-3 max-w-2xl">
               {quest.description}
             </p>
+            {!isLocked && !isAlreadyCompleted && (
+              <a
+                href="#submit-proof-section"
+                data-testid="jump-to-submit-cta"
+                className="btn btn-primary text-sm px-6 py-3 font-extrabold inline-flex items-center gap-2 mt-4"
+              >
+                SUBMIT YOUR PROOF ↓
+              </a>
+            )}
           </div>
 
           <div className="grid sm:grid-cols-3 gap-px bg-amber-500/20">
             <div className="bg-[#090b0c] p-4">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Go here</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Where to go</span>
               <strong className="block text-white mt-1">{quest.location?.name || 'Canton, Ohio'}</strong>
               {quest.location?.address && <p className="text-xs text-gray-400 mt-1">{quest.location.address}</p>}
               <a
@@ -880,7 +907,7 @@ export default function QuestDetailPage({
               </a>
             </div>
             <div className="bg-[#090b0c] p-4">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">Do this</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">What to do</span>
               <strong className="block text-white mt-1">{questCategoryLabels[quest.category]}</strong>
               <p className="text-xs text-gray-400 mt-1">{quest.instructions}</p>
             </div>
@@ -956,7 +983,7 @@ export default function QuestDetailPage({
 
         {/* Locked Prerequisite Warning */}
         {isLocked ? (
-          <div className="glass-panel p-6 border-slate-700 bg-slate-950/60 text-center space-y-3 mb-6">
+          <div id="submit-proof-section" className="glass-panel p-6 border-slate-700 bg-slate-950/60 text-center space-y-3 mb-6">
             <span className="text-4xl block">🔒</span>
             <h2 className="text-xl font-extrabold text-gray-300">QUEST PREREQUISITE LOCKED</h2>
             <p className="text-xs text-gray-400 font-mono">
@@ -981,9 +1008,22 @@ export default function QuestDetailPage({
               <p className="text-xs text-gray-300 font-mono">
                 Your proof has been verified and registered on the event drawing ledger.
               </p>
-              <div className="pt-2">
-                <Link href={backToHubHref} className="btn btn-primary text-sm px-6">
-                  Choose Another Quest →
+              <div className="pt-2 flex flex-col items-center gap-2">
+                {nextQuestAfterThis ? (
+                  <Link
+                    href={buildQuestHref(nextQuestAfterThis.id)}
+                    data-testid="next-quest-cta"
+                    className="btn btn-primary text-sm px-8 py-3 font-extrabold w-full sm:w-auto"
+                  >
+                    NEXT QUEST →
+                  </Link>
+                ) : null}
+                <Link
+                  href={backToHubHref}
+                  data-testid="back-to-mission-cta"
+                  className={nextQuestAfterThis ? 'text-xs font-mono text-gray-400 underline' : 'btn btn-primary text-sm px-6'}
+                >
+                  BACK TO MISSION
                 </Link>
               </div>
             </div>
@@ -997,7 +1037,7 @@ export default function QuestDetailPage({
           </div>
         ) : isAlreadyPending ? (
           /* PENDING REVIEW STATE */
-          <div className="glass-panel p-6 border-purple-500/50 bg-purple-950/20 text-center space-y-3 animate-fade-in mb-6">
+          <div id="submit-proof-section" className="glass-panel p-6 border-purple-500/50 bg-purple-950/20 text-center space-y-3 animate-fade-in mb-6">
             <span className="text-4xl block">⏳</span>
             <h2 className="text-2xl font-extrabold text-purple-300">SUBMISSION UNDER REVIEW</h2>
             <p className="text-sm text-gray-200 font-mono">
@@ -1011,7 +1051,7 @@ export default function QuestDetailPage({
           </div>
         ) : (
           /* ACTIVE SUBMISSION FORM */
-          <div className="glass-panel p-6 space-y-5 mb-6 border-cyan-500/30">
+          <div id="submit-proof-section" className="glass-panel p-6 space-y-5 mb-6 border-cyan-500/30">
             <div className="border-b border-[var(--border-subtle)] pb-3">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 Submit Proof Verification

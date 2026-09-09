@@ -57,8 +57,17 @@ interface FeedbackState {
   unlockedQuestTitle?: string;
 }
 
-type DashboardTab = 'quests' | 'map' | 'leaderboard' | 'collectibles' | 'rules';
-const VALID_TABS: DashboardTab[] = ['quests', 'map', 'leaderboard', 'collectibles', 'rules'];
+// Radical-simplification pass: the dashboard surfaced 5 competing tabs
+// (Quests/Map/Scores/Rewards/Safety) plus ~9 secondary systems above them.
+// Consolidated to 3 — ALL QUESTS / MAP / MISSION INTEL — where Intel now
+// holds everything that isn't the core "go here, do this, submit it" loop
+// (scores, collectibles, safety, city pulse, cipher panels, etc). Nothing
+// was deleted: /leaderboard?operation= and /events/[slug]/rules remain the
+// canonical standalone pages for scores/rules (the old tabs already just
+// duplicated a slice of them); 'map' stays a valid tab value because
+// /events/[slug]/map redirects to ?tab=map.
+type DashboardTab = 'quests' | 'map' | 'intel';
+const VALID_TABS: DashboardTab[] = ['quests', 'map', 'intel'];
 
 function getClientPlayer(): Player {
   const stored = window.localStorage.getItem('canton_quests_current_player');
@@ -283,9 +292,35 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     if (!entryReady || !isKnownCantonLaunchSlug(eventSlug)) return;
     if (!authenticatedPlayer || !participation) return;
     const pid = authenticatedPlayer.id;
-    if (!shouldAutoShowTransmission('cipher_cold_open', 'video-1', pid)) return;
+
+    // MISSION_BRIEFING ("here's your objective") must reach a player who
+    // hasn't seen it yet, independently of whether the Cold Open cinematic
+    // plays — a returning player (or one who already saw the Cold Open in
+    // an earlier session) must never have the briefing silently suppressed
+    // just because there's no cinematic to chain it after.
+    const showBriefingIfUnseen = () => {
+      if (!shouldAutoShowTransmission('mission_entry', 'briefing-text', pid)) return;
+      markTransmissionViewed('mission_entry', 'briefing-text', pid);
+      showFounderCipherMessage({
+        messageId: 'MISSION_BRIEFING',
+        path: authenticatedPlayer.selectedStartingPath,
+        playerId: pid,
+      });
+    };
+
+    if (!shouldAutoShowTransmission('cipher_cold_open', 'video-1', pid)) {
+      // Cold Open already viewed (or not applicable this session) — nothing
+      // to chain the briefing after, so show it directly.
+      showBriefingIfUnseen();
+      return;
+    }
     const entry = getCommanderTransmissionForTrigger({ trigger: 'cipher_cold_open' });
-    if (!entry) return;
+    if (!entry) {
+      // No Cold Open content configured — same as "already viewed": show
+      // the briefing directly rather than dropping it.
+      showBriefingIfUnseen();
+      return;
+    }
     markTransmissionViewed('cipher_cold_open', 'video-1', pid);
     showGameMoment({
       type: 'commander-transmission',
@@ -293,19 +328,8 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
       transmission: toGameplayTransmission(entry),
       // Once the Cold Open cinematic actually finishes (deliberate
       // dismissal only — see GameMomentOverlay's backdrop-dismiss guard
-      // for commander-transmission), follow it with the Founder's Cipher
-      // MISSION_BRIEFING text transmission — the "here's your objective"
-      // beat the mission previously jumped straight past.
-      onFinished: () => {
-        if (shouldAutoShowTransmission('mission_entry', 'briefing-text', pid)) {
-          markTransmissionViewed('mission_entry', 'briefing-text', pid);
-          showFounderCipherMessage({
-            messageId: 'MISSION_BRIEFING',
-            path: authenticatedPlayer.selectedStartingPath,
-            playerId: pid,
-          });
-        }
-      },
+      // for commander-transmission), follow it with the briefing.
+      onFinished: showBriefingIfUnseen,
     });
   }, [entryReady, eventSlug, authenticatedPlayer, participation]);
 
@@ -808,6 +832,12 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     uncompletedActive.sort((a, b) => b.pointValue - a.pointValue)[0] ||
     quests[0];
 
+  // Server-verified only (fieldTestActive) — never the raw ?fieldTest=1
+  // request param — matches the same rule QuestCard follows.
+  const buildQuestHref = (questId: string) =>
+    `/events/${eventSlug}/quests/${questId}${fieldTestActive ? '?fieldTest=1' : ''}`;
+  const hasStartedMission = (progress?.completedCount || 0) > 0;
+
   let filteredQuests = quests.filter((q) => {
     if (selectedCategory === 'all') return true;
     if (selectedCategory === 'available') return !progress?.completedQuestIds.includes(q.id);
@@ -834,87 +864,72 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
 
   const dashboardCore = (
     <>
-      {/* Quest Hero */}
-      <section className="overflow-hidden border border-amber-500/30 bg-[#050607] shadow-2xl shadow-black/40 mb-6">
-        <div className="grid gap-px bg-amber-500/25 md:grid-cols-[minmax(0,1fr)_minmax(280px,0.78fr)]">
-          <div className="bg-[#050607] p-5 md:p-8 flex flex-col justify-center min-h-[360px]">
-            <span className="inline-flex mb-3 text-[11px] font-mono uppercase tracking-[0.22em] text-amber-300 font-extrabold">
-              Current Canton Quest
+      {/* MISSION BRIEFING + PRIMARY ACTION — ONE SCREEN = ONE OBVIOUS JOB.
+          This is the entire "what do I do" surface. Everything else the
+          hub used to show above the fold (hero video, 3-step explainer,
+          city pulse, live status, secret codes, cipher panels, XP stat
+          grid, player identity, etc.) now lives behind MISSION INTEL —
+          moved, not deleted. Critical instructions live here, on the page
+          itself, not inside a transmission overlay that can be dismissed
+          or skipped. */}
+      <section
+        data-testid="mission-start-panel"
+        className="border-2 border-amber-500/60 bg-amber-500/10 rounded-2xl p-5 sm:p-6 mb-4"
+      >
+        <span className="text-[11px] font-mono uppercase tracking-widest text-amber-400 font-extrabold">
+          {isCipher ? "The Founder's Cipher" : event.title}
+        </span>
+
+        <div className="flex flex-wrap items-center gap-2 mt-1">
+          <p className="text-sm text-gray-300 font-mono">
+            {progress?.completedCount || 0} of {quests.length} quests complete
+          </p>
+          {playerChosenPath && (
+            <span className="text-[10px] font-mono uppercase tracking-widest text-amber-300 border border-amber-500/40 rounded-full px-2 py-0.5">
+              PATH: {playerChosenPath}
             </span>
-            <h1 className="text-4xl sm:text-6xl font-extrabold text-white leading-[0.9] max-w-xl">
-              {event.title.replace('Canton Quests: Volume 1 - ', '')}
-            </h1>
-            <p className="text-base text-gray-200 leading-relaxed mt-4 max-w-xl">
-              A real-world adventure across Canton. Choose a quest, visit the location, submit proof, and earn XP.
-            </p>
-
-            <div className="grid gap-2 sm:grid-cols-3 mt-6">
-              {[
-                ['1', 'Create your callsign'],
-                ['2', 'Choose a quest'],
-                ['3', 'Submit proof'],
-              ].map(([step, label]) => (
-                <div key={step} className="bg-black/55 border border-amber-500/25 p-3">
-                  <span className="text-amber-300 font-display font-extrabold text-xl">{step}</span>
-                  <strong className="block text-white text-sm mt-1">{label}</strong>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-3 mt-6">
-              <a href="#quest-board" className="btn btn-primary text-sm px-5 py-3 font-bold">
-                Choose a Quest
-              </a>
-              <button onClick={requestLocation} className="btn btn-secondary text-sm px-5 py-3 font-bold">
-                Enable GPS
-              </button>
-            </div>
-
-            {isCipher && (
-              <div className="flex flex-wrap gap-4 mt-6">
-                <WatchTransmissionButton trigger="cipher_welcome" playerId={authenticatedPlayer?.id} label="Welcome to Canton Quests" size="medium" />
-                <WatchTransmissionButton trigger="cipher_city_intro" playerId={authenticatedPlayer?.id} label="Your City Is the Board" size="medium" />
-              </div>
-            )}
-          </div>
-
-          <aside className="grid bg-[#050607]">
-            <figure className="bg-black aspect-[16/10] md:aspect-auto md:min-h-[360px] overflow-hidden">
-              <Image
-                src={cqImages.heroCity}
-                alt="Players overlooking downtown Canton at sunset"
-                priority
-                sizes="(max-width: 768px) 100vw, 380px"
-                className="h-full w-full object-cover"
-              />
-            </figure>
-            <div className="bg-black/80 border-t border-amber-500/30 p-5">
-              <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-amber-300 font-extrabold">
-                {countdownValue.label}
-              </span>
-              <strong className="block text-4xl font-display font-extrabold text-white mt-2">
-                {countdownValue.value}
-              </strong>
-              <p className="text-xs text-gray-300 font-mono mt-2">{countdownValue.subtext}</p>
-              <div className="h-px bg-amber-500/30 my-4" />
-              <span className="block text-[10px] font-mono uppercase tracking-widest text-gray-400">
-                Quest Dates
-              </span>
-              <p className="text-sm text-amber-200 font-bold mt-1">{formatEventWindow(event)}</p>
-            </div>
-          </aside>
+          )}
         </div>
+
+        {!hasStartedMission && isCipher && (
+          <p className="text-sm text-gray-200 leading-relaxed mt-3 max-w-2xl">
+            Canton is hiding pieces of a message. Go to real locations. Find what each quest asks for. Submit what you discover.
+          </p>
+        )}
+
+        {recommendedQuest && (
+          <div className="mt-4 p-4 bg-black/30 border border-amber-500/30 rounded-xl">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-amber-300 font-bold">
+              Next Assignment
+            </span>
+            <h3 className="text-lg font-extrabold text-white mt-1">{cleanQuestTitle(recommendedQuest.title)}</h3>
+            {recommendedQuest.location?.name && (
+              <p className="text-xs text-amber-200 mt-1">{recommendedQuest.location.name}</p>
+            )}
+            <p className="text-xs text-gray-300 mt-1 line-clamp-2">
+              {recommendedQuest.instructions || recommendedQuest.description}
+            </p>
+          </div>
+        )}
+
+        {currentPlayer && recommendedQuest && (
+          <div className="mt-4">
+            <Link
+              href={buildQuestHref(recommendedQuest.id)}
+              data-testid={hasStartedMission ? 'continue-quest-cta' : 'start-first-quest-cta'}
+              className="btn btn-primary text-sm sm:text-base py-3 px-8 font-extrabold shadow-lg shadow-amber-900/30 w-full sm:w-auto text-center block sm:inline-block"
+            >
+              {hasStartedMission ? 'CONTINUE MISSION →' : 'START FIRST QUEST →'}
+            </Link>
+          </div>
+        )}
       </section>
 
-      {/* Community Progress / City State pulse — safe aggregate-only summary */}
-      <CityPulseStrip eventSlug={eventSlug} />
-
-      {/* Live City Events HUD — Flash Drops, City/Sector Events, Community Milestones, XP boosts, alerts */}
-      <LiveCityStatusPanel eventSlug={eventSlug} questBaseHref={`/events/${eventSlug}/quests`} />
-
-      {/* Live Pop-Up Quest Alert Banner */}
+      {/* Live Pop-Up Quest Alert Banner — the one secondary system left in
+          the primary flow: it's time-boxed, actionable gameplay (not lore),
+          so it stays visible rather than waiting behind MISSION INTEL. */}
       {activeFlashQuests.length > 0 && (
-        <div className="p-4 bg-red-950/40 border-2 border-red-500/60 rounded-2xl mb-6 shadow-xl flex flex-wrap items-center justify-between gap-3 animate-pulse">
+        <div className="p-4 bg-red-950/40 border-2 border-red-500/60 rounded-2xl mb-4 shadow-xl flex flex-wrap items-center justify-between gap-3 animate-pulse">
           <div className="flex items-center gap-3">
             <span className="text-3xl">⚡</span>
             <div>
@@ -927,7 +942,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
             </div>
           </div>
           <Link
-            href={`/events/${event.slug}/quests/${activeFlashQuests[0].id}`}
+            href={buildQuestHref(activeFlashQuests[0].id)}
             className="btn btn-primary text-xs py-2 px-4 font-bold"
           >
             Go to Quest →
@@ -935,151 +950,9 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
         </div>
       )}
 
-      {/* Live Clue Card */}
-      {activeNpc && activeNpc.isActive && (
-        <div className="p-4 bg-emerald-950/30 border border-emerald-500/40 rounded-2xl mb-6 text-xs font-mono space-y-1 shadow">
-          <div className="flex items-center justify-between text-emerald-300 font-bold">
-            <span className="flex items-center gap-1.5">
-              {activeNpc.avatarSymbol} Live clue nearby: {activeNpc.aliasName}
-            </span>
-            <span className="text-[10px] text-gray-400 uppercase">Optional hint</span>
-          </div>
-          <div className="text-gray-300">
-            Area: <span className="text-white font-bold">{activeNpc.currentZone}</span>
-          </div>
-          <div className="text-emerald-400 text-[11px]">Clue: &quot;{activeNpc.clueHint}&quot;</div>
-        </div>
-      )}
-
-      {/* Secret Code Bar */}
-      <div className="p-4 bg-cyan-950/30 border border-cyan-500/40 rounded-2xl mb-6 space-y-3 font-mono">
-        <div className="flex items-center justify-between">
-          <span className="text-white font-bold text-xs flex items-center gap-1.5">
-            Have a secret code?
-          </span>
-          <span className="text-[10px] text-cyan-400">Enter it here for bonus XP</span>
-        </div>
-
-        <form onSubmit={handleRedeemPasscode} className="flex gap-2">
-          <input
-            type="text"
-            value={passcodeInput}
-            onChange={(e) => setPasscodeInput(e.target.value.toUpperCase())}
-            placeholder="Enter your event passcode"
-            className="input-field text-xs uppercase tracking-wider font-bold flex-1"
-          />
-          <button type="submit" className="btn btn-cyan text-xs py-2 px-4 whitespace-nowrap font-bold">
-            REDEEM
-          </button>
-        </form>
-
-        {passcodeResult && (
-          <div
-            className={`p-2.5 rounded-xl text-xs font-bold ${
-              passcodeResult.success
-                ? 'bg-emerald-950/60 border border-emerald-500 text-emerald-300'
-                : 'bg-amber-950/60 border border-amber-500 text-amber-300'
-            }`}
-          >
-            {passcodeResult.message}
-          </div>
-        )}
-      </div>
-
-      {/* Player Identity Bar */}
-      <PlayerIdentityBar onPlayerChanged={() => refreshData()} />
-
-      {isCipher && (
-        <CipherFragmentsPanel
-          progress={cipherProgress}
-          eventSlug={eventSlug}
-          onDecodeSuccess={() => refreshData()}
-        />
-      )}
-      {isCipher && <MasterCipherStatusCard eventSlug={eventSlug} status={finaleStatus} />}
-
-      {/* Start Here Panel */}
-      {currentPlayer && recommendedQuest && (
-        <section className="grid gap-3 md:grid-cols-[1fr_auto] items-stretch mb-6">
-          <div className="glass-panel p-4 border-amber-500/40 bg-amber-950/10">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">
-              You are playing as
-            </span>
-            <div className="flex flex-wrap items-end justify-between gap-3 mt-1">
-              <div>
-                <h2 className="text-2xl font-extrabold text-white">{currentPlayer.displayName}</h2>
-                <p className="text-xs text-gray-300 font-mono">
-                  {progress?.totalPoints || 0} XP · {progress?.completedCount || 0} quests completed
-                </p>
-              </div>
-              <a href="#quest-board" className="btn btn-secondary text-xs px-4 py-2 font-bold">
-                Browse All Quests
-              </a>
-            </div>
-          </div>
-
-          <Link
-            href={`/events/${event.slug}/quests/${recommendedQuest.id}`}
-            className="glass-panel p-4 border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/15 transition-colors min-w-full md:min-w-[280px]"
-          >
-            <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-bold">
-              Recommended next quest
-            </span>
-            <h3 className="text-lg font-extrabold text-white mt-1">{cleanQuestTitle(recommendedQuest.title)}</h3>
-            <p className="text-xs text-gray-300 mt-1 line-clamp-2">{recommendedQuest.description}</p>
-            <div className="mt-3 btn btn-primary text-xs py-2 px-4 w-full font-bold">
-              Start This Quest →
-            </div>
-          </Link>
-        </section>
-      )}
-
-      {/* Player Progress Stat Bar */}
-      {progress && currentPlayer && (
-        <div className={`grid grid-cols-2 gap-3 mb-6 ${isCipher ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
-          <div className="glass-card p-3 text-center border-amber-500/30">
-            <span className="text-[10px] font-mono text-gray-400 uppercase block">Your XP Score</span>
-            <span className="font-display font-extrabold text-2xl text-amber-400">
-              {progress.totalPoints} <span className="text-xs text-amber-500">XP</span>
-            </span>
-          </div>
-
-          <div className="glass-card p-3 text-center">
-            <span className="text-[10px] font-mono text-gray-400 uppercase block">Quests Solved</span>
-            <span className="font-display font-extrabold text-2xl text-emerald-400">
-              {progress.completedCount} / {progress.availableCount}
-            </span>
-          </div>
-
-          <div className="glass-card p-3 text-center">
-            <span className="text-[10px] font-mono text-gray-400 uppercase block">Agent Rank</span>
-            <span className="font-display font-extrabold text-2xl text-cyan-400">
-              #{progress.rank}
-            </span>
-          </div>
-
-          {/* isQualifiedForFinale is a legacy completedQuestIds.length > 0 stat,
-              not real Founder's Cipher Master Cipher eligibility (that's the
-              accurate MasterCipherStatusCard rendered above). Showing it for
-              Cipher events falsely reads "QUALIFIED" after a single quest. */}
-          {!isCipher && (
-            <div className="glass-card p-3 text-center">
-              <span className="text-[10px] font-mono text-gray-400 uppercase block">Finale Status</span>
-              <span className="font-display font-extrabold text-xs text-purple-300 block truncate pt-1 uppercase">
-                {progress.isQualifiedForFinale ? '🏆 QUALIFIED' : 'PENDING'}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {isCipher && progress && currentPlayer && (
-        <div className="mb-6">
-          <WatchTransmissionButton trigger="cipher_first_xp" playerId={authenticatedPlayer?.id} label="How XP Works" size="small" />
-        </div>
-      )}
-
-      {/* Main Quest Navigation Tabs */}
+      {/* Secondary navigation — 3 items, not 5. Everything that isn't the
+          core "find a quest / go to the map / everything else" loop lives
+          behind MISSION INTEL now. */}
       <div className="flex border-b border-[var(--border-subtle)] mb-6 font-display font-bold text-xs sm:text-sm overflow-x-auto scrollbar-none">
         <button
           onClick={() => setActiveTab('quests')}
@@ -1089,7 +962,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
-          Quests ({quests.length})
+          All Quests ({quests.length})
         </button>
         <button
           onClick={() => setActiveTab('map')}
@@ -1102,34 +975,14 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
           Map
         </button>
         <button
-          onClick={() => setActiveTab('leaderboard')}
+          onClick={() => setActiveTab('intel')}
           className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
-            activeTab === 'leaderboard'
+            activeTab === 'intel'
               ? 'border-amber-400 text-amber-400'
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
-          Scores
-        </button>
-        <button
-          onClick={() => setActiveTab('collectibles')}
-          className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
-            activeTab === 'collectibles'
-              ? 'border-amber-400 text-amber-400'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          Rewards ({collectibles.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('rules')}
-          className={`flex-1 min-w-[90px] py-3 text-center border-b-2 transition-all ${
-            activeTab === 'rules'
-              ? 'border-amber-400 text-amber-400'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
-          }`}
-        >
-          Safety
+          Mission Intel
         </button>
       </div>
 
@@ -1235,68 +1088,166 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
         </section>
       )}
 
-      {/* TAB 3: LEADERBOARD */}
-      {activeTab === 'leaderboard' && currentPlayer && (
-        <section className="animate-fade-in">
-          <Leaderboard
-            entries={leaderboard}
-            currentPlayerId={currentPlayer.id}
-          />
-        </section>
-      )}
-
-      {/* TAB 5: PLAYER COLLECTIBLES */}
-      {activeTab === 'collectibles' && (
-        <section className="glass-panel p-6 space-y-4 font-mono animate-fade-in">
-          <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              🏅 Agent Digital Collectibles Vault ({collectibles.length})
-            </h2>
-            <span className="text-xs text-amber-400">Phase 3 Cipher Collection</span>
-          </div>
-
-          {collectibles.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-xs">
-              No collectibles discovered yet. Complete quest chains or redeem secret passcode drops.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {collectibles.map((pc) => (
-                <div
-                  key={pc.id}
-                  className="p-3 bg-obsidian border border-amber-500/30 rounded-xl flex items-center gap-3"
-                >
-                  <span className="text-3xl">{pc.collectible?.badgeSymbol || '🏅'}</span>
-                  <div>
-                    <span className="text-white font-bold text-xs block">{pc.collectible?.name}</span>
-                    <span className="text-gray-400 text-[11px] block">{pc.collectible?.description}</span>
-                    <span className="text-amber-400 text-[10px] uppercase block pt-0.5">
-                      Source: {pc.source}
-                    </span>
-                  </div>
-                </div>
-              ))}
+      {/* TAB 3: MISSION INTEL — everything moved out of the primary flow,
+          consolidated behind one secondary tab instead of 4. Nothing here
+          was deleted; it's all still one tap away. */}
+      {activeTab === 'intel' && (
+        <section data-testid="mission-intel-tab" className="space-y-6 animate-fade-in">
+          {isCipher && (
+            <div className="flex flex-wrap gap-4">
+              <WatchTransmissionButton trigger="cipher_welcome" playerId={authenticatedPlayer?.id} label="Welcome to Canton Quests" size="medium" />
+              <WatchTransmissionButton trigger="cipher_city_intro" playerId={authenticatedPlayer?.id} label="Your City Is the Board" size="medium" />
             </div>
           )}
-        </section>
-      )}
 
-      {/* TAB 6: SAFETY & RULES */}
-      {activeTab === 'rules' && (
-        <section className="glass-panel p-6 space-y-4 animate-fade-in">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            🛡️ Canton Quests Real-World Field Guidelines
-          </h2>
-          <div className="space-y-3 text-sm text-gray-300 leading-relaxed">
-            <div className="p-3 bg-red-950/30 border border-red-800/40 rounded-xl text-red-300 font-mono text-xs">
-              ⚠️ SAFETY FIRST DIRECTIVE: No quest or XP value is worth injury or property damage. Stay on public sidewalks and observe traffic signals.
+          <CityPulseStrip eventSlug={eventSlug} />
+          <LiveCityStatusPanel eventSlug={eventSlug} questBaseHref={`/events/${eventSlug}/quests`} />
+
+          {activeNpc && activeNpc.isActive && (
+            <div className="p-4 bg-emerald-950/30 border border-emerald-500/40 rounded-2xl text-xs font-mono space-y-1 shadow">
+              <div className="flex items-center justify-between text-emerald-300 font-bold">
+                <span className="flex items-center gap-1.5">
+                  {activeNpc.avatarSymbol} Live clue nearby: {activeNpc.aliasName}
+                </span>
+                <span className="text-[10px] text-gray-400 uppercase">Optional hint</span>
+              </div>
+              <div className="text-gray-300">
+                Area: <span className="text-white font-bold">{activeNpc.currentZone}</span>
+              </div>
+              <div className="text-emerald-400 text-[11px]">Clue: &quot;{activeNpc.clueHint}&quot;</div>
             </div>
-            <ul className="list-disc pl-5 space-y-2 text-xs font-mono text-gray-300">
-              <li><strong className="text-white">Public Access Hours:</strong> Observe park opening hours (Dawn to Dusk) and business hours. Never trespass on private property.</li>
-              <li><strong className="text-white">Crosswalk Safety:</strong> Cross Canton streets strictly at marked crosswalks. Pay attention to vehicles.</li>
-              <li><strong className="text-white">Local Merchant Courtesy:</strong> Show respect to Canton coffee shops, arcades, and historical landmarks.</li>
-              <li><strong className="text-white">Zero Tampering:</strong> Do not climb monuments, tamper with plaques, or alter city property.</li>
-            </ul>
+          )}
+
+          <div className="p-4 bg-cyan-950/30 border border-cyan-500/40 rounded-2xl space-y-3 font-mono">
+            <div className="flex items-center justify-between">
+              <span className="text-white font-bold text-xs flex items-center gap-1.5">Have a secret code?</span>
+              <span className="text-[10px] text-cyan-400">Enter it here for bonus XP</span>
+            </div>
+            <form onSubmit={handleRedeemPasscode} className="flex gap-2">
+              <input
+                type="text"
+                value={passcodeInput}
+                onChange={(e) => setPasscodeInput(e.target.value.toUpperCase())}
+                placeholder="Enter your event passcode"
+                className="input-field text-xs uppercase tracking-wider font-bold flex-1"
+              />
+              <button type="submit" className="btn btn-cyan text-xs py-2 px-4 whitespace-nowrap font-bold">
+                REDEEM
+              </button>
+            </form>
+            {passcodeResult && (
+              <div
+                className={`p-2.5 rounded-xl text-xs font-bold ${
+                  passcodeResult.success
+                    ? 'bg-emerald-950/60 border border-emerald-500 text-emerald-300'
+                    : 'bg-amber-950/60 border border-amber-500 text-amber-300'
+                }`}
+              >
+                {passcodeResult.message}
+              </div>
+            )}
+          </div>
+
+          <PlayerIdentityBar onPlayerChanged={() => refreshData()} />
+
+          {isCipher && (
+            <CipherFragmentsPanel progress={cipherProgress} eventSlug={eventSlug} onDecodeSuccess={() => refreshData()} />
+          )}
+          {isCipher && <MasterCipherStatusCard eventSlug={eventSlug} status={finaleStatus} />}
+
+          {progress && currentPlayer && (
+            <div>
+              <div className={`grid grid-cols-2 gap-3 ${isCipher ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
+                <div className="glass-card p-3 text-center border-amber-500/30">
+                  <span className="text-[10px] font-mono text-gray-400 uppercase block">Your XP Score</span>
+                  <span className="font-display font-extrabold text-2xl text-amber-400">
+                    {progress.totalPoints} <span className="text-xs text-amber-500">XP</span>
+                  </span>
+                </div>
+                <div className="glass-card p-3 text-center">
+                  <span className="text-[10px] font-mono text-gray-400 uppercase block">Quests Solved</span>
+                  <span className="font-display font-extrabold text-2xl text-emerald-400">
+                    {progress.completedCount} / {progress.availableCount}
+                  </span>
+                </div>
+                <div className="glass-card p-3 text-center">
+                  <span className="text-[10px] font-mono text-gray-400 uppercase block">Agent Rank</span>
+                  <span className="font-display font-extrabold text-2xl text-cyan-400">#{progress.rank}</span>
+                </div>
+                {/* isQualifiedForFinale is a legacy completedQuestIds.length > 0
+                    stat, not real Founder's Cipher Master Cipher eligibility
+                    (that's the accurate MasterCipherStatusCard above).
+                    Showing it for Cipher events falsely reads "QUALIFIED"
+                    after a single quest. */}
+                {!isCipher && (
+                  <div className="glass-card p-3 text-center">
+                    <span className="text-[10px] font-mono text-gray-400 uppercase block">Finale Status</span>
+                    <span className="font-display font-extrabold text-xs text-purple-300 block truncate pt-1 uppercase">
+                      {progress.isQualifiedForFinale ? '🏆 QUALIFIED' : 'PENDING'}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {isCipher && (
+                <div className="mt-3">
+                  <WatchTransmissionButton trigger="cipher_first_xp" playerId={authenticatedPlayer?.id} label="How XP Works" size="small" />
+                </div>
+              )}
+            </div>
+          )}
+
+          {currentPlayer && (
+            <div>
+              <h2 className="text-base font-bold text-white mb-3">Leaderboard</h2>
+              <Leaderboard entries={leaderboard} currentPlayerId={currentPlayer.id} />
+            </div>
+          )}
+
+          <div className="glass-panel p-6 space-y-4 font-mono">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                🏅 Agent Digital Collectibles Vault ({collectibles.length})
+              </h2>
+              <span className="text-xs text-amber-400">Phase 3 Cipher Collection</span>
+            </div>
+            {collectibles.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 text-xs">
+                No collectibles discovered yet. Complete quest chains or redeem secret passcode drops.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {collectibles.map((pc) => (
+                  <div key={pc.id} className="p-3 bg-obsidian border border-amber-500/30 rounded-xl flex items-center gap-3">
+                    <span className="text-3xl">{pc.collectible?.badgeSymbol || '🏅'}</span>
+                    <div>
+                      <span className="text-white font-bold text-xs block">{pc.collectible?.name}</span>
+                      <span className="text-gray-400 text-[11px] block">{pc.collectible?.description}</span>
+                      <span className="text-amber-400 text-[10px] uppercase block pt-0.5">Source: {pc.source}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="glass-panel p-6 space-y-4">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              🛡️ Canton Quests Real-World Field Guidelines
+            </h2>
+            <div className="space-y-3 text-sm text-gray-300 leading-relaxed">
+              <div className="p-3 bg-red-950/30 border border-red-800/40 rounded-xl text-red-300 font-mono text-xs">
+                ⚠️ SAFETY FIRST DIRECTIVE: No quest or XP value is worth injury or property damage. Stay on public sidewalks and observe traffic signals.
+              </div>
+              <ul className="list-disc pl-5 space-y-2 text-xs font-mono text-gray-300">
+                <li><strong className="text-white">Public Access Hours:</strong> Observe park opening hours (Dawn to Dusk) and business hours. Never trespass on private property.</li>
+                <li><strong className="text-white">Crosswalk Safety:</strong> Cross Canton streets strictly at marked crosswalks. Pay attention to vehicles.</li>
+                <li><strong className="text-white">Local Merchant Courtesy:</strong> Show respect to Canton coffee shops, arcades, and historical landmarks.</li>
+                <li><strong className="text-white">Zero Tampering:</strong> Do not climb monuments, tamper with plaques, or alter city property.</li>
+              </ul>
+              <Link href="/rules" className="text-amber-400 underline text-xs font-mono">
+                Read the full Official Rules →
+              </Link>
+            </div>
           </div>
         </section>
       )}
@@ -1305,9 +1256,9 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
 
   const mobileStartBar = recommendedQuest && (
     <MobileStartBar
-      href={`/events/${event.slug}/quests/${recommendedQuest.id}`}
-      label="Start Quest"
-      eyebrow="Recommended next"
+      href={buildQuestHref(recommendedQuest.id)}
+      label={hasStartedMission ? 'Continue Quest' : 'Start Quest'}
+      eyebrow={hasStartedMission ? 'Continue mission' : 'Recommended next'}
     />
   );
 
@@ -1325,15 +1276,22 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   ) : null;
 
   if (isCipher) {
+    // Radical simplification: the active-play hub no longer wraps
+    // dashboardCore in FounderCipherShell — that component is a full
+    // marketing/landing shell (hero video, commander briefing, a duplicate
+    // "Live Mission Control" nav grid, the giant three-doors graphic, a
+    // four-steps explainer, a locations showcase, and a full prize
+    // presentation — ~500 lines) appropriate for a first visit or a
+    // pre-launch preview, not for someone already mid-mission. It's still
+    // used, unchanged, for the pre-entry Gate 1 marketing screen above.
+    // Here, the mission briefing panel inside dashboardCore is the entire
+    // "what do I do" surface; nothing else stands between the player and
+    // it.
     return (
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
         {fieldTestBanner}
         <Header eventSlug={eventSlug} />
-        <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12">
-          <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={authenticatedPlayer?.selectedStartingPath}>
-            <div className="max-w-4xl mx-auto">{dashboardCore}</div>
-          </FounderCipherShell>
-        </main>
+        <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6 sm:py-8">{dashboardCore}</main>
         <CinematicFooter />
         <GameFeedbackModal feedback={feedback} onClose={() => setFeedback(null)} />
         {mobileStartBar}

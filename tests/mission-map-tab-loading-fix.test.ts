@@ -38,8 +38,8 @@ function readSource(relativePath: string): string {
 const PAGE_SOURCE = readSource('app/events/[slug]/page.tsx');
 
 describe('Mission MAP tab — no longer permanently gated behind a stale client-side pre-launch override', () => {
-  it('map is a valid tab, alongside the other 4 dashboard tabs', () => {
-    expect(PAGE_SOURCE).toMatch(/const VALID_TABS: DashboardTab\[\] = \['quests', 'map', 'leaderboard', 'collectibles', 'rules'\];/);
+  it('map is a valid tab, alongside the other 2 secondary-nav tabs (radical-simplification pass consolidated Scores/Rewards/Safety into Mission Intel)', () => {
+    expect(PAGE_SOURCE).toMatch(/const VALID_TABS: DashboardTab\[\] = \['quests', 'map', 'intel'\];/);
   });
 
   it('the successful-fetch branch trusts the server-computed data.isPreLaunch alone — no redundant slug-based override', () => {
@@ -142,7 +142,7 @@ describe('Mission MAP tab — reuses the existing map system, no duplicate imple
   it('the MAP tab still renders the existing CantonMapWrapper, unchanged', () => {
     const mapTabBlock = PAGE_SOURCE.slice(
       PAGE_SOURCE.indexOf("{/* TAB 2: CANTON MAP */}"),
-      PAGE_SOURCE.indexOf("{/* TAB 3: LEADERBOARD */}")
+      PAGE_SOURCE.indexOf("{/* TAB 3: MISSION INTEL")
     );
     expect(mapTabBlock).toContain("activeTab === 'map'");
     expect(mapTabBlock).toContain('<CantonMapWrapper');
