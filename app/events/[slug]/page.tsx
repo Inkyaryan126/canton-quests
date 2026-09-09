@@ -67,7 +67,7 @@ interface FeedbackState {
 // duplicated a slice of them); 'map' stays a valid tab value because
 // /events/[slug]/map redirects to ?tab=map.
 type DashboardTab = 'quests' | 'map' | 'intel';
-const VALID_TABS: DashboardTab[] = ['quests', 'map', 'intel'];
+const VALID_TABS: DashboardTab[] = ['quests', 'map'];
 
 function getClientPlayer(): Player {
   const stored = window.localStorage.getItem('canton_quests_current_player');
@@ -830,10 +830,12 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     (q) => q.status === 'active' && !progress?.completedQuestIds.includes(q.id)
   );
 
+  // Mission Home follows authored quest order. Never choose a quest merely
+  // because it awards more XP.
   const recommendedQuest =
     activeFlashQuests[0] ||
-    pathQuests.sort((a, b) => b.pointValue - a.pointValue)[0] ||
-    uncompletedActive.sort((a, b) => b.pointValue - a.pointValue)[0] ||
+    pathQuests[0] ||
+    uncompletedActive[0] ||
     quests[0];
 
   // Server-verified only (fieldTestActive) — never the raw ?fieldTest=1
@@ -969,7 +971,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
               : 'text-stone-200 hover:text-white hover:bg-stone-800'
           }`}
         >
-          All Quests ({quests.length})
+          All Quests
         </button>
         <button
           onClick={() => setActiveTab('map')}
@@ -980,16 +982,6 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
           }`}
         >
           Map
-        </button>
-        <button
-          onClick={() => setActiveTab('intel')}
-          className={`flex-1 min-w-[90px] py-3 text-center rounded-2xl transition-all ${
-            activeTab === 'intel'
-              ? 'bg-amber-500 text-stone-950 font-black shadow'
-              : 'text-stone-200 hover:text-white hover:bg-stone-800'
-          }`}
-        >
-          Mission Intel
         </button>
       </div>
 

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Compass, Gift, KeyRound, LogOut, Map, Radio, Trophy, UserCircle2 } from 'lucide-react';
+import { Compass, LogOut, Map, UserCircle2 } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
 import { Player } from '@/lib/types';
@@ -181,31 +181,10 @@ export default function Header({ eventSlug }: HeaderProps) {
             <Compass size={13} aria-hidden="true" />
             Mission Home
           </Link>
-          <Link href={`/events/${eventSlug}/quests`}>Mission Board</Link>
           <Link href={`/events/${eventSlug}/map`}>
             <Map size={13} aria-hidden="true" />
             Map
           </Link>
-          <Link href={`/events/${eventSlug}/leaderboard`}>
-            <Trophy size={13} aria-hidden="true" />
-            Leaderboard
-          </Link>
-          <Link href={`/events/${eventSlug}/drawing`}>
-            <Gift size={13} aria-hidden="true" />
-            Drawing
-          </Link>
-          {isKnownCantonLaunchSlug(eventSlug) && (
-            <Link href={`/events/${eventSlug}/transmissions`}>
-              <Radio size={13} aria-hidden="true" />
-              Transmissions
-            </Link>
-          )}
-          {isKnownCantonLaunchSlug(eventSlug) && (
-            <Link href={`/events/${eventSlug}/finale`}>
-              <KeyRound size={13} aria-hidden="true" />
-              Master Cipher
-            </Link>
-          )}
           {/* PLAYER FILE is a permanent platform nav item, not Mission-scoped
               — shown here regardless of auth state (a logged-out click
               routes through the existing register flow). */}
