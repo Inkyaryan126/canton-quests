@@ -11,6 +11,8 @@ import { useReducedMotion } from '@/lib/motion';
 export interface FrankensteinPayoffCardProps {
   className?: string;
   showInterrupt?: boolean;
+  /** False for the district-unlocked story; never imply a verified cemetery visit. */
+  verifiedQuest?: boolean;
 }
 
 /**
@@ -25,6 +27,7 @@ export interface FrankensteinPayoffCardProps {
 export default function FrankensteinPayoffCard({
   className = '',
   showInterrupt = true,
+  verifiedQuest = true,
 }: FrankensteinPayoffCardProps) {
   const reducedMotion = useReducedMotion();
   const [interrupted, setInterrupted] = useState(showInterrupt);
@@ -47,7 +50,7 @@ export default function FrankensteinPayoffCard({
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <span className="text-[10px] font-mono text-purple-300 font-bold tracking-wider uppercase block">
-                OBJECTIVE COMPLETE // CHAPTER 1 PAYOFF
+                {verifiedQuest ? 'OBJECTIVE COMPLETE // CHAPTER 1 PAYOFF' : 'DISTRICT COMPLETE // STORY ACCESS'}
               </span>
               <h3 className="text-lg sm:text-xl font-bold text-white mt-0.5">
                 Frankenstein&apos;s Quiet Signal
@@ -55,8 +58,8 @@ export default function FrankensteinPayoffCard({
             </div>
             <HudSystemState
               state="confirmed"
-              label="PHOTO PROOF VERIFIED"
-              detail="200 XP · 1 PRIZE ENTRY"
+              label={verifiedQuest ? 'PHOTO PROOF VERIFIED' : 'CEMETERY STORY UNLOCKED'}
+              detail={verifiedQuest ? '200 XP · 1 PRIZE ENTRY' : 'FULL CIPHER PROGRESSION REMAINS SEPARATE'}
               size="sm"
               reducedMotion={reducedMotion}
             />
@@ -67,7 +70,7 @@ export default function FrankensteinPayoffCard({
               COMMANDER PROTOCOL // WEST LAWN ARCHIVE
             </span>
             <p className="text-xs text-stone-300 italic leading-relaxed">
-              &ldquo;Record confirmed from a respectful distance. Hold... that&apos;s not right. I&apos;m seeing another signature attached to the file.&rdquo;
+              {verifiedQuest ? '“Record confirmed from a respectful distance. Hold... that’s not right. I’m seeing another signature attached to the file.”' : '“Your district record opened the West Lawn archive. A family name waits there: Frankenstein. Hold... another signature is attached to the file.”'}
             </p>
           </div>
 
@@ -82,7 +85,7 @@ export default function FrankensteinPayoffCard({
                   <SystemStatusBadge status="armed" label="W-01 DETECTED" size="sm" />
                 </div>
                 <p className="text-xs sm:text-sm text-purple-100 italic leading-relaxed font-body">
-                  &ldquo;You found the grave. We noticed, operative. You weren&apos;t the only one following the trail. WATCHER SIGNAL W-01: DORMANT // REACTIVATION: OCTOBER. We&apos;ll be watching.&rdquo;
+                  {verifiedQuest ? '“You found the grave. We noticed, operative.' : '“You found the signal. We noticed, operative.'} You weren&apos;t the only one following the trail. WATCHER SIGNAL W-01: DORMANT // REACTIVATION: OCTOBER. We&apos;ll be watching.&rdquo;
                 </p>
               </div>
             </CqTransition>

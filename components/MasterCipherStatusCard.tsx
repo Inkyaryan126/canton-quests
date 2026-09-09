@@ -73,9 +73,10 @@ export default function MasterCipherStatusCard({
               Master Cipher
             </span>
             <strong className="block truncate font-display text-lg font-black uppercase text-white">
-              {solved ? 'Solved' : ready ? 'Ready' : 'Locked'}
+              {solved ? 'Solved' : ready ? 'Ready' : status.launchProgress?.cemeteryUnlocked ? 'Cemetery story open' : 'Locked'}
             </strong>
             <SystemStatusBadge status={systemStatus} label={statusLabel} size="sm" className="mt-1" />
+            {status.launchProgress && <p className="cq-launch-status-copy" role="status">{status.launchProgress.cemeteryUnlocked ? 'CEMETERY / WATCHERS STORY UNLOCKED — OPEN →' : 'Complete any one district to unlock the cemetery story.'} {status.launchProgress.completedDistrictCount} / 3 districts complete. {solved ? 'Full Founder’s Cipher complete.' : 'Keep exploring for more XP, entries and full Cipher completion.'}</p>}
             {!solved && (
               <p className="mt-1 truncate text-xs text-stone-400 font-mono">
                 {ready

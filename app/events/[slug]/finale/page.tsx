@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
 import CipherFragmentsPanel from '@/components/CipherFragmentsPanel';
+import CemeteryProgressPanel from '@/components/CemeteryProgressPanel';
 import TransmissionLoader from '@/components/game-effects/TransmissionLoader';
 import SystemStatusBadge from '@/components/game-effects/SystemStatusBadge';
 import { Lock, Radio, ShieldCheck, Sparkles } from 'lucide-react';
@@ -21,6 +22,7 @@ import { useReducedMotion, confirmHaptic } from '@/lib/motion';
 const LOCKED_REASON_TITLE: Record<string, string> = {
   not_configured: 'MASTER CIPHER OFFLINE',
   locks_required: 'FOUNDER LOCKS REQUIRED',
+  districts_required: 'FULL DISTRICT RECORD REQUIRED',
   insufficient_sigils: 'MASTER CIPHER LOCKED',
   watcher_required: 'MASTER CIPHER LOCKED',
   not_yet_open: 'MASTER CIPHER NOT YET OPEN',
@@ -46,6 +48,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
 
   const [finaleStatus, setFinaleStatus] = useState<PlayerFinaleStatus | null>(null);
   const [finaleStatusLoaded, setFinaleStatusLoaded] = useState(false);
+  const [finaleStatusError, setFinaleStatusError] = useState<string | null>(null);
 
   const [answerInput, setAnswerInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -117,13 +120,21 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
 
   const fetchFinaleStatus = useCallback(() => {
     if (!authenticatedPlayer || !participation) return;
+    setFinaleStatusError(null);
     fetch(`/api/game/finale?eventSlug=${encodeURIComponent(eventSlug)}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error('Finale status unavailable');
+        return res.json();
+      })
       .then((data: { status?: PlayerFinaleStatus }) => {
+        if (!data.status) throw new Error('Finale status unavailable');
         setFinaleStatusLoaded(true);
         if (data.status) setFinaleStatus(data.status);
       })
-      .catch(() => setFinaleStatusLoaded(true));
+      .catch(() => {
+        setFinaleStatusError('Unable to read your progress. Check your connection and retry.');
+        setFinaleStatusLoaded(true);
+      });
   }, [eventSlug, authenticatedPlayer, participation]);
 
   useEffect(() => {
@@ -305,6 +316,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
       <div className="min-h-screen bg-stone-950 text-white flex flex-col justify-center items-center p-4 font-mono">
         <div className="p-8 rounded-2xl bg-[#06090c] border border-cyan-500/30 max-w-sm w-full text-center space-y-3">
           <TransmissionLoader label="Reading Convergence Signal..." reducedMotion={systemReduced} />
+          {finaleStatusError && <div role="alert"><p>{finaleStatusError}</p><button type="button" className="cq-gold-button cq-cemetery-continue" onClick={fetchFinaleStatus}>RETRY PROGRESS</button></div>}
         </div>
       </div>
     );
@@ -344,6 +356,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
       </div>
     </section>
   );
+  const cemeteryProgress = <CemeteryProgressPanel status={finaleStatus} eventSlug={eventSlug} />;
 
   // ---- STATE: locked (not eligible, for any real reason) -----------------
   if (!solved && !ready) {
@@ -356,6 +369,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
         <Header eventSlug={eventSlug} />
         <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 sm:py-12">
           {missionStatus}
+          {cemeteryProgress}
           <section className="border border-stone-800 bg-[#06090b] p-6 sm:p-8 text-center space-y-5 rounded-2xl">
             <div className="mx-auto w-16 h-16 rounded-2xl bg-stone-900 border border-stone-700 flex items-center justify-center text-stone-400">
               <Lock size={32} className="text-stone-500" />
@@ -419,6 +433,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
       <Header eventSlug={eventSlug} />
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 sm:py-12">
         {missionStatus}
+        {cemeteryProgress}
 
         {/* RECOVERED INTEL */}
         <section className="mb-6 border border-cyan-400/25 bg-[#06090b] p-4 sm:p-5 rounded-2xl">
@@ -521,6 +536,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
                 value={answerInput}
                 onChange={(e) => setAnswerInput(e.target.value)}
                 placeholder="Enter the final decode"
+                aria-label="Master Cipher solution"
                 disabled={submitting}
                 className="input-field text-sm flex-1 font-mono uppercase tracking-wider"
               />
@@ -535,15 +551,15 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
 
             {/* COMMANDER / SYSTEM FEEDBACK */}
             {submitError && (
-              <div className="mt-4 border border-red-500/40 bg-red-950/30 p-3 text-xs text-red-300 font-mono rounded-lg">{submitError}</div>
+              <div role="alert" className="mt-4 border border-red-500/40 bg-red-950/30 p-3 text-xs text-red-300 font-mono rounded-lg">{submitError}</div>
             )}
             {attemptOutcome?.stage === 'incorrect' && (
-              <div className="mt-4 border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-200 rounded-lg font-mono">
+              <div role="status" className="mt-4 border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-200 rounded-lg font-mono">
                 {invalidAnswerCopy.body}
               </div>
             )}
             {attemptOutcome?.stage === 'false_finale_solved' && (
-              <div className="mt-4 border border-cyan-500/30 bg-cyan-950/20 p-3 text-sm text-cyan-200 rounded-lg font-mono">
+              <div role="status" className="mt-4 border border-cyan-500/30 bg-cyan-950/20 p-3 text-sm text-cyan-200 rounded-lg font-mono">
                 {attemptOutcome.revealText || 'That signal resolves to something — but not the convergence itself. Keep decoding.'}
               </div>
             )}

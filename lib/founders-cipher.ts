@@ -406,7 +406,7 @@ export async function decodeDistrictCipherDB(params: {
       unlockedSigilCount,
       allSigilsUnlocked,
       hasAllThreeLocks,
-      masterCipherAvailable: allSigilsUnlocked && hasAllThreeLocks,
+      masterCipherAvailable: allSigilsUnlocked && hasAllThreeLocks && (await (await import('./finale-db')).getPlayerFinaleStatusDB(params.eventId, params.playerId)).eligibility.ok,
     };
   }
 
@@ -484,7 +484,7 @@ export async function decodeDistrictCipherDB(params: {
     unlockedSigilCount,
     allSigilsUnlocked,
     hasAllThreeLocks,
-    masterCipherAvailable: allSigilsUnlocked && hasAllThreeLocks,
+    masterCipherAvailable: allSigilsUnlocked && hasAllThreeLocks && (await (await import('./finale-db')).getPlayerFinaleStatusDB(params.eventId, params.playerId)).eligibility.ok,
   };
 }
 

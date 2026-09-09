@@ -1,5 +1,14 @@
 # Canton Quests — Architecture & Product Decision Log (ADRs)
 
+### [ADR-054] 2026-09-08: One-district cemetery story; separate full Cipher completion
+
+- **Status**: ACCEPTED — explicitly requested in the Phase 6 launch-flow decision.
+- **Decision**: Any one complete launch district (Family 5, Challenge 5, Secret 4 verified quests) unlocks the West Lawn / Frankenstein story and Watchers October teaser. Photo quests count only after verified review. Fragment collection and manual sigil decoding remain unchanged and do not substitute for completing a district.
+- **Full Master Cipher**: All 14 launch quests, all three decoded district sigils, THE WORD / THE CODE / THE MARK, and the existing configured finale eligibility/window checks. Correct solution (including a false-finale stage if configured) records the existing full completion state and deduplicated 100 XP grant. The launch server enforces at least three sigils even if older live config says two; other events retain configurable requirements.
+- **Rewards**: Keep each quest's existing XP and one-entry grant. A second district adds its quest XP/entries; all three earn all 14 quest entries and maximum district quest XP, followed by the existing +100 XP Master Cipher reward. No invented multiplier, new drawing entries, or new reward ledger. Cemetery story access/replay itself performs no writes and does not claim a verified physical visit.
+- **Alternatives**: Lowering the existing full-finale gate would erase Lock significance and conflate partial participation with full completion. Adding a second reward system or physical checkpoint would expand mechanics and introduce unverified operations. Instead use a read-only, server-derived district progress projection and reuse the Phase 3 presentation.
+- **Consequences**: Supersedes the cemetery-only-after-master rule in ADR-049 and the old partial-quest convergence allowance. Does not mandate cemetery travel; posted public daylight access must be checked in the field. No production config/schema/data changes in this pass. Existing historical completion records are preserved, not revoked.
+
 ---
 
 ## Decision Record Format
@@ -1172,7 +1181,6 @@ Each entry follows the standard ADR structure:
 - **Reason**:
   - Eliminates technical debt from early Phase 2/3 prototypes and aligns the codebase strictly with the pure individual explorer model (ADR-023) and transparent prize drawing architecture (ADR-017 / ADR-020), while ensuring production schema changes are safely prepared and staged prior to live execution.
 - **Status**: **ACCEPTED**
-
 
 
 

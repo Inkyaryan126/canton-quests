@@ -157,7 +157,13 @@ describe('Player Command Center profile rules', () => {
     expect(cssSource).toContain('.cq-callsign-md');
     expect(cssSource).toContain('.cq-callsign-sm');
     expect(cssSource).toContain('.cq-callsign-xs');
-    expect(cssSource).not.toContain('overflow-wrap: anywhere');
+    // Protect the single-line player card, not unrelated mission panels:
+    // cemetery copy and shared-map quest buttons must wrap on small screens.
+    const cardRules = (cssSource.match(/[^{}]+\{[^{}]*\}/g) || [])
+      .filter(rule => /\.cq-(?:player-card|card-callsign|callsign-)/.test(rule.split('{')[0]));
+    expect(cardRules.length).toBeGreaterThan(0);
+    expect(cardRules.join('\n')).not.toContain('overflow-wrap: anywhere');
+    expect(cssSource.match(/\.cq-card-callsign\s*\{[^}]*\}/)?.[0]).toContain('white-space: nowrap');
   });
 
   it('safely renders nav avatar through the shared PlayerAvatar resolver without leaking raw file paths into text, with explicit 28px constraints', () => {

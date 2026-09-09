@@ -230,15 +230,15 @@ export const FOUNDER_CIPHER_MESSAGES: Record<FounderCipherMessageId, FounderCiph
   ALL_THREE_LOCKS_RECOVERED: {
     id: 'ALL_THREE_LOCKS_RECOVERED',
     title: 'ALL THREE LOCKS SECURED',
-    neutral: 'You have recovered all three Founder Locks (MARK, CODE, WORD). Authorization is complete. If all three district Sigils are also decoded, the Master Cipher will unlock.',
+    neutral: 'You have recovered all three Founder Locks (MARK, CODE, WORD). Complete all 14 district quests and decode all three Sigils to attempt the Master Cipher.',
     family: {
-      body: 'All three Founder Locks secured: MARK, CODE, and WORD! You have full authorization. Make sure all three district Sigils are decoded to open the Master Cipher.',
+      body: 'All three Founder Locks secured: MARK, CODE, and WORD! Finish all 14 district quests and decode all three Sigils to open the Master Cipher.',
     },
     challenge: {
-      body: 'All three Founder Locks recovered. Authorization confirmed. The Master Cipher remains sealed until all three district Sigils are decoded.',
+      body: 'All three Founder Locks recovered. Authorization confirmed. Finish all 14 district quests and decode all three Sigils for Master Cipher access.',
     },
     secret: {
-      body: 'The Three Locks are complete — MARK, CODE, WORD. Authorization verified. Master Cipher access still requires all three decoded Sigils.',
+      body: 'The Three Locks are complete — MARK, CODE, WORD. Master Cipher access still requires all 14 district quests and all three decoded Sigils.',
     },
     presentation: 'commander-text',
     size: 'medium',
@@ -248,15 +248,15 @@ export const FOUNDER_CIPHER_MESSAGES: Record<FounderCipherMessageId, FounderCiph
   ALL_THREE_SIGILS_DECODED: {
     id: 'ALL_THREE_SIGILS_DECODED',
     title: 'ALL THREE SIGILS DECODED',
-    neutral: 'All three district Sigils (Arts, Challenge, Secret) have been decoded. The evidence is complete. If all three Founder Locks are also secured, the Master Cipher will unlock.',
+    neutral: 'All three district Sigils (Arts, Challenge, Secret) have been decoded. Complete all 14 district quests and secure all three Founder Locks for Master Cipher access.',
     family: {
-      body: 'Every district Sigil is decoded! The full evidence is assembled. Secure all three Founder Locks to open the Master Cipher.',
+      body: 'Every district Sigil is decoded! Finish all 14 district quests and secure all three Founder Locks to open the Master Cipher.',
     },
     challenge: {
-      body: 'All three district Sigils decoded. Evidence complete. If you hold all three Founder Locks, the Master Cipher is yours to attempt.',
+      body: 'All three district Sigils decoded. Clear all 14 district quests and secure all three Founder Locks to attempt the Master Cipher.',
     },
     secret: {
-      body: 'The three district sentences are resolved. Evidence confirmed. Master Cipher remains sealed without all three Founder Locks.',
+      body: 'The three district sentences are resolved. Master Cipher access requires all 14 district quests and all three Founder Locks.',
     },
     presentation: 'commander-text',
     size: 'medium',
@@ -266,15 +266,15 @@ export const FOUNDER_CIPHER_MESSAGES: Record<FounderCipherMessageId, FounderCiph
   MASTER_CIPHER_AVAILABLE: {
     id: 'MASTER_CIPHER_AVAILABLE',
     title: 'MASTER CIPHER AVAILABLE',
-    neutral: 'All 3 Founder Locks and all 3 decoded Sigils have converged. The Master Cipher is now unlocked.',
+    neutral: 'All 14 district quests, 3 Founder Locks and 3 decoded Sigils are complete. The Master Cipher is now unlocked.',
     family: {
-      body: 'You did it! 3 Founder Locks and 3 decoded Sigils — all six requirements are met. The Master Cipher is open.',
+      body: 'You did it! All 14 district quests, 3 Founder Locks and 3 decoded Sigils — the Master Cipher is open.',
     },
     challenge: {
-      body: 'Convergence achieved: 3 Locks, 3 Sigils. The Master Cipher is active. Enter the final decode.',
+      body: 'Full sweep: 14 district quests, 3 Locks, 3 Sigils. The Master Cipher is active. Enter the final decode.',
     },
     secret: {
-      body: 'All six keys have converged — 3 Locks, 3 Sigils. The Master Cipher is unsealed. Proceed to final deduction.',
+      body: 'All 14 district quests resolved. The six keys converge — 3 Locks, 3 Sigils. Proceed to final deduction.',
     },
     presentation: 'commander-text',
     size: 'long',
@@ -460,15 +460,15 @@ export const FOUNDER_CIPHER_MESSAGES: Record<FounderCipherMessageId, FounderCiph
   ALL_REQUIRED_FRAGMENTS_FOUND: {
     id: 'ALL_REQUIRED_FRAGMENTS_FOUND',
     title: 'ALL FRAGMENTS RECOVERED',
-    neutral: 'You have recovered every required cipher fragment across Canton. The final decode is now available.',
+    neutral: 'You have recovered every required cipher fragment across Canton. Decode all three district Sigils, recover all three Founder Locks and finish all 14 quests for the full Master Cipher.',
     family: {
-      body: 'You did it — every fragment across Canton is yours. The picture is complete, and the final decode is ready when you are.',
+      body: 'Every fragment across Canton is yours! Decode all three Sigils, collect all three Locks and finish all 14 quests for the full Master Cipher.',
     },
     challenge: {
-      body: 'Full sweep. Every fragment recovered. The final decode is open — finish what you started.',
+      body: 'Every fragment recovered. Finish the full sweep: 14 quests, three decoded Sigils and three Locks. Then attempt the Master Cipher.',
     },
     secret: {
-      body: 'The collection is complete. Every fragment accounted for. The final decode is now within reach.',
+      body: 'Every fragment accounted for. The final decode still requires all 14 quests, three decoded Sigils and three Locks.',
     },
     presentation: 'commander-text',
     size: 'medium',

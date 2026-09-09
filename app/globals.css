@@ -7065,4 +7065,20 @@ code, pre, .font-mono {
   opacity: 0.55;
   cursor: not-allowed;
 }
-
+/* Phase 6: grounded, read-only cemetery progression. No new animation. */
+.cq-cemetery-progress { margin: 0 0 1.5rem; padding: clamp(1rem, 4vw, 1.5rem); border: 1px solid #64746d; border-radius: 1rem; background: #080e10; color: #e7eeea; overflow-wrap: anywhere; min-width: 0; }
+.cq-cemetery-progress h2 { font-size: clamp(1.25rem, 5vw, 1.65rem); margin: 1rem 0; }
+.cq-cemetery-progress h3 { font-size: 1.15rem; margin: 1.5rem 0 .75rem; }
+.cq-cemetery-progress p { line-height: 1.65; margin: 1rem 0; }
+.cq-district-progress-list { list-style: none; padding: 0; display: grid; gap: .5rem; }
+.cq-district-progress-list li { display: flex; justify-content: space-between; gap: 1rem; padding: .75rem; border: 1px solid #43514c; }
+.cq-district-progress-list span { text-transform: capitalize; }
+.cq-cemetery-continue { display: inline-flex; align-items: center; min-height: 44px; padding: .75rem 1rem; }
+.cq-cemetery-progress button { min-height: 44px; }
+.cq-cemetery-progress :is(a, button):focus-visible { outline: 3px solid #ffd375; outline-offset: 4px; }
+.cq-launch-status-copy { white-space: normal; overflow-wrap: anywhere; margin-top: .5rem; line-height: 1.5; color: #e7eeea; }
+.cq-shared-map-quests { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.cq-shared-map-quests p { flex-basis: 100%; font-size: .8rem; color: #e7eeea; }
+.cq-shared-map-quests button { min-height: 44px; padding: .5rem .75rem; border: 1px solid #687a70; color: #e7eeea; background: #101817; border-radius: .5rem; overflow-wrap: anywhere; }
+.cq-shared-map-quests button[aria-pressed="true"] { border-color: #ffd375; color: #ffd375; }
+.cq-shared-map-quests button:focus-visible { outline: 3px solid #ffd375; outline-offset: 2px; }

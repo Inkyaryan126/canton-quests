@@ -12,6 +12,43 @@
 
 import { proofMatches } from './quest-proof-secrets';
 
+/** September launch roster. Slugs identify content; database UUIDs remain untouched. */
+export const LAUNCH_DISTRICT_QUESTS = {
+  family: ['bell-cipher', 'canton-sign-capture', 'draft-lineup', 'kraken-wall', 'palace-stars'],
+  challenge: ['9th-street-opening', 'challenge-open-ground', 'challenge-the-tower', 'goose-land-cipher', 'willie-the-whale'],
+  secret: ['mckinley-monument-year', 'eternal-flame', 'golden-mark-cipher', 'spring-water-shelter'],
+} as const;
+
+export interface LaunchDistrictProgress {
+  districts: { path: string; completed: number; required: number }[];
+  completedDistrictCount: number;
+  cemeteryUnlocked: boolean;
+}
+
+/** Inputs must already be event/player scoped by the server. No seed fallback. */
+export function getLaunchDistrictProgress(
+  quests: { id: string; slug: string; starting_path: string; status: string }[],
+  submissions: { quest_id: string; status: string }[],
+): LaunchDistrictProgress {
+  const verifiedIds = new Set(submissions.filter(s => s.status === 'verified').map(s => s.quest_id));
+  const districts = Object.entries(LAUNCH_DISTRICT_QUESTS).map(([path, slugs]) => ({
+    path,
+    required: slugs.length,
+    completed: slugs.filter(slug => quests.some(q => q.slug === slug && q.starting_path === path && q.status === 'active' && verifiedIds.has(q.id))).length,
+  }));
+  const completedDistrictCount = districts.filter(d => d.completed === d.required).length;
+  return { districts, completedDistrictCount, cemeteryUnlocked: completedDistrictCount >= 1 };
+}
+
+/** Cemetery access is not Master Cipher authorization or a reward grant. */
+export function checkLaunchCompletionEligibility(eligibility: FinaleEligibility, progress: LaunchDistrictProgress): FinaleEligibility {
+  if (!eligibility.ok) return eligibility;
+  return progress.completedDistrictCount === 3 ? eligibility : {
+    ok: false, reason: 'districts_required',
+    message: 'Complete all 14 launch quests across Family, Challenge and Secret for the full Founder’s Cipher. One complete district already unlocks the cemetery story.',
+  };
+}
+
 export type ConvergenceStage = 'no_sigils' | 'one_sigil' | 'two_sigils' | 'convergence_ready';
 
 /** Any district order works — this only ever counts, never checks which specific districts. */
@@ -38,7 +75,7 @@ export interface FinaleConfig {
 
 export type FinaleEligibility =
   | { ok: true }
-  | { ok: false; reason: 'locks_required' | 'insufficient_sigils' | 'watcher_required' | 'not_configured' | 'not_yet_open' | 'closed' | 'event_ended'; message: string };
+  | { ok: false; reason: 'districts_required' | 'locks_required' | 'insufficient_sigils' | 'watcher_required' | 'not_configured' | 'not_yet_open' | 'closed' | 'event_ended'; message: string };
 
 /**
  * Full eligibility check — 3 Founder Locks authorization, decoded sigil count,

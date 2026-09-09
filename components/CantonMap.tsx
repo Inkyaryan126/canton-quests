@@ -198,6 +198,14 @@ export default function CantonMap({
     if (onLocateMe) onLocateMe();
   };
 
+  // Shared location records must not make every pin except the topmost unreachable.
+  // Keep the stored coordinates intact; expose each quest at that same map point.
+  const samePointQuests = selectedQuest ? quests.filter(quest =>
+    quest.location?.latitude === selectedQuest.quest.location?.latitude &&
+    quest.location?.longitude === selectedQuest.quest.location?.longitude &&
+    calculatePublicQuestState(quest, completedQuestIds, pendingQuestIds) !== 'hidden'
+  ) : [];
+
   return (
     <div className="relative w-full h-[420px] cq-hud-panel cq-motion-scope" style={{ overflow: 'hidden', borderRadius: '0.75rem' }}>
       {/* Map Container */}
@@ -228,7 +236,14 @@ export default function CantonMap({
 
       {/* Selected Quest Floating Bottom Preview Card */}
       {selectedQuest && (
-        <div className="cq-hud-panel cq-transition-reveal is-visible" style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', right: '0.75rem', zIndex: 400, padding: '1rem', borderRadius: '0.75rem' }}>
+        <div className="cq-hud-panel cq-transition-reveal is-visible" style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', right: '0.75rem', zIndex: 400, padding: '1rem', borderRadius: '0.75rem', maxHeight: '65%', overflowY: 'auto' }}>
+          {samePointQuests.length > 1 && <div className="cq-shared-map-quests" aria-label="Quests sharing this map point">
+            <p>{samePointQuests.length} quests share this map point. Use each quest’s landmark instructions.</p>
+            {samePointQuests.map(quest => <button key={quest.id} type="button" aria-pressed={quest.id === selectedQuest.quest.id} onClick={() => {
+              setSelectedQuest({ quest, state: calculatePublicQuestState(quest, completedQuestIds, pendingQuestIds), distanceStr: selectedQuest.distanceStr });
+              onSelectQuest?.(quest);
+            }}>{quest.title}</button>)}
+          </div>}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.25rem' }}>

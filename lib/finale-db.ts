@@ -14,6 +14,7 @@
 import { supabaseAdmin, isSupabaseAdminConfigured } from './supabase';
 import { getEventByIdDB, insertRewardGrantDB, incrementPlayerXpDB } from './supabase-db';
 import { getWatcherStatusDB } from './watchers-db';
+import { isKnownCantonLaunchSlug } from './launch-status';
 import {
   FinaleConfig,
   FinaleEligibility,
@@ -22,7 +23,20 @@ import {
   getConvergenceStage,
   checkFinaleEligibility,
   evaluateFinaleSubmission,
+  getLaunchDistrictProgress,
+  checkLaunchCompletionEligibility,
+  LaunchDistrictProgress,
 } from './finale';
+
+async function getLaunchProgressDB(eventId: string, playerId: string): Promise<LaunchDistrictProgress> {
+  if (!isSupabaseAdminConfigured || !supabaseAdmin) return getLaunchDistrictProgress([], []);
+  const [quests, submissions] = await Promise.all([
+    supabaseAdmin.from('quests').select('id, slug, starting_path, status').eq('event_id', eventId).eq('status', 'active'),
+    supabaseAdmin.from('quest_submissions').select('quest_id, status').eq('event_id', eventId).eq('player_id', playerId).eq('status', 'verified'),
+  ]);
+  if (quests.error || submissions.error) throw new Error('Unable to verify district completion. Please retry.');
+  return getLaunchDistrictProgress(quests.data || [], submissions.data || []);
+}
 
 function isMissingTable(error: any): boolean {
   // PostgREST returns two different shapes for "this table doesn't exist
@@ -137,6 +151,7 @@ async function getPlayerFinaleProgressDB(eventId: string, playerId: string): Pro
 }
 
 export interface PlayerFinaleStatus {
+  launchProgress?: LaunchDistrictProgress;
   convergenceStage: ConvergenceStage;
   unlockedSigilCount: number;
   hasAllThreeLocks: boolean;
@@ -168,9 +183,15 @@ export async function getPlayerFinaleStatusDB(eventId: string, playerId: string)
   ]);
 
   const eventEnded = event?.status === 'ended' || event?.currentPhase === 'ended';
-  const eligibility = checkFinaleEligibility(config, unlockedSigilCount, threeLocks.hasAll, watcherStatus.isEligible, eventEnded);
+  const isLaunch = isKnownCantonLaunchSlug(event?.slug);
+  const launchProgress = isLaunch ? await getLaunchProgressDB(eventId, playerId) : undefined;
+  // A stale GM config may lower the requirement for other events, never this launch.
+  const effectiveConfig = isLaunch && config ? { ...config, requiredSigilCount: Math.max(3, config.requiredSigilCount) } : config;
+  const baseEligibility = checkFinaleEligibility(effectiveConfig, unlockedSigilCount, threeLocks.hasAll, watcherStatus.isEligible, eventEnded);
+  const eligibility = launchProgress ? checkLaunchCompletionEligibility(baseEligibility, launchProgress) : baseEligibility;
 
   return {
+    launchProgress,
     convergenceStage: getConvergenceStage(unlockedSigilCount),
     unlockedSigilCount,
     hasAllThreeLocks: threeLocks.hasAll,
@@ -214,7 +235,11 @@ export async function submitFinaleAnswerDB(eventId: string, playerId: string, su
   ]);
 
   const eventEnded = event?.status === 'ended' || event?.currentPhase === 'ended';
-  const eligibility = checkFinaleEligibility(config, unlockedSigilCount, threeLocks.hasAll, watcherStatus.isEligible, eventEnded);
+  const isLaunch = isKnownCantonLaunchSlug(event?.slug);
+  const launchProgress = isLaunch ? await getLaunchProgressDB(eventId, playerId) : undefined;
+  const effectiveConfig = isLaunch && config ? { ...config, requiredSigilCount: Math.max(3, config.requiredSigilCount) } : config;
+  const baseEligibility = checkFinaleEligibility(effectiveConfig, unlockedSigilCount, threeLocks.hasAll, watcherStatus.isEligible, eventEnded);
+  const eligibility = launchProgress ? checkLaunchCompletionEligibility(baseEligibility, launchProgress) : baseEligibility;
   if (!eligibility.ok) return { eligibility };
 
   const outcome = evaluateFinaleSubmission(config!, progress, submittedAnswer);
