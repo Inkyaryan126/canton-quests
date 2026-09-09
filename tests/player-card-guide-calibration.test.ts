@@ -78,6 +78,23 @@ describe('Canton Quests — Player Card Guide Calibration & Layout Verification'
       expect(ruleMatch![1]).not.toMatch(/\bborder(?!-radius)/);
     });
 
+    it('vertically centers the Motto text inside its box using the legacy -webkit-box-pack/-webkit-box-align properties, not just the ineffective flexbox align-items/justify-content on a display: -webkit-box element', () => {
+      // display: -webkit-box (required for -webkit-line-clamp) silently
+      // ignores modern align-items/justify-content, which left the motto
+      // text riding the top of its box instead of centered — this is the
+      // legacy box model's own vertical/horizontal centering properties.
+      const cssSource = fs.readFileSync(path.join(process.cwd(), 'app/globals.css'), 'utf8');
+      const ruleMatch = cssSource.match(/\.cq-card-motto\s*\{([^}]*)\}/);
+      expect(ruleMatch).not.toBeNull();
+      const rule = ruleMatch![1];
+      expect(rule).toContain('display: -webkit-box');
+      expect(rule).toMatch(/-webkit-box-pack:\s*center/);
+      expect(rule).toMatch(/-webkit-box-align:\s*center/);
+      // The box's position/size are untouched by this alignment fix.
+      expect(PLAYER_CARD_LAYOUT.motto.top).toBe('34.51%');
+      expect(PLAYER_CARD_LAYOUT.motto.height).toBe('5.14%');
+    });
+
     it('verifies Player Signal coordinates are unchanged', () => {
       expect(PLAYER_CARD_LAYOUT.signal.left).toBe('52.93%');
       expect(PLAYER_CARD_LAYOUT.signal.top).toBe('43.62%');

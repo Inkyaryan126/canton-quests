@@ -3679,6 +3679,13 @@ code, pre, .font-mono {
   display: -webkit-box;
   align-items: center;
   justify-content: center;
+  /* display: -webkit-box (required for -webkit-line-clamp) ignores the
+     flexbox align-items/justify-content above — the legacy box model
+     needs its own -webkit-box-align (cross axis) / -webkit-box-pack (main
+     axis, which is vertical here since -webkit-box-orient is vertical) to
+     actually center the text instead of it sitting at the top of the box. */
+  -webkit-box-align: center;
+  -webkit-box-pack: center;
   padding-inline: 6%;
   color: #e7e5e4;
   font-family: var(--font-mono, monospace);
