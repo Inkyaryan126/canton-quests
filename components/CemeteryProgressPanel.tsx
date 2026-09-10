@@ -88,10 +88,9 @@ export default function CemeteryProgressPanel({
               West Lawn Cemetery — Frankenstein Family Monument
             </h3>
             <p className="mt-2 text-xs leading-relaxed text-stone-400">
-              1919 7th St NW, Canton. Visit only during posted public visitor
-              hours and daylight. Remain respectful of the grounds and
-              memorials. No physical check-in is required to complete the
-              mission.
+              This is the final story reveal — not another field objective.
+              No cemetery visit, passphrase, photo, QR scan, or check-in is
+              required. Solving the Master Cipher completes the mission.
             </p>
           </div>
 

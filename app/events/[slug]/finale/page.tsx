@@ -54,6 +54,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [attemptOutcome, setAttemptOutcome] = useState<FinaleSubmissionOutcome | null>(null);
+  const [hintLevel, setHintLevel] = useState(0);
 
   const path = authenticatedPlayer?.selectedStartingPath;
 
@@ -627,6 +628,69 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
                     Enter only that surname below.
                   </p>
                 </div>
+              </div>
+
+              <div className="mb-5 rounded-xl border border-cyan-500/25 bg-cyan-950/10 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="block text-[10px] font-mono font-black uppercase tracking-widest text-cyan-300">
+                      NEED ANOTHER SIGNAL?
+                    </span>
+                    <p className="mt-1 text-xs text-stone-400">
+                      Hints are optional. Reveal only as much as you need.
+                    </p>
+                  </div>
+
+                  {hintLevel < 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setHintLevel((level) => Math.min(3, level + 1))}
+                      className="rounded-lg border border-cyan-400/40 bg-cyan-950/30 px-4 py-2 text-[10px] font-mono font-black uppercase tracking-wider text-cyan-200"
+                    >
+                      {hintLevel === 0
+                        ? 'REVEAL HINT 1'
+                        : hintLevel === 1
+                          ? 'REVEAL HINT 2'
+                          : 'REVEAL FINAL HINT'}
+                    </button>
+                  )}
+                </div>
+
+                {hintLevel >= 1 && (
+                  <div className="mt-4 border-l-2 border-cyan-400/50 pl-3">
+                    <span className="text-[10px] font-mono font-black text-cyan-300">
+                      HINT 01
+                    </span>
+                    <p className="mt-1 text-sm text-stone-200">
+                      The answer is a surname connected to one of the most famous
+                      fictional creatures in the world.
+                    </p>
+                  </div>
+                )}
+
+                {hintLevel >= 2 && (
+                  <div className="mt-4 border-l-2 border-amber-400/50 pl-3">
+                    <span className="text-[10px] font-mono font-black text-amber-300">
+                      HINT 02
+                    </span>
+                    <p className="mt-1 text-sm text-stone-200">
+                      The creature itself was never actually given a proper name.
+                      People began calling it by the surname of the man who created it.
+                    </p>
+                  </div>
+                )}
+
+                {hintLevel >= 3 && (
+                  <div className="mt-4 border-l-2 border-purple-400/50 pl-3">
+                    <span className="text-[10px] font-mono font-black text-purple-300">
+                      HINT 03
+                    </span>
+                    <p className="mt-1 text-sm text-stone-200">
+                      Mary Shelley introduced the creator and his creature to the
+                      world in 1818.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="mb-3 flex items-center justify-between gap-3">
