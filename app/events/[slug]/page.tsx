@@ -1144,8 +1144,9 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
                         FINAL PREPARATION
                       </span>
                       <p className="mt-1 text-xs text-gray-300">
-                        {finaleStatus?.eligibility.message ||
-                          'Checking your recovered Cipher pieces…'}
+                        {finaleStatus && !finaleStatus.eligibility.ok
+                          ? finaleStatus.eligibility.message
+                          : 'Checking your recovered Cipher pieces…'}
                       </p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
