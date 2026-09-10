@@ -449,9 +449,22 @@ export default function QuestDetailPage({
   const isLocked = Boolean(quest.prerequisiteQuestId && !completedIds.includes(quest.prerequisiteQuestId));
 
   // One dominant next action after completion — never just a bare "back to
-  // hub" with no obvious next step. Prefers this quest's own chain
-  // successor (if any), otherwise the next unlocked, uncompleted quest.
-  const chainSuccessor = allEventQuests.find((q) => q.prerequisiteQuestId === quest.id && q.status === 'active');
+  // hub" with no obvious next step. Prefer an explicit chain successor,
+  // then keep the player inside their selected path before crossing into
+  // another district.
+  const chainSuccessor = allEventQuests.find(
+    (q) => q.prerequisiteQuestId === quest.id && q.status === 'active'
+  );
+
+  const nextUnlockedInSelectedPath = allEventQuests.find(
+    (q) =>
+      q.id !== quest.id &&
+      q.status === 'active' &&
+      q.startingPath === player.selectedStartingPath &&
+      !completedIds.includes(q.id) &&
+      (!q.prerequisiteQuestId || completedIds.includes(q.prerequisiteQuestId))
+  );
+
   const nextUnlockedIncomplete = allEventQuests.find(
     (q) =>
       q.id !== quest.id &&
@@ -459,7 +472,9 @@ export default function QuestDetailPage({
       !completedIds.includes(q.id) &&
       (!q.prerequisiteQuestId || completedIds.includes(q.prerequisiteQuestId))
   );
-  const nextQuestAfterThis = chainSuccessor || nextUnlockedIncomplete;
+
+  const nextQuestAfterThis =
+    chainSuccessor || nextUnlockedInSelectedPath || nextUnlockedIncomplete;
 
   const currentStepIdx = Math.max(0, existingSubmission?.completedStepOrder || submissionResult?.currentStepCompleted || 0);
   const directionsUrl = getDirectionsUrl(quest);
