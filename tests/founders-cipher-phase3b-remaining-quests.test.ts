@@ -13,7 +13,6 @@ import {
   getLocalCipherFragmentGrants,
   getPublicQuestView,
   isPlayerQualifiedForFinale,
-  reviewSubmission,
   setCurrentPlayer,
   submitQuestProof,
 } from '../lib/game-engine';
@@ -137,8 +136,8 @@ describe('Eternal Flame — grants [THE DEAD] exactly once', () => {
   });
 });
 
-describe('Willie the Whale — grants [HIS NAME] exactly once, only after GM verification', () => {
-  it('a pending photo submission grants nothing; GM approval grants exactly once', () => {
+describe('Willie the Whale — grants [HIS NAME] exactly once, immediately on photo submission (Master Launch Pivot)', () => {
+  it('a photo submission completes and grants the fragment immediately; a duplicate submission never re-grants', () => {
     const player = newPlayer('willie');
     const result = submitQuestProof({
       playerId: player.id,
@@ -147,15 +146,20 @@ describe('Willie the Whale — grants [HIS NAME] exactly once, only after GM ver
       proofType: 'photo',
       submittedContent: 'https://example.com/willie-porthole.jpg',
     });
-    expect(result.submission.status).toBe('pending');
-    expect(getLocalCipherFragmentGrants(player.id, EVENT_ID)).toHaveLength(0);
-
-    reviewSubmission(result.submission.id, 'verified');
+    expect(result.submission.status).toBe('verified');
+    expect(result.submission.auditStatus).toBe('not_needed');
     const owned = getLocalCipherFragmentGrants(player.id, EVENT_ID).filter((g) => g.fragmentKey === 'challenge-neon-loop');
     expect(owned.length).toBe(1);
 
-    // Duplicate GM approval never re-grants.
-    reviewSubmission(result.submission.id, 'verified');
+    // A duplicate photo submission for the same already-completed quest
+    // never re-grants the fragment.
+    submitQuestProof({
+      playerId: player.id,
+      questId: WILLIE.id,
+      eventId: EVENT_ID,
+      proofType: 'photo',
+      submittedContent: 'https://example.com/willie-porthole-again.jpg',
+    });
     expect(getLocalCipherFragmentGrants(player.id, EVENT_ID).filter((g) => g.fragmentKey === 'challenge-neon-loop')).toHaveLength(1);
   });
 });
@@ -246,14 +250,13 @@ describe('Frankenstein remains outside the canonical 14 and cannot bypass the Ma
   it('completing it grants ordinary XP/entry only — never finale qualification, never a fragment', () => {
     const quest = SEED_QUESTS.find((q) => q.id === 'qst-frankenstein-west-lawn')!;
     const player = newPlayer('frankenstein-3b');
-    const result = submitQuestProof({
+    submitQuestProof({
       playerId: player.id,
       questId: quest.id,
       eventId: EVENT_ID,
       proofType: 'photo',
       submittedContent: 'https://example.com/frankenstein.jpg',
     });
-    reviewSubmission(result.submission.id, 'verified');
     expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false);
     expect(getLocalCipherFragmentGrants(player.id, EVENT_ID)).toHaveLength(0);
   });
@@ -263,9 +266,7 @@ describe('Arbitrary order across the three newly-implemented quests', () => {
   it('Willie -> Eternal Flame -> Kraken Wall (reverse of authoring order) still grants everything correctly', async () => {
     const player = newPlayer('reverse-3b');
 
-    const willie = submitQuestProof({ playerId: player.id, questId: WILLIE.id, eventId: EVENT_ID, proofType: 'photo', submittedContent: 'https://example.com/w.jpg' });
-    await tick();
-    reviewSubmission(willie.submission.id, 'verified');
+    submitQuestProof({ playerId: player.id, questId: WILLIE.id, eventId: EVENT_ID, proofType: 'photo', submittedContent: 'https://example.com/w.jpg' });
     await tick();
     submitQuestProof({ playerId: player.id, questId: FLAME.id, eventId: EVENT_ID, proofType: 'passphrase', submittedContent: '1963', ...geo(FLAME) });
     await tick();
@@ -287,16 +288,16 @@ describe('No field prerequisites on any Phase 3B quest', () => {
 });
 
 describe('Drawing entries stay exactly one per verified field quest (Phase 3B)', () => {
-  it('Willie the Whale (photo, GM-reviewed) awards exactly one entry, never duplicated on re-approval', () => {
+  it('Willie the Whale (photo, auto-verified immediately) awards exactly one entry, never duplicated on a repeat submission', () => {
     const player = newPlayer('willie-entries');
     const result = submitQuestProof({ playerId: player.id, questId: WILLIE.id, eventId: EVENT_ID, proofType: 'photo', submittedContent: 'https://example.com/w2.jpg' });
-    expect(getDrawingEntriesForPlayer(player.id, EVENT_ID).filter((e) => e.questId === WILLIE.id)).toHaveLength(0);
-
-    reviewSubmission(result.submission.id, 'verified');
     let entries = getDrawingEntriesForPlayer(player.id, EVENT_ID).filter((e) => e.questId === WILLIE.id);
     expect(entries.reduce((sum, e) => sum + e.entriesCount, 0)).toBe(1);
+    expect(result.submission.status).toBe('verified');
 
-    reviewSubmission(result.submission.id, 'verified');
+    // A repeat submission for the same already-completed quest never
+    // duplicates the entry.
+    submitQuestProof({ playerId: player.id, questId: WILLIE.id, eventId: EVENT_ID, proofType: 'photo', submittedContent: 'https://example.com/w2-again.jpg' });
     entries = getDrawingEntriesForPlayer(player.id, EVENT_ID).filter((e) => e.questId === WILLIE.id);
     expect(entries.reduce((sum, e) => sum + e.entriesCount, 0)).toBe(1);
   });

@@ -836,8 +836,11 @@ export const SEED_QUESTS: Quest[] = [
     status: 'active',
     sortOrder: 2,
     createdAt: '2026-08-01T00:00:00Z',
-    radiusMeters: 80,
-    requireLocationVerification: true,
+    // Master Launch Pivot: the GPS proximity gate (radiusMeters +
+    // requireLocationVerification) is removed — the carved year on the real
+    // marker is already the entire proof; requiring GPS on top of a correct
+    // reading added a spoofable-but-still-mandatory dependency with no
+    // gameplay benefit. "GO HERE" is still fully served by quest.location.
     safetyNotes: 'Daylight recommended. Stairs may be slick; players do not need to climb quickly or leave public paths.',
     gmNotes: 'Existing server hash expects the verified four-digit answer. Reconfirm plaque wording and target marker before printing clue cards.',
     // Canonical Monument Park (Phase 3A): grants the Secret District [KEEP IT]
@@ -1521,25 +1524,31 @@ export const SEED_QUESTS: Quest[] = [
     location: SEED_LOCATIONS[10],
     title: 'The 9th Street Signal',
     slug: '9th-street-opening',
-    description: 'The Challenge path starts here. Show up. Check in. The grid opens.',
+    description: 'The Challenge path starts here. But before you check in, look up — the real sign at the gate doesn\'t match the name on your map.',
+    // Master Launch Pivot: converted from a bare GPS check-in to a real
+    // environmental-answer quest. public/canton-quests/quests/challenge/
+    // skate_park.png shows the actual entrance sign, legible: "9TH STREET
+    // SKATE PARK" — distinct wording from this location's own displayed
+    // name ("9th Street Skate Corridor"), so the exact phrase can only be
+    // read by physically visiting, not inferred from anything shown on the
+    // hub or this quest's own text.
     instructions:
-      'Report to the 9th Street Skate Corridor and check in to activate your Challenge district field log. Tap CHECK IN when you are physically at the location. Your GPS will confirm the signal.',
+      'Go to the 9th Street Skate Corridor. Find the entrance sign and read it exactly as painted. Enter the two words that come immediately after "9th Street."',
     pointValue: 75,
     xpReward: 75,
     drawingEntryReward: 1,
     difficulty: 'easy',
-    category: 'exploration',
+    category: 'observation',
     startingPath: 'challenge',
-    verificationType: 'checkin',
-    proofRequirement: 'GPS check-in from the 9th Street public area.',
+    verificationType: 'passphrase',
+    acceptedAnswerVariants: ['sha256:fbf5a269af7a54b2b1ff05d727f998d45cfa2a8e8b642694f8abf714ddacf65b'], // SKATE PARK
+    proofRequirement: 'Enter the two words painted on the real entrance sign directly after "9th Street."',
     isFlash: false,
     status: 'active',
     sortOrder: 17,
     createdAt: '2026-08-01T00:00:00Z',
-    radiusMeters: 60,
-    requireLocationVerification: true,
     safetyNotes: 'Public outdoor space. Use sidewalks and crosswalks. Daylight recommended.',
-    gmNotes: 'Field verify access and GPS accuracy before launch. Confirm 9th Street coordinates and public access.',
+    gmNotes: 'Real, legible entrance-sign photo confirmed directly on the finished quest card (public/canton-quests/quests/challenge/skate_park.png): "9TH STREET SKATE PARK." Answer SKATE PARK (variant: the full phrase). GPS proximity gate removed per Master Launch Pivot — the location itself now contains the key.',
   },
   // Challenge Sector #2 — THE OPEN GROUND (Large Field)
   {
@@ -1551,24 +1560,32 @@ export const SEED_QUESTS: Quest[] = [
     title: 'THE OPEN GROUND',
     slug: 'challenge-open-ground',
     description: 'Cross into the open ground. Your next Challenge signal is waiting somewhere beyond the pavement.',
+    // Master Launch Pivot: no confirmed real observable/countable feature
+    // has ever been evidenced for this field (see docs/FOUNDERS-CIPHER-
+    // 14-QUEST-AUTHORING.md — "no real observable feature was ever
+    // evidenced here"), so no environmental-answer question is invented.
+    // Converted from a bare GPS check-in to photo/witness proof instead —
+    // still fully removes the GPS dependency, with zero fabricated fact.
+    // Photo proof auto-completes immediately (no moderation queue) — see
+    // verifyAutomatedProof; the photo is locked evidence only ever
+    // inspected later, and only if this player is drawn as a prize
+    // candidate (see executePrizeDraw / auditStatus).
     instructions:
-      'Cross into the open ground field. Scan the area and confirm your field position to claim the Challenge sector signal.',
+      'Cross into the open ground field. Take a photo of yourself (or your callsign card) standing in the field, with the low brick perimeter wall visible behind you.',
     pointValue: 100,
     xpReward: 100,
     drawingEntryReward: 1,
     difficulty: 'easy',
-    category: 'exploration',
+    category: 'creative',
     startingPath: 'challenge',
-    verificationType: 'checkin',
-    proofRequirement: 'GPS check-in from Challenge Field.',
+    verificationType: 'photo',
+    proofRequirement: 'Upload a photo of yourself or your callsign card standing in Challenge Field.',
     isFlash: false,
     status: 'active',
     sortOrder: 18,
     createdAt: '2026-08-01T00:00:00Z',
-    radiusMeters: 60,
-    requireLocationVerification: true,
     safetyNotes: 'Public park field. Daylight hours recommended. Watch footing on grass.',
-    gmNotes: 'Challenge sector route location #2 (Large Field / The Open Ground).',
+    gmNotes: 'Challenge sector route location #2 (Large Field / The Open Ground). GPS proximity gate removed per Master Launch Pivot; converted to auto-verified photo proof (locked evidence, no moderation queue) since no real countable/readable feature has been evidenced here yet — see docs/FOUNDERS-CIPHER-14-QUEST-AUTHORING.md. NEEDS FIELD DETAIL if a genuine environmental-answer mechanic is wanted later (e.g. a countable feature on the perimeter wall or the distant billboard).',
     // Canonical Open Ground (Phase 3A): grants the Challenge District
     // [GAVE A MONSTER] fragment.
     rewardConfig: {
@@ -1600,8 +1617,8 @@ export const SEED_QUESTS: Quest[] = [
     status: 'draft',
     sortOrder: 19,
     createdAt: '2026-08-01T00:00:00Z',
-    radiusMeters: 60,
-    requireLocationVerification: true,
+    // Master Launch Pivot: GPS proximity gate removed. Left NEEDS FIELD
+    // DETAIL (status: draft, no answer hash) — unrelated to GPS removal.
     safetyNotes: 'Public park area. Do not attempt to climb or enter the tower structure.',
     gmNotes:
       'STAGED — The Tower (silo landmark at Mother Goose Land) is the canonical source for Founder Lock THE CODE. A single photo angle (public/canton-quests/quests/challenge/silo.png) shows a smooth cylindrical tower with no countable tiers or bands. Full-height photos from additional angles are needed to confirm a real countable structural feature before an answer hash is registered. Kept fail-closed (status: draft, no answer hash).',

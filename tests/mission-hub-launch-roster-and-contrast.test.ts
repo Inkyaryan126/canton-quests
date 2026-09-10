@@ -47,6 +47,10 @@ import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 import QuestCard from '../components/QuestCard';
 import type { PublicQuestView } from '../lib/types';
+import {
+  FOUNDER_CIPHER_PRELAUNCH_COOKIE,
+  createPrelaunchAccessToken,
+} from '../lib/founder-cipher-prelaunch';
 
 function readSource(relativePath: string): string {
   return fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
@@ -54,7 +58,11 @@ function readSource(relativePath: string): string {
 
 const HUB_SOURCE = readSource('app/events/[slug]/page.tsx');
 const ALL_14_SLUGS = Object.values(LAUNCH_DISTRICT_QUESTS).flat();
-const VALID_ADMIN_KEY = 'canton-gm-2026';
+
+process.env.FOUNDER_CIPHER_PRELAUNCH_PASSWORD = process.env.FOUNDER_CIPHER_PRELAUNCH_PASSWORD || 'test-only-prelaunch-password';
+function prelaunchCookieHeader(): string {
+  return `${FOUNDER_CIPHER_PRELAUNCH_COOKIE}=${createPrelaunchAccessToken()}`;
+}
 
 function baseQuest(overrides: Partial<PublicQuestView> = {}): PublicQuestView {
   return {
@@ -100,14 +108,14 @@ describe('Problem 1 — the Founder\'s Cipher API exposes exactly the canonical 
     expect(isLaunchDistrictQuestSlug(null)).toBe(false);
   });
 
-  it('GET /api/game/events/canton-weekend-1 (admin field test, real event data) returns exactly the 14 canonical quests, not the full ~36-row raw roster', async () => {
-    const req = new Request(`http://localhost:3000/api/game/events/${SEED_EVENT.slug}?fieldTest=1`, {
-      headers: { 'x-admin-key': VALID_ADMIN_KEY },
+  it('GET /api/game/events/canton-weekend-1 (valid prelaunch access, real event data) returns exactly the 14 canonical quests, not the full ~36-row raw roster', async () => {
+    const req = new Request(`http://localhost:3000/api/game/events/${SEED_EVENT.slug}`, {
+      headers: { cookie: prelaunchCookieHeader() },
     });
     const res = await eventsRoute(req, { params: { slug: SEED_EVENT.slug } });
     const data = await res.json();
 
-    expect(data.fieldTestActive).toBe(true);
+    expect(data.hasPrelaunchAccess).toBe(true);
     expect(Array.isArray(data.quests)).toBe(true);
     expect(data.quests).toHaveLength(14);
 
@@ -116,8 +124,8 @@ describe('Problem 1 — the Founder\'s Cipher API exposes exactly the canonical 
   });
 
   it('stale/prototype/legacy quest slugs sharing the same event never reach the response', async () => {
-    const req = new Request(`http://localhost:3000/api/game/events/${SEED_EVENT.slug}?fieldTest=1`, {
-      headers: { 'x-admin-key': VALID_ADMIN_KEY },
+    const req = new Request(`http://localhost:3000/api/game/events/${SEED_EVENT.slug}`, {
+      headers: { cookie: prelaunchCookieHeader() },
     });
     const res = await eventsRoute(req, { params: { slug: SEED_EVENT.slug } });
     const data = await res.json();
@@ -312,18 +320,18 @@ describe('Problem 4 — the default mission-hub state stays short: no panel open
   });
 });
 
-describe('Field test propagation is unaffected by the roster/collapse changes', () => {
-  it('buildQuestHref is still the single source of quest-link hrefs on the hub', () => {
+describe('Prelaunch access is unaffected by the roster/collapse changes', () => {
+  it('buildQuestHref is still the single source of quest-link hrefs on the hub, with no query-string threading', () => {
     expect(HUB_SOURCE).toContain(
-      "const buildQuestHref = (questId: string) =>\n    `/events/${eventSlug}/quests/${questId}${fieldTestActive ? '?fieldTest=1' : ''}`;"
+      "const buildQuestHref = (questId: string) => `/events/${eventSlug}/quests/${questId}`;"
     );
   });
 
-  it('a verified admin field-test session still receives the real 14-quest roster before launch (already proven above); an unauthorized request still gets none', async () => {
+  it('a valid prelaunch access cookie still receives the real 14-quest roster before launch (already proven above); a request with no cookie still gets none', async () => {
     const req = new Request(`http://localhost:3000/api/game/events/${SEED_EVENT.slug}`);
     const res = await eventsRoute(req, { params: { slug: SEED_EVENT.slug } });
     const data = await res.json();
-    expect(data.fieldTestActive).toBe(false);
+    expect(data.hasPrelaunchAccess).toBe(false);
     expect(data.quests).toEqual([]);
   });
 });

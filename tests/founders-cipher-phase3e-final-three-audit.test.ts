@@ -322,7 +322,7 @@ describe('FULL SYSTEM — Master Cipher gate unaffected by Phase 3E', () => {
       proofType: 'photo',
       submittedContent: 'https://example.com/frankenstein.jpg',
     });
-    expect(result.submission.status).toBe('pending');
+    expect(result.submission.status).toBe('verified');
     expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false);
   });
 });

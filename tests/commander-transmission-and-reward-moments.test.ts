@@ -387,6 +387,8 @@ describe('Duplicate reward never produces a fake second reward popup', () => {
       rewardConfig: { baseXp: 80, collectibleUnlockIds: ['col-founder-token'] },
     });
 
+    // Photo proof auto-verifies immediately (Master Launch Pivot) — the
+    // reward is already granted by the time submitQuestProof returns.
     const submitted = submitQuestProof({
       playerId: player.id,
       questId: quest.id,
@@ -394,8 +396,7 @@ describe('Duplicate reward never produces a fake second reward popup', () => {
       proofType: 'photo',
       proofUrl: 'https://example.com/proof.jpg',
     });
-    const approved = reviewSubmission(submitted.submission.id, 'verified');
-    expect(approved?.awardedPoints).toBe(80);
+    expect(submitted.awardedPoints).toBe(80);
 
     const reapproved = reviewSubmission(submitted.submission.id, 'verified');
     // The page's isQuestFullyCompleted-gated reward sequence and the

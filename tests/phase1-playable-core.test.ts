@@ -7,7 +7,6 @@ import {
   submitQuestProof,
   getLeaderboardForEvent,
   getPlayerProgress,
-  reviewSubmission,
   initializeGameEngine,
   getQuestById,
 } from '../lib/game-engine';
@@ -151,11 +150,10 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
     expect(progress.completedCount).toBeGreaterThanOrEqual(1);
   });
 
-  it('8. GAME MASTER ADMIN REVIEW: reviews pending photo proof and awards points', () => {
+  it('8. PHOTO PROOF: completes immediately and awards points, with no moderation queue (Master Launch Pivot)', () => {
     const player = setCurrentPlayer('Agent_Media_Submitter', '📸');
     const quest = getQuestById('qst-4th-st-mural-photo')!;
 
-    // Submits photo proof (routed to pending queue)
     const submitRes = submitQuestProof({
       playerId: player.id,
       questId: quest.id,
@@ -165,14 +163,9 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
     });
 
     expect(submitRes.success).toBe(true);
-    expect(submitRes.submission.status).toBe('pending');
-    expect(submitRes.awardedPoints).toBe(0);
-
-    // Admin reviews and approves submission
-    const reviewedSub = reviewSubmission(submitRes.submission.id, 'verified', 'Great pose!');
-    expect(reviewedSub).toBeDefined();
-    expect(reviewedSub?.status).toBe('verified');
-    expect(reviewedSub?.awardedPoints).toBe(quest.xpReward || quest.pointValue);
+    expect(submitRes.submission.status).toBe('verified');
+    expect(submitRes.submission.auditStatus).toBe('not_needed');
+    expect(submitRes.awardedPoints).toBe(quest.xpReward || quest.pointValue);
 
     const progress = getPlayerProgress(player.id, SEED_EVENT.id);
     expect(progress.totalPoints).toBeGreaterThanOrEqual(quest.xpReward || quest.pointValue);

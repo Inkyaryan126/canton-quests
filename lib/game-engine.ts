@@ -2117,7 +2117,16 @@ function verifyStepProof(
     return { status: 'verified', message: locationResult.message, distanceMeters: locationResult.distanceMeters };
   }
 
-  if (step.verificationType === 'photo' || step.verificationType === 'video' || step.verificationType === 'game_master') {
+  if (step.verificationType === 'photo' || step.verificationType === 'video') {
+    // Same immediate-completion rule as the top-level branch — no per-step
+    // moderation queue either.
+    if (!params.proofUrl && !params.submittedContent) {
+      return { status: 'rejected', message: `Step ${step.stepOrder} requires proof details.` };
+    }
+    return { status: 'verified', message: `Step ${step.stepOrder} evidence secured.` };
+  }
+
+  if (step.verificationType === 'game_master') {
     if (!params.proofUrl && !params.submittedContent) {
       return { status: 'rejected', message: `Step ${step.stepOrder} requires proof details before Game Master review.` };
     }
@@ -2387,11 +2396,24 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
         flags: reviewFlags,
       };
     }
-  } else if (quest.verificationType === 'photo' || quest.verificationType === 'video' || quest.verificationType === 'game_master') {
+  } else if (quest.verificationType === 'photo' || quest.verificationType === 'video') {
+    // Master Launch Pivot correction: photo/video proof is never a
+    // real-time moderation queue. The submission completes the quest
+    // immediately (same as any other auto-verified proof) and the media
+    // itself is simply locked, immutable evidence from that point on.
+    // Manual inspection only ever happens later, and only for a specific
+    // drawn prize candidate (see executePrizeDraw / auditStatus) — never as
+    // a general work queue a Game Master has to sit and clear.
+    isAutoVerified = true;
+    validationMessage = 'Evidence secured! Quest complete.';
+  } else if (quest.verificationType === 'game_master') {
+    // Distinct, deliberately-manual verification type — unlike 'photo'/
+    // 'video', a quest author who explicitly chose 'game_master' wants a
+    // human in the loop for that specific moment. Unused in the current
+    // seed roster; left as the one real "needs a human before completion"
+    // escape hatch a future quest could opt into deliberately.
     isAutoVerified = false;
-    validationMessage = quest.verificationType === 'game_master'
-      ? 'Submitted for Game Master manual approval.'
-      : 'Media proof submitted! Routed to Game Master review queue.';
+    validationMessage = 'Submitted for Game Master manual approval.';
   } else if (quest.verificationType === 'multi_step') {
     const steps = quest.steps || [];
     const completedSoFar = existingSub ? (existingSub.completedStepOrder || 0) : 0;
@@ -2509,6 +2531,10 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     userLon: params.userLon,
     distanceFromLocation: distanceFromLoc,
     claimPlacement,
+    auditStatus:
+      params.proofType === 'photo' || params.proofType === 'video'
+        ? 'not_needed'
+        : undefined,
   };
 
   const updatedSubmissions = [...existingSubmissions, newSubmission];
@@ -4608,7 +4634,75 @@ export async function executePrizeDraw(params: {
   lock.updatedAt = new Date().toISOString();
   setStoredItem(STORAGE_KEYS.DRAWING_LOCKS, locks);
 
+  // Photo/video evidence is never reviewed as a general work queue — only
+  // now, for this specific drawn candidate, does their locked evidence get
+  // flagged for a Game Master to actually look at before paying out.
+  if (record.winningPlayerId) {
+    flagPlayerEvidenceForWinnerAudit(realEventId, record.winningPlayerId);
+  }
+
   return record;
+}
+
+/**
+ * Flags a drawn prize candidate's photo/video quest submissions for this
+ * event as needing a Game Master's manual look before payout — the ONLY
+ * time any submission's auditStatus ever moves off 'not_needed'. Never
+ * touches any other player's submissions, and never runs except right
+ * after executePrizeDraw selects a winningPlayerId.
+ */
+function flagPlayerEvidenceForWinnerAudit(eventId: string, playerId: string): void {
+  const submissions = getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
+  let changed = false;
+  const updated = submissions.map((sub) => {
+    if (
+      sub.eventId === eventId &&
+      sub.playerId === playerId &&
+      sub.status === 'verified' &&
+      (sub.proofType === 'photo' || sub.proofType === 'video') &&
+      sub.auditStatus !== 'winner_audit_pending'
+    ) {
+      changed = true;
+      return { ...sub, auditStatus: 'winner_audit_pending' as const };
+    }
+    return sub;
+  });
+  if (changed) {
+    setStoredItem(STORAGE_KEYS.SUBMISSIONS, updated);
+  }
+}
+
+/**
+ * Read-only helper for the (future) Winner Audit admin screen — every
+ * submission currently awaiting a Game Master's look for a drawn prize
+ * candidate. Empty in the overwhelmingly common case where nobody has been
+ * drawn yet, or the drawn candidate had no photo/video evidence requirement.
+ */
+export function getWinnerAuditQueue(eventId: string): QuestSubmission[] {
+  initializeGameEngine();
+  const submissions = getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
+  return submissions.filter((s) => s.eventId === eventId && s.auditStatus === 'winner_audit_pending');
+}
+
+/**
+ * Resolves a winner-audit submission: 'approved' confirms that piece of
+ * evidence is legitimate; 'rejected' disqualifies it (the caller/admin flow
+ * decides what that means for the candidate — e.g. disqualifying them from
+ * that prize and drawing the next candidate via executePrizeDraw's existing
+ * excludedPlayerIds mechanism). Never touches rewards/progression — this is
+ * a payout safeguard, not a gameplay action.
+ */
+export function resolveWinnerAuditSubmission(
+  submissionId: string,
+  decision: 'approved' | 'rejected'
+): QuestSubmission | undefined {
+  initializeGameEngine();
+  const submissions = getStoredItem<QuestSubmission[]>(STORAGE_KEYS.SUBMISSIONS, []);
+  const sub = submissions.find((s) => s.id === submissionId);
+  if (!sub) return undefined;
+  sub.auditStatus = decision;
+  setStoredItem(STORAGE_KEYS.SUBMISSIONS, submissions);
+  return sub;
 }
 
 export function publishDrawingResults(eventId: string, adminIdentity?: string): PrizeDrawRecord[] {

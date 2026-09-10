@@ -81,9 +81,9 @@ describe('Canton Quests — Core Quest Rewards Backbone Suite', () => {
     expect(result.drawingEntriesAwarded).toBe(0);
   });
 
-  it('5. Pending manual proof does not award rewards', () => {
-    const player = setCurrentPlayer('Agent_Manual_Pending_Tester', '📸');
-    const quest = SEED_QUESTS[2]; // Photo proof quest (manual GM approval)
+  it('5. Photo proof completes immediately and awards rewards — never a pending moderation queue (Master Launch Pivot)', () => {
+    const player = setCurrentPlayer('Agent_Photo_Immediate_Tester', '📸');
+    const quest = SEED_QUESTS[2]; // Photo proof quest
 
     const result = submitQuestProof({
       playerId: player.id,
@@ -94,13 +94,14 @@ describe('Canton Quests — Core Quest Rewards Backbone Suite', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.submission.status).toBe('pending');
-    expect(result.awardedPoints).toBe(0);
-    expect(result.drawingEntriesAwarded).toBe(0);
+    expect(result.submission.status).toBe('verified');
+    expect(result.awardedPoints).toBeGreaterThan(0);
+    expect(result.drawingEntriesAwarded).toBeGreaterThan(0);
+    // Locked as immutable evidence, not flagged for any review queue.
+    expect(result.submission.auditStatus).toBe('not_needed');
 
-    // Verify drawing ledger has 0 entries for this pending submission
     const playerEntries = getDrawingEntriesForPlayer(player.id, SEED_EVENT.id);
-    expect(playerEntries.some((e) => e.questId === quest.id)).toBe(false);
+    expect(playerEntries.some((e) => e.questId === quest.id)).toBe(true);
   });
 
   it('6. Verified proof awards XP exactly once', () => {

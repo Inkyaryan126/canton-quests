@@ -120,6 +120,80 @@ function getEventCountdown(event: QuestEvent) {
   };
 }
 
+// A private password screen that opens the exact same production Founder's
+// Cipher gameplay a real player will see after launch — never a distinct
+// admin/tester experience. On success, the server sets a signed httpOnly
+// cookie (see lib/founder-cipher-prelaunch.ts) and this component asks the
+// parent to reload, which re-fetches /api/game/events/[slug] and receives
+// the real event/quest data exactly as any other request would once the
+// Operation is live.
+function PrelaunchAccessCard({ onAccessGranted }: { onAccessGranted: () => void }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim() || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/game/founder-cipher/prelaunch-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Incorrect access code.');
+        return;
+      }
+      onAccessGranted();
+    } catch {
+      setError('Unable to reach the server. Try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-amber-500/40 bg-stone-900/90 shadow-2xl p-6 sm:p-8 w-full space-y-4 text-center">
+      <span className="text-xs font-mono uppercase tracking-widest text-amber-400">Founder&apos;s Cipher</span>
+      <h2 className="font-display font-black text-xl sm:text-2xl text-white uppercase tracking-tight">
+        Prelaunch Access
+      </h2>
+      <p className="text-sm text-stone-300 leading-relaxed font-body">
+        This Operation has not begun.
+      </p>
+      <form onSubmit={handleSubmit} className="space-y-3 text-left">
+        <label className="block text-xs font-mono uppercase tracking-wider text-stone-400">
+          Private Test Access
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="off"
+            required
+            className="mt-1.5 w-full rounded-xl border border-stone-700 bg-stone-950 px-4 py-3 text-white font-mono text-sm focus:border-amber-400 focus:outline-none"
+          />
+        </label>
+        {error && (
+          <p role="alert" className="text-xs text-red-400 font-mono">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={submitting || !password.trim()}
+          className="cq-gold-button w-full text-xs py-3 px-6 font-mono font-bold uppercase tracking-wider disabled:opacity-50"
+        >
+          {submitting ? 'Verifying…' : 'Enter Operation'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function EventHubPageContent({ params, entryReady, onEntryData }: {
   params: { slug: string };
   entryReady: boolean;
@@ -134,12 +208,12 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   // because the player deliberately clicked one, or because the URL
   // explicitly deep-links to it (?tab=quests / ?tab=map / ?tab=intel).
   const initialTab: DashboardTab | null = VALID_TABS.includes(requestedTab as DashboardTab) ? (requestedTab as DashboardTab) : null;
-  // Admin Field Test Mode is requested via ?fieldTest=1, but it only ever
-  // takes effect once the server independently verifies the existing admin
-  // session on every request (see lib/field-test-access.ts's
-  // resolveFieldTestAccess) — fieldTestRequested alone grants nothing here.
-  const fieldTestRequested = searchParams.get('fieldTest') === '1';
-  const [fieldTestActive, setFieldTestActive] = useState<boolean>(false);
+  // Founder's Cipher Prelaunch Access — established purely by a server-set
+  // httpOnly cookie (see lib/founder-cipher-prelaunch.ts), never a query
+  // string or client flag. Once granted, this request is treated exactly
+  // like a real post-launch player: it only ever changes whether prelaunch
+  // content is visible at all, never verification/reward behavior.
+  const [hasPrelaunchAccess, setHasPrelaunchAccess] = useState<boolean>(false);
 
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [isPreLaunch, setIsPreLaunch] = useState<boolean>(false);
@@ -372,8 +446,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    const fieldTestQuery = fieldTestRequested ? '&fieldTest=1' : '';
-    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}${fieldTestQuery}`, {
+    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`, {
       signal: controller.signal,
     })
       .then((res) => {
@@ -398,7 +471,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
         progress?: PlayerEventProgress;
         cipherProgress?: PlayerCipherProgressView | null;
         isPreLaunch?: boolean;
-        fieldTestActive?: boolean;
+        hasPrelaunchAccess?: boolean;
       } | null) => {
         setIsLoading(false);
         if (!data) return;
@@ -410,8 +483,9 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
         if (data.isPreLaunch) {
           setIsPreLaunch(true);
         }
-        // Server-verified only — never set from fieldTestRequested itself.
-        setFieldTestActive(Boolean(data.fieldTestActive));
+        // Server-verified only (the prelaunch access cookie) — never set
+        // from any client-side flag or query string.
+        setHasPrelaunchAccess(Boolean(data.hasPrelaunchAccess));
         if (data.event) {
           const loadedQuests = data.quests || [];
           setEvent(data.event);
@@ -454,7 +528,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
       .finally(() => {
         clearTimeout(timeoutId);
       });
-  }, [authenticatedPlayer, eventSlug, fieldTestRequested]);
+  }, [authenticatedPlayer, eventSlug]);
 
   useEffect(() => {
     refreshData();
@@ -501,7 +575,11 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     return () => clearInterval(interval);
   }, [refreshFinaleStatus]);
 
-  // Geolocation Sensor
+  // Geolocation Sensor — opt-in only. No Founder's Cipher launch quest
+  // depends on GPS, and no player is asked for location permission just by
+  // opening the Mission hub; this only ever fires when a player explicitly
+  // taps "Locate Me" on the map (see CantonMap's onLocateMe), purely as a
+  // convenience for the optional "nearest quest" sort.
   const requestLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -514,10 +592,6 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
       );
     }
   };
-
-  useEffect(() => {
-    requestLocation();
-  }, []);
 
   // Handle Passcode Redemption
   const handleRedeemPasscode = async (e: React.FormEvent) => {
@@ -585,7 +659,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   const stage = getOperationLifecycleStage(event, eventSlug);
   const countdownValue = getEventCountdown(event || ({ startTime: CANONICAL_LAUNCH_DATE_ISO } as QuestEvent));
 
-  if (!event || (!fieldTestActive && (isPreLaunch || isPreLaunchEvent(event, eventSlug)))) {
+  if (!event || (!hasPrelaunchAccess && (isPreLaunch || isPreLaunchEvent(event, eventSlug)))) {
     // A real, known Operation (e.g. the Fair QR Hunt) that simply hasn't
     // started yet gets its own honest, event-aware "not started" screen —
     // never the hardcoded Sept 11 Main Operation copy below, which would
@@ -651,7 +725,11 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
               stage="upcoming"
               countdown={countdownValue}
               chosenPath={authenticatedPlayer?.selectedStartingPath}
-            />
+            >
+              <div className="max-w-md mx-auto py-4">
+                <PrelaunchAccessCard onAccessGranted={() => window.location.reload()} />
+              </div>
+            </FounderCipherShell>
           </main>
           <CinematicFooter />
         </div>
@@ -838,10 +916,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     uncompletedActive[0] ||
     quests[0];
 
-  // Server-verified only (fieldTestActive) — never the raw ?fieldTest=1
-  // request param — matches the same rule QuestCard follows.
-  const buildQuestHref = (questId: string) =>
-    `/events/${eventSlug}/quests/${questId}${fieldTestActive ? '?fieldTest=1' : ''}`;
+  const buildQuestHref = (questId: string) => `/events/${eventSlug}/quests/${questId}`;
   const hasStartedMission = (progress?.completedCount || 0) > 0;
 
   let filteredQuests = quests.filter((q) => {
@@ -1061,7 +1136,6 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
                     completedQuestIds={progress?.completedQuestIds || []}
                     pendingQuestIds={progress?.pendingSubmissionQuestIds || []}
                     distanceStr={distStr}
-                    fieldTestActive={fieldTestActive}
                   />
                 );
               })}
@@ -1262,19 +1336,6 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     />
   );
 
-  // Persistent, unmissable notice — never confusable with real public play.
-  // Only ever rendered when the server has independently verified the admin
-  // session for this exact request (fieldTestActive), never from the raw
-  // ?fieldTest=1 query string alone.
-  const fieldTestBanner = fieldTestActive ? (
-    <div
-      role="status"
-      className="sticky top-0 z-50 w-full bg-red-600 text-white text-center text-xs sm:text-sm font-mono font-bold uppercase tracking-wider py-2 px-4"
-    >
-      ⚠ ADMIN FIELD TEST — PRELAUNCH
-    </div>
-  ) : null;
-
   if (isCipher) {
     // Radical simplification: the active-play hub no longer wraps
     // dashboardCore in FounderCipherShell — that component is a full
@@ -1289,7 +1350,6 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     // it.
     return (
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
-        {fieldTestBanner}
         <Header eventSlug={eventSlug} />
         <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6 sm:py-8">{dashboardCore}</main>
         <CinematicFooter />
@@ -1301,7 +1361,6 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
 
   return (
     <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
-      {fieldTestBanner}
       <Header eventSlug={eventSlug} />
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6">{dashboardCore}</main>

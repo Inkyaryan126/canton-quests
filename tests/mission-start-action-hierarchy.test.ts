@@ -163,10 +163,10 @@ describe('MISSION_BRIEFING — fires independently of Cold Open playback', () =>
   });
 });
 
-describe('Field test propagation — every quest-navigation link on the hub preserves ?fieldTest=1', () => {
-  it('defines one shared, server-verified-only buildQuestHref helper', () => {
+describe('Quest-navigation links on the hub use one shared buildQuestHref helper', () => {
+  it('defines one shared buildQuestHref helper with no query-string threading (access is cookie-based, not query-based)', () => {
     expect(HUB_SOURCE).toContain(
-      "const buildQuestHref = (questId: string) =>\n    `/events/${eventSlug}/quests/${questId}${fieldTestActive ? '?fieldTest=1' : ''}`;"
+      "const buildQuestHref = (questId: string) => `/events/${eventSlug}/quests/${questId}`;"
     );
   });
 
@@ -222,14 +222,14 @@ describe('Quest detail page — GO HERE / DO THIS / SUBMIT is the core page, not
     expect(afterSubmit).toContain('rewardSummary.hasBonusContent');
   });
 
-  it('quest-completion next-action navigation also preserves ?fieldTest=1 via the shared buildQuestHref helper', () => {
+  it('quest-completion next-action navigation uses the shared buildQuestHref helper, with no query-string threading', () => {
     expect(QUEST_DETAIL_SOURCE).toMatch(
-      /const buildQuestHref = useCallback\(\s*\n\s*\(targetQuestId: string\) => `\/events\/\$\{eventSlug\}\/quests\/\$\{targetQuestId\}\$\{fieldTestActive \? '\?fieldTest=1' : ''\}`,\s*\n\s*\[eventSlug, fieldTestActive\]/
+      /const buildQuestHref = useCallback\(\s*\n\s*\(targetQuestId: string\) => `\/events\/\$\{eventSlug\}\/quests\/\$\{targetQuestId\}`,\s*\n\s*\[eventSlug\]/
     );
     expect((QUEST_DETAIL_SOURCE.match(/unlockedQuestUrl: nextInChain \? buildQuestHref\(nextInChain\.id\) : undefined/g) || []).length).toBe(4);
   });
 
-  it('after completion, a dominant NEXT QUEST action leads with BACK TO MISSION as secondary, both preserving field test', () => {
+  it('after completion, a dominant NEXT QUEST action leads with BACK TO MISSION as secondary', () => {
     const completedBlock = QUEST_DETAIL_SOURCE.slice(
       QUEST_DETAIL_SOURCE.indexOf('/* COMPLETED STATE */'),
       QUEST_DETAIL_SOURCE.indexOf('qst-frankenstein-west-lawn')

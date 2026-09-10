@@ -10,7 +10,6 @@ import {
   isLocalCipherDistrictReadyToDecode,
   isLocalCipherDistrictTokenUnlocked,
   resetGameEngineStore,
-  reviewSubmission,
   submitQuestProof,
 } from '../lib/game-engine';
 import { SEED_EVENT } from '../lib/seed-data';
@@ -182,7 +181,7 @@ describe("Founder's Cipher district fragment system", () => {
     expect(getLocalCipherFragmentGrants(playerId, EVENT_ID)).toHaveLength(0);
   });
 
-  it('waits for Game Master approval before granting photo-proof fragments', () => {
+  it('grants photo-proof fragments immediately — no Game Master approval step (Master Launch Pivot)', () => {
     const playerId = 'plr-cipher-photo';
     const quest = makeQuest({
       verificationType: 'photo',
@@ -190,12 +189,9 @@ describe("Founder's Cipher district fragment system", () => {
       rewardConfig: { cipherFragmentKeys: ['arts-painted-witness'] },
     });
 
-    const pending = submit(playerId, quest);
-    expect(pending.success).toBe(true);
-    expect(pending.submission.status).toBe('pending');
-    expect(getLocalCipherFragmentGrants(playerId, EVENT_ID)).toHaveLength(0);
-
-    reviewSubmission(pending.submission.id, 'verified');
+    const result = submit(playerId, quest);
+    expect(result.success).toBe(true);
+    expect(result.submission.status).toBe('verified');
     expect(getLocalCipherFragmentGrants(playerId, EVENT_ID).map((grant) => grant.fragmentKey)).toEqual(['arts-painted-witness']);
   });
 

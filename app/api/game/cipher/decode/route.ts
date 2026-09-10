@@ -5,6 +5,7 @@ import { decodeDistrictCipherDB } from '@/lib/founders-cipher';
 import { decodeLocalCipherDistrict, getEventBySlug } from '@/lib/game-engine';
 import { isSupabaseAdminConfigured } from '@/lib/supabase';
 import { CipherDistrictKey } from '@/lib/types';
+import { isFounderCipherPrelaunchBlocked } from '@/lib/founder-cipher-prelaunch';
 
 /**
  * POST /api/game/cipher/decode
@@ -38,6 +39,18 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, error: 'Authentication required.' },
         { status: 401 }
+      );
+    }
+
+    // Independent, authoritative Operation-start-time enforcement, matching
+    // every other Founder's Cipher gameplay endpoint — district decoding
+    // during genuine prelaunch requires a validated Founder's Cipher
+    // prelaunch access cookie, never a client-supplied flag.
+    const gateEvent = await getEventBySlugDB(eventSlug);
+    if (isFounderCipherPrelaunchBlocked(request, gateEvent)) {
+      return NextResponse.json(
+        { success: false, error: 'This Mission has not launched yet.' },
+        { status: 403 }
       );
     }
 

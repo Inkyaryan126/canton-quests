@@ -79,7 +79,7 @@ describe("Founder's Cipher Phase 2B: Launch Polish & Field-Dependent Content", (
     expect(spring.rewardConfig?.cipherFragmentKeys).toEqual(['secret-silent-court']);
   });
 
-  it('verifies photo submissions start as pending and do not prematurely grant rewards', () => {
+  it('verifies photo submissions complete immediately and are locked as evidence, not queued for review (Master Launch Pivot)', () => {
     const player = setCurrentPlayer(`test_poller_${Date.now()}`, '📸');
     const photoQuest = canonicalQuests.find((q) => q.verificationType === 'photo')!;
     expect(photoQuest).toBeDefined();
@@ -93,9 +93,10 @@ describe("Founder's Cipher Phase 2B: Launch Polish & Field-Dependent Content", (
     });
 
     expect(result.success).toBe(true);
-    expect(result.submission.status).toBe('pending');
-    expect(result.awardedPoints).toBe(0);
-    expect(result.drawingEntriesAwarded).toBe(0);
-    expect(result.isQuestFullyCompleted).toBe(false);
+    expect(result.submission.status).toBe('verified');
+    expect(result.submission.auditStatus).toBe('not_needed');
+    expect(result.awardedPoints).toBeGreaterThan(0);
+    expect(result.drawingEntriesAwarded).toBeGreaterThan(0);
+    expect(result.isQuestFullyCompleted).toBe(true);
   });
 });

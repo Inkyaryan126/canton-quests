@@ -11,7 +11,7 @@ afterAll(() => vi.unstubAllGlobals());
 
 const MOCK_DISTRICTS: CipherDistrictProgressView[] = [
   {
-    key: 'downtown-arts',
+    key: 'arts',
     name: 'Downtown Arts District',
     status: 'token_unlocked',
     collectedCount: 3,
@@ -22,32 +22,35 @@ const MOCK_DISTRICTS: CipherDistrictProgressView[] = [
     fragments: [
       {
         key: 'arts-fragment-1',
-        districtKey: 'downtown-arts',
+        districtKey: 'arts',
         displayName: 'The foundation stones',
         obscuredLabel: 'Fragment Alpha',
         revealCopy: 'Recovered from the Palace Theatre cornerstone.',
         collected: true,
+        sortOrder: 1,
       },
       {
         key: 'arts-fragment-2',
-        districtKey: 'downtown-arts',
+        districtKey: 'arts',
         displayName: 'remember the',
         obscuredLabel: 'Fragment Beta',
         revealCopy: 'Traced on the bronze lantern bracket.',
         collected: true,
+        sortOrder: 2,
       },
       {
         key: 'arts-fragment-3',
-        districtKey: 'downtown-arts',
+        districtKey: 'arts',
         displayName: 'original architects.',
         obscuredLabel: 'Fragment Gamma',
         revealCopy: 'Hidden within the lobby mural schema.',
         collected: true,
+        sortOrder: 3,
       },
     ],
   },
   {
-    key: 'market-district',
+    key: 'challenge',
     name: 'Market District',
     status: 'in_progress',
     collectedCount: 1,
@@ -55,28 +58,31 @@ const MOCK_DISTRICTS: CipherDistrictProgressView[] = [
     fragments: [
       {
         key: 'market-fragment-1',
-        districtKey: 'market-district',
+        districtKey: 'challenge',
         displayName: 'Iron gates seal',
         obscuredLabel: 'Fragment Delta',
         revealCopy: 'Found at the market arcade entrance.',
         collected: true,
+        sortOrder: 1,
       },
       {
         key: 'market-fragment-2',
-        districtKey: 'market-district',
+        districtKey: 'challenge',
         obscuredLabel: 'Fragment Epsilon',
         collected: false,
+        sortOrder: 2,
       },
       {
         key: 'market-fragment-3',
-        districtKey: 'market-district',
+        districtKey: 'challenge',
         obscuredLabel: 'Fragment Zeta',
         collected: false,
+        sortOrder: 3,
       },
     ],
   },
   {
-    key: 'innovation-corridor',
+    key: 'secret',
     name: 'Innovation Corridor',
     status: 'ready_to_decode',
     collectedCount: 3,
@@ -84,33 +90,38 @@ const MOCK_DISTRICTS: CipherDistrictProgressView[] = [
     fragments: [
       {
         key: 'inno-fragment-1',
-        districtKey: 'innovation-corridor',
+        districtKey: 'secret',
         displayName: 'Signals converge where',
         obscuredLabel: 'Fragment Eta',
         revealCopy: 'Captured near the transmission node.',
         collected: true,
+        sortOrder: 1,
       },
       {
         key: 'inno-fragment-2',
-        districtKey: 'innovation-corridor',
+        districtKey: 'secret',
         displayName: 'the clock tower',
         obscuredLabel: 'Fragment Theta',
         revealCopy: 'Logged by the courthouse telemetry.',
         collected: true,
+        sortOrder: 2,
       },
       {
         key: 'inno-fragment-3',
-        districtKey: 'innovation-corridor',
+        districtKey: 'secret',
         displayName: 'strikes midnight.',
         obscuredLabel: 'Fragment Iota',
         revealCopy: 'Decoded from relay pulses.',
         collected: true,
+        sortOrder: 3,
       },
     ],
   },
 ];
 
 const MOCK_PROGRESS: PlayerCipherProgressView = {
+  eventId: 'evt-test-flagship',
+  playerId: 'plr-test-flagship',
   totalCollected: 7,
   totalRequired: 9,
   districts: MOCK_DISTRICTS,
@@ -119,7 +130,13 @@ const MOCK_PROGRESS: PlayerCipherProgressView = {
 describe('Phase 3 Flagship Moment — Cipher Fragments Panel & Sigil Reveal', () => {
   it('renders null when progress is missing or has zero districts', () => {
     expect(renderToStaticMarkup(<CipherFragmentsPanel progress={null} />)).toBe('');
-    expect(renderToStaticMarkup(<CipherFragmentsPanel progress={{ totalCollected: 0, totalRequired: 9, districts: [] }} />)).toBe('');
+    expect(
+      renderToStaticMarkup(
+        <CipherFragmentsPanel
+          progress={{ eventId: 'evt-test', playerId: 'plr-test', totalCollected: 0, totalRequired: 9, districts: [] }}
+        />
+      )
+    ).toBe('');
   });
 
   it('renders all districts using SystemStatusBadge and Phase 2 primitives', () => {
@@ -182,21 +199,27 @@ describe('Phase 3 Flagship Moment — Cipher Fragments Panel & Sigil Reveal', ()
 
   it('supports locked status gracefully with denied system status badge', () => {
     const lockedDistrict: CipherDistrictProgressView = {
-      key: 'industrial-fringe',
+      key: 'secret',
       name: 'Industrial Fringe',
       status: 'locked',
       collectedCount: 0,
       requiredCount: 3,
       fragments: [
-        { key: 'ind-1', districtKey: 'industrial-fringe', obscuredLabel: 'Unknown Sigma', collected: false },
-        { key: 'ind-2', districtKey: 'industrial-fringe', obscuredLabel: 'Unknown Tau', collected: false },
-        { key: 'ind-3', districtKey: 'industrial-fringe', obscuredLabel: 'Unknown Upsilon', collected: false },
+        { key: 'ind-1', districtKey: 'secret', obscuredLabel: 'Unknown Sigma', collected: false, sortOrder: 1 },
+        { key: 'ind-2', districtKey: 'secret', obscuredLabel: 'Unknown Tau', collected: false, sortOrder: 2 },
+        { key: 'ind-3', districtKey: 'secret', obscuredLabel: 'Unknown Upsilon', collected: false, sortOrder: 3 },
       ],
     };
 
     const html = renderToStaticMarkup(
       <CipherFragmentsPanel
-        progress={{ totalCollected: 0, totalRequired: 3, districts: [lockedDistrict] }}
+        progress={{
+          eventId: 'evt-test-locked',
+          playerId: 'plr-test-locked',
+          totalCollected: 0,
+          totalRequired: 3,
+          districts: [lockedDistrict],
+        }}
         eventSlug="canton-weekend-1"
       />
     );
@@ -210,11 +233,13 @@ describe('Phase 3 Flagship Moment — Cipher Fragments Panel & Sigil Reveal', ()
 
 describe('Phase 3 Flagship Moment — MasterCipherStatusCard', () => {
   const baseStatus: PlayerFinaleStatus = {
-    configured: true,
+    convergenceStage: 'two_sigils',
     completedAt: null,
+    falseFinaleSolvedAt: null,
+    destinationReveal: null,
     unlockedSigilCount: 2,
     hasAllThreeLocks: true,
-    locksOwned: { mark: true, code: true, word: true },
+    threeLocks: { mark: true, code: true, word: true },
     eligibility: {
       ok: false,
       reason: 'insufficient_sigils',
@@ -244,12 +269,9 @@ describe('Phase 3 Flagship Moment — MasterCipherStatusCard', () => {
   it('renders ready state with armed SystemStatusBadge when eligibility is ok', () => {
     const readyStatus: PlayerFinaleStatus = {
       ...baseStatus,
+      convergenceStage: 'convergence_ready',
       unlockedSigilCount: 3,
-      eligibility: {
-        ok: true,
-        reason: 'eligible',
-        message: 'All requirements met. Master Cipher convergence ready.',
-      },
+      eligibility: { ok: true },
     };
 
     const html = renderToStaticMarkup(
@@ -266,12 +288,9 @@ describe('Phase 3 Flagship Moment — MasterCipherStatusCard', () => {
   it('renders solved state with confirmed SystemStatusBadge when completedAt is present', () => {
     const solvedStatus: PlayerFinaleStatus = {
       ...baseStatus,
+      convergenceStage: 'convergence_ready',
       completedAt: '2026-09-11T20:00:00.000Z',
-      eligibility: {
-        ok: true,
-        reason: 'eligible',
-        message: 'Completed.',
-      },
+      eligibility: { ok: true },
     };
 
     const html = renderToStaticMarkup(

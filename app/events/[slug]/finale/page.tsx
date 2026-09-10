@@ -37,6 +37,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
 
   const [event, setEvent] = useState<QuestEvent | null>(null);
   const [isPreLaunch, setIsPreLaunch] = useState(false);
+  const [hasPrelaunchAccess, setHasPrelaunchAccess] = useState(false);
   const [cipherProgress, setCipherProgress] = useState<PlayerCipherProgressView | null>(null);
   const [eventLoaded, setEventLoaded] = useState(false);
 
@@ -104,10 +105,16 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
         if (!res.ok) return null;
         return res.json();
       })
-      .then((data: { event?: QuestEvent; cipherProgress?: PlayerCipherProgressView | null; isPreLaunch?: boolean } | null) => {
+      .then((data: {
+        event?: QuestEvent;
+        cipherProgress?: PlayerCipherProgressView | null;
+        isPreLaunch?: boolean;
+        hasPrelaunchAccess?: boolean;
+      } | null) => {
         setEventLoaded(true);
         if (!data) return;
         if (data.isPreLaunch) setIsPreLaunch(true);
+        setHasPrelaunchAccess(Boolean(data.hasPrelaunchAccess));
         if (data.event) setEvent(data.event);
         setCipherProgress(data.cipherProgress || null);
       })
@@ -239,7 +246,7 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
   }
 
   // ---- Pre-launch -------------------------------------------------------
-  if (isPreLaunch || (event && isPreLaunchEvent(event, eventSlug))) {
+  if (!hasPrelaunchAccess && (isPreLaunch || (event && isPreLaunchEvent(event, eventSlug)))) {
     return (
       <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
         <Header eventSlug={eventSlug} />

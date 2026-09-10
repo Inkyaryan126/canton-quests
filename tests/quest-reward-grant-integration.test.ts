@@ -134,7 +134,7 @@ describe('Quest reward-grant transaction — bonus XP', () => {
     expect(result.awardedPoints).toBe(100);
   });
 
-  it('blocks a duplicate bonus grant if the same submission were re-processed', () => {
+  it('blocks a duplicate bonus grant if the same submission were re-processed (Master Launch Pivot: photo auto-verifies immediately)', () => {
     const player = newPlayer('bonus-duplicate');
     const quest = makeQuest({
       verificationType: 'photo',
@@ -150,17 +150,18 @@ describe('Quest reward-grant transaction — bonus XP', () => {
       proofUrl: 'https://example.com/proof.jpg',
     });
     expect(submitted.success).toBe(true);
-    expect(submitted.submission.status).toBe('pending');
+    expect(submitted.submission.status).toBe('verified');
+    expect(submitted.awardedPoints).toBe(130); // 100 base + 30 photo/video bonus
 
-    const approved = reviewSubmission(submitted.submission.id, 'verified');
-    expect(approved?.awardedPoints).toBe(130); // 100 base + 30 photo/video bonus
+    const totalAfterSubmit = getPlayerById(player.id)!.totalXp;
 
-    const totalAfterApproval = getPlayerById(player.id)!.totalXp;
-
-    // Re-approving the same already-verified submission must not re-grant anything.
+    // Re-processing the same already-verified submission (e.g. a stray
+    // admin review action) must not re-grant anything — the underlying
+    // reward_grants QUEST_BASE record is keyed per player+quest, not per
+    // call, so this is a safe no-op regardless of how many times it runs.
     const reapproved = reviewSubmission(submitted.submission.id, 'verified');
     expect(reapproved?.awardedPoints).toBe(0);
-    expect(getPlayerById(player.id)!.totalXp).toBe(totalAfterApproval);
+    expect(getPlayerById(player.id)!.totalXp).toBe(totalAfterSubmit);
   });
 });
 
@@ -406,8 +407,8 @@ describe('Quest reward-grant transaction — secret quest unlocks', () => {
   });
 });
 
-describe('Quest reward-grant transaction — GM manual vs automated path', () => {
-  it('routes GM-approved (photo) submissions through the same reward transaction as automated verification', () => {
+describe('Quest reward-grant transaction — photo proof routes through the same transaction as automated verification', () => {
+  it('a photo submission is auto-verified immediately (Master Launch Pivot) through the same reward transaction as any other proof type', () => {
     const player = newPlayer('gm-parity');
     const quest = makeQuest({
       verificationType: 'photo',
@@ -422,18 +423,15 @@ describe('Quest reward-grant transaction — GM manual vs automated path', () =>
       proofType: 'photo',
       proofUrl: 'https://example.com/proof.jpg',
     });
-    expect(submitted.submission.status).toBe('pending');
-    expect(submitted.awardedPoints).toBe(0);
-
-    const approved = reviewSubmission(submitted.submission.id, 'verified');
-    expect(approved?.awardedPoints).toBe(150);
+    expect(submitted.submission.status).toBe('verified');
+    expect(submitted.awardedPoints).toBe(150);
     expect(getAchievementsForPlayer(player.id).some((a) => a.achievementSlug === 'pathfinder-challenge')).toBe(true);
     expect(getCollectiblesForPlayer(player.id).some((c) => c.collectibleId === 'col-founder-token')).toBe(true);
   });
 });
 
 describe('Quest reward-grant transaction — concurrent / idempotent re-processing', () => {
-  it('processing the same submission twice results in exactly one reward set', () => {
+  it('a photo submission grants its full reward set exactly once, even if re-processed afterward', () => {
     const player = newPlayer('idempotent');
     const quest = makeQuest({
       verificationType: 'photo',
@@ -448,6 +446,9 @@ describe('Quest reward-grant transaction — concurrent / idempotent re-processi
       drawingEntryReward: 1,
     });
 
+    // Photo proof auto-verifies immediately (Master Launch Pivot) — the
+    // full reward set is already granted by the time submitQuestProof
+    // returns, with no separate GM-approval step.
     const submitted = submitQuestProof({
       playerId: player.id,
       questId: quest.id,
@@ -456,7 +457,6 @@ describe('Quest reward-grant transaction — concurrent / idempotent re-processi
       proofUrl: 'https://example.com/proof.jpg',
     });
 
-    const first = reviewSubmission(submitted.submission.id, 'verified');
     const totalXpAfterFirst = getPlayerById(player.id)!.totalXp;
     const badgeCountAfterFirst = getAchievementsForPlayer(player.id).length;
     const collectibleCountAfterFirst = getCollectiblesForPlayer(player.id).length;
@@ -464,10 +464,13 @@ describe('Quest reward-grant transaction — concurrent / idempotent re-processi
       .filter((e) => e.questId === quest.id)
       .reduce((sum, e) => sum + e.entriesCount, 0);
 
-    expect(first?.awardedPoints).toBe(120);
+    expect(submitted.submission.status).toBe('verified');
+    expect(submitted.awardedPoints).toBe(120);
     expect(entriesAfterFirst).toBe(3);
 
-    // Simulate a repeated/concurrent GM approval of the same submission.
+    // Simulate a repeated/concurrent re-processing of the same submission
+    // (e.g. a stray admin action) — the reward_grants QUEST_BASE record is
+    // keyed per player+quest, so this is a safe no-op.
     const second = reviewSubmission(submitted.submission.id, 'verified');
 
     expect(second?.awardedPoints).toBe(0);

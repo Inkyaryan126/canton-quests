@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { redeemSecretCodeDB } from '@/lib/supabase-db';
+import { redeemSecretCodeDB, getEventByIdDB } from '@/lib/supabase-db';
 import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
+import { isFounderCipherPrelaunchBlocked } from '@/lib/founder-cipher-prelaunch';
 
 export async function POST(request: Request) {
   try {
@@ -37,6 +38,16 @@ export async function POST(request: Request) {
     if (playerId && playerId !== player.id) {
       return withCookies(
         { success: false, message: 'Authenticated player does not match requested code claimant.', pointsAwarded: 0 },
+        { status: 403 }
+      );
+    }
+
+    // Independent, authoritative Operation-start-time enforcement, matching
+    // every other Founder's Cipher gameplay endpoint.
+    const event = await getEventByIdDB(eventId);
+    if (isFounderCipherPrelaunchBlocked(request, event)) {
+      return withCookies(
+        { success: false, message: 'This Mission has not launched yet.', pointsAwarded: 0 },
         { status: 403 }
       );
     }

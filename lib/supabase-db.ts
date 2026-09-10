@@ -421,7 +421,24 @@ function verifyAutomatedProof(
     return fail(quest.verificationType === 'qr' ? 'Invalid QR Code token!' : 'Incorrect passcode frequency! Re-examine the location or plaque.');
   }
 
-  if (quest.verificationType === 'photo' || quest.verificationType === 'video' || quest.verificationType === 'game_master') {
+  if (quest.verificationType === 'photo' || quest.verificationType === 'video') {
+    // Master Launch Pivot correction: photo/video proof is never a
+    // real-time moderation queue. It completes the quest immediately, same
+    // as any other auto-verified proof — the media is simply locked,
+    // immutable evidence from that point on. Manual inspection only ever
+    // happens later, and only for a specific drawn prize candidate, never
+    // as a general work queue.
+    if (!params.proofUrl && !params.submittedContent) {
+      return fail('Proof details are required.');
+    }
+    return verifiedReward('Evidence secured! Quest complete.');
+  }
+
+  if (quest.verificationType === 'game_master') {
+    // Distinct, deliberately-manual verification type — a quest author who
+    // explicitly chose 'game_master' wants a human in the loop for that
+    // specific moment, unlike 'photo'/'video'. Unused in the current seed
+    // roster.
     if (!params.proofUrl && !params.submittedContent) {
       return fail('Proof details are required before Game Master review.');
     }
@@ -448,7 +465,11 @@ function verifyAutomatedProof(
     } else if (step.verificationType === 'gps' || step.verificationType === 'checkin') {
       const gps = verifyGps(step);
       if (!gps.ok) return fail(gps.message, gps.distance);
-    } else if (step.verificationType === 'photo' || step.verificationType === 'video' || step.verificationType === 'game_master') {
+    } else if (step.verificationType === 'photo' || step.verificationType === 'video') {
+      // Same immediate-completion rule as the top-level photo/video branch
+      // above — no per-step moderation queue either.
+      if (!params.proofUrl && !params.submittedContent) return fail(`Step ${requestedStepIdx + 1} requires proof details.`);
+    } else if (step.verificationType === 'game_master') {
       if (!params.proofUrl && !params.submittedContent) return fail(`Step ${requestedStepIdx + 1} requires proof details before Game Master review.`);
       return {
         status: 'pending',

@@ -149,24 +149,22 @@ describe('1-5. Each canonical fragment/Lock is granted exactly once', () => {
     expect(owned.length).toBe(1);
   });
 
-  it('The Open Ground grants [GAVE A MONSTER] exactly once', () => {
+  it('The Open Ground grants [GAVE A MONSTER] exactly once (photo proof, auto-verified immediately per Master Launch Pivot)', () => {
     const player = newPlayer('open-ground');
     const result = submitQuestProof({
       playerId: player.id,
       questId: OPEN_GROUND.id,
       eventId: EVENT_ID,
-      proofType: 'checkin',
-      submittedContent: 'checkin',
-      ...geo(OPEN_GROUND),
+      proofType: 'photo',
+      proofUrl: 'https://example.com/open-ground.jpg',
     });
     expect(result.success).toBe(true);
     submitQuestProof({
       playerId: player.id,
       questId: OPEN_GROUND.id,
       eventId: EVENT_ID,
-      proofType: 'checkin',
-      submittedContent: 'checkin',
-      ...geo(OPEN_GROUND),
+      proofType: 'photo',
+      proofUrl: 'https://example.com/open-ground-again.jpg',
     });
 
     const owned = getLocalCipherFragmentGrants(player.id, EVENT_ID).filter((g) => g.fragmentKey === 'challenge-helmet-emblem');
@@ -211,16 +209,15 @@ describe('1-5. Each canonical fragment/Lock is granted exactly once', () => {
   });
 });
 
-describe('6. Skate Park Check-In grants no required Cipher Fragment', () => {
-  it('completing Skate Park never produces a cipherFragmentsAwarded entry', () => {
+describe('6. The 9th Street Signal grants no required Cipher Fragment', () => {
+  it('completing it (real on-site sign text, no GPS) never produces a cipherFragmentsAwarded entry', () => {
     const player = newPlayer('skate-park');
     const result = submitQuestProof({
       playerId: player.id,
       questId: SKATE_PARK.id,
       eventId: EVENT_ID,
-      proofType: 'checkin',
-      submittedContent: 'checkin',
-      ...geo(SKATE_PARK),
+      proofType: 'passphrase',
+      submittedContent: 'SKATE PARK',
     });
     expect(result.success).toBe(true);
     expect(result.cipherFragmentsAwarded || []).toHaveLength(0);
@@ -241,9 +238,9 @@ describe('7. Arbitrary completion order works for all six', () => {
   it('completing the six READY quests in reverse canonical order still grants every fragment/Lock correctly', async () => {
     const player = newPlayer('reverse-order');
 
-    submitQuestProof({ playerId: player.id, questId: SKATE_PARK.id, eventId: EVENT_ID, proofType: 'checkin', submittedContent: 'checkin', ...geo(SKATE_PARK) });
+    submitQuestProof({ playerId: player.id, questId: SKATE_PARK.id, eventId: EVENT_ID, proofType: 'passphrase', submittedContent: 'SKATE PARK' });
     await tick();
-    submitQuestProof({ playerId: player.id, questId: OPEN_GROUND.id, eventId: EVENT_ID, proofType: 'checkin', submittedContent: 'checkin', ...geo(OPEN_GROUND) });
+    submitQuestProof({ playerId: player.id, questId: OPEN_GROUND.id, eventId: EVENT_ID, proofType: 'photo', proofUrl: 'https://example.com/open-ground-reverse.jpg' });
     await tick();
     submitQuestProof({ playerId: player.id, questId: MONUMENT_PARK.id, eventId: EVENT_ID, proofType: 'passphrase', submittedContent: '1897', ...geo(MONUMENT_PARK) });
     await tick();
@@ -265,9 +262,9 @@ describe('7. Arbitrary completion order works for all six', () => {
   });
 });
 
-describe('8. Photo quests wait for required verification before granting a fragment', () => {
-  it('Canton Sign Capture grants nothing until the GM verifies the pending photo submission', () => {
-    const player = newPlayer('photo-pending');
+describe('8. Photo quests grant their fragment immediately on submission (Master Launch Pivot — no moderation queue)', () => {
+  it('Canton Sign Capture grants its fragment the moment the photo is submitted', () => {
+    const player = newPlayer('photo-immediate');
     const result = submitQuestProof({
       playerId: player.id,
       questId: CANTON_SIGN.id,
@@ -277,10 +274,8 @@ describe('8. Photo quests wait for required verification before granting a fragm
     });
 
     expect(result.success).toBe(true);
-    expect(result.submission.status).toBe('pending');
-    expect(getLocalCipherFragmentGrants(player.id, EVENT_ID).filter((g) => g.fragmentKey === 'arts-founder-signal')).toHaveLength(0);
-
-    reviewSubmission(result.submission.id, 'verified');
+    expect(result.submission.status).toBe('verified');
+    expect(result.submission.auditStatus).toBe('not_needed');
     expect(getLocalCipherFragmentGrants(player.id, EVENT_ID).filter((g) => g.fragmentKey === 'arts-founder-signal')).toHaveLength(1);
   });
 });
@@ -321,14 +316,13 @@ describe('11. Legacy Frankenstein quest cannot bypass the Master Cipher / final 
     expect(quest?.rewardConfig).toBeUndefined();
 
     const player = newPlayer('frankenstein-early');
-    const result = submitQuestProof({
+    submitQuestProof({
       playerId: player.id,
       questId: quest!.id,
       eventId: EVENT_ID,
       proofType: 'photo',
       submittedContent: 'https://example.com/frankenstein.jpg',
     });
-    reviewSubmission(result.submission.id, 'verified');
 
     expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false);
     expect(getLocalCipherFragmentGrants(player.id, EVENT_ID)).toHaveLength(0);
@@ -339,8 +333,7 @@ describe('12. Drawing entries stay exactly one per verified field quest', () => 
   it.each([
     ['Bell Cipher', BELL, 'passphrase', 'Janet Weir Creighton'],
     ['Monument Park', MONUMENT_PARK, 'passphrase', '1897'],
-    ['The Open Ground', OPEN_GROUND, 'checkin', 'checkin'],
-    ['Skate Park Check-In', SKATE_PARK, 'checkin', 'checkin'],
+    ['Skate Park Check-In', SKATE_PARK, 'passphrase', 'SKATE PARK'],
   ] as const)('%s awards exactly one drawing entry on verified completion', (_label, quest, proofType, content) => {
     const player = newPlayer(`entries-${quest.id}`);
     const result = submitQuestProof({
@@ -357,8 +350,8 @@ describe('12. Drawing entries stay exactly one per verified field quest', () => 
     expect(total).toBe(1);
   });
 
-  it('photo quests (Canton Sign, Draft Lineup) award exactly one drawing entry, only once GM-verified', () => {
-    for (const quest of [CANTON_SIGN, DRAFT_LINEUP]) {
+  it('photo quests (Canton Sign, Draft Lineup, The Open Ground) award exactly one drawing entry immediately, never duplicated on a repeat submission', () => {
+    for (const quest of [CANTON_SIGN, DRAFT_LINEUP, OPEN_GROUND]) {
       const player = newPlayer(`entries-photo-${quest.id}`);
       const result = submitQuestProof({
         playerId: player.id,
@@ -367,15 +360,20 @@ describe('12. Drawing entries stay exactly one per verified field quest', () => 
         proofType: 'photo',
         submittedContent: 'https://example.com/proof.jpg',
       });
-      expect(getDrawingEntriesForPlayer(player.id, EVENT_ID).filter((e) => e.questId === quest.id)).toHaveLength(0);
-
-      reviewSubmission(result.submission.id, 'verified');
+      expect(result.submission.status).toBe('verified');
       const entries = getDrawingEntriesForPlayer(player.id, EVENT_ID).filter((e) => e.questId === quest.id);
       const total = entries.reduce((sum, e) => sum + e.entriesCount, 0);
       expect(total).toBe(1);
 
-      // Duplicate GM approval never duplicates the entry.
-      reviewSubmission(result.submission.id, 'verified');
+      // A repeat submission for the same already-completed quest never
+      // duplicates the entry.
+      submitQuestProof({
+        playerId: player.id,
+        questId: quest.id,
+        eventId: EVENT_ID,
+        proofType: 'photo',
+        submittedContent: 'https://example.com/proof-again.jpg',
+      });
       const entriesAfterDup = getDrawingEntriesForPlayer(player.id, EVENT_ID).filter((e) => e.questId === quest.id);
       expect(entriesAfterDup.reduce((sum, e) => sum + e.entriesCount, 0)).toBe(1);
     }

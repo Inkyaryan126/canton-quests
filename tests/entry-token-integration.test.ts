@@ -117,10 +117,10 @@ describe('Field check-in / photo/video / race bonus / standard NFC award XP only
       rewardConfig: { baseXp: 100, photoVideoBonusXp: 60 },
     });
 
+    // Photo proof auto-verifies immediately (Master Launch Pivot).
     const submitted = submitQuestProof({ playerId: player.id, questId: quest.id, eventId: EVENT_ID, proofType: 'photo', proofUrl: 'https://example.com/x.jpg' });
-    const approved = reviewSubmission(submitted.submission.id, 'verified');
 
-    expect(approved?.awardedPoints).toBe(160); // 100 base + 60 photo bonus
+    expect(submitted.awardedPoints).toBe(160); // 100 base + 60 photo bonus
     expect(totalEntriesFor(player.id, quest.id)).toBe(1); // exactly the base entry, no extra for the photo bonus
   });
 
@@ -170,7 +170,7 @@ describe('Explicit drawingEntryBonus grants an additional, independently-gated e
     expect(totalEntriesFor(player.id, quest.id)).toBe(2);
   });
 
-  it('the bonus entry is granted at most once, even across a duplicate/GM-re-approval retry', () => {
+  it('the bonus entry is granted at most once, even across a duplicate re-processing retry', () => {
     const quest = makeQuest({
       verificationType: 'photo',
       targetCode: undefined,
@@ -178,12 +178,12 @@ describe('Explicit drawingEntryBonus grants an additional, independently-gated e
     });
     const player = newPlayer('explicit-entry-bonus-duplicate');
 
+    // Photo proof auto-verifies immediately (Master Launch Pivot).
     const submitted = submitQuestProof({ playerId: player.id, questId: quest.id, eventId: EVENT_ID, proofType: 'photo', proofUrl: 'https://example.com/x.jpg' });
-    const approved = reviewSubmission(submitted.submission.id, 'verified');
-    expect(approved?.awardedPoints).toBe(100);
+    expect(submitted.awardedPoints).toBe(100);
     expect(totalEntriesFor(player.id, quest.id)).toBe(2);
 
-    // Simulate a repeated/concurrent GM approval of the same submission.
+    // Simulate a repeated/concurrent re-processing of the same submission.
     const reapproved = reviewSubmission(submitted.submission.id, 'verified');
     expect(reapproved?.awardedPoints).toBe(0);
     expect(totalEntriesFor(player.id, quest.id)).toBe(2); // unchanged — no duplicate entry

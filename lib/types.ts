@@ -644,6 +644,17 @@ export interface QuestSubmission {
   userLon?: number;
   distanceFromLocation?: number;
   claimPlacement?: number;
+  /**
+   * Photo/video proof is never a real-time moderation queue — it auto-
+   * completes the quest immediately (see verifyAutomatedProof) and is
+   * simply locked, immutable evidence from that point on. This field tracks
+   * ONLY the separate, later, prize-payout safeguard: a submission is
+   * 'not_needed' for the vast majority of players who never become a prize
+   * candidate, and is flipped to 'winner_audit_pending' for a specific
+   * drawn candidate's relevant submissions only once executePrizeDraw
+   * selects them — never populated as a general work queue.
+   */
+  auditStatus?: 'not_needed' | 'winner_audit_pending' | 'approved' | 'rejected';
 }
 
 export interface ScoreLedgerEntry {

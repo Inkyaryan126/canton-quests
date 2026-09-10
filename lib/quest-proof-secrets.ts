@@ -74,6 +74,13 @@ export const CANONICAL_QUEST_PROOF_SECRETS: ServerProofSecretMaps = {
     // docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md). Same hash already used
     // for the legacy qst-challenge-what-survived record — same real fact.
     'qst-goose-land-cipher': 'sha256:22c71fc75f2ccec3be35306272851ffc48e0587cabced42e87880a9fdcb3c0be',
+    // 9th Street Signal — "9TH STREET SKATE PARK" (real, legible entrance
+    // sign confirmed directly on the finished quest card,
+    // public/canton-quests/quests/challenge/skate_park.png; the location's
+    // own displayed name is "9th Street Skate Corridor," so this can't be
+    // read off anything the app shows — see Master Launch Pivot). Variant
+    // "SKATE PARK" registered inline as acceptedAnswerVariants on the quest.
+    'qst-9th-street-opening': 'sha256:567a4c4fae9b068235d8434d93052e64e2c12a2e86d8a10eac0eb337905cbdf3',
     'qst-mckinley-cipher': 'sha256:0e3c49c57d4ab2494d55671730c356687405eb0423cc755381399f2f431b2d16',
     'e0000001-0000-4000-8000-000000000002': 'sha256:0e3c49c57d4ab2494d55671730c356687405eb0423cc755381399f2f431b2d16',
     'qst-aura-coffee-qr': 'sha256:a3cd92f342c2b4d31e2025bd95b19b10ed3f996b3360dcfd57fe3233767ac8c9',

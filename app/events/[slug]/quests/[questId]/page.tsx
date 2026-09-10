@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import LocationVerifier from '@/components/LocationVerifier';
 import GameFeedbackModal from '@/components/GameFeedbackModal';
@@ -64,18 +64,10 @@ export default function QuestDetailPage({
 }) {
   const { slug: eventSlug, questId } = params;
   const router = useRouter();
-  const searchParams = useSearchParams();
-  // ?fieldTest=1 requests Admin Field Test Mode, but only the server's
-  // independent verification of the existing admin session (see
-  // lib/field-test-access.ts's resolveFieldTestAccess) can actually activate
-  // it — the query string alone grants nothing.
-  const fieldTestRequested = searchParams.get('fieldTest') === '1';
-  const fieldTestQuery = fieldTestRequested ? '&fieldTest=1' : '';
-  const [fieldTestActive, setFieldTestActive] = useState<boolean>(false);
-  const backToHubHref = fieldTestActive ? `/events/${eventSlug}?fieldTest=1` : `/events/${eventSlug}`;
+  const backToHubHref = `/events/${eventSlug}`;
   const buildQuestHref = useCallback(
-    (targetQuestId: string) => `/events/${eventSlug}/quests/${targetQuestId}${fieldTestActive ? '?fieldTest=1' : ''}`,
-    [eventSlug, fieldTestActive]
+    (targetQuestId: string) => `/events/${eventSlug}/quests/${targetQuestId}`,
+    [eventSlug]
   );
 
   const [quest, setQuest] = useState<PublicQuestView | null>(null);
@@ -101,11 +93,10 @@ export default function QuestDetailPage({
     const p = getClientPlayer();
     setPlayer(p);
 
-    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(p.id)}${fieldTestQuery}`)
+    fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(p.id)}`)
       .then((res) => res.json())
-      .then((data: { event?: QuestEvent; quests?: PublicQuestView[]; progress?: PlayerEventProgress; fieldTestActive?: boolean }) => {
+      .then((data: { event?: QuestEvent; quests?: PublicQuestView[]; progress?: PlayerEventProgress }) => {
         if (cancelled) return;
-        setFieldTestActive(Boolean(data.fieldTestActive));
         const safeQuests = data.quests || [];
         const safeQuest = safeQuests.find((item) => item.id === questId) || null;
         setEvent(data.event || null);
@@ -149,7 +140,7 @@ export default function QuestDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [eventSlug, questId, fieldTestQuery]);
+  }, [eventSlug, questId]);
 
   const isPollingRef = useRef(false);
   const hasFiredApprovalRef = useRef(false);
@@ -166,7 +157,7 @@ export default function QuestDetailPage({
       isPollingRef.current = true;
 
       try {
-        const res = await fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}${fieldTestQuery}`);
+        const res = await fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`);
         if (!res.ok) return;
         const data = await res.json();
         if (!isMounted) return;
@@ -317,7 +308,6 @@ export default function QuestDetailPage({
     event?.id,
     allEventQuests,
     router,
-    fieldTestQuery,
     buildQuestHref,
   ]);
 
@@ -489,7 +479,7 @@ export default function QuestDetailPage({
         content = 'Centennial GPS Location Checked In';
       }
 
-      const response = await fetch(`/api/game/submit${fieldTestRequested ? '?fieldTest=1' : ''}`, {
+      const response = await fetch('/api/game/submit', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -556,7 +546,7 @@ export default function QuestDetailPage({
           }
 
           if (result.cipherFragmentsAwarded && result.cipherFragmentsAwarded.length > 0) {
-            fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}${fieldTestQuery}`)
+            fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`)
               .then((res) => res.json())
               .then((data: { cipherProgress?: { totalCollected: number; totalRequired: number; districts?: Array<{ key: string; name: string; status: string; collectedCount: number; requiredCount: number }> } }) => {
                 const cp = data.cipherProgress;
@@ -784,14 +774,6 @@ export default function QuestDetailPage({
 
   return (
     <div className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col">
-      {fieldTestActive && (
-        <div
-          role="status"
-          className="sticky top-0 z-50 w-full bg-red-600 text-white text-center text-xs sm:text-sm font-mono font-bold uppercase tracking-wider py-2 px-4"
-        >
-          ⚠ ADMIN FIELD TEST — PRELAUNCH
-        </div>
-      )}
       <Header eventSlug={params.slug} />
 
       <main className="flex-1 max-w-3xl w-full mx-auto p-4 md:p-6">
@@ -1054,12 +1036,41 @@ export default function QuestDetailPage({
                 </div>
               )}
 
-              {(quest.verificationType === 'photo' || quest.verificationType === 'video' || quest.verificationType === 'game_master') && (
+              {(quest.verificationType === 'photo' || quest.verificationType === 'video') && (
                 <div className="space-y-3">
                   <label className="text-xs font-mono text-gray-300 block">
-                    {quest.verificationType === 'game_master'
-                      ? 'Submit details for Game Master manual review:'
-                      : 'Add your photo, video, or proof link:'}
+                    Add your photo or video:
+                  </label>
+
+                  <input
+                    type="text"
+                    value={mediaUrlInput}
+                    onChange={(e) => setMediaUrlInput(e.target.value)}
+                    placeholder="https://example.com/photo.jpg"
+                    className="input-field text-xs font-mono"
+                  />
+
+                  <div className="p-3 bg-obsidian/60 border border-dashed border-gray-700 rounded-xl text-center cursor-pointer hover:border-amber-500/50 transition-colors">
+                    <span className="text-2xl block mb-1">📸</span>
+                    <span className="text-xs text-gray-400 font-mono block">
+                      Attach or paste your photo/video link. It&apos;s locked in as your evidence the moment you submit.
+                    </span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="btn btn-primary w-full text-sm font-bold py-3"
+                  >
+                    {isSubmitting ? 'Securing evidence...' : 'Submit Evidence'}
+                  </button>
+                </div>
+              )}
+
+              {quest.verificationType === 'game_master' && (
+                <div className="space-y-3">
+                  <label className="text-xs font-mono text-gray-300 block">
+                    Submit details for Game Master manual review:
                   </label>
 
                   <input

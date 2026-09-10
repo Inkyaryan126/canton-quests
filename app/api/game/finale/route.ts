@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getEventBySlugDB } from '@/lib/supabase-db';
 import { resolveAuthenticatedSession } from '@/lib/supabase-auth';
 import { getPlayerFinaleStatusDB, submitFinaleAnswerDB } from '@/lib/finale-db';
+import { isFounderCipherPrelaunchBlocked } from '@/lib/founder-cipher-prelaunch';
 
 /**
  * GET /api/game/finale?eventSlug=canton-weekend-1
@@ -21,6 +22,14 @@ export async function GET(request: Request) {
     const session = await resolveAuthenticatedSession(request);
     if (!session.player) {
       return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
+
+    // Independent, authoritative Operation-start-time enforcement, matching
+    // GET /api/game/events/[slug] and POST /api/game/submit — a request
+    // during genuine prelaunch never sees finale progress without a
+    // validated Founder's Cipher prelaunch access cookie.
+    if (isFounderCipherPrelaunchBlocked(request, event)) {
+      return NextResponse.json({ status: null });
     }
 
     const status = await getPlayerFinaleStatusDB(event.id, session.player.id);
@@ -53,6 +62,13 @@ export async function POST(request: Request) {
     const session = await resolveAuthenticatedSession(request);
     if (!session.player) {
       return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
+
+    if (isFounderCipherPrelaunchBlocked(request, event)) {
+      return NextResponse.json(
+        { success: false, error: 'This Mission has not launched yet.' },
+        { status: 403 }
+      );
     }
 
     const result = await submitFinaleAnswerDB(event.id, session.player.id, answer);

@@ -50,7 +50,7 @@ describe('email confirmation requires explicit human intent', () => {
 
     const firstGet = await confirmGet(new Request(href, { method: 'GET' }));
     const secondGet = await confirmGet(new Request(href, { method: 'GET' }));
-    const head = await confirmHead(new Request(href, { method: 'HEAD' }));
+    const head = await confirmHead();
 
     expect(firstGet.status).toBe(307);
     expect(secondGet.status).toBe(307);

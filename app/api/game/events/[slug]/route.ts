@@ -9,7 +9,7 @@ import { getPlayerCipherProgressDB } from '@/lib/founders-cipher';
 import { getPublicQuestView } from '@/lib/game-engine';
 import { isKnownCantonLaunchSlug } from '@/lib/launch-status';
 import { isLaunchDistrictQuestSlug } from '@/lib/finale';
-import { resolveFieldTestAccess } from '@/lib/field-test-access';
+import { resolveFounderCipherPrelaunchAccess } from '@/lib/founder-cipher-prelaunch';
 import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 
 export async function GET(
@@ -50,11 +50,12 @@ export async function GET(
 
     // Server-authoritative: a pre-launch event never exposes quest
     // instructions, leaderboard, or reward/cipher progress to a public
-    // request, regardless of any client-supplied query string. The one
-    // exception is a genuinely verified Admin Field Test session (see
-    // resolveFieldTestAccess) — ?fieldTest=1 alone does nothing without it.
-    const { isPreLaunch, fieldTestActive } = resolveFieldTestAccess(request, event, slug);
-    if (isPreLaunch && !fieldTestActive) {
+    // request, regardless of any client-supplied query string. The one way
+    // past this before real launch is a validated Founder's Cipher prelaunch
+    // access cookie (see resolveFounderCipherPrelaunchAccess) — there is no
+    // query-string bypass and no admin/special-player concept involved.
+    const { isPreLaunch, hasPrelaunchAccess } = resolveFounderCipherPrelaunchAccess(request, event, slug);
+    if (isPreLaunch && !hasPrelaunchAccess) {
       return withCookies({
         event,
         quests: [],
@@ -62,7 +63,7 @@ export async function GET(
         progress: null,
         cipherProgress: null,
         isPreLaunch: true,
-        fieldTestActive: false,
+        hasPrelaunchAccess: false,
       });
     }
 
@@ -92,7 +93,7 @@ export async function GET(
       progress,
       cipherProgress,
       isPreLaunch,
-      fieldTestActive,
+      hasPrelaunchAccess,
     });
   } catch (error: any) {
     // Log server error securely without leaking stack or paths
