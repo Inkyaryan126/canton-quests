@@ -614,18 +614,15 @@ class GameMomentManager {
 
   /**
    * Whether a moment type should ever be force-dismissed by a fixed timer.
-   * commander-transmission is the one type that must NEVER auto-advance on
-   * a guessed duration — the player may be watching a real video of
-   * unknown length, and a timer racing against playback is exactly the bug
-   * this guards against (advancing mid-video regardless of pause/buffer/
-   * seek state). It advances only via the player's explicit Skip/Continue
-   * action or the video's own `onEnded` event, both of which call
-   * dismissCurrent() directly — never through this scheduler. Every other
-   * moment type is a short celebratory animation with no user-controlled
-   * media, where a timer is the correct, intended behavior.
+   * Important gameplay moments stay visible until the player deliberately
+   * continues, closes them, presses Escape, or an authoritative media event
+   * ends them. Only the brief decorative city-scan auto-advances.
    */
   private getDefaultAutoDismiss(type: GameMomentType): boolean {
-    return type !== 'commander-transmission' && type !== 'commander-text';
+    // Anything carrying information, rewards, progression, story, or a
+    // decision stays visible until the player deliberately continues.
+    // Only the brief decorative city scan advances automatically.
+    return type === 'city-scan';
   }
 
   private enqueue(moment: GameMoment, skipQueue?: boolean) {
