@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Gift } from 'lucide-react';
+import { ArrowRight, Eye, Gift } from 'lucide-react';
 import { QuestEvent } from '@/lib/types';
 import { isWorldbuildingArchiveMission } from '@/lib/marketing-assets';
 import SystemStatusBadge, { SystemStatus } from '@/components/game-effects/SystemStatusBadge';
@@ -15,6 +15,9 @@ const OPERATION_PRIZE_CONTEXT: Record<string, { prizeLabel?: string; teaser: str
   'fair-qr-hunt': {
     prizeLabel: '$300 Mystery Money',
     teaser: 'A path-free QR scavenger hunt across the fairgrounds. 20 Signals, each hiding a real cash prize.',
+  },
+  'the-watchers': {
+    teaser: 'The Founder’s Cipher was only the first signal. Someone else was following the trail through Canton. W-01 remains dormant — for now.',
   },
   // Archived worldbuilding Missions — no prizeLabel: there is no real prize
   // pool to report for a Mission that never had one, so the Gift row below
@@ -29,6 +32,7 @@ const OPERATION_PRIZE_CONTEXT: Record<string, { prizeLabel?: string; teaser: str
 };
 
 function formatOperationDate(event: QuestEvent): string {
+  if (event.slug === 'the-watchers') return 'DETAILS CLASSIFIED';
   if (!event.startTime) return 'Schedule announcing soon';
   const start = new Date(event.startTime);
   const end = event.endTime ? new Date(event.endTime) : null;
@@ -65,14 +69,26 @@ const STATUS_STYLE: Record<'LIVE' | 'INCOMING' | 'ENDED', { label: string; statu
 };
 
 export default function OperationCard({ event, status, showPathInfo = true }: OperationCardProps) {
+  const isWatcherMission = event.slug === 'the-watchers';
   const context = OPERATION_PRIZE_CONTEXT[event.slug] || { prizeLabel: 'Prizes TBD', teaser: event.description };
-  const style = STATUS_STYLE[status];
+
+  const style = isWatcherMission
+    ? {
+        label: 'COMING SOON',
+        status: 'armed' as SystemStatus,
+        cardBorder: 'rgba(168, 85, 247, 0.65)',
+        cardBg: 'linear-gradient(160deg, rgba(88,28,135,0.28), rgba(5,6,7,0.96))',
+      }
+    : STATUS_STYLE[status];
+
   const isArchiveMission = isWorldbuildingArchiveMission(event.slug);
   const detailHref = isArchiveMission ? `/events/archive/${event.slug}` : `/events/${event.slug}`;
-  // Worldbuilding archive Missions get the exact "MISSION COMPLETE" wording
-  // instead of the generic "MISSION ENDED" — everything else about the
-  // ENDED badge (color/border/bg) is unchanged.
-  const badgeLabel = status === 'ENDED' && isArchiveMission ? 'MISSION COMPLETE' : style.label;
+
+  const badgeLabel = isWatcherMission
+    ? 'COMING SOON // W-01'
+    : status === 'ENDED' && isArchiveMission
+      ? 'MISSION COMPLETE'
+      : style.label;
 
   return (
     <article
@@ -94,7 +110,9 @@ export default function OperationCard({ event, status, showPathInfo = true }: Op
       </div>
 
       <div>
-        <p className="cq-kicker">FIELD OPERATIONS DOSSIER</p>
+        <p className="cq-kicker">
+          {isWatcherMission ? 'CLASSIFIED // WATCHER FILE' : 'FIELD OPERATIONS DOSSIER'}
+        </p>
         <h3 style={{ color: '#f4f1ea', fontFamily: 'var(--font-display)', fontSize: 'clamp(1.35rem, 4vw, 2rem)', fontWeight: 900, lineHeight: 1.05, textTransform: 'uppercase' }}>
           {event.title}
         </h3>
@@ -108,28 +126,68 @@ export default function OperationCard({ event, status, showPathInfo = true }: Op
             <span>{context.prizeLabel}</span>
           </div>
         )}
-        {showPathInfo && !isArchiveMission && (
+        {showPathInfo && !isArchiveMission && !isWatcherMission && (
           <span className="cq-section-note">
             {event.requiresPath ? 'Path required to enter' : 'No path required'}
+          </span>
+        )}
+
+        {isWatcherMission && (
+          <span className="cq-section-note" style={{ color: '#c084fc' }}>
+            MISSION DETAILS // CLASSIFIED
           </span>
         )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginTop: 'auto', paddingTop: '0.5rem' }}>
-        <Link
-          href={detailHref}
-          className="cq-gold-button"
-        >
-          <span>{isArchiveMission ? 'VIEW ARCHIVE' : status === 'ENDED' ? 'VIEW RESULTS' : 'ENTER MISSION'}</span>
-          <ArrowRight size={14} />
-        </Link>
-        {!isArchiveMission && (
-          <Link
-            href={detailHref}
-            className="cq-dark-button"
-          >
-            RANKINGS
-          </Link>
+        {isWatcherMission ? (
+          <>
+            <div
+              className="cq-dark-button"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                borderColor: 'rgba(168,85,247,0.55)',
+                color: '#d8b4fe',
+                cursor: 'default',
+              }}
+              aria-label="The Watchers mission coming soon"
+            >
+              <Eye size={14} />
+              <span>COMING SOON</span>
+            </div>
+
+            <span
+              className="cq-section-note"
+              style={{
+                color: '#a78bfa',
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.12em',
+              }}
+            >
+              W-01 // DORMANT
+            </span>
+          </>
+        ) : (
+          <>
+            <Link
+              href={detailHref}
+              className="cq-gold-button"
+            >
+              <span>{isArchiveMission ? 'VIEW ARCHIVE' : status === 'ENDED' ? 'VIEW RESULTS' : 'ENTER MISSION'}</span>
+              <ArrowRight size={14} />
+            </Link>
+
+            {!isArchiveMission && (
+              <Link
+                href={detailHref}
+                className="cq-dark-button"
+              >
+                RANKINGS
+              </Link>
+            )}
+          </>
         )}
       </div>
     </article>
