@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import CinematicFooter from '@/components/CinematicFooter';
-import CipherFragmentsPanel from '@/components/CipherFragmentsPanel';
 import CemeteryProgressPanel from '@/components/CemeteryProgressPanel';
 import TransmissionLoader from '@/components/game-effects/TransmissionLoader';
 import SystemStatusBadge from '@/components/game-effects/SystemStatusBadge';
@@ -15,7 +14,7 @@ import type { PlayerFinaleStatus } from '@/lib/finale-db';
 import type { FinaleSubmissionOutcome } from '@/lib/finale';
 import { isKnownCantonLaunchSlug, isPreLaunchEvent } from '@/lib/launch-status';
 import { cqImages } from '@/lib/marketing-assets';
-import { showFounderCipherMessage, getFounderCipherMessage } from '@/lib/gameplay/founders-cipher/message-resolver';
+import { getFounderCipherMessage } from '@/lib/gameplay/founders-cipher/message-resolver';
 import { cqSoundManager } from '@/lib/audio';
 import { useReducedMotion, confirmHaptic } from '@/lib/motion';
 
@@ -178,19 +177,8 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
       if (outcome.stage === 'completed') {
         cqSoundManager.play('secret_reveal');
         confirmHaptic({ enabled: true });
-        showFounderCipherMessage({
-          messageId: 'FINAL_SOLUTION_CORRECT',
-          path,
-          playerId: authenticatedPlayer.id,
-          onContinue: () => {
-            showFounderCipherMessage({
-              messageId: 'MISSION_COMPLETE',
-              path,
-              playerId: authenticatedPlayer.id,
-              onContinue: () => fetchFinaleStatus(),
-            });
-          },
-        });
+        // The page itself becomes the finale reveal. Do not bury the
+        // payoff behind generic confirmation popups.
         fetchFinaleStatus();
       } else if (outcome.stage === 'already_completed') {
         fetchFinaleStatus();
@@ -440,54 +428,79 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
       <Header eventSlug={eventSlug} />
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 sm:py-12">
         {missionStatus}
-        {cemeteryProgress}
+        {/* West Lawn identity remains sealed until the final solve. */}
 
-        {/* RECOVERED INTEL */}
-        <section className="mb-6 border border-cyan-400/25 bg-[#06090b] p-4 sm:p-5 rounded-2xl">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono font-extrabold uppercase tracking-[0.22em] text-cyan-300">Recovered Intel</span>
-            <span className="text-[10px] font-mono text-cyan-400/70 uppercase">
-              {finaleStatus.cluePieces.length} Clue Piece{finaleStatus.cluePieces.length === 1 ? '' : 's'}
+        <section className="mb-6 overflow-hidden rounded-2xl border border-cyan-400/35 bg-[#06090b] shadow-2xl">
+          <div className="border-b border-cyan-400/20 bg-cyan-950/15 p-5 sm:p-6">
+            <span className="text-[10px] font-mono font-black uppercase tracking-[0.24em] text-cyan-300">
+              FINAL CONVERGENCE // THREE DISTRICT RECORDS
             </span>
-          </div>
-          <h2 className="mt-1 mb-3 font-display text-lg font-black uppercase text-white">Clue Pieces</h2>
-          {finaleStatus.cluePieces.length > 0 ? (
-            <ul className="space-y-2">
-              {finaleStatus.cluePieces.map((piece, i) => (
-                <li key={i} className="flex items-start gap-2.5 border border-cyan-300/25 bg-cyan-300/5 p-3 rounded-xl text-sm text-stone-200">
-                  <Sparkles size={14} className="mt-0.5 shrink-0 text-cyan-300" aria-hidden="true" />
-                  <span className="font-mono text-xs sm:text-sm">{piece}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-stone-500 font-mono">No additional clue pieces have been recorded for this decode yet.</p>
-          )}
-        </section>
 
-        {cipherProgress && (
-          <CipherFragmentsPanel
-            progress={cipherProgress}
-            eventSlug={eventSlug}
-            onDecodeSuccess={(decodeResult) => {
-              fetchFinaleStatus();
-              fetchEvent();
-              if (decodeResult) {
-                const messageId = decodeResult.masterCipherAvailable
-                  ? 'MASTER_CIPHER_AVAILABLE'
-                  : decodeResult.allSigilsUnlocked
-                  ? 'ALL_THREE_SIGILS_DECODED'
-                  : 'DISTRICT_SIGIL_UNLOCKED';
-                showFounderCipherMessage({
-                  messageId,
-                  path,
-                  playerId: authenticatedPlayer?.id,
-                  contextLabel: decodeResult.tokenLabel,
-                });
-              }
-            }}
-          />
-        )}
+            <h2 className="mt-1 font-display text-2xl sm:text-3xl font-black uppercase text-white">
+              The city has finished speaking.
+            </h2>
+
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-300">
+              Every district gave you part of the same mystery. These are not
+              three separate answers. Read the records together and determine
+              the one identity they describe.
+            </p>
+          </div>
+
+          <div className="grid gap-px bg-cyan-400/15 md:grid-cols-3">
+            {finaleStatus.cluePieces
+              .filter((piece) => piece.includes('Sigil:'))
+              .map((piece, index) => {
+                const separator = piece.indexOf(':');
+                const rawSource =
+                  separator >= 0
+                    ? piece.slice(0, separator)
+                    : `Record ${index + 1}`;
+
+                const record =
+                  separator >= 0
+                    ? piece.slice(separator + 1).trim()
+                    : piece;
+
+                const source = rawSource
+                  .replace(/\s*Sigil$/i, '')
+                  .toUpperCase();
+
+                return (
+                  <article key={piece} className="bg-[#06090b] p-5">
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="grid h-8 w-8 place-items-center rounded-full border border-cyan-400/40 bg-cyan-950/30">
+                        <Sparkles size={14} className="text-cyan-300" />
+                      </div>
+
+                      <span className="text-[10px] font-mono font-black uppercase tracking-widest text-cyan-300">
+                        {source} RECORD
+                      </span>
+                    </div>
+
+                    <blockquote className="font-display text-lg font-bold leading-snug text-white">
+                      &ldquo;{record}&rdquo;
+                    </blockquote>
+                  </article>
+                );
+              })}
+          </div>
+
+          <div className="m-4 rounded-xl border border-amber-400/30 bg-amber-950/15 p-4 sm:m-5">
+            <span className="block text-[10px] font-mono font-black uppercase tracking-widest text-amber-300">
+              FOUNDER AUTHORIZATION
+            </span>
+
+            <strong className="mt-1 block font-display text-lg text-white">
+              THE MARK · THE CODE · THE WORD
+            </strong>
+
+            <p className="mt-1 text-xs text-stone-400">
+              These three Founder Locks authorized this terminal. They are
+              not the final answer.
+            </p>
+          </div>
+        </section>
 
         {/* MASTER CIPHER / SOLUTION ENTRY / SOLVED SUMMARY
             LAUNCH-READINESS NOTE:
@@ -498,78 +511,194 @@ export default function FinalePage({ params }: { params: { slug: string } }) {
             safe routes, and monument visibility are verified on-site.
         */}
         {solved ? (
-          <section className="mb-6 border border-emerald-400/40 bg-emerald-950/15 p-6 sm:p-8 text-center space-y-4 rounded-2xl">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-500/10 border-2 border-emerald-400/40 flex items-center justify-center text-emerald-300 mb-2">
-              <ShieldCheck size={36} className="text-emerald-300" />
-            </div>
-            <div className="flex justify-center">
-              <SystemStatusBadge status="confirmed" label="MASTER CIPHER SOLVED" size="sm" />
-            </div>
-            <h2 className="font-display text-2xl font-black uppercase text-white">
-              {getFounderCipherMessage('CIPHER_SOLVED', path).title}
-            </h2>
-            <p className="text-sm text-stone-300 leading-relaxed max-w-md mx-auto">
-              {getFounderCipherMessage('CIPHER_SOLVED', path).body}
-            </p>
-            {finaleStatus.destinationReveal && (
-              <div className="max-w-md mx-auto border border-emerald-400/30 bg-black/40 p-4 text-left rounded-xl">
-                <span className="block text-[10px] font-mono uppercase tracking-widest text-emerald-300 mb-1 font-bold">Final Reveal</span>
-                <p className="text-sm text-stone-200 leading-relaxed font-mono">{finaleStatus.destinationReveal}</p>
+          <>
+            <section className="mb-6 overflow-hidden rounded-3xl border-2 border-emerald-400/50 bg-black shadow-2xl">
+              <div className="relative h-[330px] overflow-hidden sm:h-[450px]">
+                <Image
+                  src={cqImages.frankCinematic}
+                  alt="Founder Cipher final destination"
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 100vw, 768px"
+                  className="object-cover"
+                />
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+
+                <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
+                  <div className="mb-3 flex items-center gap-2">
+                    <ShieldCheck
+                      size={18}
+                      className="text-emerald-300"
+                    />
+                    <span className="text-[10px] font-mono font-black uppercase tracking-[0.28em] text-emerald-300">
+                      CONVERGENCE COMPLETE // IDENTITY RESOLVED
+                    </span>
+                  </div>
+
+                  <h2 className="font-display text-4xl font-black uppercase tracking-tight text-white sm:text-6xl">
+                    FRANKENSTEIN
+                  </h2>
+
+                  <p className="mt-2 max-w-xl text-sm text-stone-200 sm:text-base">
+                    The monster&apos;s name was never just fiction in this trail.
+                    Canton was pointing you toward a real family name among
+                    its dead.
+                  </p>
+                </div>
               </div>
-            )}
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href={`/events/${eventSlug}/transmissions`} className="cq-gold-button text-xs py-3 px-6 font-mono font-bold inline-flex items-center justify-center gap-2">
-                VIEW TRANSMISSIONS
-              </Link>
-              <Link href={`/events/${eventSlug}`} className="cq-dark-button text-xs py-3 px-6 font-mono font-bold inline-flex items-center justify-center gap-2">
-                RETURN TO MISSION
-              </Link>
-            </div>
-          </section>
+
+              <div className="p-5 sm:p-7">
+                <div className="rounded-xl border border-emerald-400/30 bg-emerald-950/20 p-4">
+                  <span className="block text-[10px] font-mono font-black uppercase tracking-widest text-emerald-300">
+                    FINAL LOCATION REVEALED
+                  </span>
+
+                  <p className="mt-2 text-sm font-mono leading-relaxed text-stone-100 sm:text-base">
+                    {finaleStatus.destinationReveal ||
+                      'West Lawn Cemetery — Frankenstein Family Monument.'}
+                  </p>
+                </div>
+
+                <div className="mt-4 flex justify-center">
+                  <SystemStatusBadge
+                    status="confirmed"
+                    label="FOUNDER'S CIPHER SOLVED"
+                    size="sm"
+                  />
+                </div>
+              </div>
+            </section>
+
+            {cemeteryProgress}
+          </>
         ) : (
-          <section className="mb-6 border border-amber-400/40 bg-[#06090b] p-5 sm:p-6 rounded-2xl">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono font-extrabold uppercase tracking-[0.22em] text-amber-300">Master Cipher</span>
-              <SystemStatusBadge status="armed" label="CONVERGENCE READY" size="sm" />
+          <section className="mb-6 overflow-hidden rounded-2xl border-2 border-amber-400/50 bg-[#06090b] shadow-2xl">
+            <div className="border-b border-amber-400/20 bg-amber-950/15 p-5 sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-[10px] font-mono font-black uppercase tracking-[0.24em] text-amber-300">
+                  MASTER CIPHER // FINAL DEDUCTION
+                </span>
+
+                <SystemStatusBadge
+                  status="armed"
+                  label="AWAITING YOUR ANSWER"
+                  size="sm"
+                />
+              </div>
+
+              <h2 className="mt-2 font-display text-2xl font-black uppercase text-white sm:text-3xl">
+                What single name do the three records point to?
+              </h2>
+
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-300">
+                You are not looking for another number, plaque inscription,
+                or three-word code. The field work is finished. This is the
+                final deduction.
+              </p>
             </div>
-            <h2 className="mt-1 mb-2 font-display text-lg font-black uppercase text-white">Submit Your Solution</h2>
-            <p className="text-xs text-stone-400 font-mono mb-4">
-              Synthesize the decoded district sigils and recovered clue pieces into the Master Cipher keyword.
-            </p>
 
-            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={answerInput}
-                onChange={(e) => setAnswerInput(e.target.value)}
-                placeholder="Enter the final decode"
-                aria-label="Master Cipher solution"
-                disabled={submitting}
-                className="input-field text-sm flex-1 font-mono uppercase tracking-wider"
-              />
-              <button
-                type="submit"
-                disabled={submitting || !answerInput.trim()}
-                className="cq-gold-button text-xs py-3 px-6 font-mono font-bold whitespace-nowrap disabled:opacity-50"
+            <div className="p-5 sm:p-6">
+              <div className="mb-5 space-y-3 rounded-xl border border-stone-700 bg-black/35 p-4">
+                <div className="flex gap-3">
+                  <span className="font-mono font-black text-amber-300">
+                    01
+                  </span>
+                  <p className="text-sm text-stone-300">
+                    Read the Arts, Challenge, and Secret records together.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <span className="font-mono font-black text-amber-300">
+                    02
+                  </span>
+                  <p className="text-sm text-stone-300">
+                    Determine the <strong className="text-white">one surname</strong>{' '}
+                    they are all pointing toward.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <span className="font-mono font-black text-amber-300">
+                    03
+                  </span>
+                  <p className="text-sm text-stone-300">
+                    Enter only that surname below.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="text-[10px] font-mono font-black uppercase tracking-widest text-stone-400">
+                  ANSWER FORMAT
+                </span>
+
+                <span className="rounded border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[10px] font-mono font-black text-amber-300">
+                  ONE SURNAME ONLY
+                </span>
+              </div>
+
+              <form
+                onSubmit={handleSubmit}
+                className="flex flex-col gap-2 sm:flex-row"
               >
-                {submitting ? 'DECODING...' : 'SUBMIT'}
-              </button>
-            </form>
+                <input
+                  type="text"
+                  value={answerInput}
+                  onChange={(e) => setAnswerInput(e.target.value)}
+                  placeholder="ENTER SURNAME"
+                  aria-label="Final Founder Cipher surname"
+                  disabled={submitting}
+                  autoComplete="off"
+                  className="input-field flex-1 text-base font-mono font-black uppercase tracking-[0.16em] sm:text-lg"
+                />
 
-            {/* COMMANDER / SYSTEM FEEDBACK */}
-            {submitError && (
-              <div role="alert" className="mt-4 border border-red-500/40 bg-red-950/30 p-3 text-xs text-red-300 font-mono rounded-lg">{submitError}</div>
-            )}
-            {attemptOutcome?.stage === 'incorrect' && (
-              <div role="status" className="mt-4 border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-200 rounded-lg font-mono">
-                {invalidAnswerCopy.body}
-              </div>
-            )}
-            {attemptOutcome?.stage === 'false_finale_solved' && (
-              <div role="status" className="mt-4 border border-cyan-500/30 bg-cyan-950/20 p-3 text-sm text-cyan-200 rounded-lg font-mono">
-                {attemptOutcome.revealText || 'That signal resolves to something — but not the convergence itself. Keep decoding.'}
-              </div>
-            )}
+                <button
+                  type="submit"
+                  disabled={submitting || !answerInput.trim()}
+                  className="cq-gold-button whitespace-nowrap px-7 py-3 text-xs font-mono font-black disabled:opacity-50"
+                >
+                  {submitting
+                    ? 'VERIFYING...'
+                    : 'TEST FINAL ANSWER →'}
+                </button>
+              </form>
+
+              {submitError && (
+                <div
+                  role="alert"
+                  className="mt-4 rounded-lg border border-red-500/40 bg-red-950/30 p-3 text-xs font-mono text-red-300"
+                >
+                  {submitError}
+                </div>
+              )}
+
+              {attemptOutcome?.stage === 'incorrect' && (
+                <div
+                  role="status"
+                  className="mt-4 rounded-lg border border-amber-500/30 bg-amber-950/20 p-4 text-sm text-amber-200"
+                >
+                  <strong className="block font-mono text-xs uppercase tracking-widest">
+                    CONVERGENCE FAILED
+                  </strong>
+                  <p className="mt-1">
+                    {invalidAnswerCopy.body} Re-read the three district
+                    records as one riddle.
+                  </p>
+                </div>
+              )}
+
+              {attemptOutcome?.stage === 'false_finale_solved' && (
+                <div
+                  role="status"
+                  className="mt-4 rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-3 text-sm font-mono text-cyan-200"
+                >
+                  {attemptOutcome.revealText ||
+                    'That signal resolves to something, but not the convergence itself.'}
+                </div>
+              )}
+            </div>
           </section>
         )}
       </main>

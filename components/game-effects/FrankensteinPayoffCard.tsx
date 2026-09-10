@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Radio, AlertTriangle, Eye, ChevronRight } from 'lucide-react';
+import React from 'react';
+import Image from 'next/image';
+import { AlertTriangle, Eye, Radio } from 'lucide-react';
 import TransmissionPanel from './TransmissionPanel';
 import SystemStatusBadge from './SystemStatusBadge';
 import HudSystemState from './HudSystemState';
@@ -11,98 +12,93 @@ import { useReducedMotion } from '@/lib/motion';
 export interface FrankensteinPayoffCardProps {
   className?: string;
   showInterrupt?: boolean;
-  /** False for the district-unlocked story; never imply a verified cemetery visit. */
   verifiedQuest?: boolean;
 }
 
-/**
- * FrankensteinPayoffCard — Seasonal payoff presentation for the Frankenstein's grave quest
- * (qst-frankenstein-west-lawn) at West Lawn Cemetery.
- * Visibly applies Phase 2 presentation primitives:
- * - TransmissionPanel (HUD border card, purple/stone tone)
- * - SystemStatusBadge & HudSystemState (system state and accessible ARIA container)
- * - VerificationResult (success outcome confirmation)
- * - CqTransition (motion-aware reveal)
- */
 export default function FrankensteinPayoffCard({
   className = '',
-  showInterrupt = true,
   verifiedQuest = true,
 }: FrankensteinPayoffCardProps) {
   const reducedMotion = useReducedMotion();
-  const [interrupted, setInterrupted] = useState(showInterrupt);
 
   return (
-    <CqTransition show={true} reducedMotion={reducedMotion} className={className}>
+    <CqTransition
+      show={true}
+      reducedMotion={reducedMotion}
+      className={className}
+    >
       <TransmissionPanel
-        eyebrow="SEASONAL PAYOFF // WEST LAWN ARCHIVE"
-        icon={interrupted ? Eye : Radio}
+        eyebrow="WEST LAWN ARCHIVE // TWO SIGNAL SOURCES"
+        icon={Radio}
         tone="purple"
         action={
           <SystemStatusBadge
-            status={interrupted ? 'confirmed' : 'scanning'}
-            label={interrupted ? 'SIGNAL INTERCEPTED' : 'RECORDING...'}
+            status="confirmed"
+            label="SIGNALS RECOVERED"
             size="sm"
           />
         }
       >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="space-y-5">
+          <HudSystemState
+            state="confirmed"
+            label={verifiedQuest ? 'FIELD RECORD VERIFIED' : 'ARCHIVE DECRYPTED'}
+            detail="CONVERGENCE RECORD COMPLETE"
+            size="sm"
+            reducedMotion={reducedMotion}
+          />
+
+          <div className="grid grid-cols-[68px_1fr] gap-3 rounded-xl border border-amber-400/30 bg-amber-950/10 p-3">
+            <div className="relative h-[68px] w-[68px] overflow-hidden rounded-lg border border-amber-400/50 bg-black">
+              <Image
+                src="/commander-transmissions/transmission-1-poster.jpg"
+                alt="Commander"
+                fill
+                sizes="68px"
+                className="object-cover"
+              />
+            </div>
+
             <div>
-              <span className="text-[10px] font-mono text-purple-300 font-bold tracking-wider uppercase block">
-                {verifiedQuest ? 'OBJECTIVE COMPLETE // CHAPTER 1 PAYOFF' : 'DISTRICT COMPLETE // STORY ACCESS'}
+              <span className="block text-[10px] font-mono font-black uppercase tracking-widest text-amber-300">
+                COMMANDER // CQ FIELD OPERATIONS
               </span>
-              <h3 className="text-lg sm:text-xl font-bold text-white mt-0.5">
-                Frankenstein&apos;s Quiet Signal
-              </h3>
+              <p className="mt-1 text-sm italic leading-relaxed text-stone-200">
+                &ldquo;Convergence confirmed. The name you recovered is attached
+                to a real family record here in Canton. West Lawn was never the
+                end of the trail. It was where the trail was pointing.&rdquo;
+              </p>
             </div>
-            <HudSystemState
-              state="confirmed"
-              label={verifiedQuest ? 'PHOTO PROOF VERIFIED' : 'CEMETERY STORY UNLOCKED'}
-              detail={verifiedQuest ? '200 XP · 1 PRIZE ENTRY' : 'FULL CIPHER PROGRESSION REMAINS SEPARATE'}
-              size="sm"
-              reducedMotion={reducedMotion}
-            />
           </div>
 
-          <div className="p-3.5 rounded-xl bg-[#040407] border border-purple-500/25 space-y-2">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-stone-400 block">
-              COMMANDER PROTOCOL // WEST LAWN ARCHIVE
-            </span>
-            <p className="text-xs text-stone-300 italic leading-relaxed">
-              {verifiedQuest ? '“Record confirmed from a respectful distance. Hold... that’s not right. I’m seeing another signature attached to the file.”' : '“Your district record opened the West Lawn archive. A family name waits there: Frankenstein. Hold... another signature is attached to the file.”'}
-            </p>
-          </div>
-
-          {interrupted && (
-            <CqTransition show={true} reducedMotion={reducedMotion}>
-              <div className="p-4 rounded-xl bg-purple-950/25 border border-purple-500/40 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-purple-300 font-bold flex items-center gap-1">
-                    <AlertTriangle size={12} className="text-amber-400" />
-                    SIGNAL INTERRUPT // UNKNOWN OBSERVER
-                  </span>
-                  <SystemStatusBadge status="armed" label="W-01 DETECTED" size="sm" />
-                </div>
-                <p className="text-xs sm:text-sm text-purple-100 italic leading-relaxed font-body">
-                  {verifiedQuest ? '“You found the grave. We noticed, operative.' : '“You found the signal. We noticed, operative.'} You weren&apos;t the only one following the trail. WATCHER SIGNAL W-01: DORMANT // REACTIVATION: OCTOBER. We&apos;ll be watching.&rdquo;
-                </p>
+          <div className="grid grid-cols-[68px_1fr] gap-3 rounded-xl border border-purple-400/40 bg-purple-950/25 p-3">
+            <div className="grid h-[68px] w-[68px] place-items-center rounded-lg border border-purple-400/50 bg-black text-purple-300">
+              <div className="text-center">
+                <Eye size={26} className="mx-auto" />
+                <span className="mt-1 block text-[8px] font-mono tracking-widest">
+                  CLASSIFIED
+                </span>
               </div>
-            </CqTransition>
-          )}
-
-          <div className="pt-2 border-t border-purple-500/20 flex items-center justify-between flex-wrap gap-3">
-            <div className="text-[11px] font-mono text-purple-200/80">
-              <span className="text-amber-300 font-bold">NEXT FREQUENCY:</span> DORMANT UNTIL OCTOBER
             </div>
-            <button
-              type="button"
-              onClick={() => setInterrupted(!interrupted)}
-              className="text-[11px] font-mono font-bold text-purple-400 hover:text-purple-300 inline-flex items-center gap-1 cursor-pointer"
-            >
-              <span>{interrupted ? 'SHOW COMMANDER PROTOCOL' : 'SHOW WATCHER INTERCEPT'}</span>
-              <ChevronRight size={13} />
-            </button>
+
+            <div>
+              <span className="flex items-center gap-1 text-[10px] font-mono font-black uppercase tracking-widest text-purple-300">
+                <AlertTriangle size={11} className="text-amber-400" />
+                UNKNOWN OBSERVER // W-01
+              </span>
+              <p className="mt-1 text-sm italic leading-relaxed text-purple-100">
+                &ldquo;You found the name. You found the dead. And now you know
+                someone else was following the signal too. W-01 dormant.
+                Reactivation: October. We&apos;ll be watching.&rdquo;
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t border-purple-500/20 pt-3 text-[11px] font-mono text-purple-200/80">
+            <span className="font-bold text-amber-300">
+              NEXT FREQUENCY:
+            </span>{' '}
+            WATCHER SIGNAL W-01 // DORMANT UNTIL OCTOBER
           </div>
         </div>
       </TransmissionPanel>
