@@ -198,6 +198,7 @@ const questImageBySlug: Record<string, string> = {
   // Phase 3B
   'kraken-wall': cqImages.familyOcto,
   'palace-stars': cqImages.familyPalace,
+  'mckinley-monument-year': cqImages.mckinleySunset,
   'eternal-flame': cqImages.secretFlame,
   'golden-mark-cipher': cqImages.secretGoldenMark,
   'spring-water-shelter': cqImages.secretWater,
