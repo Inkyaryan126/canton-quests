@@ -636,77 +636,114 @@ export default function QuestDetailPage({
           if (result.cipherFragmentsAwarded && result.cipherFragmentsAwarded.length > 0) {
             fetch(`/api/game/events/${eventSlug}?playerId=${encodeURIComponent(player.id)}`)
               .then((res) => res.json())
-              .then((data: { cipherProgress?: { totalCollected: number; totalRequired: number; districts?: Array<{ key: string; name: string; status: string; collectedCount: number; requiredCount: number }> } }) => {
+              .then((data: {
+                cipherProgress?: {
+                  totalCollected: number;
+                  totalRequired: number;
+                  districts?: Array<{
+                    key: string;
+                    name: string;
+                    status: string;
+                    collectedCount: number;
+                    requiredCount: number;
+                  }>;
+                };
+              }) => {
                 const cp = data.cipherProgress;
-                const newlyReadyDistrict = cp?.districts?.find(
-                  (d) => d.status === 'ready_to_decode' && d.collectedCount >= d.requiredCount
+                const awardedFragmentKey = result.cipherFragmentsAwarded?.[0];
+
+                const districtDef = FOUNDER_CIPHER_DISTRICTS.find(
+                  (district) =>
+                    Boolean(
+                      awardedFragmentKey &&
+                        district.canonicalFragmentKeys.includes(awardedFragmentKey)
+                    )
                 );
 
+                if (!districtDef || !awardedFragmentKey) return;
+
+                const fragmentIndex =
+                  districtDef.canonicalFragmentKeys.indexOf(awardedFragmentKey);
+
+                const fragmentPhrase =
+                  districtDef.canonicalSequence[fragmentIndex] ||
+                  'CIPHER FRAGMENT';
+
+                const districtProgress = cp?.districts?.find(
+                  (district) => district.key === districtDef.key
+                );
+
+                const collectedCount =
+                  districtProgress?.collectedCount || fragmentIndex + 1;
+
+                const requiredCount =
+                  districtProgress?.requiredCount ||
+                  districtDef.canonicalSequence.length;
+
+                const districtComplete =
+                  requiredCount > 0 && collectedCount >= requiredCount;
+
+                const revealKey = `cipher-fragment:${awardedFragmentKey}`;
+
                 if (
-                  newlyReadyDistrict &&
-                  shouldShowContextualTransmission({
-                    trigger: 'district_ready_to_decode',
-                    eventSlug,
-                    playerId: player.id,
-                    subjectKey: newlyReadyDistrict.key,
-                  })
+                  shouldAutoShowTransmission(
+                    'fragment_recovered',
+                    revealKey,
+                    player.id
+                  )
                 ) {
-                  markTransmissionViewed('district_ready_to_decode', newlyReadyDistrict.key, player.id);
-                  showFounderCipherMessage({
-                    messageId: 'DISTRICT_READY_TO_DECODE',
+                  markTransmissionViewed(
+                    'fragment_recovered',
+                    revealKey,
+                    player.id
+                  );
+
+                  showGameMoment({
+                    type: 'commander-text',
+                    title: districtComplete
+                      ? `ALL ${requiredCount} FRAGMENTS RECOVERED`
+                      : `CIPHER FRAGMENT RECOVERED — ${collectedCount} OF ${requiredCount}`,
+                    body: districtComplete
+                      ? `${districtDef.canonicalSequence.join(' / ')}\n\n${districtDef.name} record complete. All ${requiredCount} pieces are secured.`
+                      : `${fragmentPhrase}\n\n${districtDef.name} • Fragment ${collectedCount} of ${requiredCount}`,
+                    size: 'medium',
                     path: player.selectedStartingPath,
-                    playerId: player.id,
-                    contextLabel: newlyReadyDistrict.name,
+                    cta: districtComplete ? 'DECODE DISTRICT' : 'CONTINUE',
+                    onContinue: districtComplete
+                      ? () => router.push(`/events/${eventSlug}?tab=intel`)
+                      : undefined,
                   });
-                } else if (
+                }
+
+                if (
                   cp &&
                   cp.totalRequired > 0 &&
                   cp.totalCollected >= cp.totalRequired &&
-                  shouldAutoShowTransmission('fragment_recovered', 'all-fragments-collected', player.id)
+                  shouldAutoShowTransmission(
+                    'fragment_recovered',
+                    'all-fragments-collected',
+                    player.id
+                  )
                 ) {
-                  markTransmissionViewed('fragment_recovered', 'all-fragments-collected', player.id);
+                  markTransmissionViewed(
+                    'fragment_recovered',
+                    'all-fragments-collected',
+                    player.id
+                  );
+
                   showFounderCipherMessage({
                     messageId: 'ALL_REQUIRED_FRAGMENTS_FOUND',
                     path: player.selectedStartingPath,
                     playerId: player.id,
-                    onContinue: () => router.push(`/events/${eventSlug}/finale`),
+                    onContinue: () =>
+                      router.push(`/events/${eventSlug}/finale`),
                   });
-                } else if (shouldShowContextualTransmission({ trigger: 'fragment_recovered', eventSlug, playerId: player.id, questId: quest.id })) {
-                  markTransmissionViewed('fragment_recovered', quest.id, player.id);
-                  const isFirst = cp?.totalCollected === 1;
-                  if (isFirst) {
-                    showFounderCipherMessage({
-                      messageId: 'FIRST_CIPHER_FRAGMENT_RECOVERED',
-                      path: player.selectedStartingPath,
-                      playerId: player.id,
-                    });
-                  } else {
-                    showFounderCipherMessage({
-                      messageId: 'CIPHER_FRAGMENT_FOUND',
-                      path: player.selectedStartingPath,
-                      playerId: player.id,
-                      contextLabel: result.cipherFragmentsAwarded && result.cipherFragmentsAwarded.length > 1 ? `${result.cipherFragmentsAwarded.length} FRAGMENTS` : undefined,
-                    });
-                  }
                 }
               })
               .catch(() => {});
           }
 
-          if (result.readyToDecodeDistricts && result.readyToDecodeDistricts.length > 0) {
-            for (const districtKey of result.readyToDecodeDistricts) {
-              const district = FOUNDER_CIPHER_DISTRICTS.find((d) => d.key === districtKey);
-              if (shouldShowContextualTransmission({ trigger: 'district_ready_to_decode', eventSlug, playerId: player.id, subjectKey: districtKey })) {
-                markTransmissionViewed('district_ready_to_decode', districtKey, player.id);
-                showFounderCipherMessage({
-                  messageId: 'DISTRICT_READY_TO_DECODE',
-                  path: player.selectedStartingPath,
-                  playerId: player.id,
-                  contextLabel: district?.name,
-                });
-              }
-            }
-          }
+
         }
 
         // Check if completing this quest unlocked the next chain quest!
