@@ -4,6 +4,7 @@ import {
   getAchievementsForPlayerDB,
   getDrawingEntriesForPlayerDB,
   getEventByIdDB,
+  getEventBySlugDB,
   getEventParticipationDB,
   getLeaderboardDB,
   getParticipatedQuestCountDB,
@@ -24,7 +25,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-const DEFAULT_EVENT_ID = 'evt-canton-vol-1';
+const DEFAULT_EVENT_SLUG = 'canton-weekend-1';
 
 async function getOwnerImageUrl(path?: string | null) {
   if (!path || !isSupabaseAdminConfigured || !supabaseAdmin) return null;
@@ -56,7 +57,25 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const eventId = searchParams.get('eventId') || DEFAULT_EVENT_ID;
+    const requestedEventId = searchParams.get('eventId');
+
+    // The Player File defaults to the live Founder’s Cipher operation.
+    // Resolve its real database UUID from the stable slug instead of using
+    // the retired fixture id "evt-canton-vol-1", which caused Mission-scoped
+    // stats like Prize Entries, Quests Complete, City Rank and Player Signal
+    // to query the wrong event while lifetime XP still appeared correctly.
+    const defaultEvent = requestedEventId
+      ? undefined
+      : await getEventBySlugDB(DEFAULT_EVENT_SLUG);
+
+    const eventId = requestedEventId || defaultEvent?.id;
+
+    if (!eventId) {
+      return NextResponse.json(
+        { success: false, error: 'Active Canton Quests Mission could not be resolved.' },
+        { status: 500 }
+      );
+    }
 
     const [progress, leaderboard, achievements, catalog, drawingEntries, participation, participatedQuestCount, activeEvent, hasSubmissionInActiveMission] = await Promise.all([
       getPlayerProgressDB(player.id, eventId),
