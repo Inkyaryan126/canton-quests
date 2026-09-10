@@ -197,6 +197,7 @@ export default function PlayerCard({
                 src={badge.iconPath}
                 alt={badge.name}
                 fill
+                priority
                 sizes="(max-width: 640px) 15vw, 64px"
                 className="cq-card-badge-img"
               />
