@@ -1066,7 +1066,7 @@ export const SEED_QUESTS: Quest[] = [
     title: 'Canton Sign Capture',
     slug: 'canton-sign-capture',
     description: 'Canton spells its own name in the open. Prove you found it.',
-    instructions: 'Take a selfie at the Canton sign and upload it to complete the mission.',
+    instructions: 'Find the Canton sign at Centennial Plaza. Take a photo of yourself (or your callsign card) beside the sign, then upload it.',
     pointValue: 150,
     xpReward: 150,
     drawingEntryReward: 1,
@@ -1074,7 +1074,7 @@ export const SEED_QUESTS: Quest[] = [
     category: 'creative',
     startingPath: 'family',
     verificationType: 'photo',
-    proofRequirement: 'Upload a photo of yourself (or your callsign card) at the Canton sign sculpture.',
+    proofRequirement: 'Upload a photo of yourself or your callsign card beside the Canton sign at Centennial Plaza.',
     isFlash: false,
     status: 'active',
     sortOrder: 22,
@@ -1093,7 +1093,7 @@ export const SEED_QUESTS: Quest[] = [
     title: 'Draft Lineup',
     slug: 'draft-lineup',
     description: "Before the Hall of Fame, before the highlight reels, there was a first line. It's still crouched here, waiting for the snap.",
-    instructions: 'Find the 1936 draft statues and snap a photo from the line of scrimmage.',
+    instructions: 'Find the 1936 NFL Draft statues at Centennial Plaza. Take a photo from the line of scrimmage, then upload it.',
     pointValue: 175,
     xpReward: 175,
     drawingEntryReward: 1,
@@ -1101,7 +1101,7 @@ export const SEED_QUESTS: Quest[] = [
     category: 'creative',
     startingPath: 'family',
     verificationType: 'photo',
-    proofRequirement: 'Upload a photo taken from the line-of-scrimmage angle of the 1936 NFL Draft statue installation.',
+    proofRequirement: 'Upload a photo taken from the line-of-scrimmage angle of the 1936 NFL Draft statues.',
     isFlash: false,
     status: 'active',
     sortOrder: 23,
@@ -1524,16 +1524,15 @@ export const SEED_QUESTS: Quest[] = [
     location: SEED_LOCATIONS[10],
     title: 'The 9th Street Signal',
     slug: '9th-street-opening',
-    description: 'The Challenge path starts here. But before you check in, look up — the real sign at the gate doesn\'t match the name on your map.',
+    description: 'The Challenge path starts here. But before you check in, look up — read exactly what the real entrance sign says.',
     // Master Launch Pivot: converted from a bare GPS check-in to a real
     // environmental-answer quest. public/canton-quests/quests/challenge/
     // skate_park.png shows the actual entrance sign, legible: "9TH STREET
-    // SKATE PARK" — distinct wording from this location's own displayed
-    // name ("9th Street Skate Corridor"), so the exact phrase can only be
-    // read by physically visiting, not inferred from anything shown on the
-    // hub or this quest's own text.
+    // SKATE PARK." Neither this quest's own text nor the location's
+    // production display name ("9th Street DIY Skate Park") states that
+    // exact phrase, so it can only be read by physically visiting.
     instructions:
-      'Go to the 9th Street Skate Corridor. Find the entrance sign and read it exactly as painted. Enter the two words that come immediately after "9th Street."',
+      'Go to 9th Street DIY Skate Park at West Park. Find the entrance sign and read it exactly as painted. Enter the two words that come immediately after "9th Street."',
     pointValue: 75,
     xpReward: 75,
     drawingEntryReward: 1,
@@ -1571,7 +1570,7 @@ export const SEED_QUESTS: Quest[] = [
     // inspected later, and only if this player is drawn as a prize
     // candidate (see executePrizeDraw / auditStatus).
     instructions:
-      'Cross into the open ground field. Take a photo of yourself (or your callsign card) standing in the field, with the low brick perimeter wall visible behind you.',
+      'Cross into the open field at West Park near 9th Street DIY. Take a photo of yourself (or your callsign card) standing in the field, then upload it.',
     pointValue: 100,
     xpReward: 100,
     drawingEntryReward: 1,
@@ -1579,7 +1578,7 @@ export const SEED_QUESTS: Quest[] = [
     category: 'creative',
     startingPath: 'challenge',
     verificationType: 'photo',
-    proofRequirement: 'Upload a photo of yourself or your callsign card standing in Challenge Field.',
+    proofRequirement: 'Upload a photo of yourself or your callsign card standing in the West Park open field.',
     isFlash: false,
     status: 'active',
     sortOrder: 18,
@@ -1603,7 +1602,7 @@ export const SEED_QUESTS: Quest[] = [
     description:
       'Find the strange tower standing over the old grounds. It was not built in one piece — count what holds it up.',
     instructions:
-      'The tower has watched this ground change for generations. Search the structure and the history around it for the year this old storybook world began. Enter the four digits that anchor the place in time.',
+      'Find The Tower at Mother Goose Land. The old storybook park around it first opened in what year? Enter the four digits.',
     pointValue: 100,
     xpReward: 100,
     drawingEntryReward: 1,
@@ -1614,14 +1613,21 @@ export const SEED_QUESTS: Quest[] = [
     proofRequirement:
       'Enter the 4-digit year associated with the landmark grounds.',
     isFlash: false,
-    status: 'draft',
+    status: 'active',
     sortOrder: 19,
     createdAt: '2026-08-01T00:00:00Z',
-    // Master Launch Pivot: GPS proximity gate removed. Left NEEDS FIELD
-    // DETAIL (status: draft, no answer hash) — unrelated to GPS removal.
+    // Master Launch Pivot: GPS proximity gate removed. This quest was
+    // marked "NEEDS FIELD DETAIL" in an earlier local pass, but a direct
+    // production audit (2026-09-10) found it already `status: 'active'` in
+    // Supabase with a real target_code — someone had resolved and applied
+    // the real answer directly to production without syncing this file
+    // back. Independently re-verified before trusting it: proofDigest of
+    // "1954" (Mother Goose Land's real, publicly documented opening year —
+    // confirmed via multiple independent public sources, not guessed)
+    // matches production's exact hash. See lib/quest-proof-secrets.ts.
     safetyNotes: 'Public park area. Do not attempt to climb or enter the tower structure.',
     gmNotes:
-      'STAGED — The Tower (silo landmark at Mother Goose Land) is the canonical source for Founder Lock THE CODE. A single photo angle (public/canton-quests/quests/challenge/silo.png) shows a smooth cylindrical tower with no countable tiers or bands. Full-height photos from additional angles are needed to confirm a real countable structural feature before an answer hash is registered. Kept fail-closed (status: draft, no answer hash).',
+      'CONFIRMED (2026-09-10 production audit) — The Tower (silo landmark at Mother Goose Land) is the canonical source for Founder Lock THE CODE. Answer 1954 (Mother Goose Land\'s real opening year), verified against production\'s existing target_code hash before activating locally.',
     rewardConfig: {
       threeLocksFragment: { lock: 'code', collectibleId: 'col-founder-code' },
     },
@@ -2069,7 +2075,7 @@ export const SEED_QUESTS: Quest[] = [
     title: 'Willie the Whale',
     slug: 'willie-the-whale',
     description: "Willie's been holding his ground at Mother Goose Land longer than most of downtown has existed. Up close, there's more to him than the silhouette from a distance.",
-    instructions: "Find Willie. Don't just photograph him from a distance — get close enough to frame the round opening on his side (not the mouth entrance) clearly in your photo.",
+    instructions: 'Find Willie the Whale at Mother Goose Land. Get close enough to photograph the round opening on his side, then upload it.',
     pointValue: 100,
     xpReward: 100,
     drawingEntryReward: 1,
@@ -2127,7 +2133,7 @@ export const SEED_QUESTS: Quest[] = [
     title: 'The Golden Mark',
     slug: 'golden-mark-cipher',
     description: 'A curious symbol stands along the way. Some say it marks a meeting point — for those who know.',
-    instructions: 'Gold catches the eye, but the date is the real mark. Find the landmark and search the history around it for the year Canton first entered the record. Enter the four digits.',
+    instructions: 'Find the Golden Mark landmark on Canton Road. Canton was founded in what year? Enter the four-digit year.',
     pointValue: 100,
     xpReward: 100,
     drawingEntryReward: 1,
@@ -2137,11 +2143,17 @@ export const SEED_QUESTS: Quest[] = [
     verificationType: 'passphrase',
     proofRequirement: 'Enter the 4-digit year commemorating Canton in the historical record.',
     isFlash: false,
-    status: 'draft',
+    status: 'active',
     sortOrder: 28,
     createdAt: '2026-08-31T00:00:00Z',
+    // Master Launch Pivot: a direct production audit (2026-09-10) found
+    // this quest already `status: 'active'` in Supabase with a real
+    // target_code — this file was simply stale. Independently re-verified:
+    // proofDigest of "1805" (Canton, Ohio's real, historically documented
+    // founding year) matches production's exact hash. See
+    // lib/quest-proof-secrets.ts.
     safetyNotes: 'FIELD VERIFICATION REQUIRED: proximity to traffic/parking at the Canton Road sculpture has not been confirmed on-site.',
-    gmNotes: 'FIELD CONFIRMATION REQUIRED — stone plaque is visible but requires on-site legible photo check. Sole intended Founder Lock (THE MARK) source.',
+    gmNotes: 'CONFIRMED (2026-09-10 production audit) — answer 1805 (Canton, Ohio\'s real founding year), verified against production\'s existing target_code hash before activating locally. Sole intended Founder Lock (THE MARK) source.',
     rewardConfig: {
       threeLocksFragment: { lock: 'mark', collectibleId: 'col-founder-mark' },
     },
@@ -2154,7 +2166,7 @@ export const SEED_QUESTS: Quest[] = [
     title: 'Spring Water Shelter',
     slug: 'spring-water-shelter',
     description: 'A quiet place to pause and listen. Fresh water flows here — and so might the answers.',
-    instructions: 'Find the historic stone shelter near the spring waters of Fort Hill and inspect its stonework and markers. What word is carved into the record here?',
+    instructions: 'Find the Spring Water Shelter at Fort Hill Park. What natural feature gives the shelter its name? Enter the six-letter word.',
     pointValue: 100,
     xpReward: 100,
     drawingEntryReward: 1,
@@ -2164,11 +2176,17 @@ export const SEED_QUESTS: Quest[] = [
     verificationType: 'passphrase',
     proofRequirement: 'Enter the passphrase carved into or associated with the shelter markers.',
     isFlash: false,
-    status: 'draft',
+    status: 'active',
     sortOrder: 29,
     createdAt: '2026-08-31T00:00:00Z',
+    // Master Launch Pivot: a direct production audit (2026-09-10) found
+    // this quest already `status: 'active'` in Supabase with a real
+    // target_code — this file was simply stale. Independently re-verified:
+    // proofDigest of "SPRING" (the real natural spring feature the shelter
+    // is named for) matches production's exact hash. See
+    // lib/quest-proof-secrets.ts.
     safetyNotes: 'FIELD VERIFICATION REQUIRED: parking-area/pedestrian proximity has not been confirmed on-site.',
-    gmNotes: 'STAGED — the only available photo (public/canton-quests/quests/secret/water.png) has a parked car obscuring part of the front boulder row, and no angle clearly resolves a countable pillar/beam feature. See docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md for the exact photo needed.',
+    gmNotes: 'CONFIRMED (2026-09-10 production audit) — answer SPRING (the real natural feature the shelter is named for), verified against production\'s existing target_code hash before activating locally.',
     rewardConfig: {
       cipherFragmentKeys: ['secret-silent-court'],
     },

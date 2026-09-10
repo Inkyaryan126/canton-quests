@@ -14,6 +14,7 @@
 
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
+  authorizeQuestEvidenceUpload,
   initializeGameEngine,
   resetGameEngineStore,
   setCurrentPlayer,
@@ -36,12 +37,13 @@ describe('Winner audit queue stays empty for ordinary players', () => {
 
   it('a player who submits photo proof but is never drawn never appears in the winner audit queue', () => {
     const player = setCurrentPlayer('Agent_Never_Drawn', '📸');
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: 'qst-canton-sign-capture' });
     submitQuestProof({
       playerId: player.id,
       questId: 'qst-canton-sign-capture',
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/never-drawn.jpg',
+      proofUrl: evidencePath,
     });
 
     const queue = getWinnerAuditQueue(EVENT_ID);
@@ -64,7 +66,7 @@ describe('executePrizeDraw flags only the drawn winner\'s photo/video evidence f
       questId: 'qst-canton-sign-capture',
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/winner.jpg',
+      proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: winner.id, questId: 'qst-canton-sign-capture' }).path,
     });
     expect(winnerSubmit.submission.auditStatus).toBe('not_needed');
 
@@ -73,7 +75,7 @@ describe('executePrizeDraw flags only the drawn winner\'s photo/video evidence f
       questId: 'qst-canton-sign-capture',
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/bystander.jpg',
+      proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: bystander.id, questId: 'qst-canton-sign-capture' }).path,
     });
 
     awardDrawingEntries({
@@ -154,7 +156,7 @@ describe('resolveWinnerAuditSubmission approves or rejects without touching rewa
       questId: 'qst-canton-sign-capture',
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/resolve-approve.jpg',
+      proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: winner.id, questId: 'qst-canton-sign-capture' }).path,
     });
     const xpAfterSubmit = submitted.awardedPoints;
 

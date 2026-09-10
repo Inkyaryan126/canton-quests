@@ -12,6 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  authorizeQuestEvidenceUpload,
   createQuest,
   decodeLocalCipherDistrict,
   getAchievementsForPlayer,
@@ -147,7 +148,7 @@ describe('Quest reward-grant transaction — bonus XP', () => {
       questId: quest.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/proof.jpg',
+      proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: quest.id }).path,
     });
     expect(submitted.success).toBe(true);
     expect(submitted.submission.status).toBe('verified');
@@ -275,7 +276,7 @@ describe('Quest reward-grant transaction — drawing entries', () => {
       questId: quest.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/proof.jpg',
+      proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: quest.id }).path,
     });
     reviewSubmission(submitted.submission.id, 'verified');
     reviewSubmission(submitted.submission.id, 'verified'); // duplicate approval
@@ -421,7 +422,7 @@ describe('Quest reward-grant transaction — photo proof routes through the same
       questId: quest.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/proof.jpg',
+      proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: quest.id }).path,
     });
     expect(submitted.submission.status).toBe('verified');
     expect(submitted.awardedPoints).toBe(150);
@@ -454,7 +455,7 @@ describe('Quest reward-grant transaction — concurrent / idempotent re-processi
       questId: quest.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/proof.jpg',
+      proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: quest.id }).path,
     });
 
     const totalXpAfterFirst = getPlayerById(player.id)!.totalXp;

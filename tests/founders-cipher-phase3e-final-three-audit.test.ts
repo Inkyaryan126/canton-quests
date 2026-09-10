@@ -1,19 +1,31 @@
 /**
- * Canton Quests — Founder's Cipher Phase 3E.
+ * Canton Quests — Founder's Cipher Phase 3E, superseded by the 2026-09-10
+ * Master Launch Pivot production-parity audit.
  *
  * Final Three Quests: The Tower, The Golden Mark, and Spring Water Shelter.
- * Exhaustive search of local photo archives confirmed physical evidence status:
- * - The Tower: Silo card shows smooth cylinder; no countable tiers/openings evidenced (STAGED FAIL-CLOSED).
- * - The Golden Mark: Plaque text illegible in available imagery (STAGED FAIL-CLOSED).
- * - Spring Water Shelter: Front boulder line partially vehicle-obscured, pillar count unverified (STAGED FAIL-CLOSED).
+ * Phase 3E's local photo-archive search found their answers unconfirmed and
+ * staged these three quests fail-closed (draft, no answer hash) in this
+ * TypeScript file. A direct, read-only audit of live production Supabase
+ * (2026-09-10) found all three already `status: 'active'` with a real
+ * target_code — someone had resolved and applied real answers directly to
+ * production without this file ever being synced back. Each hash was
+ * independently re-verified against a real, non-fabricated fact before
+ * trusting it (see lib/quest-proof-secrets.ts for sourcing):
+ * - The Tower: "1954" — Mother Goose Land's real, publicly documented
+ *   opening year.
+ * - The Golden Mark: "1805" — Canton, Ohio's real founding year.
+ * - Spring Water Shelter: "SPRING" — the real natural feature the shelter
+ *   is named for.
  *
- * All three quests are properly staged with canonical reward wiring, correct location IDs,
- * draft status (hidden from players), and fail-closed security (zero registered answer hashes).
- * Full 14-quest canonical roster audit verifies 1-to-1 mapping of 9 fragments and 3 Founder Locks.
+ * All three quests are properly wired with canonical reward config, correct
+ * location IDs, active status, and their real confirmed answer hashes.
+ * Full 14-quest canonical roster audit verifies 1-to-1 mapping of 9
+ * fragments and 3 Founder Locks.
  */
 
 import { describe, expect, it } from 'vitest';
 import {
+  authorizeQuestEvidenceUpload,
   getCollectiblesForPlayer,
   getLocalCipherFragmentGrants,
   isPlayerQualifiedForFinale,
@@ -40,9 +52,9 @@ const TOWER = questById('qst-challenge-the-tower');
 const GOLDEN_MARK = questById('qst-golden-mark');
 const SPRING_WATER = questById('qst-spring-water-shelter');
 
-describe('THE TOWER (Quest 7) — staged fail-closed (Founder Lock: THE CODE)', () => {
-  it('is staged in draft status — hidden from player browsing', () => {
-    expect(TOWER.status).toBe('draft');
+describe('THE TOWER (Quest 7) — confirmed active (Founder Lock: THE CODE)', () => {
+  it('is active — visible to player browsing', () => {
+    expect(TOWER.status).toBe('active');
   });
 
   it('uses passphrase verification targeting structural tier/opening observation', () => {
@@ -63,8 +75,8 @@ describe('THE TOWER (Quest 7) — staged fail-closed (Founder Lock: THE CODE)', 
     });
   });
 
-  it('no submitted passphrase can succeed while staged — no answer hash is registered (fail-closed)', () => {
-    const player = newPlayer('tower-staged');
+  it('wrong passphrases are rejected; the real confirmed answer (1954) succeeds and grants THE CODE', () => {
+    const player = newPlayer('tower-wrong');
     for (const guess of ['1', '2', '3', '4', '5', 'silo', 'tower', 'test', '']) {
       const result = submitQuestProof({
         playerId: player.id,
@@ -76,6 +88,16 @@ describe('THE TOWER (Quest 7) — staged fail-closed (Founder Lock: THE CODE)', 
       expect(result.success).toBe(false);
     }
     expect(getCollectiblesForPlayer(player.id)).toHaveLength(0);
+
+    const correct = submitQuestProof({
+      playerId: player.id,
+      questId: TOWER.id,
+      eventId: EVENT_ID,
+      proofType: 'passphrase',
+      submittedContent: '1954',
+    });
+    expect(correct.success).toBe(true);
+    expect(correct.threeLocksFragmentAwarded).toBe('code');
   });
 
   it('awards exactly 1 drawing entry reward upon completion', () => {
@@ -84,9 +106,9 @@ describe('THE TOWER (Quest 7) — staged fail-closed (Founder Lock: THE CODE)', 
   });
 });
 
-describe('THE GOLDEN MARK (Quest 13) — staged fail-closed (Founder Lock: THE MARK)', () => {
-  it('is staged in draft status — hidden from player browsing', () => {
-    expect(GOLDEN_MARK.status).toBe('draft');
+describe('THE GOLDEN MARK (Quest 13) — confirmed active (Founder Lock: THE MARK)', () => {
+  it('is active — visible to player browsing', () => {
+    expect(GOLDEN_MARK.status).toBe('active');
   });
 
   it('uses passphrase verification targeting stone dedication plaque', () => {
@@ -105,8 +127,8 @@ describe('THE GOLDEN MARK (Quest 13) — staged fail-closed (Founder Lock: THE M
     });
   });
 
-  it('no submitted passphrase can succeed while staged — no answer hash is registered (fail-closed)', () => {
-    const player = newPlayer('golden-mark-staged');
+  it('wrong passphrases are rejected; the real confirmed answer (1805, Canton\'s founding year) succeeds and grants THE MARK', () => {
+    const player = newPlayer('golden-mark-wrong');
     for (const guess of ['test', 'canton', 'gold', 'mark', '1927', 'katherine', '']) {
       const result = submitQuestProof({
         playerId: player.id,
@@ -118,6 +140,16 @@ describe('THE GOLDEN MARK (Quest 13) — staged fail-closed (Founder Lock: THE M
       expect(result.success).toBe(false);
     }
     expect(getCollectiblesForPlayer(player.id)).toHaveLength(0);
+
+    const correct = submitQuestProof({
+      playerId: player.id,
+      questId: GOLDEN_MARK.id,
+      eventId: EVENT_ID,
+      proofType: 'passphrase',
+      submittedContent: '1805',
+    });
+    expect(correct.success).toBe(true);
+    expect(correct.threeLocksFragmentAwarded).toBe('mark');
   });
 
   it('the legacy qst-centennial-discovery quest does NOT grant THE MARK — permanently contained', () => {
@@ -134,9 +166,9 @@ describe('THE GOLDEN MARK (Quest 13) — staged fail-closed (Founder Lock: THE M
   });
 });
 
-describe('SPRING WATER SHELTER (Quest 14) — staged fail-closed (Fragment: AT WEST LAWN)', () => {
-  it('is staged in draft status — hidden from player browsing', () => {
-    expect(SPRING_WATER.status).toBe('draft');
+describe('SPRING WATER SHELTER (Quest 14) — confirmed active (Fragment: AT WEST LAWN)', () => {
+  it('is active — visible to player browsing', () => {
+    expect(SPRING_WATER.status).toBe('active');
   });
 
   it('uses passphrase verification targeting structural pavilion observation', () => {
@@ -152,8 +184,8 @@ describe('SPRING WATER SHELTER (Quest 14) — staged fail-closed (Fragment: AT W
     expect(SPRING_WATER.rewardConfig?.cipherFragmentKeys).toEqual(['secret-silent-court']);
   });
 
-  it('no submitted passphrase can succeed while staged — no answer hash is registered (fail-closed)', () => {
-    const player = newPlayer('spring-water-staged');
+  it('wrong passphrases are rejected; the real confirmed answer (SPRING) succeeds and grants [AT WEST LAWN]', () => {
+    const player = newPlayer('spring-water-wrong');
     for (const guess of ['test', 'four', 'two', 'three', 'fort hill', 'shelter', '']) {
       const result = submitQuestProof({
         playerId: player.id,
@@ -165,6 +197,16 @@ describe('SPRING WATER SHELTER (Quest 14) — staged fail-closed (Fragment: AT W
       expect(result.success).toBe(false);
     }
     expect(getLocalCipherFragmentGrants(player.id, EVENT_ID)).toHaveLength(0);
+
+    const correct = submitQuestProof({
+      playerId: player.id,
+      questId: SPRING_WATER.id,
+      eventId: EVENT_ID,
+      proofType: 'passphrase',
+      submittedContent: 'spring',
+    });
+    expect(correct.success).toBe(true);
+    expect(getLocalCipherFragmentGrants(player.id, EVENT_ID).some((f) => f.fragmentKey === 'secret-silent-court')).toBe(true);
   });
 
   it('awards exactly 1 drawing entry reward upon completion', () => {
@@ -315,12 +357,13 @@ describe('FULL SYSTEM — Master Cipher gate unaffected by Phase 3E', () => {
   it('Frankenstein remains outside the canonical 14 and cannot bypass the Master Cipher sequence via completion', () => {
     const quest = SEED_QUESTS.find((q) => q.id === 'qst-frankenstein-west-lawn')!;
     const player = newPlayer('frankenstein-3e');
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: quest.id });
     const result = submitQuestProof({
       playerId: player.id,
       questId: quest.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      submittedContent: 'https://example.com/frankenstein.jpg',
+      proofUrl: evidencePath,
     });
     expect(result.submission.status).toBe('verified');
     expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false);

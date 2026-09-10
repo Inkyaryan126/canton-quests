@@ -140,7 +140,7 @@ describe('Mission hub — secondary navigation is 3 items, not 5, and secondary 
   it('none of the moved systems still render unconditionally above the tab bar', () => {
     const preTabBlock = HUB_SOURCE.slice(
       HUB_SOURCE.indexOf('data-testid="mission-start-panel"'),
-      HUB_SOURCE.indexOf('Secondary navigation — 3 items')
+      HUB_SOURCE.indexOf('data-testid="mission-secondary-nav"')
     );
     for (const marker of ['<CityPulseStrip', '<LiveCityStatusPanel', '<PlayerIdentityBar', '<CipherFragmentsPanel', '<MasterCipherStatusCard']) {
       expect(preTabBlock, `expected ${marker} NOT to render above the tab bar anymore`).not.toContain(marker);

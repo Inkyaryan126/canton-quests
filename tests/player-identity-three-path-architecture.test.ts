@@ -20,6 +20,7 @@ import {
   getPublicDrawingPageData,
   getLeaderboardForEvent,
   recordScoreLedger,
+  authorizeQuestEvidenceUpload,
 } from '../lib/game-engine';
 import {
   auditEventQuestsAndLocations,
@@ -123,7 +124,7 @@ describe('Player Identity & Three-Path City Architecture', () => {
         questId: 'qst-mckinley-cipher', // Secret path quest
         eventId,
         proofType: 'passphrase',
-        submittedContent: '1897',
+        submittedContent: '1907',
         userLat: 40.8064,
         userLon: -81.3933,
         userAccuracyMeters: 10,
@@ -198,12 +199,18 @@ describe('Player Identity & Three-Path City Architecture', () => {
       expect(sub1.success).toBe(true);
 
       // 2. Complete Challenge Quest (Arcade High Score Video with GM approval)
+      const { path: celebrationEvidencePath } = authorizeQuestEvidenceUpload({
+        eventId,
+        playerId: player.id,
+        questId: 'qst-arcade-high-score-video',
+        ext: 'mp4',
+      });
       const sub2 = submitQuestProof({
         playerId: player.id,
         questId: 'qst-arcade-high-score-video',
         eventId,
         proofType: 'video',
-        proofUrl: 'https://example.com/celebration.mp4',
+        proofUrl: celebrationEvidencePath,
       });
       expect(sub2.success).toBe(true);
       reviewSubmission(sub2.submission.id, 'verified');
@@ -214,7 +221,7 @@ describe('Player Identity & Three-Path City Architecture', () => {
         questId: 'qst-mckinley-cipher',
         eventId,
         proofType: 'passphrase',
-        submittedContent: '1897',
+        submittedContent: '1907',
         userLat: 40.8064,
         userLon: -81.3933,
         userAccuracyMeters: 15,

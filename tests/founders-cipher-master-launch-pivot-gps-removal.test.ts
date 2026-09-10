@@ -37,6 +37,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  authorizeQuestEvidenceUpload,
   getDrawingEntriesForPlayer,
   getLocalCipherFragmentGrants,
   getPublicQuestView,
@@ -123,7 +124,7 @@ describe('3. Launch quest completion works without any coordinates supplied', ()
       questId: MCKINLEY.id,
       eventId: EVENT_ID,
       proofType: 'passphrase',
-      submittedContent: '1897',
+      submittedContent: '1907',
     });
     expect(result.success).toBe(true);
     expect(result.awardedPoints).toBe(150);
@@ -131,12 +132,13 @@ describe('3. Launch quest completion works without any coordinates supplied', ()
 
   it('The Open Ground accepts a photo submission with no userLat/userLon and completes immediately, never a GPS rejection', () => {
     const player = newPlayer('open-ground-no-coords');
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: OPEN_GROUND.id });
     const result = submitQuestProof({
       playerId: player.id,
       questId: OPEN_GROUND.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/photo.jpg',
+      proofUrl: evidencePath,
     });
     expect(result.message).not.toMatch(/GPS/i);
     expect(result.success).toBe(true);
@@ -222,12 +224,13 @@ describe('7. Multi-step environmental questions remain sequential (platform-leve
 describe('8. Photo proof is never a real-time moderation queue — it completes immediately, locked as evidence', () => {
   it('The Open Ground (photo proof) awards full rewards immediately, with no pending/GM-approval step', () => {
     const player = newPlayer('open-ground-immediate');
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: OPEN_GROUND.id });
     const result = submitQuestProof({
       playerId: player.id,
       questId: OPEN_GROUND.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/open-ground.jpg',
+      proofUrl: evidencePath,
     });
     expect(result.success).toBe(true);
     expect(result.submission.status).toBe('verified');
@@ -237,14 +240,15 @@ describe('8. Photo proof is never a real-time moderation queue — it completes 
 
   it('the submitted photo is stored as locked evidence with auditStatus "not_needed", not flagged for any review queue', () => {
     const player = newPlayer('open-ground-evidence');
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: OPEN_GROUND.id });
     const result = submitQuestProof({
       playerId: player.id,
       questId: OPEN_GROUND.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/open-ground-evidence.jpg',
+      proofUrl: evidencePath,
     });
-    expect(result.submission.proofUrl).toBe('https://example.com/open-ground-evidence.jpg');
+    expect(result.submission.proofUrl).toBe(evidencePath);
     expect(result.submission.auditStatus).toBe('not_needed');
   });
 });
@@ -259,12 +263,13 @@ describe('9. Reward progression is unchanged by the proof-mechanism conversion',
 
   it('The Open Ground still grants the [GAVE A MONSTER] Cipher Fragment immediately on submission, matching its pre-pivot reward', () => {
     const player = newPlayer('open-ground-fragment');
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: OPEN_GROUND.id });
     submitQuestProof({
       playerId: player.id,
       questId: OPEN_GROUND.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/open-ground-2.jpg',
+      proofUrl: evidencePath,
     });
     const fragments = getLocalCipherFragmentGrants(player.id, EVENT_ID);
     expect(fragments.some((f) => f.fragmentKey === 'challenge-helmet-emblem')).toBe(true);
@@ -280,18 +285,63 @@ describe('9. Reward progression is unchanged by the proof-mechanism conversion',
       questId: MCKINLEY.id,
       eventId: EVENT_ID,
       proofType: 'passphrase',
-      submittedContent: '1897',
+      submittedContent: '1907',
     });
     expect(result.awardedPoints).toBe(150);
     const fragments = getLocalCipherFragmentGrants(player.id, EVENT_ID);
     expect(fragments.some((f) => f.fragmentKey === 'secret-quiet-signal')).toBe(true);
   });
 
-  it('The Tower keeps its Founder Lock THE CODE reward wiring untouched, still fail-closed (draft, no answer hash)', () => {
-    expect(TOWER.status).toBe('draft');
+  it('The Tower keeps its Founder Lock THE CODE reward wiring untouched, now confirmed active (production-parity audit found a real answer already live)', () => {
+    expect(TOWER.status).toBe('active');
     expect(TOWER.rewardConfig?.threeLocksFragment).toEqual({ lock: 'code', collectibleId: 'col-founder-code' });
     expect(TOWER.radiusMeters).toBeUndefined();
     expect(TOWER.requireLocationVerification).not.toBe(true);
+  });
+
+  it('The Tower completes with its real, production-confirmed answer (1954, Mother Goose Land\'s real opening year)', () => {
+    const player = newPlayer('tower-real-answer');
+    const result = submitQuestProof({
+      playerId: player.id,
+      questId: TOWER.id,
+      eventId: EVENT_ID,
+      proofType: 'passphrase',
+      submittedContent: '1954',
+    });
+    expect(result.success).toBe(true);
+    const fragments = getLocalCipherFragmentGrants(player.id, EVENT_ID);
+    expect(result.threeLocksFragmentAwarded).toBe('code');
+  });
+
+  it('Golden Mark completes with its real, production-confirmed answer (1805, Canton Ohio\'s real founding year)', () => {
+    const golden = questBySlug('golden-mark-cipher');
+    expect(golden.status).toBe('active');
+    const player = newPlayer('golden-mark-real-answer');
+    const result = submitQuestProof({
+      playerId: player.id,
+      questId: golden.id,
+      eventId: EVENT_ID,
+      proofType: 'passphrase',
+      submittedContent: '1805',
+    });
+    expect(result.success).toBe(true);
+    expect(result.threeLocksFragmentAwarded).toBe('mark');
+  });
+
+  it('Spring Water Shelter completes with its real, production-confirmed answer (SPRING)', () => {
+    const springWater = questBySlug('spring-water-shelter');
+    expect(springWater.status).toBe('active');
+    const player = newPlayer('spring-water-real-answer');
+    const result = submitQuestProof({
+      playerId: player.id,
+      questId: springWater.id,
+      eventId: EVENT_ID,
+      proofType: 'passphrase',
+      submittedContent: 'spring',
+    });
+    expect(result.success).toBe(true);
+    const fragments = getLocalCipherFragmentGrants(player.id, EVENT_ID);
+    expect(fragments.some((f) => f.fragmentKey === 'secret-silent-court')).toBe(true);
   });
 });
 

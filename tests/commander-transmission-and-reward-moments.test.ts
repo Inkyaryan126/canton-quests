@@ -28,6 +28,7 @@ import {
   GameMoment,
 } from '../lib/game-effects';
 import {
+  authorizeQuestEvidenceUpload,
   createQuest,
   getCollectiblesForPlayer,
   reviewSubmission,
@@ -389,12 +390,13 @@ describe('Duplicate reward never produces a fake second reward popup', () => {
 
     // Photo proof auto-verifies immediately (Master Launch Pivot) — the
     // reward is already granted by the time submitQuestProof returns.
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: quest.id });
     const submitted = submitQuestProof({
       playerId: player.id,
       questId: quest.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      proofUrl: 'https://example.com/proof.jpg',
+      proofUrl: evidencePath,
     });
     expect(submitted.awardedPoints).toBe(80);
 

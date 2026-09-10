@@ -210,7 +210,7 @@ describe('6, 7, 8, 9, 10. A prelaunch-access player is a completely normal playe
         questId: PASSPHRASE_QUEST.id,
         eventId: SEED_EVENT.id,
         proofType: 'passphrase',
-        submittedContent: '1897',
+        submittedContent: '1907',
       }),
     });
     const res = await submitProofRoute(req);

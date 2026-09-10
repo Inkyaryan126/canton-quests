@@ -67,7 +67,7 @@ interface FeedbackState {
 // duplicated a slice of them); 'map' stays a valid tab value because
 // /events/[slug]/map redirects to ?tab=map.
 type DashboardTab = 'quests' | 'map' | 'intel';
-const VALID_TABS: DashboardTab[] = ['quests', 'map'];
+const VALID_TABS: DashboardTab[] = ['quests', 'map', 'intel'];
 
 function getClientPlayer(): Player {
   const stored = window.localStorage.getItem('canton_quests_current_player');
@@ -1035,7 +1035,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
           START / CONTINUE action, but always high-contrast and readable. */}
       <div
         data-testid="mission-secondary-nav"
-        className="grid grid-cols-2 gap-2 mb-6 font-display font-bold text-xs sm:text-sm"
+        className="grid grid-cols-3 gap-2 mb-6 p-2 rounded-2xl bg-stone-950 font-display font-bold text-xs sm:text-sm"
       >
         <button
           type="button"
@@ -1046,7 +1046,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
               : 'bg-stone-900 text-white border-stone-600 hover:bg-stone-800 hover:border-amber-500/70'
           }`}
         >
-          ALL QUESTS
+          All Quests ({quests.length})
         </button>
         <button
           type="button"
@@ -1058,6 +1058,17 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
           }`}
         >
           MAP
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('intel')}
+          className={`py-3.5 px-4 text-center rounded-xl border transition-all ${
+            activeTab === 'intel'
+              ? 'bg-amber-500 text-stone-950 border-amber-400 font-black shadow'
+              : 'bg-stone-900 text-white border-stone-600 hover:bg-stone-800 hover:border-amber-500/70'
+          }`}
+        >
+          Mission Intel
         </button>
       </div>
 

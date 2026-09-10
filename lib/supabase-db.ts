@@ -109,6 +109,7 @@ import {
 } from './quest-proof-secrets';
 import { isProfileIdentityComplete, resolveAvatarUrl } from './player-command-center';
 import { computeLevelForXp, SOCIAL_SHARE_XP } from './xp';
+import { QUEST_EVIDENCE_BUCKET, isEvidencePathOwnedBy, buildEvidenceContextSnapshot } from './quest-evidence';
 
 
 function mapLocationFromDB(row: any): LocationInfo | undefined {
@@ -307,6 +308,8 @@ function mapSubmissionFromDB(row: any): QuestSubmission {
     userLon: row.user_lon,
     distanceFromLocation: row.distance_from_location,
     claimPlacement: row.claim_placement,
+    auditStatus: row.audit_status ?? undefined,
+    evidenceContext: row.evidence_context ?? undefined,
   };
 }
 
@@ -346,6 +349,36 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   return Math.round(earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+/**
+ * Server-authoritative confirmation that a submitted photo/video proofUrl
+ * is a real, private, immutable object this exact player uploaded for this
+ * exact quest/event through the signed-upload flow — never an arbitrary
+ * client-supplied string. A player can never claim credit by pasting a
+ * random link or someone else's evidence path: the path must both be
+ * structurally owned by them (see isEvidencePathOwnedBy) AND actually exist
+ * in the private `quest-proofs` bucket.
+ */
+async function verifyQuestEvidenceObjectExistsDB(
+  proofUrl: string | undefined,
+  eventId: string,
+  playerId: string,
+  questId: string
+): Promise<boolean> {
+  if (!proofUrl) return false;
+  if (!isEvidencePathOwnedBy(proofUrl, eventId, playerId, questId)) return false;
+  if (!isSupabaseAdminConfigured || !supabaseAdmin) return false;
+
+  // A signed URL request fails if the object doesn't exist — this doubles
+  // as both the existence check and (implicitly) proves the object is
+  // readable by the service role, with no reliance on any public/anon RLS
+  // grant.
+  const { error } = await supabaseAdmin.storage
+    .from(QUEST_EVIDENCE_BUCKET)
+    .createSignedUrl(proofUrl, 60);
+
+  return !error;
 }
 
 function verifyAutomatedProof(
@@ -2408,6 +2441,26 @@ export async function submitQuestProofDB(
     const completedStepOrder =
       existingSub && existingSub.status === 'in_progress' ? existingSub.completed_step_order || 0 : 0;
 
+    // Photo/video proof only ever auto-completes for a real, private,
+    // immutable evidence object this exact player uploaded through the
+    // signed-upload flow — never an arbitrary client-supplied URL/string.
+    // Checked before verifyAutomatedProof so a forged/missing object fails
+    // closed regardless of what that function would otherwise decide.
+    if (quest.verificationType === 'photo' || quest.verificationType === 'video') {
+      const evidenceConfirmed = await verifyQuestEvidenceObjectExistsDB(
+        trustedParams.proofUrl,
+        trustedParams.eventId,
+        trustedPlayerId,
+        trustedParams.questId
+      );
+      if (!evidenceConfirmed) {
+        return failedSubmissionResult(
+          trustedParams,
+          'Evidence could not be verified. Upload a real photo/video through the app, not a link.'
+        );
+      }
+    }
+
     const verification = verifyAutomatedProof(trustedParams, quest, completedStepOrder);
 
     // Pre-check: Reject submission immediately if event drawing ledger is locked
@@ -2447,6 +2500,28 @@ export async function submitQuestProofDB(
       distance_from_location: verification.distanceFromLocation,
       feedback: verification.status === 'rejected' ? verification.message : null,
       reviewed_at: verification.status === 'verified' || verification.status === 'rejected' ? new Date().toISOString() : null,
+      // Photo/video evidence is never a real-time moderation queue — it's
+      // locked, immutable evidence from the moment it's verified, and
+      // 'not_needed' forever unless this exact player is later drawn as a
+      // prize candidate (see executePrizeDrawDB's winner-audit flag below).
+      audit_status:
+        (trustedParams.proofType === 'photo' || trustedParams.proofType === 'video') && verification.status === 'verified'
+          ? 'not_needed'
+          : null,
+      // Frozen at the moment evidence is confirmed — never regenerated
+      // later from the quest's current text. See
+      // lib/quest-evidence.ts's buildEvidenceContextSnapshot.
+      evidence_context:
+        (trustedParams.proofType === 'photo' || trustedParams.proofType === 'video') &&
+        verification.status === 'verified' &&
+        trustedParams.proofUrl
+          ? buildEvidenceContextSnapshot({
+              questTitle: quest.title,
+              instructions: quest.instructions,
+              proofRequirement: quest.proofRequirement,
+              evidencePath: trustedParams.proofUrl,
+            })
+          : null,
     };
 
     const { data: dbSub, error: subError } = await supabaseAdmin
@@ -3692,6 +3767,24 @@ export async function executePrizeDrawDB(params: {
     auditMetadata: params.auditMetadata,
   });
 
+  // Deterministic reserve order — precomputed once, at draw time, from the
+  // same locked/frozen snapshot the winner itself came from. If this
+  // winner's evidence is later rejected, the next candidate comes from this
+  // exact persisted sequence, never a fresh discretionary re-draw. See
+  // advancePrizeDrawToNextCandidateDB.
+  let candidateSequence: localEngine.PrizeCandidateSequenceEntry[] | undefined;
+  if (drawMethod === 'final_quest') {
+    candidateSequence = await localEngine.buildFinalQuestCandidateSequence({
+      eventId: realEventId,
+      prizeId: prizeId || `prz-default-${realEventId}`,
+      prizeTitle,
+      snapshot: lockRow.canonical_snapshot as CanonicalSnapshot,
+      playerMap,
+      snapshotHash: lockRow.snapshot_hash,
+      preExcludedPlayerIds: excludedPlayerIds,
+    });
+  }
+
   const drawRecordPayload = {
     event_id: realEventId,
     prize_id: prizeId,
@@ -3705,7 +3798,10 @@ export async function executePrizeDrawDB(params: {
     winning_player_id: drawResult.winningPlayerId,
     winning_public_player_label: drawResult.winningPublicPlayerLabel,
     selected_weighted_entry_index: drawResult.selectedWeightedEntryIndex,
-    audit_metadata: drawResult.auditMetadata,
+    audit_metadata: {
+      ...drawResult.auditMetadata,
+      ...(candidateSequence ? { candidateSequence, currentCandidateOrder: 1, disqualifiedPlayerIds: [] } : {}),
+    },
     created_at: new Date().toISOString(),
   };
 
@@ -3720,8 +3816,162 @@ export async function executePrizeDrawDB(params: {
   }
 
   const insertedRow = Array.isArray(inserted) ? inserted[0] : inserted;
+  const record = mapPrizeDrawRecordFromDB(insertedRow, prizeId || '');
 
-  return mapPrizeDrawRecordFromDB(insertedRow, prizeId || '');
+  // Photo/video evidence is never a general work queue — only now, for
+  // this specific drawn candidate, does their locked evidence get flagged
+  // for a Game Master to actually look at before payout. See the
+  // 20260911020000 migration for the audit_status column this depends on;
+  // this update is a soft best-effort (logged, not thrown) so a not-yet-
+  // migrated environment never blocks a real draw from completing.
+  if (record.winningPlayerId) {
+    const { error: auditError } = await supabaseAdmin
+      .from('quest_submissions')
+      .update({ audit_status: 'winner_audit_pending' })
+      .eq('event_id', realEventId)
+      .eq('player_id', record.winningPlayerId)
+      .eq('status', 'verified')
+      .in('proof_type', ['photo', 'video']);
+    if (auditError) {
+      console.error('[executePrizeDrawDB] Could not flag winner evidence for audit (has the audit_status migration run?):', auditError);
+    }
+  }
+
+  return record;
+}
+
+/**
+ * Every submission currently awaiting a Game Master's look for a drawn
+ * prize candidate in this event — empty in the overwhelmingly common case
+ * where nobody has been drawn yet, or the drawn candidate had no photo/
+ * video evidence requirement. Never a general moderation queue.
+ */
+export async function getWinnerAuditQueueDB(eventId: string): Promise<QuestSubmission[]> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.getWinnerAuditQueue(eventId);
+  }
+  const { data, error } = await supabaseAdmin
+    .from('quest_submissions')
+    .select('*')
+    .eq('event_id', eventId)
+    .eq('audit_status', 'winner_audit_pending');
+  if (error) {
+    console.error('[getWinnerAuditQueueDB] Query failed (has the audit_status migration run?):', error);
+    return [];
+  }
+  return (data || []).map(mapSubmissionFromDB);
+}
+
+/**
+ * Advances a drawn prize record to the next untried candidate in its
+ * persisted candidateSequence (see executePrizeDrawDB), the production
+ * counterpart of lib/game-engine.ts's advancePrizeDrawToNextCandidate. Never
+ * a fresh discretionary re-draw, never a manually handpicked replacement —
+ * it only walks forward through the sequence fixed at draw time. The
+ * rejected candidate's own submission row (already updated to
+ * audit_status='rejected' by the caller) is never touched or rewritten.
+ */
+async function advancePrizeDrawToNextCandidateDB(eventId: string, rejectedPlayerId: string): Promise<void> {
+  if (!supabaseAdmin) return;
+
+  const { data: draws, error: fetchError } = await supabaseAdmin
+    .from('prize_draw_records')
+    .select('*')
+    .eq('event_id', eventId)
+    .eq('winning_player_id', rejectedPlayerId)
+    .neq('status', 'cancelled');
+
+  if (fetchError || !draws || draws.length === 0) return;
+
+  for (const d of draws) {
+    const auditMetadata = d.audit_metadata || {};
+    const sequence: localEngine.PrizeCandidateSequenceEntry[] | undefined = auditMetadata.candidateSequence;
+    if (!Array.isArray(sequence)) continue;
+
+    const currentOrder: number = auditMetadata.currentCandidateOrder ?? 1;
+    const disqualifiedPlayerIds: string[] = Array.isArray(auditMetadata.disqualifiedPlayerIds)
+      ? auditMetadata.disqualifiedPlayerIds
+      : [];
+    const next = sequence.find((entry) => entry.order > currentOrder);
+
+    if (!next) {
+      await supabaseAdmin
+        .from('prize_draw_records')
+        .update({
+          audit_metadata: {
+            ...auditMetadata,
+            disqualifiedPlayerIds: [...disqualifiedPlayerIds, rejectedPlayerId],
+            candidateSequenceExhausted: true,
+          },
+        })
+        .eq('id', d.id);
+      console.error(
+        `[advancePrizeDrawToNextCandidateDB] Candidate reserve sequence exhausted for draw ${d.id} (event ${eventId}). Needs manual resolution.`
+      );
+      continue;
+    }
+
+    const { error: advanceError } = await supabaseAdmin
+      .from('prize_draw_records')
+      .update({
+        winning_player_id: next.playerId,
+        winning_public_player_label: next.publicPlayerLabel,
+        selected_weighted_entry_index: next.selectedWeightedEntryIndex,
+        audit_metadata: {
+          ...auditMetadata,
+          currentCandidateOrder: next.order,
+          disqualifiedPlayerIds: [...disqualifiedPlayerIds, rejectedPlayerId],
+        },
+      })
+      .eq('id', d.id);
+
+    if (advanceError) {
+      console.error('[advancePrizeDrawToNextCandidateDB] Failed to advance candidate:', advanceError);
+      continue;
+    }
+
+    const { error: auditError } = await supabaseAdmin
+      .from('quest_submissions')
+      .update({ audit_status: 'winner_audit_pending' })
+      .eq('event_id', eventId)
+      .eq('player_id', next.playerId)
+      .eq('status', 'verified')
+      .in('proof_type', ['photo', 'video']);
+    if (auditError) {
+      console.error('[advancePrizeDrawToNextCandidateDB] Could not flag next candidate evidence for audit:', auditError);
+    }
+  }
+}
+
+/**
+ * Resolves one winner-audit submission: 'approved' confirms that evidence
+ * is legitimate; 'rejected' disqualifies it AND automatically advances the
+ * matching prize draw record to the next candidate in its predetermined
+ * reserve order (see advancePrizeDrawToNextCandidateDB). Never touches
+ * rewards/progression — this is a payout safeguard, not a gameplay action.
+ */
+export async function resolveWinnerAuditSubmissionDB(
+  submissionId: string,
+  decision: 'approved' | 'rejected'
+): Promise<QuestSubmission | undefined> {
+  if (!isSupabaseConfigured || !supabaseAdmin) {
+    return localEngine.resolveWinnerAuditSubmission(submissionId, decision);
+  }
+  const { data, error } = await supabaseAdmin
+    .from('quest_submissions')
+    .update({ audit_status: decision })
+    .eq('id', submissionId)
+    .select()
+    .maybeSingle();
+  if (error || !data) {
+    console.error('[resolveWinnerAuditSubmissionDB] Update failed:', error);
+    return undefined;
+  }
+  const mapped = mapSubmissionFromDB(data);
+  if (decision === 'rejected') {
+    await advancePrizeDrawToNextCandidateDB(mapped.eventId, mapped.playerId);
+  }
+  return mapped;
 }
 
 export async function cancelDrawingLedgerDB(

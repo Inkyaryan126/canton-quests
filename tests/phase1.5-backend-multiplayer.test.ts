@@ -91,7 +91,7 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
       questId: quest.id,
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
-      submittedContent: '1897',
+      submittedContent: '1907',
       userLat: quest.location?.latitude,
       userLon: quest.location?.longitude,
     });
@@ -103,7 +103,7 @@ describe('Canton Quests Phase 1.5 — Backend & Shared Multiplayer State', () =>
       questId: quest.id,
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
-      submittedContent: '1897',
+      submittedContent: '1907',
       userLat: quest.location?.latitude,
       userLon: quest.location?.longitude,
     });

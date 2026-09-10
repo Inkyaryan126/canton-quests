@@ -81,8 +81,33 @@ export const CANONICAL_QUEST_PROOF_SECRETS: ServerProofSecretMaps = {
     // read off anything the app shows — see Master Launch Pivot). Variant
     // "SKATE PARK" registered inline as acceptedAnswerVariants on the quest.
     'qst-9th-street-opening': 'sha256:567a4c4fae9b068235d8434d93052e64e2c12a2e86d8a10eac0eb337905cbdf3',
-    'qst-mckinley-cipher': 'sha256:0e3c49c57d4ab2494d55671730c356687405eb0423cc755381399f2f431b2d16',
-    'e0000001-0000-4000-8000-000000000002': 'sha256:0e3c49c57d4ab2494d55671730c356687405eb0423cc755381399f2f431b2d16',
+    // The Golden Mark — "1805" (Canton, Ohio's real, historically
+    // documented founding year). Confirmed by directly matching production
+    // Supabase's already-active target_code during the 2026-09-10
+    // production-parity audit — this quest was live in production before
+    // this file was ever updated to match. Not a fabricated/guessed answer.
+    'qst-golden-mark': 'sha256:672eb365c903a3b4558bebaef687a5fe9599d87f8b816558d88cc53f5ae9e577',
+    // Spring Water Shelter — "SPRING" (the real natural spring feature the
+    // shelter is named for). Same 2026-09-10 production-parity confirmation
+    // as Golden Mark above.
+    'qst-spring-water-shelter': 'sha256:247249930a03e7d1febb5dcf38ce4b3dd1e2afb369e13380a1880f79711d478e',
+    // The Tower — "1954" (Mother Goose Land's real, independently
+    // documented opening year — public sources: Roadtrippers, Unicorn
+    // Hideout, and Alexandra Charitan's blog on the park's history all
+    // place its opening in the mid-1950s; 1954 is the exact value that
+    // matches production's existing hash, confirming it rather than
+    // guessing it). Same 2026-09-10 production-parity confirmation.
+    'qst-challenge-the-tower': 'sha256:98f3aaa79f6ba1759e046f873955785d869eec78b60ff7ad2f1bb62d50ea8a0a',
+    // McKinley Stone Stair Cipher — "1907" (the real McKinley National
+    // Memorial dedication year — dedicated September 30, 1907; well-
+    // documented public history). This file previously had "1897"
+    // registered here, and every existing test assumed 1897 too — but a
+    // direct 2026-09-10 production audit found production's real target_code
+    // does not match 1897 at all; testing candidate years against the real
+    // hash confirmed 1907 is correct. 1897 was simply wrong, never
+    // reconciled against the actual answer. Do not revert to 1897.
+    'qst-mckinley-cipher': 'sha256:4332cd76590d0efdbd8d067acf531546da2ba0a67c538440e7defedbea48d1dc',
+    'e0000001-0000-4000-8000-000000000002': 'sha256:4332cd76590d0efdbd8d067acf531546da2ba0a67c538440e7defedbea48d1dc',
     'qst-aura-coffee-qr': 'sha256:a3cd92f342c2b4d31e2025bd95b19b10ed3f996b3360dcfd57fe3233767ac8c9',
     'e0000001-0000-4000-8000-000000000004': 'sha256:a3cd92f342c2b4d31e2025bd95b19b10ed3f996b3360dcfd57fe3233767ac8c9',
     'qst-palace-theatre-year': 'sha256:3d5d2c29712a98874d8142d229c4bce09158a144ad376c2b68411f240878a9c1',

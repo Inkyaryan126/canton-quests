@@ -655,6 +655,14 @@ export interface QuestSubmission {
    * selects them — never populated as a general work queue.
    */
   auditStatus?: 'not_needed' | 'winner_audit_pending' | 'approved' | 'rejected';
+  /**
+   * Frozen snapshot of exactly what the player was shown and what they
+   * uploaded, captured at the moment photo/video evidence was confirmed —
+   * see lib/quest-evidence.ts's buildEvidenceContextSnapshot. Never
+   * recomputed later from the quest's current text, so a later winner-audit
+   * review always sees the challenge as it was at submission time.
+   */
+  evidenceContext?: Record<string, any>;
 }
 
 export interface ScoreLedgerEntry {

@@ -15,6 +15,7 @@
 
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
+  authorizeQuestEvidenceUpload,
   getParticipatedQuestCount,
   getPlayerById,
   initializeGameEngine,
@@ -94,14 +95,15 @@ describe('PLAYER LEVEL — distinct-quest participation, lifetime scope', () => 
     expect(getParticipatedQuestCount(player.id)).toBe(1);
   });
 
-  it('a pending (Game-Master-review) submission counts as participation', () => {
+  it('a photo submission (auto-verified immediately per Master Launch Pivot) counts as participation', () => {
     const player = setCurrentPlayer('LevelAgent_Pending', '🎯');
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: SEED_EVENT.id, playerId: player.id, questId: 'qst-4th-st-mural-photo' });
     submitQuestProof({
       playerId: player.id,
       questId: 'qst-4th-st-mural-photo',
       eventId: SEED_EVENT.id,
       proofType: 'photo',
-      proofUrl: 'https://example.com/proof.jpg',
+      proofUrl: evidencePath,
     });
     expect(getParticipatedQuestCount(player.id)).toBe(1);
   });
@@ -129,7 +131,7 @@ describe('PLAYER LEVEL — distinct-quest participation, lifetime scope', () => 
       questId: 'qst-4th-st-mural-photo',
       eventId: SEED_EVENT.id,
       proofType: 'photo',
-      proofUrl: 'https://example.com/proof.jpg',
+      proofUrl: authorizeQuestEvidenceUpload({ eventId: SEED_EVENT.id, playerId: player.id, questId: 'qst-4th-st-mural-photo' }).path,
     });
     expect(getParticipatedQuestCount(player.id)).toBe(3);
   });

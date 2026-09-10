@@ -80,6 +80,14 @@ export default function QuestDetailPage({
   // Form Inputs & Geolocation
   const [textInput, setTextInput] = useState('');
   const [mediaUrlInput, setMediaUrlInput] = useState('');
+  // Real photo/video evidence upload (Master Launch Pivot) — the player
+  // picks a real file, it uploads immediately through the server-issued
+  // signed-upload flow (lib/media.ts's uploadQuestEvidence), and only the
+  // resulting private object path is ever submitted as proof. Never an
+  // arbitrary URL the player types in.
+  const [evidenceUploadStatus, setEvidenceUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
+  const [evidencePath, setEvidencePath] = useState<string | null>(null);
+  const [evidenceError, setEvidenceError] = useState<string | null>(null);
   const [userLat, setUserLat] = useState<number | undefined>(undefined);
   const [userLon, setUserLon] = useState<number | undefined>(undefined);
   const [userAccuracyMeters, setUserAccuracyMeters] = useState<number | undefined>(undefined);
@@ -464,6 +472,28 @@ export default function QuestDetailPage({
     setIsProximityOk(proximityOk);
   };
 
+  const handleEvidenceFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !quest || !event) return;
+    setEvidenceUploadStatus('uploading');
+    setEvidenceError(null);
+    setEvidencePath(null);
+    try {
+      const { uploadQuestEvidence } = await import('@/lib/media');
+      const result = await uploadQuestEvidence(file, event.id, quest.id);
+      if (!result.success || !result.path) {
+        setEvidenceUploadStatus('error');
+        setEvidenceError(result.message);
+        return;
+      }
+      setEvidencePath(result.path);
+      setEvidenceUploadStatus('uploaded');
+    } catch {
+      setEvidenceUploadStatus('error');
+      setEvidenceError('Upload failed. Check your connection and try again.');
+    }
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (isSubmitting || isAlreadyCompleted || isLocked) return;
@@ -473,7 +503,14 @@ export default function QuestDetailPage({
 
     try {
       let content = textInput.trim();
-      let url = mediaUrlInput.trim();
+      // Photo/video evidence is never the arbitrary text/link the player
+      // typed — it's the private object path the signed-upload flow
+      // already confirmed. The 'game_master' type is the one deliberately-
+      // manual exception that still accepts free-text/link details.
+      let url =
+        quest.verificationType === 'photo' || quest.verificationType === 'video'
+          ? evidencePath || ''
+          : mediaUrlInput.trim();
 
       if (quest.verificationType === 'checkin' || quest.verificationType === 'gps') {
         content = 'Centennial GPS Location Checked In';
@@ -1039,28 +1076,39 @@ export default function QuestDetailPage({
               {(quest.verificationType === 'photo' || quest.verificationType === 'video') && (
                 <div className="space-y-3">
                   <label className="text-xs font-mono text-gray-300 block">
-                    Add your photo or video:
+                    Take or choose a photo{quest.verificationType === 'video' ? ' or video' : ''}:
                   </label>
 
-                  <input
-                    type="text"
-                    value={mediaUrlInput}
-                    onChange={(e) => setMediaUrlInput(e.target.value)}
-                    placeholder="https://example.com/photo.jpg"
-                    className="input-field text-xs font-mono"
-                  />
-
-                  <div className="p-3 bg-obsidian/60 border border-dashed border-gray-700 rounded-xl text-center cursor-pointer hover:border-amber-500/50 transition-colors">
+                  <label
+                    className={`block p-4 bg-obsidian/60 border border-dashed rounded-xl text-center cursor-pointer transition-colors ${
+                      evidenceUploadStatus === 'error'
+                        ? 'border-red-500/60'
+                        : evidenceUploadStatus === 'uploaded'
+                          ? 'border-emerald-500/60'
+                          : 'border-gray-700 hover:border-amber-500/50'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      accept={quest.verificationType === 'video' ? 'image/*,video/*' : 'image/*'}
+                      capture="environment"
+                      className="hidden"
+                      onChange={handleEvidenceFileChange}
+                      disabled={evidenceUploadStatus === 'uploading'}
+                    />
                     <span className="text-2xl block mb-1">📸</span>
-                    <span className="text-xs text-gray-400 font-mono block">
-                      Attach or paste your photo/video link. It&apos;s locked in as your evidence the moment you submit.
+                    <span className="text-xs text-gray-300 font-mono block">
+                      {evidenceUploadStatus === 'idle' && 'Tap to take or choose a photo. It’s locked in as your evidence the moment it uploads.'}
+                      {evidenceUploadStatus === 'uploading' && 'Uploading…'}
+                      {evidenceUploadStatus === 'uploaded' && 'Evidence secured ✓ — tap to replace it'}
+                      {evidenceUploadStatus === 'error' && (evidenceError || 'Upload failed — tap to try again')}
                     </span>
-                  </div>
+                  </label>
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="btn btn-primary w-full text-sm font-bold py-3"
+                    disabled={isSubmitting || evidenceUploadStatus !== 'uploaded'}
+                    className="btn btn-primary w-full text-sm font-bold py-3 disabled:opacity-50"
                   >
                     {isSubmitting ? 'Securing evidence...' : 'Submit Evidence'}
                   </button>

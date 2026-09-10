@@ -131,7 +131,7 @@ describe('No canonical quest instruction contains a street address that disagree
     expect(gooseLand.instructions).not.toContain('714 12th St NW');
     // The underlying task/place is still clearly named — this is a
     // duplication fix, not a content deletion.
-    expect(nineThStreet.instructions).toContain('9th Street Skate Corridor');
+    expect(nineThStreet.instructions).toContain('9th Street DIY Skate Park');
     expect(gooseLand.instructions).toContain('Mother Goose Land');
   });
 });

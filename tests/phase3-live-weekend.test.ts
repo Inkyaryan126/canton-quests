@@ -119,7 +119,7 @@ describe('Canton Quests — Phase 3 Live Weekend Engine', () => {
       questId: quest.id,
       eventId,
       proofType: 'passphrase',
-      submittedContent: '1897',
+      submittedContent: '1907',
       userLat: quest.location?.latitude,
       userLon: quest.location?.longitude,
     });
@@ -132,7 +132,7 @@ describe('Canton Quests — Phase 3 Live Weekend Engine', () => {
       questId: quest.id,
       eventId,
       proofType: 'passphrase',
-      submittedContent: '1897',
+      submittedContent: '1907',
       userLat: quest.location?.latitude,
       userLon: quest.location?.longitude,
     });
@@ -191,7 +191,7 @@ describe('Canton Quests — Phase 3 Live Weekend Engine', () => {
       questId: quest.id,
       eventId,
       proofType: 'passphrase',
-      submittedContent: '1897',
+      submittedContent: '1907',
       userLat: quest.location?.latitude,
       userLon: quest.location?.longitude,
     });

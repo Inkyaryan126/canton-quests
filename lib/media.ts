@@ -72,25 +72,28 @@ export async function compressImageClientSide(
 }
 
 /**
- * Uploads a proof photo/video to Supabase Storage bucket 'quest-proofs'.
- * Returns a fallback data URL or mock URL if Supabase is offline.
+ * Uploads quest evidence to the private `quest-proofs` Storage bucket using
+ * the server-issued signed-upload flow (Master Launch Pivot). The server
+ * (POST /api/game/quest-proofs/authorize-upload) verifies the authenticated
+ * player, event, and quest, then mints a one-time upload token scoped to a
+ * brand-new, unpredictable object path — the client never picks the path
+ * and never uploads anywhere the server didn't explicitly authorize.
+ *
+ * On success, returns the object `path` (never a public URL — the bucket
+ * is private) to submit as `proofUrl` to POST /api/game/submit, which
+ * independently re-verifies the object actually exists at that exact path
+ * before awarding anything.
  */
-export async function uploadProofMedia(
+export async function uploadQuestEvidence(
   file: File,
-  playerId: string,
+  eventId: string,
   questId: string
-): Promise<{ success: boolean; url: string; filePath?: string; message: string }> {
-  // Validate file size limit (50 MB)
-  const maxSizeBytes = 50 * 1024 * 1024;
+): Promise<{ success: boolean; path?: string; message: string }> {
+  const maxSizeBytes = 25 * 1024 * 1024;
   if (file.size > maxSizeBytes) {
-    return {
-      success: false,
-      url: '',
-      message: 'File size exceeds maximum 50 MB limit!',
-    };
+    return { success: false, message: 'File size exceeds the 25 MB limit.' };
   }
 
-  // Compress if image
   let uploadBlob: Blob = file;
   if (file.type.startsWith('image/')) {
     try {
@@ -101,46 +104,32 @@ export async function uploadProofMedia(
   }
 
   if (!isSupabaseConfigured || !supabase) {
-    // Return Object URL or Data URL fallback
-    const mockUrl = URL.createObjectURL(uploadBlob);
-    return {
-      success: true,
-      url: mockUrl,
-      message: 'Media proof saved in local memory buffer.',
-    };
+    return { success: false, message: 'Evidence storage is not configured on this environment.' };
   }
 
   try {
-    const ext = file.name.split('.').pop() || 'jpg';
-    const fileName = `proofs/p-${playerId}/q-${questId}-${Date.now()}.${ext}`;
-
-    const { data, error } = await supabase.storage
-      .from('quest-proofs')
-      .upload(fileName, uploadBlob, {
-        cacheControl: '3600',
-        upsert: true,
-      });
-
-    if (error) {
-      console.error('Supabase storage upload error:', error);
-      const mockUrl = URL.createObjectURL(uploadBlob);
-      return { success: true, url: mockUrl, message: 'Uploaded with local fallback buffer.' };
+    const authRes = await fetch('/api/game/quest-proofs/authorize-upload', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ eventId, questId, contentType: file.type }),
+    });
+    const auth = await authRes.json();
+    if (!authRes.ok || !auth.success) {
+      return { success: false, message: auth.error || 'Could not authorize evidence upload.' };
     }
 
-    const { data: publicUrlData } = supabase.storage.from('quest-proofs').getPublicUrl(data.path);
+    const { error } = await supabase.storage
+      .from('quest-proofs')
+      .uploadToSignedUrl(auth.path, auth.token, uploadBlob, { contentType: file.type });
 
-    return {
-      success: true,
-      url: publicUrlData.publicUrl,
-      filePath: data.path,
-      message: 'Proof media uploaded successfully to secure storage!',
-    };
+    if (error) {
+      console.error('Supabase signed-upload error:', error);
+      return { success: false, message: 'Upload to secure storage failed. Try again.' };
+    }
+
+    return { success: true, path: auth.path, message: 'Evidence uploaded securely.' };
   } catch (err: any) {
     console.error('Upload exception:', err);
-    return {
-      success: true,
-      url: URL.createObjectURL(uploadBlob),
-      message: 'Uploaded with fallback buffer.',
-    };
+    return { success: false, message: 'Upload failed. Check your connection and try again.' };
   }
 }

@@ -146,6 +146,7 @@ const inMemoryStore = new Map<string, any>();
 const MAX_TRUSTED_GPS_ACCURACY_METERS = 100;
 
 import { getServerProofSecretMaps, proofDigest, proofMatches, proofMatchesAny } from './quest-proof-secrets';
+import { isEvidencePathOwnedBy, buildEvidenceContextSnapshot } from './quest-evidence';
 
 function mergeServerQuestTargetCodes(quests: Quest[]): Quest[] {
   const maps = getServerProofSecretMaps();
@@ -255,7 +256,39 @@ export function initializeGameEngine(): void {
 
 export function resetGameEngineStore(): void {
   inMemoryStore.clear();
+  questEvidenceRegistry.clear();
   initializeGameEngine();
+}
+
+// Local/offline-engine mirror of the production signed-upload evidence
+// flow (see lib/quest-evidence.ts, app/api/game/quest-proofs/authorize-
+// upload, and lib/supabase-db.ts's verifyQuestEvidenceObjectExistsDB) —
+// there is no real file storage to check against here, so this in-memory
+// registry stands in for "a real object exists at this exact path,"
+// keeping the same ownership rule testable without a live Supabase project.
+const questEvidenceRegistry = new Set<string>();
+
+export function authorizeQuestEvidenceUpload(params: {
+  eventId: string;
+  playerId: string;
+  questId: string;
+  ext?: string;
+}): { path: string } {
+  const evidenceId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const path = `${params.eventId}/${params.playerId}/${params.questId}/${evidenceId}.${params.ext || 'jpg'}`;
+  questEvidenceRegistry.add(path);
+  return { path };
+}
+
+function verifyQuestEvidenceObjectExists(
+  proofUrl: string | undefined,
+  eventId: string,
+  playerId: string,
+  questId: string
+): boolean {
+  if (!proofUrl) return false;
+  if (!isEvidencePathOwnedBy(proofUrl, eventId, playerId, questId)) return false;
+  return questEvidenceRegistry.has(proofUrl);
 }
 
 // 1. EVENT FACTORY — CREATION, EDIT & DUPLICATION
@@ -2397,13 +2430,41 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
       };
     }
   } else if (quest.verificationType === 'photo' || quest.verificationType === 'video') {
-    // Master Launch Pivot correction: photo/video proof is never a
-    // real-time moderation queue. The submission completes the quest
-    // immediately (same as any other auto-verified proof) and the media
-    // itself is simply locked, immutable evidence from that point on.
-    // Manual inspection only ever happens later, and only for a specific
-    // drawn prize candidate (see executePrizeDraw / auditStatus) — never as
-    // a general work queue a Game Master has to sit and clear.
+    // Master Launch Pivot correction: a photo/video quest only ever auto-
+    // completes for a real, private, immutable evidence object this exact
+    // player uploaded through the signed-upload flow (see
+    // authorizeQuestEvidenceUpload / lib/quest-evidence.ts) — never an
+    // arbitrary client-supplied URL or string. Once confirmed, the
+    // submission completes the quest immediately (same as any other
+    // auto-verified proof); the media itself is simply locked, immutable
+    // evidence from that point on. Manual inspection only ever happens
+    // later, and only for a specific drawn prize candidate (see
+    // executePrizeDraw / auditStatus) — never as a general work queue a
+    // Game Master has to sit and clear.
+    if (!verifyQuestEvidenceObjectExists(params.proofUrl, params.eventId, params.playerId, params.questId)) {
+      const failedSub: QuestSubmission = {
+        id: `sub-${Date.now()}`,
+        questId: params.questId,
+        playerId: params.playerId,
+        eventId: params.eventId,
+        proofType: params.proofType,
+        proofUrl: params.proofUrl,
+        status: 'rejected',
+        awardedPoints: 0,
+        drawingEntriesAwarded: 0,
+        feedback: 'Evidence could not be verified. Upload a real photo/video through the app, not a link.',
+        submittedAt: new Date().toISOString(),
+      };
+      setStoredItem(STORAGE_KEYS.SUBMISSIONS, [...existingSubmissions, failedSub]);
+      return {
+        success: false,
+        submission: failedSub,
+        message: 'Evidence could not be verified. Upload a real photo/video through the app, not a link.',
+        awardedPoints: 0,
+        drawingEntriesAwarded: 0,
+        flags: reviewFlags,
+      };
+    }
     isAutoVerified = true;
     validationMessage = 'Evidence secured! Quest complete.';
   } else if (quest.verificationType === 'game_master') {
@@ -2534,6 +2595,15 @@ export function submitQuestProof(params: SubmitProofParams): SubmitProofResult {
     auditStatus:
       params.proofType === 'photo' || params.proofType === 'video'
         ? 'not_needed'
+        : undefined,
+    evidenceContext:
+      (params.proofType === 'photo' || params.proofType === 'video') && isAutoVerified && params.proofUrl
+        ? buildEvidenceContextSnapshot({
+            questTitle: quest.title,
+            instructions: quest.instructions,
+            proofRequirement: quest.proofRequirement,
+            evidencePath: params.proofUrl,
+          })
         : undefined,
   };
 
@@ -4185,6 +4255,7 @@ export function followTheTrail(
 
   // If excluded, step through modulo space to find eligible ticket
   if (matchingRange && isPlayerExcluded(matchingRange)) {
+    let foundEligible = false;
     for (let offset = 1; offset < totalTickets; offset++) {
       const candidateTicket = ((fallbackTicket - 1 + offset) % totalTickets) + 1;
       const candidateRange = ticketRanges.find(
@@ -4193,8 +4264,16 @@ export function followTheTrail(
       if (candidateRange && !isPlayerExcluded(candidateRange)) {
         fallbackTicket = candidateTicket;
         matchingRange = candidateRange;
+        foundEligible = true;
         break;
       }
+    }
+    // Every ticket in the pool belongs to an excluded player — there is no
+    // eligible candidate left. Fail loudly rather than silently returning
+    // an already-excluded winner (which would let a disqualified/already-
+    // drawn player be picked again).
+    if (!foundEligible) {
+      throw new Error('Drawing pool exhausted: every remaining ticket belongs to an excluded player.');
     }
   }
 
@@ -4510,6 +4589,69 @@ export function cancelDrawingLedger(
   return lock;
 }
 
+export interface PrizeCandidateSequenceEntry {
+  order: number;
+  playerId: string;
+  publicPlayerLabel: string;
+  selectedWeightedEntryIndex: number;
+}
+
+/**
+ * Deterministically derives the FULL ordered reserve sequence for a
+ * final_quest draw — not just the winner — by repeatedly applying the same
+ * trail method against the same locked, frozen snapshot with an
+ * increasing exclusion set. Because the underlying finalQuestNumber and
+ * ticket assignment are pure functions of the locked snapshot (no
+ * randomness), this sequence is 100% reproducible: anyone can recompute it
+ * later from the same locked ledger and get the identical order.
+ *
+ * This is the audit trail a rejected winner's "advance to next candidate"
+ * relies on — never a fresh discretionary re-draw, never a manually
+ * handpicked replacement.
+ */
+export async function buildFinalQuestCandidateSequence(params: {
+  eventId: string;
+  prizeId: string;
+  prizeTitle: string;
+  snapshot: CanonicalSnapshot;
+  playerMap: Record<string, { label: string; isMinor?: boolean }>;
+  snapshotHash: string;
+  preExcludedPlayerIds?: string[];
+  maxCandidates?: number;
+}): Promise<PrizeCandidateSequenceEntry[]> {
+  const maxCandidates = params.maxCandidates ?? 5;
+  const excluded = [...(params.preExcludedPlayerIds || [])];
+  const sequence: PrizeCandidateSequenceEntry[] = [];
+
+  for (let i = 0; i < maxCandidates; i++) {
+    let pick;
+    try {
+      pick = await FinalQuestDrawProvider.executeDraw({
+        eventId: params.eventId,
+        prizeId: params.prizeId,
+        prizeTitle: params.prizeTitle,
+        snapshot: params.snapshot,
+        playerMap: params.playerMap,
+        snapshotHash: params.snapshotHash,
+        excludedPlayerIds: excluded,
+      });
+    } catch {
+      // Ran out of eligible entrants before reaching maxCandidates — a
+      // short reserve list is expected and fine, never an error.
+      break;
+    }
+    sequence.push({
+      order: i + 1,
+      playerId: pick.winningPlayerId,
+      publicPlayerLabel: pick.winningPublicPlayerLabel,
+      selectedWeightedEntryIndex: pick.selectedWeightedEntryIndex,
+    });
+    excluded.push(pick.winningPlayerId);
+  }
+
+  return sequence;
+}
+
 export async function executePrizeDraw(params: {
   eventId: string;
   prizeId?: string;
@@ -4609,6 +4751,24 @@ export async function executePrizeDraw(params: {
     auditMetadata: params.auditMetadata,
   });
 
+  // Deterministic reserve order — precomputed once, at draw time, from the
+  // same locked/frozen snapshot. If this winner is later disqualified by a
+  // failed evidence audit, the next candidate comes from this exact
+  // sequence, never a fresh discretionary re-draw or a manually handpicked
+  // replacement. Only meaningful for the real weighted-lottery method.
+  let candidateSequence: PrizeCandidateSequenceEntry[] | undefined;
+  if (drawMethod === 'final_quest') {
+    candidateSequence = await buildFinalQuestCandidateSequence({
+      eventId: realEventId,
+      prizeId,
+      prizeTitle,
+      snapshot: lock.canonicalSnapshot,
+      playerMap,
+      snapshotHash: lock.snapshotHash,
+      preExcludedPlayerIds: excludedPlayerIds,
+    });
+  }
+
   const record: PrizeDrawRecord = {
     id: `pdr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     eventId: realEventId,
@@ -4623,7 +4783,10 @@ export async function executePrizeDraw(params: {
     winningPlayerId: drawResult.winningPlayerId,
     winningPublicPlayerLabel: drawResult.winningPublicPlayerLabel,
     selectedWeightedEntryIndex: drawResult.selectedWeightedEntryIndex,
-    auditMetadata: drawResult.auditMetadata,
+    auditMetadata: {
+      ...drawResult.auditMetadata,
+      ...(candidateSequence ? { candidateSequence, currentCandidateOrder: 1, disqualifiedPlayerIds: [] } : {}),
+    },
     createdAt: new Date().toISOString(),
   };
 
@@ -4685,12 +4848,83 @@ export function getWinnerAuditQueue(eventId: string): QuestSubmission[] {
 }
 
 /**
+ * Advances a drawn prize record to the next untried candidate in its
+ * precomputed candidateSequence (built once, at draw time, from the same
+ * locked snapshot — see buildFinalQuestCandidateSequence). This is NEVER a
+ * fresh discretionary re-draw and NEVER a manually handpicked replacement:
+ * it only walks forward through the sequence that was fixed before any
+ * evidence was ever reviewed. The disqualified candidate's own submission
+ * history is never touched or rewritten — only their auditStatus (already
+ * set to 'rejected' by the caller) and this draw record's pointer move.
+ */
+function advancePrizeDrawToNextCandidate(eventId: string, rejectedPlayerId: string): void {
+  const draws = getStoredItem<PrizeDrawRecord[]>(STORAGE_KEYS.PRIZE_DRAWS, []);
+  let changed = false;
+
+  const updated = draws.map((d) => {
+    if (
+      d.eventId !== eventId ||
+      d.status === 'cancelled' ||
+      d.winningPlayerId !== rejectedPlayerId ||
+      !Array.isArray(d.auditMetadata?.candidateSequence)
+    ) {
+      return d;
+    }
+
+    const sequence: PrizeCandidateSequenceEntry[] = d.auditMetadata.candidateSequence;
+    const currentOrder: number = d.auditMetadata.currentCandidateOrder ?? 1;
+    const disqualifiedPlayerIds: string[] = Array.isArray(d.auditMetadata.disqualifiedPlayerIds)
+      ? d.auditMetadata.disqualifiedPlayerIds
+      : [];
+    const next = sequence.find((entry) => entry.order > currentOrder);
+
+    changed = true;
+
+    if (!next) {
+      // Reserve sequence exhausted — preserve full history, flag for a
+      // human to extend the sequence or resolve manually. Never silently
+      // pick a replacement outside the precomputed order.
+      return {
+        ...d,
+        auditMetadata: {
+          ...d.auditMetadata,
+          disqualifiedPlayerIds: [...disqualifiedPlayerIds, rejectedPlayerId],
+          candidateSequenceExhausted: true,
+        },
+      };
+    }
+
+    return {
+      ...d,
+      winningPlayerId: next.playerId,
+      winningPublicPlayerLabel: next.publicPlayerLabel,
+      selectedWeightedEntryIndex: next.selectedWeightedEntryIndex,
+      auditMetadata: {
+        ...d.auditMetadata,
+        currentCandidateOrder: next.order,
+        disqualifiedPlayerIds: [...disqualifiedPlayerIds, rejectedPlayerId],
+      },
+    };
+  });
+
+  if (changed) {
+    setStoredItem(STORAGE_KEYS.PRIZE_DRAWS, updated);
+    const advancedRecord = updated.find(
+      (d) => d.eventId === eventId && d.auditMetadata?.disqualifiedPlayerIds?.includes(rejectedPlayerId)
+    );
+    if (advancedRecord && !advancedRecord.auditMetadata?.candidateSequenceExhausted) {
+      flagPlayerEvidenceForWinnerAudit(eventId, advancedRecord.winningPlayerId);
+    }
+  }
+}
+
+/**
  * Resolves a winner-audit submission: 'approved' confirms that piece of
- * evidence is legitimate; 'rejected' disqualifies it (the caller/admin flow
- * decides what that means for the candidate — e.g. disqualifying them from
- * that prize and drawing the next candidate via executePrizeDraw's existing
- * excludedPlayerIds mechanism). Never touches rewards/progression — this is
- * a payout safeguard, not a gameplay action.
+ * evidence is legitimate; 'rejected' disqualifies it AND automatically
+ * advances the matching prize draw record to the next candidate in its
+ * predetermined reserve order (see advancePrizeDrawToNextCandidate). Never
+ * touches rewards/progression — this is a payout safeguard, not a gameplay
+ * action.
  */
 export function resolveWinnerAuditSubmission(
   submissionId: string,
@@ -4702,6 +4936,9 @@ export function resolveWinnerAuditSubmission(
   if (!sub) return undefined;
   sub.auditStatus = decision;
   setStoredItem(STORAGE_KEYS.SUBMISSIONS, submissions);
+  if (decision === 'rejected') {
+    advancePrizeDrawToNextCandidate(sub.eventId, sub.playerId);
+  }
   return sub;
 }
 

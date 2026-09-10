@@ -19,6 +19,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  authorizeQuestEvidenceUpload,
   createQuest,
   getDrawingEntriesForPlayer,
   reviewSubmission,
@@ -118,7 +119,7 @@ describe('Field check-in / photo/video / race bonus / standard NFC award XP only
     });
 
     // Photo proof auto-verifies immediately (Master Launch Pivot).
-    const submitted = submitQuestProof({ playerId: player.id, questId: quest.id, eventId: EVENT_ID, proofType: 'photo', proofUrl: 'https://example.com/x.jpg' });
+    const submitted = submitQuestProof({ playerId: player.id, questId: quest.id, eventId: EVENT_ID, proofType: 'photo', proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: quest.id }).path });
 
     expect(submitted.awardedPoints).toBe(160); // 100 base + 60 photo bonus
     expect(totalEntriesFor(player.id, quest.id)).toBe(1); // exactly the base entry, no extra for the photo bonus
@@ -179,7 +180,7 @@ describe('Explicit drawingEntryBonus grants an additional, independently-gated e
     const player = newPlayer('explicit-entry-bonus-duplicate');
 
     // Photo proof auto-verifies immediately (Master Launch Pivot).
-    const submitted = submitQuestProof({ playerId: player.id, questId: quest.id, eventId: EVENT_ID, proofType: 'photo', proofUrl: 'https://example.com/x.jpg' });
+    const submitted = submitQuestProof({ playerId: player.id, questId: quest.id, eventId: EVENT_ID, proofType: 'photo', proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: quest.id }).path });
     expect(submitted.awardedPoints).toBe(100);
     expect(totalEntriesFor(player.id, quest.id)).toBe(2);
 

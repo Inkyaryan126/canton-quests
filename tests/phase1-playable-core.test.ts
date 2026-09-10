@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  authorizeQuestEvidenceUpload,
   getEvents,
   getEventBySlug,
   getQuestsForEvent,
@@ -71,7 +72,7 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
 
   it('5. PASSPHRASE VERIFICATION: validates correct vs incorrect cipher code', () => {
     const player = setCurrentPlayer('Agent_Cipher_Tester', '🧩');
-    const quest = SEED_QUESTS[1]; // McKinley Monument Year (targetCode: 1897, 150 XP)
+    const quest = SEED_QUESTS[1]; // McKinley Monument Year (targetCode: 1907, 150 XP)
 
     // Incorrect code attempt
     const failResult = submitQuestProof({
@@ -90,7 +91,7 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
       questId: quest.id,
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
-      submittedContent: '1897',
+      submittedContent: '1907',
       userLat: quest.location?.latitude,
       userLon: quest.location?.longitude,
     });
@@ -154,12 +155,13 @@ describe('Canton Quests Phase 1 — Playable Core Engine', () => {
     const player = setCurrentPlayer('Agent_Media_Submitter', '📸');
     const quest = getQuestById('qst-4th-st-mural-photo')!;
 
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: SEED_EVENT.id, playerId: player.id, questId: quest.id });
     const submitRes = submitQuestProof({
       playerId: player.id,
       questId: quest.id,
       eventId: SEED_EVENT.id,
       proofType: 'photo',
-      proofUrl: 'https://example.com/mural-photo.jpg',
+      proofUrl: evidencePath,
     });
 
     expect(submitRes.success).toBe(true);

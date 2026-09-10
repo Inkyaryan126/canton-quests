@@ -115,7 +115,7 @@ describe('Canton Quests Homepage Flow, Path Selection, and Launch Polish Invaria
           questId: monumentQuest.id,
           eventId: 'evt-canton-vol-1',
           proofType: 'passphrase',
-          submittedContent: monumentQuest.targetCode || '1897',
+          submittedContent: monumentQuest.targetCode || '1907',
         });
       }
 

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  authorizeQuestEvidenceUpload,
   createEventWizard,
   createQuest,
   decodeLocalCipherDistrict,
@@ -41,13 +42,17 @@ function makeQuest(overrides: Partial<Quest> = {}): Quest {
 }
 
 function submit(playerId: string, quest: Quest, answer = 'ANSWER') {
+  const evidencePath =
+    quest.verificationType === 'photo'
+      ? authorizeQuestEvidenceUpload({ eventId: quest.eventId, playerId, questId: quest.id }).path
+      : undefined;
   return submitQuestProof({
     playerId,
     questId: quest.id,
     eventId: quest.eventId,
     proofType: quest.verificationType === 'photo' ? 'photo' : 'passphrase',
-    submittedContent: quest.verificationType === 'photo' ? 'https://example.com/proof.jpg' : answer,
-    proofUrl: quest.verificationType === 'photo' ? 'https://example.com/proof.jpg' : undefined,
+    submittedContent: quest.verificationType === 'photo' ? undefined : answer,
+    proofUrl: quest.verificationType === 'photo' ? evidencePath : undefined,
   });
 }
 

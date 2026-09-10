@@ -176,7 +176,7 @@ describe('Canton Quests — Critical Player Authentication Remediation Suite', (
           questId: SEED_QUESTS[1].id,
           eventId: SEED_EVENT.id,
           proofType: 'passphrase',
-          submittedContent: '1897',
+          submittedContent: '1907',
         },
         'bob-valid-jwt' // Bob's auth token
       );
@@ -201,7 +201,7 @@ describe('Canton Quests — Critical Player Authentication Remediation Suite', (
           questId: SEED_QUESTS[1].id,
           eventId: SEED_EVENT.id,
           proofType: 'passphrase',
-          submittedContent: '1897',
+          submittedContent: '1907',
         }),
       });
 

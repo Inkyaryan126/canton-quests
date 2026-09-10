@@ -1,13 +1,18 @@
 /**
  * Canton Quests — Founder's Cipher Phase 3B: remaining canonical quest
- * wiring (Kraken Wall, Eternal Flame, Willie the Whale implemented;
- * Palace, The Mural, Golden Mark, Spring Water Shelter staged fail-closed;
- * The Tower left unchanged). See docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md
- * for the visual-evidence basis of every decision exercised here.
+ * wiring (Kraken Wall, Eternal Flame, Willie the Whale implemented). Golden
+ * Mark and Spring Water Shelter were originally staged fail-closed here,
+ * but a 2026-09-10 production-parity audit found both already confirmed
+ * live in production with real answers (see
+ * tests/founders-cipher-phase3e-final-three-audit.test.ts's header for the
+ * full account) — updated below to match. See
+ * docs/FOUNDERS-CIPHER-PHYSICAL-EVIDENCE.md for the original visual-
+ * evidence basis this phase was working from.
  */
 
 import { describe, expect, it } from 'vitest';
 import {
+  authorizeQuestEvidenceUpload,
   getCollectiblesForPlayer,
   getDrawingEntriesForPlayer,
   getLocalCipherFragmentGrants,
@@ -139,12 +144,13 @@ describe('Eternal Flame — grants [THE DEAD] exactly once', () => {
 describe('Willie the Whale — grants [HIS NAME] exactly once, immediately on photo submission (Master Launch Pivot)', () => {
   it('a photo submission completes and grants the fragment immediately; a duplicate submission never re-grants', () => {
     const player = newPlayer('willie');
+    const { path: evidencePath1 } = authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: WILLIE.id });
     const result = submitQuestProof({
       playerId: player.id,
       questId: WILLIE.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      submittedContent: 'https://example.com/willie-porthole.jpg',
+      proofUrl: evidencePath1,
     });
     expect(result.submission.status).toBe('verified');
     expect(result.submission.auditStatus).toBe('not_needed');
@@ -153,23 +159,24 @@ describe('Willie the Whale — grants [HIS NAME] exactly once, immediately on ph
 
     // A duplicate photo submission for the same already-completed quest
     // never re-grants the fragment.
+    const { path: evidencePath2 } = authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: WILLIE.id });
     submitQuestProof({
       playerId: player.id,
       questId: WILLIE.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      submittedContent: 'https://example.com/willie-porthole-again.jpg',
+      proofUrl: evidencePath2,
     });
     expect(getLocalCipherFragmentGrants(player.id, EVENT_ID).filter((g) => g.fragmentKey === 'challenge-neon-loop')).toHaveLength(1);
   });
 });
 
-describe('Staged fail-closed quests can never accidentally complete (Golden Mark, Spring Water Shelter)', () => {
+describe('Golden Mark and Spring Water Shelter are confirmed active with real answers (Master Launch Pivot production-parity audit, 2026-09-10)', () => {
   it.each([
-    ['The Golden Mark', GOLDEN_MARK],
-    ['Spring Water Shelter', SPRING_WATER],
-  ] as const)('%s has no registered answer hash, so no submitted passphrase can ever match', (_label, quest) => {
-    const player = newPlayer(`staged-${quest.id}`);
+    ['The Golden Mark', GOLDEN_MARK, '1805'],
+    ['Spring Water Shelter', SPRING_WATER, 'SPRING'],
+  ] as const)('%s rejects wrong guesses but accepts its real confirmed answer', (_label, quest, realAnswer) => {
+    const player = newPlayer(`resolved-${quest.id}`);
     for (const guess of ['test', 'answer', 'canton', '1927', 'morgan', '']) {
       const result = submitQuestProof({
         playerId: player.id,
@@ -183,15 +190,25 @@ describe('Staged fail-closed quests can never accidentally complete (Golden Mark
     }
     expect(getLocalCipherFragmentGrants(player.id, EVENT_ID)).toHaveLength(0);
     expect(getCollectiblesForPlayer(player.id)).toHaveLength(0);
+
+    const correct = submitQuestProof({
+      playerId: player.id,
+      questId: quest.id,
+      eventId: EVENT_ID,
+      proofType: 'passphrase',
+      submittedContent: realAnswer,
+      ...geo(quest),
+    });
+    expect(correct.success).toBe(true);
   });
 
-  it('both remaining staged quests carry status: draft, hidden from player-facing quest browsing', () => {
+  it('both quests carry status: active, visible in player-facing quest browsing', () => {
     for (const quest of [GOLDEN_MARK, SPRING_WATER]) {
-      expect(quest.status).toBe('draft');
+      expect(quest.status).toBe('active');
     }
   });
 
-  it('Golden Mark and Spring Water Shelter are reward-wired (ready to go live the moment a photo resolves them) but inert while staged', () => {
+  it('Golden Mark and Spring Water Shelter are reward-wired correctly', () => {
     expect(GOLDEN_MARK.rewardConfig?.threeLocksFragment).toEqual({ lock: 'mark', collectibleId: 'col-founder-mark' });
     expect(SPRING_WATER.rewardConfig?.cipherFragmentKeys).toEqual(['secret-silent-court']);
   });
@@ -239,10 +256,10 @@ describe('Legacy Locks cannot grant canonical Locks (Phase 3A containment holds)
     expect(quest?.rewardConfig).toBeUndefined();
   });
 
-  it('THE MARK is now sourced only by qst-golden-mark (staged); no active quest currently grants it', () => {
+  it('THE MARK is sourced only by qst-golden-mark, now confirmed active', () => {
     const markGranters = SEED_QUESTS.filter((q) => q.rewardConfig?.threeLocksFragment?.lock === 'mark');
     expect(markGranters.map((q) => q.id)).toEqual(['qst-golden-mark']);
-    expect(markGranters[0].status).toBe('draft');
+    expect(markGranters[0].status).toBe('active');
   });
 });
 
@@ -250,12 +267,13 @@ describe('Frankenstein remains outside the canonical 14 and cannot bypass the Ma
   it('completing it grants ordinary XP/entry only — never finale qualification, never a fragment', () => {
     const quest = SEED_QUESTS.find((q) => q.id === 'qst-frankenstein-west-lawn')!;
     const player = newPlayer('frankenstein-3b');
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: quest.id });
     submitQuestProof({
       playerId: player.id,
       questId: quest.id,
       eventId: EVENT_ID,
       proofType: 'photo',
-      submittedContent: 'https://example.com/frankenstein.jpg',
+      proofUrl: evidencePath,
     });
     expect(isPlayerQualifiedForFinale(player.id, EVENT_ID)).toBe(false);
     expect(getLocalCipherFragmentGrants(player.id, EVENT_ID)).toHaveLength(0);
@@ -266,7 +284,7 @@ describe('Arbitrary order across the three newly-implemented quests', () => {
   it('Willie -> Eternal Flame -> Kraken Wall (reverse of authoring order) still grants everything correctly', async () => {
     const player = newPlayer('reverse-3b');
 
-    submitQuestProof({ playerId: player.id, questId: WILLIE.id, eventId: EVENT_ID, proofType: 'photo', submittedContent: 'https://example.com/w.jpg' });
+    submitQuestProof({ playerId: player.id, questId: WILLIE.id, eventId: EVENT_ID, proofType: 'photo', proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: WILLIE.id }).path });
     await tick();
     submitQuestProof({ playerId: player.id, questId: FLAME.id, eventId: EVENT_ID, proofType: 'passphrase', submittedContent: '1963', ...geo(FLAME) });
     await tick();
@@ -290,14 +308,14 @@ describe('No field prerequisites on any Phase 3B quest', () => {
 describe('Drawing entries stay exactly one per verified field quest (Phase 3B)', () => {
   it('Willie the Whale (photo, auto-verified immediately) awards exactly one entry, never duplicated on a repeat submission', () => {
     const player = newPlayer('willie-entries');
-    const result = submitQuestProof({ playerId: player.id, questId: WILLIE.id, eventId: EVENT_ID, proofType: 'photo', submittedContent: 'https://example.com/w2.jpg' });
+    const result = submitQuestProof({ playerId: player.id, questId: WILLIE.id, eventId: EVENT_ID, proofType: 'photo', proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: WILLIE.id }).path });
     let entries = getDrawingEntriesForPlayer(player.id, EVENT_ID).filter((e) => e.questId === WILLIE.id);
     expect(entries.reduce((sum, e) => sum + e.entriesCount, 0)).toBe(1);
     expect(result.submission.status).toBe('verified');
 
     // A repeat submission for the same already-completed quest never
     // duplicates the entry.
-    submitQuestProof({ playerId: player.id, questId: WILLIE.id, eventId: EVENT_ID, proofType: 'photo', submittedContent: 'https://example.com/w2-again.jpg' });
+    submitQuestProof({ playerId: player.id, questId: WILLIE.id, eventId: EVENT_ID, proofType: 'photo', proofUrl: authorizeQuestEvidenceUpload({ eventId: EVENT_ID, playerId: player.id, questId: WILLIE.id }).path });
     entries = getDrawingEntriesForPlayer(player.id, EVENT_ID).filter((e) => e.questId === WILLIE.id);
     expect(entries.reduce((sum, e) => sum + e.entriesCount, 0)).toBe(1);
   });

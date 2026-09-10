@@ -19,6 +19,7 @@ import {
   getPublicQuestView,
   createQuest,
   createEvent,
+  authorizeQuestEvidenceUpload,
 } from '../lib/game-engine';
 import { SEED_EVENT, SEED_QUESTS } from '../lib/seed-data';
 import { PublicQuestView, Quest } from '../lib/types';
@@ -45,14 +46,14 @@ describe('Canton Quests — Core Quest Rewards Backbone Suite', () => {
 
   it('3. Valid automated proof becomes verified', () => {
     const player = setCurrentPlayer('Agent_Auto_Verify_Tester', '⚡');
-    const quest = SEED_QUESTS[1]; // Passphrase quest, targetCode: 1897
+    const quest = SEED_QUESTS[1]; // Passphrase quest, targetCode: 1907
 
     const result = submitQuestProof({
       playerId: player.id,
       questId: quest.id,
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
-      submittedContent: '1897',
+      submittedContent: '1907',
       userLat: quest.location?.latitude,
       userLon: quest.location?.longitude,
     });
@@ -65,7 +66,7 @@ describe('Canton Quests — Core Quest Rewards Backbone Suite', () => {
 
   it('4. Invalid proof does not verify', () => {
     const player = setCurrentPlayer('Agent_Invalid_Proof_Tester', '❌');
-    const quest = SEED_QUESTS[1]; // Passphrase quest, targetCode: 1897
+    const quest = SEED_QUESTS[1]; // Passphrase quest, targetCode: 1907
 
     const result = submitQuestProof({
       playerId: player.id,
@@ -85,12 +86,13 @@ describe('Canton Quests — Core Quest Rewards Backbone Suite', () => {
     const player = setCurrentPlayer('Agent_Photo_Immediate_Tester', '📸');
     const quest = SEED_QUESTS[2]; // Photo proof quest
 
+    const { path: evidencePath } = authorizeQuestEvidenceUpload({ eventId: SEED_EVENT.id, playerId: player.id, questId: quest.id });
     const result = submitQuestProof({
       playerId: player.id,
       questId: quest.id,
       eventId: SEED_EVENT.id,
       proofType: 'photo',
-      proofUrl: 'https://example.com/mural.jpg',
+      proofUrl: evidencePath,
     });
 
     expect(result.success).toBe(true);
@@ -336,12 +338,13 @@ describe('Canton Quests — Core Quest Rewards Backbone Suite', () => {
     const quest = SEED_QUESTS[2]; // Photo proof quest
 
     // Owner submits photo proof
+    const { path: ownerEvidencePath } = authorizeQuestEvidenceUpload({ eventId: SEED_EVENT.id, playerId: ownerPlayer.id, questId: quest.id });
     const ownerSub = submitQuestProof({
       playerId: ownerPlayer.id,
       questId: quest.id,
       eventId: SEED_EVENT.id,
       proofType: 'photo',
-      proofUrl: 'https://example.com/owner-mural.jpg',
+      proofUrl: ownerEvidencePath,
     });
 
     expect(ownerSub.submission.playerId).toBe(ownerPlayer.id);
@@ -715,7 +718,7 @@ describe('Canton Quests — Core Quest Rewards Backbone Suite', () => {
       questId: SEED_QUESTS[1].id,
       eventId: SEED_EVENT.id,
       proofType: 'passphrase',
-      submittedContent: '1897',
+      submittedContent: '1907',
     });
 
     expect(result.success).toBe(false);
