@@ -915,32 +915,68 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     (a, b) => a.sortOrder - b.sortOrder
   );
 
+  const founderDistrictPaths = ['family', 'challenge', 'secret'] as const;
+
   const hasRemainingFounderDistrictQuest =
     isCipher &&
-    orderedUncompletedActive.some(
-      (q) =>
-        q.startingPath === 'family' ||
-        q.startingPath === 'challenge' ||
-        q.startingPath === 'secret'
+    orderedUncompletedActive.some((q) =>
+      founderDistrictPaths.includes(
+        q.startingPath as (typeof founderDistrictPaths)[number]
+      )
     );
 
-  // Once the player's original district is exhausted, Founder’s Cipher
-  // stops choosing another district on their behalf.
-  const selectedPathExhausted = Boolean(
+  // selectedStartingPath is the player's permanent identity/path flavor,
+  // not necessarily the district they are currently traveling through.
+  // Once the starting district is complete, detect a district that has
+  // already been started but not yet finished and keep the player there.
+  const partiallyCompletedDistrictPaths = isCipher
+    ? founderDistrictPaths.filter((path) => {
+        if (path === playerChosenPath) return false;
+
+        const districtQuests = quests.filter(
+          (q) => q.status === 'active' && q.startingPath === path
+        );
+
+        const completedInDistrict = districtQuests.filter((q) =>
+          progress?.completedQuestIds.includes(q.id)
+        ).length;
+
+        return (
+          completedInDistrict > 0 &&
+          completedInDistrict < districtQuests.length
+        );
+      })
+    : [];
+
+  // If exactly one district is in progress, that is the active travel
+  // district. Continue it instead of asking the player to choose again.
+  const activeTravelDistrictPath =
+    partiallyCompletedDistrictPaths.length === 1
+      ? partiallyCompletedDistrictPaths[0]
+      : undefined;
+
+  const orderedActiveTravelQuests = activeTravelDistrictPath
+    ? orderedUncompletedActive.filter(
+        (q) => q.startingPath === activeTravelDistrictPath
+      )
+    : [];
+
+  // Ask where to travel only when the original district is finished AND
+  // there is no single partially-completed district to continue.
+  const shouldChooseNextDistrict = Boolean(
     isCipher &&
       playerChosenPath &&
       orderedPathQuests.length === 0 &&
+      !activeTravelDistrictPath &&
       hasRemainingFounderDistrictQuest
   );
 
-  const districtTravelChoices = selectedPathExhausted
+  const districtTravelChoices = shouldChooseNextDistrict
     ? ([
         { path: 'family', label: 'ARTS DISTRICT' },
         { path: 'challenge', label: 'CHALLENGE DISTRICT' },
         { path: 'secret', label: 'SECRET DISTRICT' },
       ] as const).flatMap(({ path, label }) => {
-        if (path === playerChosenPath) return [];
-
         const nextQuest = orderedUncompletedActive.find(
           (q) => q.startingPath === path
         );
@@ -949,12 +985,14 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
       })
     : [];
 
-  // Mission Home follows authored quest order and never silently crosses
-  // districts in Founder’s Cipher.
+  // Continue the starting district first. After traveling, keep continuing
+  // whichever district is already in progress. Only show a travel choice
+  // when that district has actually been cleared.
   const recommendedQuest =
     activeFlashQuests[0] ||
     orderedPathQuests[0] ||
-    (!selectedPathExhausted ? orderedUncompletedActive[0] : undefined) ||
+    orderedActiveTravelQuests[0] ||
+    (!shouldChooseNextDistrict ? orderedUncompletedActive[0] : undefined) ||
     (!isCipher ? quests[0] : undefined);
 
   const buildQuestHref = (questId: string) => `/events/${eventSlug}/quests/${questId}`;
@@ -1046,7 +1084,7 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
           </div>
         )}
 
-        {currentPlayer && selectedPathExhausted && districtTravelChoices.length > 0 && (
+        {currentPlayer && shouldChooseNextDistrict && districtTravelChoices.length > 0 && (
           <div
             data-testid="district-travel-chooser"
             className="mt-4 p-4 bg-cyan-950/20 border border-cyan-500/40 rounded-xl space-y-3"
