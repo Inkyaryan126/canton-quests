@@ -998,6 +998,23 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
   const buildQuestHref = (questId: string) => `/events/${eventSlug}/quests/${questId}`;
   const hasStartedMission = (progress?.completedCount || 0) > 0;
 
+  const allFounderQuestsComplete = Boolean(
+    isCipher &&
+      quests.length > 0 &&
+      progress &&
+      progress.completedCount >= quests.length
+  );
+
+  const masterCipherSolved = Boolean(
+    isCipher && finaleStatus?.completedAt
+  );
+
+  const masterCipherReady = Boolean(
+    allFounderQuestsComplete &&
+      finaleStatus?.eligibility.ok &&
+      !masterCipherSolved
+  );
+
   let filteredQuests = quests.filter((q) => {
     if (selectedCategory === 'all') return true;
     if (selectedCategory === 'available') return !progress?.completedQuestIds.includes(q.id);
@@ -1051,10 +1068,105 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
           )}
         </div>
 
-        {!hasStartedMission && isCipher && (
-          <p className="text-sm text-gray-200 leading-relaxed mt-3 max-w-2xl">
-            Canton is hiding pieces of a message. Go to real locations. Find what each quest asks for. Submit what you discover.
-          </p>
+        {isCipher && (
+          <div
+            data-testid="founder-cipher-story-thread"
+            className={`mt-4 rounded-xl border p-4 ${
+              allFounderQuestsComplete
+                ? 'border-amber-400/60 bg-amber-950/30'
+                : 'border-cyan-500/30 bg-black/30'
+            }`}
+          >
+            {!allFounderQuestsComplete ? (
+              <>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-300 font-black">
+                  THE MISSION
+                </span>
+                <p className="mt-2 text-sm text-gray-200 leading-relaxed max-w-2xl">
+                  Canton is hiding pieces of one larger message. Three districts hold
+                  three Cipher fragments each. Recover the fragments, decode each
+                  district record into its Sigil, secure the three Founder Locks, and
+                  clear all 14 field quests.
+                </p>
+                <p className="mt-2 text-xs font-mono text-amber-300">
+                  When the city work is finished, everything converges at the MASTER
+                  CIPHER — the final step of the Founder&apos;s Cipher.
+                </p>
+              </>
+            ) : masterCipherSolved ? (
+              <>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-300 font-black">
+                  FOUNDER&apos;S CIPHER COMPLETE
+                </span>
+                <h2 className="mt-1 text-xl sm:text-2xl font-black text-white">
+                  MASTER CIPHER SOLVED
+                </h2>
+                <p className="mt-2 text-sm text-gray-200">
+                  The full trail has been resolved. Your completed Master Cipher
+                  record is available below.
+                </p>
+                <Link
+                  href={`/events/${eventSlug}/finale`}
+                  className="btn btn-primary mt-4 w-full sm:w-auto px-8 py-3 text-sm font-extrabold"
+                >
+                  VIEW MASTER CIPHER →
+                </Link>
+              </>
+            ) : (
+              <>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-amber-300 font-black">
+                  FIELD WORK COMPLETE • FINAL PHASE
+                </span>
+                <h2 className="mt-1 text-xl sm:text-2xl font-black text-white">
+                  THE CITY HAS GIVEN YOU EVERYTHING IT CAN
+                </h2>
+                <p className="mt-2 text-sm text-gray-200 leading-relaxed max-w-2xl">
+                  You cleared all 14 field quests. The fragments, district Sigils,
+                  and Founder Locks you recovered now converge into one final
+                  objective.
+                </p>
+                <p className="mt-2 text-sm font-bold text-amber-300">
+                  Your next and final step is the MASTER CIPHER.
+                </p>
+
+                {masterCipherReady ? (
+                  <Link
+                    href={`/events/${eventSlug}/finale`}
+                    data-testid="enter-master-cipher-cta"
+                    className="btn btn-primary mt-4 w-full sm:w-auto px-8 py-3 text-sm sm:text-base font-black shadow-lg shadow-amber-900/40"
+                  >
+                    ENTER MASTER CIPHER →
+                  </Link>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-3">
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-300 font-bold">
+                        FINAL PREPARATION
+                      </span>
+                      <p className="mt-1 text-xs text-gray-300">
+                        {finaleStatus?.eligibility.message ||
+                          'Checking your recovered Cipher pieces…'}
+                      </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Link
+                        href={`/events/${eventSlug}?tab=intel`}
+                        className="btn btn-secondary px-5 py-3 text-xs font-bold"
+                      >
+                        REVIEW CIPHER INTEL →
+                      </Link>
+                      <Link
+                        href={`/events/${eventSlug}/finale`}
+                        className="btn btn-primary px-5 py-3 text-xs font-bold"
+                      >
+                        CHECK MASTER CIPHER →
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         )}
 
         {recommendedQuest && (
