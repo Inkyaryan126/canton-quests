@@ -908,13 +908,54 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
     (q) => q.status === 'active' && !progress?.completedQuestIds.includes(q.id)
   );
 
-  // Mission Home follows authored quest order. Never choose a quest merely
-  // because it awards more XP.
+  const orderedPathQuests = [...pathQuests].sort(
+    (a, b) => a.sortOrder - b.sortOrder
+  );
+  const orderedUncompletedActive = [...uncompletedActive].sort(
+    (a, b) => a.sortOrder - b.sortOrder
+  );
+
+  const hasRemainingFounderDistrictQuest =
+    isCipher &&
+    orderedUncompletedActive.some(
+      (q) =>
+        q.startingPath === 'family' ||
+        q.startingPath === 'challenge' ||
+        q.startingPath === 'secret'
+    );
+
+  // Once the player's original district is exhausted, Founder’s Cipher
+  // stops choosing another district on their behalf.
+  const selectedPathExhausted = Boolean(
+    isCipher &&
+      playerChosenPath &&
+      orderedPathQuests.length === 0 &&
+      hasRemainingFounderDistrictQuest
+  );
+
+  const districtTravelChoices = selectedPathExhausted
+    ? ([
+        { path: 'family', label: 'ARTS DISTRICT' },
+        { path: 'challenge', label: 'CHALLENGE DISTRICT' },
+        { path: 'secret', label: 'SECRET DISTRICT' },
+      ] as const).flatMap(({ path, label }) => {
+        if (path === playerChosenPath) return [];
+
+        const nextQuest = orderedUncompletedActive.find(
+          (q) => q.startingPath === path
+        );
+
+        return nextQuest ? [{ path, label, nextQuest }] : [];
+      })
+    : [];
+
+  // Mission Home follows authored quest order and never silently crosses
+  // districts in Founder’s Cipher.
   const recommendedQuest =
     activeFlashQuests[0] ||
-    pathQuests[0] ||
-    uncompletedActive[0] ||
-    quests[0];
+    orderedPathQuests[0] ||
+    (!selectedPathExhausted ? orderedUncompletedActive[0] : undefined) ||
+    (!isCipher ? quests[0] : undefined);
 
   const buildQuestHref = (questId: string) => `/events/${eventSlug}/quests/${questId}`;
   const hasStartedMission = (progress?.completedCount || 0) > 0;
@@ -1002,6 +1043,31 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
             >
               {hasStartedMission ? 'CONTINUE MISSION →' : 'START FIRST QUEST →'}
             </Link>
+          </div>
+        )}
+
+        {currentPlayer && selectedPathExhausted && districtTravelChoices.length > 0 && (
+          <div
+            data-testid="district-travel-chooser"
+            className="mt-4 p-4 bg-cyan-950/20 border border-cyan-500/40 rounded-xl space-y-3"
+          >
+            <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-300 font-black">
+              DISTRICT COMPLETE
+            </span>
+            <h3 className="text-lg font-extrabold text-white">
+              Which district would you like to travel to next?
+            </h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {districtTravelChoices.map(({ path, label, nextQuest }) => (
+                <Link
+                  key={path}
+                  href={buildQuestHref(nextQuest.id)}
+                  className="btn btn-primary text-xs py-3 px-4 font-extrabold text-center"
+                >
+                  {label} →
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       </section>

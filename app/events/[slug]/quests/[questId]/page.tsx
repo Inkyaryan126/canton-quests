@@ -448,33 +448,69 @@ export default function QuestDetailPage({
   const isAlreadyPending = existingSubmission?.status === 'pending' || submissionResult?.submission?.status === 'pending';
   const isLocked = Boolean(quest.prerequisiteQuestId && !completedIds.includes(quest.prerequisiteQuestId));
 
-  // One dominant next action after completion — never just a bare "back to
-  // hub" with no obvious next step. Prefer an explicit chain successor,
-  // then keep the player inside their selected path before crossing into
-  // another district.
+  // Founder’s Cipher continuation is district-local. Use the district of
+  // the quest being played rather than a browser-local copy of the player's
+  // original starting path. Crossing districts is always a player choice.
+  const isFounderCipher = isKnownCantonLaunchSlug(eventSlug);
+  const currentDistrictPath = quest.startingPath;
+
+  // The progress fetch can be one render behind the submission that just
+  // completed, so include the current quest while calculating navigation.
+  const navigationCompletedIds =
+    isAlreadyCompleted && !completedIds.includes(quest.id)
+      ? [...completedIds, quest.id]
+      : completedIds;
+
+  const isUnlockedIncompleteQuest = (q: PublicQuestView) =>
+    q.id !== quest.id &&
+    q.status === 'active' &&
+    !navigationCompletedIds.includes(q.id) &&
+    (!q.prerequisiteQuestId || navigationCompletedIds.includes(q.prerequisiteQuestId));
+
   const chainSuccessor = allEventQuests.find(
-    (q) => q.prerequisiteQuestId === quest.id && q.status === 'active'
+    (q) =>
+      q.prerequisiteQuestId === quest.id &&
+      q.status === 'active' &&
+      !navigationCompletedIds.includes(q.id) &&
+      (!isFounderCipher || q.startingPath === currentDistrictPath)
   );
 
-  const nextUnlockedInSelectedPath = allEventQuests.find(
-    (q) =>
-      q.id !== quest.id &&
-      q.status === 'active' &&
-      q.startingPath === player.selectedStartingPath &&
-      !completedIds.includes(q.id) &&
-      (!q.prerequisiteQuestId || completedIds.includes(q.prerequisiteQuestId))
-  );
+  const nextUnlockedInCurrentDistrict = [...allEventQuests]
+    .filter(
+      (q) =>
+        q.startingPath === currentDistrictPath &&
+        isUnlockedIncompleteQuest(q)
+    )
+    .sort((a, b) => a.sortOrder - b.sortOrder)[0];
 
-  const nextUnlockedIncomplete = allEventQuests.find(
-    (q) =>
-      q.id !== quest.id &&
-      q.status === 'active' &&
-      !completedIds.includes(q.id) &&
-      (!q.prerequisiteQuestId || completedIds.includes(q.prerequisiteQuestId))
-  );
+  const nextUnlockedIncomplete = [...allEventQuests]
+    .filter(isUnlockedIncompleteQuest)
+    .sort((a, b) => a.sortOrder - b.sortOrder)[0];
 
   const nextQuestAfterThis =
-    chainSuccessor || nextUnlockedInSelectedPath || nextUnlockedIncomplete;
+    chainSuccessor ||
+    (isFounderCipher ? nextUnlockedInCurrentDistrict : nextUnlockedIncomplete);
+
+  const remainingDistrictChoices =
+    isFounderCipher && !nextQuestAfterThis
+      ? ([
+          { path: 'family', label: 'ARTS DISTRICT' },
+          { path: 'challenge', label: 'CHALLENGE DISTRICT' },
+          { path: 'secret', label: 'SECRET DISTRICT' },
+        ] as const).flatMap(({ path, label }) => {
+          if (path === currentDistrictPath) return [];
+
+          const nextQuest = [...allEventQuests]
+            .filter(
+              (q) =>
+                q.startingPath === path &&
+                isUnlockedIncompleteQuest(q)
+            )
+            .sort((a, b) => a.sortOrder - b.sortOrder)[0];
+
+          return nextQuest ? [{ path, label, nextQuest }] : [];
+        })
+      : [];
 
   const currentStepIdx = Math.max(0, existingSubmission?.completedStepOrder || submissionResult?.currentStepCompleted || 0);
   const directionsUrl = getDirectionsUrl(quest);
@@ -972,13 +1008,40 @@ export default function QuestDetailPage({
                     data-testid="next-quest-cta"
                     className="btn btn-primary text-sm px-8 py-3 font-extrabold w-full sm:w-auto"
                   >
-                    NEXT QUEST →
+                    NEXT QUEST: {cleanQuestTitle(nextQuestAfterThis.title)} →
                   </Link>
+                ) : isFounderCipher && remainingDistrictChoices.length > 0 ? (
+                  <div
+                    data-testid="district-travel-chooser"
+                    className="w-full p-4 mt-2 rounded-xl border border-cyan-500/40 bg-cyan-950/20 space-y-3"
+                  >
+                    <div className="text-xs font-mono font-black tracking-widest text-cyan-300">
+                      DISTRICT COMPLETE
+                    </div>
+                    <p className="text-sm text-white font-bold">
+                      Which district would you like to travel to next?
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {remainingDistrictChoices.map(({ path, label, nextQuest }) => (
+                        <Link
+                          key={path}
+                          href={buildQuestHref(nextQuest.id)}
+                          className="btn btn-primary text-xs px-4 py-3 font-extrabold"
+                        >
+                          {label} →
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
                 <Link
                   href={backToHubHref}
                   data-testid="back-to-mission-cta"
-                  className={nextQuestAfterThis ? 'text-xs font-mono text-gray-400 underline' : 'btn btn-primary text-sm px-6'}
+                  className={
+                    nextQuestAfterThis || remainingDistrictChoices.length > 0
+                      ? 'text-xs font-mono text-gray-400 underline'
+                      : 'btn btn-primary text-sm px-6'
+                  }
                 >
                   BACK TO MISSION
                 </Link>
