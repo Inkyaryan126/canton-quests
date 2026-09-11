@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Compass, KeyRound, LogOut, Map, UserCircle2 } from 'lucide-react';
+import { Compass, KeyRound, LogOut, Map, Trophy, UserCircle2 } from 'lucide-react';
 import CantonQuestsLogo from '@/components/CantonQuestsLogo';
 import SoundToggleControl from '@/components/game-effects/SoundToggleControl';
 import { Player } from '@/lib/types';
@@ -184,6 +184,10 @@ export default function Header({ eventSlug }: HeaderProps) {
           <Link href={`/events/${eventSlug}/map`}>
             <Map size={13} aria-hidden="true" />
             Map
+          </Link>
+          <Link href={`/events/${eventSlug}/leaderboard`}>
+            <Trophy size={13} aria-hidden="true" />
+            Rankings
           </Link>
           {/* Master Cipher finale — persistent top-nav access alongside the
               Mission hub's own MasterCipherStatusCard entry point, so a
