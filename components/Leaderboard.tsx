@@ -23,11 +23,9 @@ export default function Leaderboard({ entries, currentPlayerId }: LeaderboardPro
       <div>
         {entries.length === 0 ? (
           <div className="cq-empty-state" style={{ padding: '2rem' }}>
-            <SystemStatusBadge status="armed" label="PRE-SEASON • OPENS SEPTEMBER 11" size="sm" />
-            <h3>Leaderboard Activates at Kickoff</h3>
-            <p>
-              Live verified scores and rankings will stream here in real time as agents complete field missions across Canton.
-            </p>
+            <SystemStatusBadge status="armed" label="NO SCORES YET" size="sm" />
+            <h3>No Scores Yet</h3>
+            <p>Rankings will appear here as players earn XP.</p>
           </div>
         ) : (
           entries.map((entry) => {

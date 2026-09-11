@@ -109,6 +109,7 @@ import {
 } from './quest-proof-secrets';
 import { isProfileIdentityComplete, resolveAvatarUrl } from './player-command-center';
 import { computeLevelForXp, SOCIAL_SHARE_XP } from './xp';
+import { getCantonCalendarDate } from './canton-time';
 import { QUEST_EVIDENCE_BUCKET, isEvidencePathOwnedBy, buildEvidenceContextSnapshot } from './quest-evidence';
 
 
@@ -1162,10 +1163,10 @@ export async function evaluateAndGrantProfileMilestonesDB(
 }
 
 /**
- * One claim per calendar day (UTC), honor-system — the client is trusted
+ * One claim per Canton calendar day (America/New_York), honor-system — the client is trusted
  * that a real share-intent dialog was opened; there is no server-side
  * proof of an actual post. Farming is limited by (a) the modest XP amount
- * and (b) the reward_key embedding today's UTC date, so reward_grants'
+ * and (b) the reward_key embedding today's Canton date, so reward_grants'
  * existing account-level questless unique index
  * (player_id, reward_type, reward_key) makes a second claim on the same
  * day a no-op — no new index or scheduled cleanup needed, a new day is
@@ -1179,7 +1180,7 @@ export async function claimSocialShareDB(playerId: string): Promise<{ newlyGrant
   const event = await getEventBySlugDB(SEED_EVENT.slug);
   if (!event) return { newlyGranted: false, xpAwarded: 0 };
 
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = getCantonCalendarDate();
   const isNewGrant = await insertRewardGrantDB({
     eventId: event.id,
     playerId,

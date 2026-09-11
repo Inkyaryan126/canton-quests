@@ -92,6 +92,7 @@ import { evaluateProofIntegrity } from './proof-integrity';
 import { sanitizeTextContent } from './spectator-engine';
 import { isProfileIdentityComplete, resolveAvatarUrl } from './player-command-center';
 import { computeLevelForXp, SOCIAL_SHARE_XP } from './xp';
+import { getCantonCalendarDate } from './canton-time';
 import {
   FOUNDER_CIPHER_DISTRICTS,
   verifyDistrictDecodeSequence,
@@ -1744,10 +1745,10 @@ export function evaluateAndGrantProfileMilestones(playerId: string): { newlyGran
   return { newlyGranted, totalXpAwarded: newlyGranted.reduce((sum, g) => sum + g.xpAwarded, 0) };
 }
 
-/** Local/offline mirror of claimSocialShareDB — one honor-system claim per calendar day (UTC). */
+/** Local/offline mirror of claimSocialShareDB — one honor-system claim per Canton calendar day. */
 export function claimSocialShare(playerId: string): { newlyGranted: boolean; xpAwarded: number } {
   initializeGameEngine();
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = getCantonCalendarDate();
   const granted = recordRewardGrant({
     eventId: SEED_EVENT.id,
     playerId,

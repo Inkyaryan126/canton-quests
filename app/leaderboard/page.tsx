@@ -220,12 +220,10 @@ function LeaderboardContent() {
                 </div>
               ) : (
                 <div>
-                  <SystemStatusBadge status="armed" label="PRE-SEASON ACTIVE • KICKOFF SEPTEMBER 11" size="sm" />
-                  <h2>
-                    Leaderboard Activates September 11
-                  </h2>
+                  <SystemStatusBadge status="armed" label="NO SCORES YET" size="sm" />
+                  <h2>No Scores Yet</h2>
                   <p>
-                    Live individual agent rankings and XP scoring will stream here in real time as players verify field missions across Canton.
+                    Rankings will appear here as players earn XP.
                   </p>
                   <div style={{ marginTop: '1rem' }}>
                     <Link href="/events/canton-weekend-1" className="cq-gold-button">
