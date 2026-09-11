@@ -218,11 +218,11 @@ export interface QuestEvent {
   createdAt: string;
   /**
    * Whether entering this Operation requires the player to choose a
-   * Family/Challenge/Secret path before reaching gameplay. Path is an
-   * Operation-specific attribute, not a global account requirement — most
+   * Family/Challenge/Secret path before reaching gameplay. The path itself
+   * is the player's universal identity choice; this flag only controls
+   * whether this Operation presents the initial-selection gate. Most
    * Operations (e.g. the Fair QR Hunt) leave this false. Defaults to false
-   * when absent so older/local data without the column still behaves
-   * path-free rather than unexpectedly gating.
+   * when absent so older/local data remains path-free.
    */
   requiresPath?: boolean;
 }

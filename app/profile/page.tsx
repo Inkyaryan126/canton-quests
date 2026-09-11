@@ -519,14 +519,14 @@ export default function ProfilePage() {
                 return (
                   <div className="cq-identity-status is-complete" style={{ borderColor: `${tone.color}50` }}>
                     <CheckCircle2 size={15} style={{ color: tone.color }} />
-                    <span style={{ color: tone.color }}>{tone.label}</span>
-                    <em>{tone.styleTag}</em>
+                    <span style={{ color: tone.color }}>{tone.label} · LOCKED</span>
+                    <em>Permanent Player Identity</em>
                   </div>
                 );
               })()}
               <p className="cq-section-note">
-                Your path shapes how Canton Quests talks to you — tone, flavor text, and Commander wording. Every
-                player can play every Quest no matter which path they chose.
+                Your path is part of your Player Identity and stays with you once selected. It shapes your style, tone,
+                and starting recommendation, but it never prevents you from playing Quests in other districts.
               </p>
             </section>
 

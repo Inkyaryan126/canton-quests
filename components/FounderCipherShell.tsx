@@ -78,8 +78,10 @@ interface FounderCipherShellProps {
   authenticatedPlayer: Player | null;
   stage: OperationLifecycleStage;
   countdown: CountdownInfo;
-  /** The player's chosen starting path once set on their event_players record — lets the persistent doors moment greet a returning player by their path instead of re-asking them to choose. */
+  /** The player's chosen starting path from their permanent Player Identity. */
   chosenPath?: StartingPath | null;
+  /** Hide the presentational door preview when the real Gate 3 selector is visible. */
+  hidePathPreview?: boolean;
   /** Live gates/dashboard content — rendered under the status widget for 'active'/'finale'/'ended' stages. */
   children?: ReactNode;
 }
@@ -104,6 +106,7 @@ export default function FounderCipherShell({
   stage,
   countdown,
   chosenPath,
+  hidePathPreview = false,
   children,
 }: FounderCipherShellProps) {
   const router = useRouter();
@@ -121,6 +124,36 @@ export default function FounderCipherShell({
   const chosenDoor = chosenPath ? DOOR_HOTSPOTS.find((d) => d.id === chosenPath) : undefined;
   const missionControlLinks = getMissionControlLinks(eventSlug);
   const missionControlCopy = MISSION_CONTROL_COPY[stage];
+  const renderDoorContent = (door: (typeof DOOR_HOTSPOTS)[number]) => (
+    <>
+      <div className="cq-door-badge-row">
+        <span
+          className="cq-door-tag"
+          style={{ backgroundColor: `${door.color}25`, borderColor: `${door.color}60`, color: door.color }}
+        >
+          {chosenDoor?.id === door.id ? 'Your Door' : door.tag}
+        </span>
+        <div
+          className="cq-door-icon-box"
+          style={{ backgroundColor: `${door.color}25`, borderColor: `${door.color}60`, color: door.color }}
+        >
+          <door.icon size={14} />
+        </div>
+      </div>
+      <div className="cq-door-pill-row">
+        <div
+          className="cq-door-pill"
+          style={{ backgroundColor: 'rgba(5, 6, 7, 0.85)', borderColor: `${door.color}60`, color: door.color }}
+        >
+          <door.icon size={13} style={{ color: door.color }} />
+          <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+            <span className="cq-door-pill-title">{door.label}</span>
+            <span className="cq-door-pill-district">{getPathTone(door.id)?.styleTag || door.district}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <div className="space-y-16 sm:space-y-20 pb-4">
@@ -379,21 +412,19 @@ export default function FounderCipherShell({
         </section>
       )}
 
-      {/* PERSISTENT — THREE DOORS (same artwork/CSS as the functional
-          ThreePathSelector used once a player actually enters and needs to
-          choose — this is the presentational preview; clicking a door
-          routes into that real entry flow rather than duplicating its
-          selection/signup logic here). Reframes to a "your path" confirmation
-          once the player already has one on file instead of re-asking. */}
+      {/* PERSISTENT — THREE DOORS. The real Gate 3 selector is the only
+          interactive path choice. This preview is hidden beside that selector
+          and becomes non-interactive confirmation once a path is locked. */}
+      {!(hidePathPreview && !chosenPath) && (
       <section id="choose-path" className="cq-three-doors-section scroll-mt-28" aria-labelledby="cipher-paths-heading">
         <div className="cq-three-doors-intro">
-          <span className="cq-three-doors-eyebrow">THREE PATHS. ONE MISSION.</span>
+          <span className="cq-three-doors-eyebrow">{chosenDoor ? 'YOUR OFFICIAL PATH' : 'THREE PATHS. ONE MISSION.'}</span>
           <h2 id="cipher-paths-heading" className="cq-three-doors-title">
-            {chosenDoor ? `You Chose: ${chosenDoor.label}` : 'Family, Challenge, or Secret'}
+            {chosenDoor ? `${chosenDoor.label} · LOCKED` : 'Family, Challenge, or Secret'}
           </h2>
           <p className="cq-three-doors-desc">
             {chosenDoor
-              ? `Your path shaped how you entered — every quest in Canton is still open to you.`
+              ? `Your official path stays with you. Every quest in Canton is still open to you.`
               : 'Your choice changes how you enter the game. Every quest in Canton stays open either way.'}
           </p>
         </div>
@@ -409,49 +440,31 @@ export default function FounderCipherShell({
           />
           <div className="cq-three-doors-scrim" />
           <div className="cq-three-doors-hotspots" role="group" aria-label="Founder's Cipher starting paths">
-            {DOOR_HOTSPOTS.map((door) => (
-              <Link
-                key={door.id}
-                href={doorHref}
-                aria-label={
-                  chosenDoor?.id === door.id
-                    ? `${door.ariaLabel} — your chosen path`
-                    : `${door.ariaLabel} — enter the Founder's Cipher to choose`
-                }
-                title={`${door.ariaLabel} (${door.district})`}
-                className={`cq-door-hotspot ${door.className}${chosenDoor?.id === door.id ? ' is-selected' : ''}`}
-              >
-                <div className="cq-door-badge-row">
-                  <span
-                    className="cq-door-tag"
-                    style={{ backgroundColor: `${door.color}25`, borderColor: `${door.color}60`, color: door.color }}
-                  >
-                    {chosenDoor?.id === door.id ? 'Your Door' : door.tag}
-                  </span>
-                  <div
-                    className="cq-door-icon-box"
-                    style={{ backgroundColor: `${door.color}25`, borderColor: `${door.color}60`, color: door.color }}
-                  >
-                    <door.icon size={14} />
-                  </div>
+            {DOOR_HOTSPOTS.map((door) => {
+              const className = `cq-door-hotspot ${door.className}${chosenDoor?.id === door.id ? ' is-selected' : ''}`;
+              const ariaLabel = chosenDoor?.id === door.id
+                ? `${door.ariaLabel} — your official locked path`
+                : `${door.ariaLabel} — another path style`;
+              return chosenPath ? (
+                <div key={door.id} aria-label={ariaLabel} title={`${door.ariaLabel} (${door.district})`} className={className}>
+                  {renderDoorContent(door)}
                 </div>
-                <div className="cq-door-pill-row">
-                  <div
-                    className="cq-door-pill"
-                    style={{ backgroundColor: 'rgba(5, 6, 7, 0.85)', borderColor: `${door.color}60`, color: door.color }}
-                  >
-                    <door.icon size={13} style={{ color: door.color }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                      <span className="cq-door-pill-title">{door.label}</span>
-                      <span className="cq-door-pill-district">{getPathTone(door.id)?.styleTag || door.district}</span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
+              ) : (
+                <Link
+                  key={door.id}
+                  href={doorHref}
+                  aria-label={ariaLabel}
+                  title={`${door.ariaLabel} (${door.district})`}
+                  className={className}
+                >
+                  {renderDoorContent(door)}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
+      )}
 
       {/* PERSISTENT — FOUR STEPS (Cipher-specific mechanics only — the
           platform homepage already carries the generic explanation, so this

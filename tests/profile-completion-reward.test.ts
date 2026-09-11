@@ -6,10 +6,10 @@
  *   - account signup alone never grants XP
  *   - the reward fires once a valid avatar (preset or uploaded custom) is
  *     set — a starting path is NOT required (Command Center / Operations
- *     reorganization, supabase/migrations/20260826072300_...sql): path is
- *     now an Operation-specific attribute (event_players.path), not a
- *     permanent-account requirement, so it was deliberately removed from
- *     this gate. Setting a path alongside the avatar remains harmless and
+ *     reorganization): the permanent starting path is a separate Player
+ *     Identity choice, not part of this avatar reward gate, so it was
+ *     deliberately removed from this check. Setting a path alongside the
+ *     avatar remains harmless and
  *     still qualifies, since only the avatar is actually checked.
  *   - it is a strict one-time grant: later changes, retries, concurrent
  *     requests, and refresh/logout/login never grant it again

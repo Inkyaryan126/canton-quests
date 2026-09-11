@@ -1653,9 +1653,9 @@ export const PROFILE_COMPLETION_XP = 100;
 /**
  * The one-time, account-level Player Identity onboarding reward: +100 XP,
  * no Entry Token, awarded exactly once per player the first time they have
- * a valid avatar (preset or custom-with-upload). Path is deliberately not
- * part of this check — it's an Operation-specific attribute, not a
- * permanent-identity requirement (see isProfileIdentityComplete in
+ * a valid avatar (preset or custom-with-upload). The player's starting path
+ * is a separate permanent identity choice and is deliberately not part of
+ * this avatar reward check (see isProfileIdentityComplete in
  * lib/player-command-center.ts). Call this after any profile mutation
  * capable of satisfying the requirement (avatar preset selection, custom
  * photo upload) — it always re-evaluates the player's current authoritative

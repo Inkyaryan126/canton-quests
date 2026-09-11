@@ -43,6 +43,7 @@ function readSource(relativePath: string): string {
 
 const HUB_SOURCE = readSource('app/events/[slug]/page.tsx');
 const QUEST_DETAIL_SOURCE = readSource('app/events/[slug]/quests/[questId]/page.tsx');
+const FOUNDER_SHELL_SOURCE = readSource('components/FounderCipherShell.tsx');
 
 describe('Mission hub — the active-play surface no longer wraps in the marketing shell', () => {
   it('the fully-entered isCipher hub render no longer uses FounderCipherShell', () => {
@@ -63,6 +64,23 @@ describe('Mission hub — the active-play surface no longer wraps in the marketi
     // selector) — three legitimate pre-entry uses, none of them the active
     // gameplay hub.
     expect(preEntryUsages).toBe(3);
+  });
+
+  it('Gate 3 shows the real selector and hides the decorative door preview beside it', () => {
+    const gate3Block = HUB_SOURCE.slice(
+      HUB_SOURCE.indexOf('// GATE 3'),
+      HUB_SOURCE.indexOf('// Radical simplification: the active-play hub')
+    );
+    expect(gate3Block).toContain('<ThreePathSelector');
+    expect(gate3Block).toContain('hidePathPreview');
+    expect(FOUNDER_SHELL_SOURCE).toContain('{!(hidePathPreview && !chosenPath) && (');
+  });
+
+  it('a chosen path turns the persistent door visuals into locked confirmation, not selectable links', () => {
+    expect(FOUNDER_SHELL_SOURCE).toContain('YOUR OFFICIAL PATH');
+    expect(FOUNDER_SHELL_SOURCE).toContain('`${chosenDoor.label} · LOCKED`');
+    expect(FOUNDER_SHELL_SOURCE).toContain('return chosenPath ? (');
+    expect(FOUNDER_SHELL_SOURCE).toContain('<div key={door.id}');
   });
 });
 
@@ -87,14 +105,20 @@ describe('Mission hub — the primary action panel is the entire "what do I do" 
     expect(HUB_SOURCE).toMatch(/\{!hasStartedMission && isCipher && \(/);
   });
 
-  it('once a path is chosen, only a small PATH badge remains — no giant doors graphic inside the panel', () => {
+  it('once a path is chosen, only a small locked official-path badge remains — no giant doors graphic inside the panel', () => {
     const panelBlock = HUB_SOURCE.slice(
       HUB_SOURCE.indexOf('data-testid="mission-start-panel"'),
       HUB_SOURCE.indexOf('Live Pop-Up Quest Alert Banner')
     );
-    expect(panelBlock).toContain('PATH: {playerChosenPath}');
+    expect(panelBlock).toContain('OFFICIAL PATH: {playerChosenPath.toUpperCase()} · LOCKED');
+    expect(panelBlock).toContain('Your starting path stays locked. Traveling to another district does not change it');
     expect(panelBlock).not.toContain('cq-three-doors');
     expect(panelBlock).not.toContain('DOOR_HOTSPOTS');
+  });
+
+  it('district travel is clearly separate from the official starting path', () => {
+    expect(HUB_SOURCE).toContain('Choose the next district to explore.');
+    expect(HUB_SOURCE).toContain('Your official {playerChosenPath?.toUpperCase()} path remains locked. This only chooses where you travel next.');
   });
 
   it('there is no leftover duplicate of the old buried "Start This Quest" card or the old hero copy', () => {

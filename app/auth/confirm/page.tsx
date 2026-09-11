@@ -75,9 +75,9 @@ function ConfirmEmailContent() {
       }
     };
 
-    // Trigger Celebration Game Moment and navigate upon conclusion. Path is
-    // Operation-specific now (event_players.path) — a brand-new player has
-    // no path yet at this account-level confirmation step, so the
+    // Trigger Celebration Game Moment and navigate upon conclusion. A
+    // starting path is a permanent player identity choice, but a brand-new
+    // player has no path yet at this account-level confirmation step, so the
     // path-locked cinematic only fires when one is genuinely already set
     // (e.g. a pre-reorg legacy account). Otherwise just navigate on.
     if (player?.selectedStartingPath) {

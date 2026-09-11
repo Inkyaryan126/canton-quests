@@ -1,5 +1,10 @@
 # Canton Quests — Architecture & Product Decision Log (ADRs)
 
+### [ADR-055] 2026-09-11: Starting Path is locked Player Identity
+
+- **Status**: ACCEPTED.
+- **Decision**: A valid FAMILY, CHALLENGE, or SECRET starting path is a persistent Player Identity choice and locks after selection. District travel never mutates it; the Open Grid remains absolute, so every path may complete every Quest. `players.selected_starting_path` is authoritative and `event_players.path` is only a compatibility mirror.
+
 ### [ADR-054] 2026-09-08: One-district cemetery story; separate full Cipher completion
 
 - **Status**: ACCEPTED — explicitly requested in the Phase 6 launch-flow decision.
@@ -1181,7 +1186,6 @@ Each entry follows the standard ADR structure:
 - **Reason**:
   - Eliminates technical debt from early Phase 2/3 prototypes and aligns the codebase strictly with the pure individual explorer model (ADR-023) and transparent prize drawing architecture (ADR-017 / ADR-020), while ensuring production schema changes are safely prepared and staged prior to live execution.
 - **Status**: **ACCEPTED**
-
 
 
 

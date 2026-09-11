@@ -878,7 +878,14 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
         <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col selection:bg-amber-500 selection:text-stone-950 font-body">
           <Header eventSlug={eventSlug} />
           <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12">
-            <FounderCipherShell event={event} authenticatedPlayer={authenticatedPlayer} stage={stage} countdown={countdownValue} chosenPath={authenticatedPlayer?.selectedStartingPath}>
+            <FounderCipherShell
+              event={event}
+              authenticatedPlayer={authenticatedPlayer}
+              stage={stage}
+              countdown={countdownValue}
+              chosenPath={authenticatedPlayer?.selectedStartingPath}
+              hidePathPreview
+            >
               {pathSelector}
             </FounderCipherShell>
           </main>
@@ -1063,8 +1070,13 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
           </p>
           {playerChosenPath && (
             <span className="text-[10px] font-mono uppercase tracking-widest text-amber-300 border border-amber-500/40 rounded-full px-2 py-0.5">
-              PATH: {playerChosenPath}
+              OFFICIAL PATH: {playerChosenPath.toUpperCase()} · LOCKED
             </span>
+          )}
+          {playerChosenPath && (
+            <p className="text-xs text-gray-300 basis-full">
+              Your starting path stays locked. Traveling to another district does not change it, and every Quest remains open.
+            </p>
           )}
         </div>
 
@@ -1206,8 +1218,11 @@ function EventHubPageContent({ params, entryReady, onEntryData }: {
               DISTRICT COMPLETE
             </span>
             <h3 className="text-lg font-extrabold text-white">
-              Which district would you like to travel to next?
+              Choose the next district to explore.
             </h3>
+            <p className="text-xs text-cyan-100/80">
+              Your official {playerChosenPath?.toUpperCase()} path remains locked. This only chooses where you travel next.
+            </p>
             <div className="grid gap-2 sm:grid-cols-2">
               {districtTravelChoices.map(({ path, label, nextQuest }) => (
                 <Link

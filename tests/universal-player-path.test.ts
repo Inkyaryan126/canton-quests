@@ -29,6 +29,7 @@ import {
 } from '../lib/game-engine';
 import { SEED_EVENT, SEED_FAIR_EVENT } from '../lib/seed-data';
 import { POST as enterOperationRoute } from '../app/api/game/operations/[slug]/enter/route';
+import { POST as updateProfileRoute } from '../app/api/player/profile/route';
 import { PATH_TONES, getPathTone } from '../lib/path-tone';
 import { LeaderboardEntry } from '../lib/types';
 
@@ -80,6 +81,22 @@ describe('1. Player universal path persists independently of Mission participati
     expect(enteredData.player.selectedStartingPath).toBe('challenge');
     expect(getPlayerById(playerId)?.selectedStartingPath).toBe('challenge');
   });
+
+  it.each(['family', 'challenge', 'secret'] as const)('a player with no path can choose %s once', async (path) => {
+    registerPlayer({ displayName: `Initial${path}`, email: `${path}@example.com`, userId: `usr-initial-${path}` });
+    const res = await enterOperationRoute(
+      authedRequest(`http://localhost:3000/api/game/operations/canton-weekend-1/enter`, `usr-initial-${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      }),
+      { params: { slug: 'canton-weekend-1' } }
+    );
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.player.selectedStartingPath).toBe(path);
+    expect(data.needsPath).toBe(false);
+  });
 });
 
 describe('2. Joining a Mission does not require selecting a new path if the player already has one', () => {
@@ -123,6 +140,34 @@ describe('2. Joining a Mission does not require selecting a new path if the play
       { params: { slug: 'canton-weekend-1' } }
     );
     expect((await secondEntry.json()).needsPath).toBe(false);
+  });
+
+  it('rejects an alternate path on operation re-entry and preserves the canonical path', async () => {
+    const player = registerPlayer({ displayName: 'LockedOperationAgent', email: 'locked-operation@example.com', userId: 'usr-locked-operation' });
+    updatePlayerProfile(player.id, { selectedStartingPath: 'challenge' });
+    getOrCreateEventParticipation(SEED_EVENT.id, player.id); // existing legacy mirror is NULL
+
+    const rejected = await enterOperationRoute(
+      authedRequest('http://localhost:3000/api/game/operations/canton-weekend-1/enter', 'usr-locked-operation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: 'family' }),
+      }),
+      { params: { slug: 'canton-weekend-1' } }
+    );
+    const rejectedData = await rejected.json();
+    expect(rejected.status).toBe(409);
+    expect(rejectedData.error).toContain('locked to CHALLENGE');
+    expect(getPlayerById(player.id)?.selectedStartingPath).toBe('challenge');
+
+    const reentry = await enterOperationRoute(
+      authedRequest('http://localhost:3000/api/game/operations/canton-weekend-1/enter', 'usr-locked-operation', { method: 'POST' }),
+      { params: { slug: 'canton-weekend-1' } }
+    );
+    const reentryData = await reentry.json();
+    expect(reentry.status).toBe(200);
+    expect(reentryData.participation.path).toBe('challenge');
+    expect(reentryData.needsPath).toBe(false);
   });
 
   it('GATE 3 in the Mission hub page checks the universal player path, not event_players.path', () => {
@@ -253,6 +298,55 @@ describe('8. Mission participation remains event-scoped', () => {
     // but only the player-level field is what every other reader now trusts.
     expect(data.participation.path).toBe('family');
     expect(data.player.selectedStartingPath).toBe('family');
+  });
+});
+
+describe('9. Profile API preserves the locked universal path', () => {
+  beforeEach(() => {
+    resetGameEngineStore();
+    initializeGameEngine();
+  });
+
+  it('can establish an initial path and allows normal saves without resubmitting it', async () => {
+    registerPlayer({ displayName: 'ProfileInitialAgent', email: 'profile-initial@example.com', userId: 'usr-profile-initial' });
+    const initial = await updateProfileRoute(
+      authedRequest('http://localhost:3000/api/player/profile', 'usr-profile-initial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selectedStartingPath: 'secret' }),
+      })
+    );
+    expect(initial.status).toBe(200);
+    expect((await initial.json()).player.selectedStartingPath).toBe('secret');
+
+    const normalSave = await updateProfileRoute(
+      authedRequest('http://localhost:3000/api/player/profile', 'usr-profile-initial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: 'Updated Callsign' }),
+      })
+    );
+    expect(normalSave.status).toBe(200);
+    const normalSaveData = await normalSave.json();
+    expect(normalSaveData.player.displayName).toBe('Updated Callsign');
+    expect(normalSaveData.player.selectedStartingPath).toBe('secret');
+  });
+
+  it('rejects a different valid path without changing the selected path', async () => {
+    const player = registerPlayer({ displayName: 'ProfileLockedAgent', email: 'profile-locked@example.com', userId: 'usr-profile-locked' });
+    updatePlayerProfile(player.id, { selectedStartingPath: 'challenge' });
+
+    const res = await updateProfileRoute(
+      authedRequest('http://localhost:3000/api/player/profile', 'usr-profile-locked', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selectedStartingPath: 'family', displayName: 'Still Allowed' }),
+      })
+    );
+    const data = await res.json();
+    expect(res.status).toBe(409);
+    expect(data.error).toContain('locked to CHALLENGE');
+    expect(getPlayerById(player.id)?.selectedStartingPath).toBe('challenge');
   });
 });
 

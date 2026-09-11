@@ -24,7 +24,7 @@ import { PlayerAchievement, StartingPath } from '@/lib/types';
  * Path is a UNIVERSAL player identity attribute
  * (players.selected_starting_path — see lib/player-command-center.ts).
  * When a path is submitted here (only possible for an Operation that
- * requiresPath), this route is the single place that persists it — onto
+ * requiresPath), this route can establish it once — onto
  * the player's permanent profile via upsertPlayerDB, the same call
  * app/api/player/profile/route.ts makes, so it becomes the canonical,
  * platform-wide choice immediately, not just something scoped to this one
@@ -60,18 +60,36 @@ export async function POST(request: Request, { params }: { params: { slug: strin
     }
 
     const body = await request.json().catch(() => ({}));
-    let path: StartingPath | undefined;
-    if (event.requiresPath && VALID_STARTING_PATHS.includes(body?.path)) {
-      path = body.path as StartingPath;
+    const savedPath = VALID_STARTING_PATHS.includes(player.selectedStartingPath as StartingPath)
+      ? (player.selectedStartingPath as StartingPath)
+      : undefined;
+    const requestedPath =
+      event.requiresPath && VALID_STARTING_PATHS.includes(body?.path)
+        ? (body.path as StartingPath)
+        : undefined;
+
+    if (savedPath && requestedPath && requestedPath !== savedPath) {
+      return withCookies(
+        {
+          success: false,
+          error: `Your starting path is locked to ${savedPath.toUpperCase()}.`,
+        },
+        { status: 409 }
+      );
     }
 
+    const isFirstPathSelection = !savedPath && Boolean(requestedPath);
     let currentPlayer = player;
-    if (path && !VALID_STARTING_PATHS.includes(player.selectedStartingPath as StartingPath)) {
-      currentPlayer = await upsertPlayerDB({ ...player, id: player.id, selectedStartingPath: path });
+    if (isFirstPathSelection) {
+      currentPlayer = await upsertPlayerDB({ ...player, id: player.id, selectedStartingPath: requestedPath });
     }
 
-    const participation = await getOrCreateEventParticipationDB(event.id, currentPlayer.id, path);
-    const needsPath = Boolean(event.requiresPath) && !VALID_STARTING_PATHS.includes(currentPlayer.selectedStartingPath as StartingPath);
+    const canonicalPath = VALID_STARTING_PATHS.includes(currentPlayer.selectedStartingPath as StartingPath)
+      ? (currentPlayer.selectedStartingPath as StartingPath)
+      : undefined;
+
+    const participation = await getOrCreateEventParticipationDB(event.id, currentPlayer.id, canonicalPath);
+    const needsPath = Boolean(event.requiresPath) && !canonicalPath;
 
     // Pre-launch badges — real, earnable the moment their actual
     // precondition is met, never backdated. Both are scoped to known
@@ -86,8 +104,8 @@ export async function POST(request: Request, { params }: { params: { slug: strin
         const granted = await awardAchievementDB(currentPlayer.id, 'first-to-arrive', event.id, 'Entered the Mission and confirmed Player Identity');
         if (granted) newAchievements.push(granted);
       }
-      if (path && !earnedSlugs.has('path-chosen')) {
-        const granted = await awardAchievementDB(currentPlayer.id, 'path-chosen', event.id, `Chose the ${path} starting path`);
+      if (isFirstPathSelection && !earnedSlugs.has('path-chosen')) {
+        const granted = await awardAchievementDB(currentPlayer.id, 'path-chosen', event.id, `Chose the ${canonicalPath} starting path`);
         if (granted) newAchievements.push(granted);
       }
     }

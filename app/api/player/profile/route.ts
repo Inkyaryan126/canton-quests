@@ -105,9 +105,24 @@ export async function POST(request: Request) {
       return withCookies({ success: false, error: 'Callsign must be at least 2 characters.' }, { status: 400 });
     }
 
-    const selectedStartingPath = STARTING_PATHS.has(body.selectedStartingPath)
+    const requestedStartingPath = STARTING_PATHS.has(body.selectedStartingPath)
       ? (body.selectedStartingPath as StartingPath)
-      : player.selectedStartingPath;
+      : undefined;
+    const savedStartingPath = STARTING_PATHS.has(player.selectedStartingPath as StartingPath)
+      ? (player.selectedStartingPath as StartingPath)
+      : undefined;
+
+    if (savedStartingPath && requestedStartingPath && requestedStartingPath !== savedStartingPath) {
+      return withCookies(
+        {
+          success: false,
+          error: `Your starting path is locked to ${savedStartingPath.toUpperCase()}.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    const selectedStartingPath = requestedStartingPath || savedStartingPath;
     const avatarPresetKey =
       PLAYER_AVATAR_PRESETS.includes(body.avatarPresetKey) ||
       (body.avatarPresetKey === CUSTOM_AVATAR_KEY && player.profileImagePath)
