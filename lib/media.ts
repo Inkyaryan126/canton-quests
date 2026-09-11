@@ -1,6 +1,7 @@
 // Canton Quests — Media Storage & Client Compression Service (Phase 4)
 
 import { supabase, isSupabaseConfigured } from './supabase';
+import { normalizeEvidenceContentType } from './quest-evidence';
 
 export interface ImageCompressionOptions {
   maxWidth?: number;
@@ -45,7 +46,7 @@ export async function compressImageClientSide(
 
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          resolve(file);
+          reject(new Error('Image could not be processed.'));
           return;
         }
 
@@ -56,7 +57,7 @@ export async function compressImageClientSide(
             if (blob) {
               resolve(blob);
             } else {
-              resolve(file);
+              reject(new Error('Image could not be processed.'));
             }
           },
           'image/jpeg',
@@ -89,18 +90,25 @@ export async function uploadQuestEvidence(
   eventId: string,
   questId: string
 ): Promise<{ success: boolean; path?: string; message: string }> {
-  const maxSizeBytes = 25 * 1024 * 1024;
-  if (file.size > maxSizeBytes) {
-    return { success: false, message: 'File size exceeds the 25 MB limit.' };
+  const maxSizeBytes = 25_000_000;
+  const originalContentType = normalizeEvidenceContentType(file.type, file.name);
+  if (!originalContentType) {
+    return { success: false, message: 'Unsupported photo format. Choose a common JPG, PNG, HEIC/HEIF, WebP, or video file.' };
   }
 
   let uploadBlob: Blob = file;
-  if (file.type.startsWith('image/')) {
+  let uploadContentType = originalContentType;
+  if (originalContentType.startsWith('image/')) {
     try {
       uploadBlob = await compressImageClientSide(file);
+      uploadContentType = 'image/jpeg';
     } catch (e) {
       console.warn('Image compression fallback to original file', e);
     }
+  }
+
+  if (uploadBlob.size > maxSizeBytes) {
+    return { success: false, message: 'This file is still over 25 MB after processing. Choose a smaller photo.' };
   }
 
   if (!isSupabaseConfigured || !supabase) {
@@ -111,20 +119,20 @@ export async function uploadQuestEvidence(
     const authRes = await fetch('/api/game/quest-proofs/authorize-upload', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ eventId, questId, contentType: file.type }),
+      body: JSON.stringify({ eventId, questId, contentType: uploadContentType, filename: file.name }),
     });
-    const auth = await authRes.json();
+    const auth = await authRes.json().catch(() => ({}));
     if (!authRes.ok || !auth.success) {
-      return { success: false, message: auth.error || 'Could not authorize evidence upload.' };
+      return { success: false, message: auth.error || 'Upload authorization failed. Check your connection and try again.' };
     }
 
     const { error } = await supabase.storage
       .from('quest-proofs')
-      .uploadToSignedUrl(auth.path, auth.token, uploadBlob, { contentType: file.type });
+      .uploadToSignedUrl(auth.path, auth.token, uploadBlob, { contentType: uploadContentType });
 
     if (error) {
       console.error('Supabase signed-upload error:', error);
-      return { success: false, message: 'Upload to secure storage failed. Try again.' };
+      return { success: false, message: 'Secure storage could not save this evidence. Tap to try again.' };
     }
 
     return { success: true, path: auth.path, message: 'Evidence uploaded securely.' };

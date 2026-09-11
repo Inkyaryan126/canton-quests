@@ -17,12 +17,52 @@ const ALLOWED_EXTENSIONS: Record<string, string> = {
   'image/png': 'png',
   'image/webp': 'webp',
   'image/heic': 'heic',
+  'image/heif': 'heif',
+  'image/avif': 'avif',
+  'image/gif': 'gif',
+  'image/bmp': 'bmp',
+  'image/tiff': 'tiff',
   'video/mp4': 'mp4',
   'video/quicktime': 'mov',
 };
 
+const CONTENT_TYPE_ALIASES: Record<string, string> = {
+  'image/jpg': 'image/jpeg',
+  'image/pjpeg': 'image/jpeg',
+  'image/x-png': 'image/png',
+};
+
+const EXTENSION_ALIASES: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  webp: 'image/webp',
+  avif: 'image/avif',
+  gif: 'image/gif',
+  bmp: 'image/bmp',
+  tif: 'image/tiff',
+  tiff: 'image/tiff',
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+};
+
+/** Normalize an upload MIME type, using its filename when browsers omit it. */
+export function normalizeEvidenceContentType(contentType: string, filename?: string): string | undefined {
+  const normalized = contentType.trim().toLowerCase().split(';', 1)[0];
+  const canonical = CONTENT_TYPE_ALIASES[normalized] || normalized;
+  if (ALLOWED_EXTENSIONS[canonical]) return canonical;
+  if (!normalized && filename) {
+    const extension = filename.toLowerCase().split('.').pop() || '';
+    return EXTENSION_ALIASES[extension];
+  }
+  return undefined;
+}
+
 export function extensionForContentType(contentType: string): string | undefined {
-  return ALLOWED_EXTENSIONS[contentType];
+  const normalized = normalizeEvidenceContentType(contentType);
+  return normalized ? ALLOWED_EXTENSIONS[normalized] : undefined;
 }
 
 const EXTENSION_TO_CONTENT_TYPE: Record<string, string> = Object.fromEntries(

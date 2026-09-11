@@ -4,7 +4,7 @@ import { getEventByIdDB, getQuestByIdDB } from '@/lib/supabase-db';
 import { resolveAuthenticatedSession, setAuthCookies } from '@/lib/supabase-auth';
 import { isFounderCipherPrelaunchBlocked } from '@/lib/founder-cipher-prelaunch';
 import { supabaseAdmin, isSupabaseAdminConfigured } from '@/lib/supabase';
-import { QUEST_EVIDENCE_BUCKET, buildQuestEvidencePath, extensionForContentType } from '@/lib/quest-evidence';
+import { QUEST_EVIDENCE_BUCKET, buildQuestEvidencePath, extensionForContentType, normalizeEvidenceContentType } from '@/lib/quest-evidence';
 
 /**
  * POST /api/game/quest-proofs/authorize-upload
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const eventId: string = body.eventId || '';
     const questId: string = body.questId || '';
-    const contentType: string = body.contentType || '';
+    const contentType: string = normalizeEvidenceContentType(body.contentType || '', body.filename) || '';
 
     if (!eventId || !questId || !contentType) {
       return withCookies(
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     const ext = extensionForContentType(contentType);
     if (!ext) {
       return withCookies(
-        { success: false, error: 'Unsupported evidence content type.' },
+        { success: false, error: 'Unsupported photo format. Choose a common JPG, PNG, HEIC/HEIF, WebP, or video file.' },
         { status: 400 }
       );
     }

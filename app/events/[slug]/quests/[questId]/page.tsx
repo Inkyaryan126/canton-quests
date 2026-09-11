@@ -1206,18 +1206,27 @@ export default function QuestDetailPage({
                     <input
                       type="file"
                       accept={quest.verificationType === 'video' ? 'image/*,video/*' : 'image/*'}
-                      capture="environment"
                       className="hidden"
                       onChange={handleEvidenceFileChange}
                       disabled={evidenceUploadStatus === 'uploading'}
                     />
                     <span className="text-2xl block mb-1">📸</span>
-                    <span className="text-xs text-gray-300 font-mono block">
-                      {evidenceUploadStatus === 'idle' && 'Tap to take or choose a photo. It’s locked in as your evidence the moment it uploads.'}
+                    <span className="text-sm text-gray-200 font-mono font-bold block">
+                      {evidenceUploadStatus === 'idle' && 'UPLOAD QUEST EVIDENCE'}
                       {evidenceUploadStatus === 'uploading' && 'Uploading…'}
                       {evidenceUploadStatus === 'uploaded' && 'Evidence secured ✓ — tap to replace it'}
                       {evidenceUploadStatus === 'error' && (evidenceError || 'Upload failed — tap to try again')}
                     </span>
+                    {evidenceUploadStatus === 'idle' && (
+                      <span className="text-xs text-gray-400 block mt-2 leading-relaxed">
+                        Take a new photo or choose one from your phone.<br />
+                        Show the landmark or exact detail requested above.<br />
+                        Use one clear photo — make sure the important part is visible.<br />
+                        Most phone photo formats are accepted, including JPG, PNG, HEIC/HEIF and WebP.<br />
+                        Photos are compressed automatically. Maximum final upload: 25 MB.<br />
+                        Your evidence is private and used for quest verification.
+                      </span>
+                    )}
                   </label>
 
                   <button

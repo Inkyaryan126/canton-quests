@@ -26,6 +26,7 @@ import {
   buildQuestEvidencePath,
   isEvidencePathOwnedBy,
   extensionForContentType,
+  normalizeEvidenceContentType,
   QUEST_EVIDENCE_BUCKET,
 } from '../lib/quest-evidence';
 import { SEED_EVENT } from '../lib/seed-data';
@@ -187,8 +188,23 @@ describe('3. Evidence path ownership is strictly enforced — a player can never
 describe('4. Only real, allow-listed evidence content types are ever accepted', () => {
   it('maps supported image/video MIME types to safe extensions', () => {
     expect(extensionForContentType('image/jpeg')).toBe('jpg');
+    expect(extensionForContentType('image/jpg')).toBe('jpg');
+    expect(extensionForContentType('image/pjpeg')).toBe('jpg');
     expect(extensionForContentType('image/png')).toBe('png');
+    expect(extensionForContentType('image/x-png')).toBe('png');
+    expect(extensionForContentType('image/heif')).toBe('heif');
+    expect(extensionForContentType('image/avif')).toBe('avif');
+    expect(extensionForContentType('image/tiff')).toBe('tiff');
     expect(extensionForContentType('video/mp4')).toBe('mp4');
+  });
+
+  it('accepts common photo aliases and falls back to a recognized filename extension', () => {
+    expect(normalizeEvidenceContentType('image/jpg')).toBe('image/jpeg');
+    expect(normalizeEvidenceContentType('image/x-png')).toBe('image/png');
+    expect(normalizeEvidenceContentType('', 'camera.heic')).toBe('image/heic');
+    expect(normalizeEvidenceContentType('', 'camera.heif')).toBe('image/heif');
+    expect(normalizeEvidenceContentType('', 'camera.tiff')).toBe('image/tiff');
+    expect(normalizeEvidenceContentType('', 'camera.exe')).toBeUndefined();
   });
 
   it('rejects an unsupported/dangerous content type', () => {
@@ -229,6 +245,7 @@ describe('5. POST /api/game/quest-proofs/authorize-upload never issues an upload
 
 describe('6 & 7. Production evidence storage is private and immutable (migration-level proof)', () => {
   const migrationSource = readSource('supabase/migrations/20260911010000_quest_proofs_private_evidence_storage.sql');
+  const limitsMigrationSource = readSource('supabase/migrations/20260911040000_quest_proofs_storage_limits_and_mime_types.sql');
 
   it('flips the quest-proofs bucket to private', () => {
     expect(migrationSource).toContain("UPDATE storage.buckets SET public = false WHERE id = 'quest-proofs'");
@@ -236,6 +253,15 @@ describe('6 & 7. Production evidence storage is private and immutable (migration
 
   it('removes the old public-read policy — evidence is never publicly listable/downloadable', () => {
     expect(migrationSource).toContain('DROP POLICY IF EXISTS "Quest proofs public read access"');
+  });
+
+  it('records the production bucket size and supported MIME configuration without changing privacy or RLS', () => {
+    expect(limitsMigrationSource).toContain('file_size_limit = 25000000');
+    expect(limitsMigrationSource).toContain("'image/heic'");
+    expect(limitsMigrationSource).toContain("'image/heif'");
+    expect(limitsMigrationSource).toContain("'image/avif'");
+    expect(limitsMigrationSource).toContain("'video/quicktime'");
+    expect(limitsMigrationSource).not.toMatch(/CREATE POLICY|DROP POLICY/);
   });
 
   it('removes the old blanket-authenticated-upload policy — no player can overwrite or upload outside the signed-upload flow', () => {
