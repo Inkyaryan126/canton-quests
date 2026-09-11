@@ -2749,6 +2749,134 @@ code, pre, .font-mono {
   box-shadow: 0 0 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(245, 158, 11, 0.15);
 }
 
+/* ==========================================================================
+   MISSION CARD — CINEMATIC MEDIA BLOCK
+   Poster-style Mission cards (components/OperationCard.tsx): a full-bleed
+   backdrop image up top with a layered gradient/tint/vignette for
+   readability, HUD status chrome over the image, and the existing dossier
+   text/actions below. The media block is a fixed aspect-ratio (not a % of
+   card height) so cards stay visually balanced in the 2-column grid no
+   matter how long a given Mission's teaser copy runs.
+   ========================================================================== */
+
+.cq-op-card {
+  padding: 0 !important;
+  border-radius: 14px;
+  transition: box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.cq-op-card-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #0a0b0d;
+  border-radius: 14px 14px 0 0;
+}
+
+.cq-op-card-media-img {
+  object-fit: cover;
+  transition: transform 500ms var(--cq-motion-ease-standard, ease);
+}
+
+.cq-op-card.is-archived .cq-op-card-media-img {
+  filter: grayscale(0.5) brightness(0.72);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cq-op-card:hover {
+    box-shadow: 0 0 0 1px rgba(245, 193, 7, 0.18), 0 20px 48px rgba(0, 0, 0, 0.55);
+  }
+
+  .cq-op-card:hover .cq-op-card-media-img {
+    transform: scale(1.06);
+  }
+}
+
+.cq-op-card-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cq-op-card-media-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+}
+
+.cq-op-card-date {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #e7e5e4;
+  background: rgba(5, 6, 7, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.3rem 0.6rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.cq-op-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+  padding: clamp(1.1rem, 3.4vw, 1.6rem);
+}
+
+/* The Watchers only: a faint scanline sweep + a large low-opacity Eye
+   watermark over the media block — "signal interception," not decoration
+   that competes with the dossier text below it. */
+.cq-op-card-scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(216, 180, 254, 0.05) 0px,
+    rgba(216, 180, 254, 0.05) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+  animation: cqWatcherScan 6s linear infinite;
+}
+
+.cq-op-card-watermark {
+  position: absolute;
+  bottom: -8%;
+  right: -2%;
+  z-index: 1;
+  color: rgba(216, 180, 254, 0.16);
+  pointer-events: none;
+}
+
+@keyframes cqWatcherScan {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 120px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cq-op-card-media-img {
+    transition: none;
+  }
+
+  .cq-op-card-scanlines {
+    animation: none;
+  }
+}
+
 .cq-card-stagger {
   animation: cqCardStagger 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
