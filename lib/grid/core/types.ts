@@ -1,3 +1,5 @@
+import type { GridProvenanceRecord } from '../compiler/types';
+
 export type GridCityPackageStatus = 'draft' | 'ready';
 
 export interface GridLatLng {
@@ -12,11 +14,37 @@ export interface GridBalanceConfig {
   commandPointRegenMinutes: number;
 }
 
+export type GridConfidenceLevel = 'confirmed' | 'approximate' | 'unknown';
+
+export interface GridHistoricalMetadata {
+  era?: string;
+  activationYear?: number;
+  builtYear?: number;
+  openedYear?: number;
+  retiredYear?: number;
+  demolishedYear?: number;
+  predecessorSlug?: string;
+  successorSlug?: string;
+  sourceRefs?: string[];
+  confidence?: GridConfidenceLevel;
+}
+
+export type GridPrivacyClass =
+  | 'PUBLIC_CIVIC'
+  | 'COMMERCIAL'
+  | 'CULTURAL'
+  | 'PARK'
+  | 'INFRASTRUCTURE'
+  | 'RESIDENTIAL_BACKGROUND'
+  | 'PRIVATE_EXCLUDED'
+  | 'UNKNOWN_REVIEW_REQUIRED';
+
 export interface GridDistrictDefinition {
   slug: string;
   name: string;
   geometry?: GeoJSON.MultiPolygon;
   config?: Record<string, unknown>;
+  sourceRefs?: string[];
 }
 
 export interface GridTerritoryDefinition {
@@ -26,12 +54,15 @@ export interface GridTerritoryDefinition {
   baseValue: number;
   geometry?: GeoJSON.MultiPolygon;
   config?: Record<string, unknown>;
+  historical?: GridHistoricalMetadata;
+  sourceRefs?: string[];
 }
 
 export interface GridTerritoryEdgeDefinition {
   a: string;
   b: string;
   edgeType?: 'border' | 'corridor';
+  historical?: Pick<GridHistoricalMetadata, 'openedYear' | 'retiredYear' | 'confidence' | 'sourceRefs'>;
 }
 
 export interface GridPropertyDefinition {
@@ -43,6 +74,9 @@ export interface GridPropertyDefinition {
   geometry?: GeoJSON.MultiPolygon;
   point?: GridLatLng;
   config?: Record<string, unknown>;
+  privacyClass?: GridPrivacyClass;
+  historical?: GridHistoricalMetadata;
+  sourceRefs?: string[];
 }
 
 export interface GridLandmarkDefinition {
@@ -51,6 +85,9 @@ export interface GridLandmarkDefinition {
   territorySlug: string;
   point: GridLatLng;
   config?: Record<string, unknown>;
+  privacyClass?: GridPrivacyClass;
+  historical?: GridHistoricalMetadata;
+  sourceRefs?: string[];
 }
 
 export interface GridCityPackage {
@@ -77,6 +114,14 @@ export interface GridCityPackage {
   edges: GridTerritoryEdgeDefinition[];
   properties: GridPropertyDefinition[];
   landmarks: GridLandmarkDefinition[];
+
+  compilerVersion?: string;
+  sourceSnapshotVersion?: string;
+  generatedAt?: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  checksum?: string;
+  provenance?: GridProvenanceRecord[];
 }
 
 export interface GridPackageValidation {
