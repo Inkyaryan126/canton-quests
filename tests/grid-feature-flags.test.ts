@@ -11,4 +11,14 @@ describe('Grid foundation feature flag', () => {
     expect(isGridFoundationEnabled({ GRID_FOUNDATION_ENABLED: 'true' } as NodeJS.ProcessEnv)).toBe(false);
     expect(isGridFoundationEnabled({ GRID_FOUNDATION_ENABLED: '0' } as NodeJS.ProcessEnv)).toBe(false);
   });
+
+  it('does not treat missing or accidental truthy strings as launch approval', () => {
+    for (const value of [undefined, '', 'yes', 'TRUE', 'enabled']) {
+      expect(
+        isGridFoundationEnabled(
+          { GRID_FOUNDATION_ENABLED: value } as unknown as NodeJS.ProcessEnv
+        )
+      ).toBe(false);
+    }
+  });
 });
