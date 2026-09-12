@@ -14,6 +14,18 @@ function migrationText(): string {
   return fs.readFileSync(path.join(dir, file), 'utf8').toLowerCase();
 }
 
+function hardeningMigrationText(): string {
+  const dir = path.join(process.cwd(), 'supabase', 'migrations');
+  const file = fs
+    .readdirSync(dir)
+    .filter((name) => name.endsWith('_grid_foundation_hardening.sql'))
+    .sort()
+    .at(-1);
+
+  if (!file) throw new Error('grid_foundation_hardening migration not found');
+  return fs.readFileSync(path.join(dir, file), 'utf8').toLowerCase();
+}
+
 describe('Grid foundation migration contract', () => {
   it('creates the required isolated Grid tables', () => {
     const sql = migrationText();
@@ -46,6 +58,28 @@ describe('Grid foundation migration contract', () => {
 
   it('never creates a security-definer public function', () => {
     const sql = migrationText();
+
+    expect(sql).not.toContain('security definer');
+  });
+});
+
+describe('Grid foundation hardening migration contract', () => {
+  it('closes the global (null season_id) idempotency-key gap', () => {
+    const sql = hardeningMigrationText();
+
+    expect(sql).toContain('grid_game_events_idempotency_uq');
+    expect(sql).toContain('nulls not distinct');
+  });
+
+  it('structurally prevents a territory edge from spanning two cities', () => {
+    const sql = hardeningMigrationText();
+
+    expect(sql).toContain('grid_territories_id_city_uq unique (id, city_id)');
+    expect(sql).toContain('references public.grid_territories(id, city_id)');
+  });
+
+  it('never creates a security-definer public function', () => {
+    const sql = hardeningMigrationText();
 
     expect(sql).not.toContain('security definer');
   });
