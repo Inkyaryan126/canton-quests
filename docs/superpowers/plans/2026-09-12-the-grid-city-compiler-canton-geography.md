@@ -103,6 +103,23 @@ All additions are backward-compatible with the existing `lib/grid/core/types.ts`
 ```ts
 export type GridConfidenceLevel = 'confirmed' | 'approximate' | 'unknown';
 
+// GridProvenanceRecord lives here, not in lib/grid/compiler/types.ts, purely
+// because GridCityPackage.provenance (below) needs to reference it and
+// core/types.ts must never import from compiler/types.ts (only the reverse) --
+// putting it in compiler/types.ts would create a circular import between the
+// two files. lib/grid/compiler/types.ts re-exports/imports this type from
+// here like every other core type it depends on.
+export interface GridProvenanceRecord {
+  id: string;                 // referenced by sourceRefs on individual assets
+  sourceName: string;
+  sourceUrl: string;
+  license: string;
+  retrievedAt: string;        // ISO 8601 date
+  transformation: string;     // plain-language description of what was done to the raw data
+  attribution: string;        // exact attribution text required by the license
+  confidence: GridConfidenceLevel;
+}
+
 export interface GridHistoricalMetadata {
   era?: string;
   activationYear?: number;
@@ -217,18 +234,10 @@ import type {
   GridHistoricalMetadata,
   GridPrivacyClass,
   GridConfidenceLevel,
+  GridProvenanceRecord,     // defined in core/types.ts -- see the note there; re-exported here for convenience
 } from '../core/types';
 
-export interface GridProvenanceRecord {
-  id: string;                 // referenced by sourceRefs on individual assets
-  sourceName: string;
-  sourceUrl: string;
-  license: string;
-  retrievedAt: string;        // ISO 8601 date
-  transformation: string;     // plain-language description of what was done to the raw data
-  attribution: string;        // exact attribution text required by the license
-  confidence: GridConfidenceLevel;
-}
+export type { GridProvenanceRecord };
 
 export type GridValidationSeverity = 'ERROR' | 'WARNING' | 'INFO';
 
@@ -505,7 +514,7 @@ export function compileCityPackage(
 
 **Explicitly forbidden:** Google Maps/Places geometry or place data in any form (scraped or API), any other commercial map provider's geometry, and any parcel/ownership data source that exposes named private individuals.
 
-**Provenance record shape** (`provenance.json`, an array of `GridProvenanceRecord` per §4.2, one entry per distinct source used — not one per feature):
+**Provenance record shape** (`provenance.json`, an array of `GridProvenanceRecord` per §4.1, one entry per distinct source used — not one per feature):
 
 ```json
 [
