@@ -7236,3 +7236,93 @@ code, pre, .font-mono {
 .cq-shared-map-quests button { min-height: 44px; padding: .5rem .75rem; border: 1px solid #687a70; color: #e7eeea; background: #101817; border-radius: .5rem; overflow-wrap: anywhere; }
 .cq-shared-map-quests button[aria-pressed="true"] { border-color: #ffd375; color: #ffd375; }
 .cq-shared-map-quests button:focus-visible { outline: 3px solid #ffd375; outline-offset: 2px; }
+
+/* THE GRID: hidden foundation status screen (feature-flagged, no gameplay controls) */
+.cq-grid-foundation {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(35, 219, 255, 0.13), transparent 36%),
+    #090c0f;
+  color: #f4f5f5;
+}
+
+.cq-grid-foundation__panel {
+  width: min(100%, 720px);
+  padding: 28px;
+  border: 1px solid rgba(211, 174, 79, 0.45);
+  border-radius: 18px;
+  background: rgba(13, 17, 21, 0.94);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+}
+
+.cq-grid-foundation__eyebrow {
+  margin: 0 0 8px;
+  color: #d3ae4f;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.cq-grid-foundation__title {
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 4.5rem);
+  line-height: 0.95;
+}
+
+.cq-grid-foundation__season {
+  margin: 12px 0 0;
+  color: #23dbff;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cq-grid-foundation__copy {
+  max-width: 58ch;
+  margin: 20px 0 0;
+  color: rgba(244, 245, 245, 0.78);
+  line-height: 1.6;
+}
+
+.cq-grid-foundation__status {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 28px 0 0;
+}
+
+.cq-grid-foundation__status div {
+  padding: 14px;
+  border: 1px solid rgba(244, 245, 245, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cq-grid-foundation__status dt {
+  color: rgba(244, 245, 245, 0.55);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cq-grid-foundation__status dd {
+  margin: 5px 0 0;
+  font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  .cq-grid-foundation {
+    padding: 14px;
+  }
+
+  .cq-grid-foundation__panel {
+    padding: 20px;
+  }
+
+  .cq-grid-foundation__status {
+    grid-template-columns: 1fr;
+  }
+}
