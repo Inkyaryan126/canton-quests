@@ -1,5 +1,15 @@
 # Canton Quests — Architecture & Product Decision Log (ADRs)
 
+### [ADR-056] 2026-09-12: GRID Foundation hardening — event idempotency and edge city-consistency
+
+- **Status**: ACCEPTED.
+- **Decision**: `grid_game_events_idempotency_uq` now uses `NULLS NOT DISTINCT` (PG15+) on `(season_id, idempotency_key)` instead of a plain unique index, so two global (season-less) events can never share an `idempotency_key` — Postgres previously treated every `NULL season_id` as distinct, silently allowing duplicates. `grid_territory_edges.territory_a_id`/`territory_b_id` now carry composite foreign keys against a new `grid_territories(id, city_id)` unique constraint instead of plain single-column FKs, so an edge can never structurally reference a territory belonging to a different city than the edge's own `city_id`.
+- **Reason**: Both gaps were identified as review risks against the GRID 4 migration (`20260912052232_grid_foundation.sql`) and reproduced live on a from-scratch local `supabase db reset` before fixing: a duplicate global idempotency key inserted successfully, and a cross-city edge inserted successfully. Database integrity should not depend on application code "promising" not to do these things.
+- **Alternatives Evaluated**: A generated `coalesce(season_id::text, 'GLOBAL')` column for the idempotency fix — rejected as an unnecessary extra column when `NULLS NOT DISTINCT` (available on this project's PG17 local/expected-recent-Supabase Postgres) solves it in the index definition alone. For the edge fix, an application-layer check (validate both territories' `city_id` before insert) was rejected in favor of a database constraint per the explicit Foundation acceptance requirement to prefer DB integrity over app promises.
+- **Consequences**: Added as a new local-only migration (`20260912054500_grid_foundation_hardening.sql`) rather than editing the already-committed GRID 4 migration, keeping migration history additive. Neither change has touched any remote/production database — verified only against local Supabase. Any future GRID migration that inserts territory edges or global game events must go through these constraints; a second city or new season adds no exception.
+
+---
+
 ### [ADR-055] 2026-09-11: Starting Path is locked Player Identity
 
 - **Status**: ACCEPTED.
