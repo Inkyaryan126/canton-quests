@@ -1187,6 +1187,22 @@ Each entry follows the standard ADR structure:
   - Eliminates technical debt from early Phase 2/3 prototypes and aligns the codebase strictly with the pure individual explorer model (ADR-023) and transparent prize drawing architecture (ADR-017 / ADR-020), while ensuring production schema changes are safely prepared and staged prior to live execution.
 - **Status**: **ACCEPTED**
 
+---
+
+### [ADR-054] 2026-09-11: THE GRID Multi-City Engine Foundation
+
+- **Decision**:
+  1. THE GRID launches inside Canton Quests but is an independently bounded, server-authoritative multi-city game engine — a separate bounded context, not a rewrite of the live Founder's Cipher flow.
+  2. Canton is City #001 and must exist as a city package (`lib/grid/cities/canton/**`); Canton-specific names, coordinates, IDs, or rules are forbidden inside Grid Core (`lib/grid/core/**`).
+  3. Grid economy, territory control, and leaderboards are separate systems from Founder's Cipher XP, the drawing ledger, and existing quest tables — none of that live gameplay is modified by this work.
+  4. The first launch is the Canton Founding Season; unfinished Grid UI and gameplay are gated behind a strict server-only feature flag, `GRID_FOUNDATION_ENABLED`, which defaults off and enables only on the exact string value `'1'` (`lib/grid/server/feature-flags.ts`).
+  5. Important Grid actions will use an append-only event ledger — corrections are compensating events, never UPDATE/DELETE of history.
+  6. Competitive power in THE GRID is earned through gameplay; real-money monetization cannot buy competitive power.
+  7. Approved design: `docs/superpowers/specs/2026-09-11-the-grid-multicity-engine-design.md`. Implementation plan: `docs/superpowers/plans/2026-09-11-the-grid-foundation.md`.
+- **Reason**:
+  - Establishes the architectural boundary and safe default before any Grid code, database schema, or UI ships, so unfinished multi-city gameplay can never accidentally become publicly reachable and so City #002+ expansion later requires only data/package work rather than a Grid Core rewrite.
+- **Status**: **ACCEPTED**
+
 
 
 
