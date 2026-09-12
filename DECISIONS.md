@@ -1187,10 +1187,14 @@ Each entry follows the standard ADR structure:
   - Eliminates technical debt from early Phase 2/3 prototypes and aligns the codebase strictly with the pure individual explorer model (ADR-023) and transparent prize drawing architecture (ADR-017 / ADR-020), while ensuring production schema changes are safely prepared and staged prior to live execution.
 - **Status**: **ACCEPTED**
 
+---
 
+## 2026-09-11 — THE GRID multi-city engine
 
-
-
-
-
-
+- THE GRID launches inside Canton Quests but is an independently bounded multi-city game engine.
+- Canton is City #001 and must exist as a city package; Canton-specific data is forbidden inside Grid Core.
+- Grid economy, territory control, and leaderboards are separate from Founder’s Cipher XP/drawing entries.
+- The first launch is Canton Founding Season; unfinished Grid UI is gated by `GRID_FOUNDATION_ENABLED=0`.
+- Important Grid actions use an append-only event ledger.
+- Competitive power is earned; real-money monetization cannot buy competitive power.
+- Approved design: `docs/superpowers/specs/2026-09-11-the-grid-multicity-engine-design.md`.
