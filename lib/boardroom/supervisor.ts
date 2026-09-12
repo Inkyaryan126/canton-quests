@@ -169,7 +169,7 @@ export type RunTestsFn = (commands: string[], cwd: string) => TestResult[];
 
 export function safeEnvironmentForValidationCommand(command: string): NodeJS.ProcessEnv {
   const env = { ...process.env };
-  if (/\bnpm\s+test\b/.test(command)) {
+  if (/\bnpm\s+test\b|\bnpx\s+vitest\b/.test(command)) {
     for (const key of TEST_SUPABASE_URL_ENV_KEYS) delete env[key];
     delete env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     delete env.SUPABASE_ANON_KEY;

@@ -13,7 +13,7 @@ import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { runSupervisor, type GitOps } from '../lib/boardroom/supervisor';
+import { runSupervisor, safeEnvironmentForValidationCommand, type GitOps } from '../lib/boardroom/supervisor';
 import { createTask, getTask, updateTaskStatus } from '../lib/boardroom/tasks';
 import { getLock, acquireLock } from '../lib/boardroom/lock';
 import { getBudgetState, selfReportAllowance, confirmResetRedeemed } from '../lib/boardroom/budget';
@@ -568,5 +568,24 @@ describe('bootstrap refusal path', () => {
     expect(result.ok).toBe(false);
     expect(result.stopReason).toMatch(/BOOTSTRAP_FAILED \(clean-working-tree\)/);
     expect(fs.existsSync(path.join(repoDir, '.boardroom', 'runtime', 'AUTONOMOUS_RUN_ACTIVE'))).toBe(false);
+  });
+});
+
+
+describe('safeEnvironmentForValidationCommand', () => {
+  it('strips Supabase credentials for direct npx vitest validation', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-key';
+    process.env.SUPABASE_ANON_KEY = 'anon-key';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+    const env = safeEnvironmentForValidationCommand(
+      'npx vitest run tests/grid-city-package.test.ts'
+    );
+
+    expect(env.NEXT_PUBLIC_SUPABASE_URL).toBeUndefined();
+    expect(env.NEXT_PUBLIC_SUPABASE_ANON_KEY).toBeUndefined();
+    expect(env.SUPABASE_ANON_KEY).toBeUndefined();
+    expect(env.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined();
   });
 });
