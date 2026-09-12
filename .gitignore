@@ -49,3 +49,10 @@ site-design/
 
 # Boardroom V2 runtime state (fast-changing lock/budget/task-ledger files — see boardroom/BOARDROOM.md)
 /.boardroom/runtime/
+
+# Local Supabase CLI machine state (CLI version cache, linked-branch pointer) --
+# changes on every `supabase start`/`db reset` and was previously committed by
+# mistake, which made the working tree spuriously dirty and could falsely fail
+# Boardroom's clean-tree bootstrap check. Never meaningful project data.
+/supabase/.temp/
+/supabase/.branches/
