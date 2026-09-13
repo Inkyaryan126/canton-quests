@@ -1,25 +1,25 @@
 # CANTON QUESTS — BOARDROOM MORNING REPORT
 
-Run: `20260913-002542-75b0` on branch `boardroom/astra-overnight-20260913-002542-75b0` (base `d0793c017285`)
-Window: 2026-09-13T00:25:42.261Z → 2026-09-13T00:42:29.514Z
-Sleep prevention: ACTIVE — ACTIVE (caffeinate -w 50987)
+Run: `20260913-015618-c5cc` on branch `boardroom/astra-overnight-20260913-015618-c5cc` (base `4a4eca34b208`)
+Window: 2026-09-13T01:56:18.788Z → 2026-09-13T02:00:09.843Z
+Sleep prevention: ACTIVE — ACTIVE (caffeinate -w 54676)
 Stop reason: PHASE_BARRIER_BLOCKED
 
 ## ACTION REQUIRED
-- ACTION REQUIRED: PHASE_2_CORE_EXPERIENCE_SYSTEM cannot advance because TASK-20260912-205010-rvfr[BLOCKED] must be resolved first.
+- ACTION REQUIRED: PHASE_3_FLAGSHIP_MOMENTS cannot advance because TASK-20260912-205022-ozow[BLOCKED], TASK-20260912-205032-7wci[BLOCKED] must be resolved first.
 
-## SUMMARY (this run only — 1 task(s) touched)
+## SUMMARY (this run only — 2 task(s) touched)
 - Tasks completed this run: 0
-- Tasks blocked this run: 1
+- Tasks blocked this run: 2
 - Tasks checkpointed this run (in progress, resumable): 0
 - Tasks rejected this run: 0
 - Commits made by Boardroom this run: 0
 
 ## QUEUE STATE (all-time — for context only, NOT this run's output)
-- Total tasks in the ledger: 36 (1 touched this run, 35 untouched — prior runs or still waiting)
-- Done (any run, ever): 24
-- Blocked (any run, ever): 5
-- Still queued (never yet attempted): 4
+- Total tasks in the ledger: 36 (2 touched this run, 34 untouched — prior runs or still waiting)
+- Done (any run, ever): 25
+- Blocked (any run, ever): 6
+- Still queued (never yet attempted): 2
 
 ## ASTRA USAGE (self-reported only — never inferred)
 - No self-report was recorded this run. Treat Astra allowance as unknown, not full.
@@ -29,13 +29,19 @@ Stop reason: PHASE_BARRIER_BLOCKED
 _none_
 
 ## TASKS TOUCHED THIS RUN
-### TASK-20260912-205010-rvfr — GRID Compiler 5: Pipeline orchestration and City Mapper
-- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
+### TASK-20260912-205022-ozow — GRID Compiler 6: Canton downtown source geography and provenance
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_3_FLAGSHIP_MOMENTS
+- Primary agent: AGY (fallback: CLAUDE)
+- Blockers: All candidate agents (AGY/CLAUDE/AGY) are unavailable this run.
+- Failed attempts: 2 (see handoff doc for detail)
+- Handoff doc: `boardroom/handoffs/TASK-20260912-205022-ozow.md`
+
+### TASK-20260912-205032-7wci — GRID Compiler 7: Canton City Package assembly
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_3_FLAGSHIP_MOMENTS
 - Primary agent: CLAUDE (fallback: AGY)
 - Blockers: All candidate agents (CLAUDE/AGY/CLAUDE) are unavailable this run.
-- Failed attempts: 3 (see handoff doc for detail)
-- Salvaged snapshots: boardroom-salvage/20260913-002542-75b0/TASK-20260912-205010-rvfr-attempt2, boardroom-salvage/20260913-002542-75b0/TASK-20260912-205010-rvfr-attempt3
-- Handoff doc: `boardroom/handoffs/TASK-20260912-205010-rvfr.md`
+- Failed attempts: 2 (see handoff doc for detail)
+- Handoff doc: `boardroom/handoffs/TASK-20260912-205032-7wci.md`
 
 
 ## OTHER TASKS IN THE QUEUE (untouched this run — status is from a prior run or still QUEUED)
@@ -285,15 +291,13 @@ _none_
 - Salvaged snapshots: boardroom-salvage/20260912-213233-0f74/TASK-20260912-205003-j50e-attempt1, boardroom-salvage/20260912-213233-0f74/TASK-20260912-205003-j50e-attempt2
 - Handoff doc: `boardroom/handoffs/TASK-20260912-205003-j50e.md`
 
-### TASK-20260912-205022-ozow — GRID Compiler 6: Canton downtown source geography and provenance
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_3_FLAGSHIP_MOMENTS
-- Primary agent: AGY (fallback: CLAUDE)
-- Handoff doc: `boardroom/handoffs/TASK-20260912-205022-ozow.md`
-
-### TASK-20260912-205032-7wci — GRID Compiler 7: Canton City Package assembly
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_3_FLAGSHIP_MOMENTS
+### TASK-20260912-205010-rvfr — GRID Compiler 5: Pipeline orchestration and City Mapper
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
 - Primary agent: CLAUDE (fallback: AGY)
-- Handoff doc: `boardroom/handoffs/TASK-20260912-205032-7wci.md`
+- Blockers: All candidate agents (CLAUDE/AGY/CLAUDE) are unavailable this run.
+- Failed attempts: 3 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260913-002542-75b0/TASK-20260912-205010-rvfr-attempt2, boardroom-salvage/20260913-002542-75b0/TASK-20260912-205010-rvfr-attempt3
+- Handoff doc: `boardroom/handoffs/TASK-20260912-205010-rvfr.md`
 
 ### TASK-20260912-205040-lvc0 — GRID Compiler 8: Local database import boundary
 - Status: QUEUED | Confidence: ASSUMPTION | Priority: MEDIUM | Phase: PHASE_4_SECONDARY_POLISH
