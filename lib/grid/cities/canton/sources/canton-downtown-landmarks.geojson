@@ -1,0 +1,137 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3746388,
+          40.8002911
+        ]
+      },
+      "properties": {
+        "slug": "landmark-centennial-plaza",
+        "name": "Centennial Plaza",
+        "territoryGeoid": "391517001002022",
+        "territorySlug": "census-block-391517001002022",
+        "privacyClass": "PARK",
+        "osmType": "way",
+        "osmId": "198547426",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3751822,
+          40.7988869
+        ]
+      },
+      "properties": {
+        "slug": "landmark-stark-county-courthouse",
+        "name": "Stark County Courthouse",
+        "territoryGeoid": "391517001002041",
+        "territorySlug": "census-block-391517001002041",
+        "privacyClass": "PUBLIC_CIVIC",
+        "osmType": "way",
+        "osmId": "198610251",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3744643,
+          40.8001966
+        ]
+      },
+      "properties": {
+        "slug": "landmark-upper-downtown-canton-historic-district",
+        "name": "Upper Downtown Canton Historic District",
+        "territoryGeoid": "391517001002022",
+        "territorySlug": "census-block-391517001002022",
+        "privacyClass": "CULTURAL",
+        "osmType": "node",
+        "osmId": "357531686",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3769843,
+          40.7973276
+        ]
+      },
+      "properties": {
+        "slug": "landmark-downtown-canton-arts-district",
+        "name": "Downtown Canton Arts District",
+        "territoryGeoid": "391517001002066",
+        "territorySlug": "census-block-391517001002066",
+        "privacyClass": "CULTURAL",
+        "osmType": "node",
+        "osmId": "4672096124",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3753968,
+          40.7976607
+        ]
+      },
+      "properties": {
+        "slug": "landmark-first-ladies-national-historic-site",
+        "name": "First Ladies National Historic Site",
+        "territoryGeoid": "391517001002060",
+        "territorySlug": "census-block-391517001002060",
+        "privacyClass": "CULTURAL",
+        "osmType": "node",
+        "osmId": "357528632",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3764226,
+          40.7976452
+        ]
+      },
+      "properties": {
+        "slug": "landmark-canton-city-hall",
+        "name": "Canton City Hall",
+        "territoryGeoid": "391517001002061",
+        "territorySlug": "census-block-391517001002061",
+        "privacyClass": "PUBLIC_CIVIC",
+        "osmType": "way",
+        "osmId": "473004396",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    }
+  ]
+}

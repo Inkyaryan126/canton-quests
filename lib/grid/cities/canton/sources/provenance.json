@@ -1,0 +1,42 @@
+[
+  {
+    "id": "census-tigerweb-canton-place-2026-09-13",
+    "sourceName": "U.S. Census Bureau TIGERweb — Incorporated Places",
+    "sourceUrl": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/28",
+    "license": "Public domain (U.S. Government work)",
+    "retrievedAt": "2026-09-13",
+    "transformation": "Selected Canton city GEOID 3912000 from the TIGERweb Incorporated Places layer and converted Polygon geometry to GeoJSON MultiPolygon without simplification.",
+    "attribution": "U.S. Census Bureau",
+    "confidence": "confirmed"
+  },
+  {
+    "id": "census-tigerweb-block-group-2026-09-13",
+    "sourceName": "U.S. Census Bureau TIGERweb — Census Block Groups",
+    "sourceUrl": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/10",
+    "license": "Public domain (U.S. Government work)",
+    "retrievedAt": "2026-09-13",
+    "transformation": "Selected 2020 Census Block Group GEOID 391517001002 and converted Polygon geometry to GeoJSON MultiPolygon without simplification.",
+    "attribution": "U.S. Census Bureau",
+    "confidence": "confirmed"
+  },
+  {
+    "id": "census-tigerweb-blocks-2026-09-13",
+    "sourceName": "U.S. Census Bureau TIGERweb — 2020 Census Blocks",
+    "sourceUrl": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/12",
+    "license": "Public domain (U.S. Government work)",
+    "retrievedAt": "2026-09-13",
+    "transformation": "Selected a connected 20-block downtown Canton slice inside Census Block Group 391517001002; retained source block geometry and converted Polygon geometry to GeoJSON MultiPolygon without simplification.",
+    "attribution": "U.S. Census Bureau",
+    "confidence": "confirmed"
+  },
+  {
+    "id": "osm-overpass-downtown-canton-2026-09-13",
+    "sourceName": "OpenStreetMap (via Overpass API)",
+    "sourceUrl": "https://overpass-api.de/api/interpreter",
+    "license": "ODbL 1.0",
+    "retrievedAt": "2026-09-13",
+    "transformation": "Queried named OpenStreetMap elements in a downtown Canton bounding box; selected public, civic, cultural, park, and commercial assets only; represented nodes directly and ways/relations by the Overpass center point; matched selected points to Census territories.",
+    "attribution": "© OpenStreetMap contributors",
+    "confidence": "confirmed"
+  }
+]

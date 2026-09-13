@@ -1,0 +1,258 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3761915,
+          40.8007679
+        ]
+      },
+      "properties": {
+        "slug": "property-buzzbin-art-music",
+        "name": "Buzzbin Art & Music",
+        "territoryGeoid": "391517001002024",
+        "territorySlug": "census-block-391517001002024",
+        "privacyClass": "CULTURAL",
+        "publicNameSafe": true,
+        "osmType": "way",
+        "osmId": "198521660",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3765353,
+          40.7997876
+        ]
+      },
+      "properties": {
+        "slug": "property-the-auricle",
+        "name": "The Auricle",
+        "territoryGeoid": "391517001002027",
+        "territorySlug": "census-block-391517001002027",
+        "privacyClass": "COMMERCIAL",
+        "publicNameSafe": true,
+        "osmType": "way",
+        "osmId": "198521655",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3764144,
+          40.8000651
+        ]
+      },
+      "properties": {
+        "slug": "property-george-s-lounge",
+        "name": "George's Lounge",
+        "territoryGeoid": "391517001002027",
+        "territorySlug": "census-block-391517001002027",
+        "privacyClass": "COMMERCIAL",
+        "publicNameSafe": true,
+        "osmType": "way",
+        "osmId": "198521656",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3736749,
+          40.8006385
+        ]
+      },
+      "properties": {
+        "slug": "property-picciano-s-martini-lounge",
+        "name": "Picciano's Martini Lounge",
+        "territoryGeoid": "391517001002012",
+        "territorySlug": "census-block-391517001002012",
+        "privacyClass": "COMMERCIAL",
+        "publicNameSafe": true,
+        "osmType": "way",
+        "osmId": "361992308",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3727009,
+          40.7997227
+        ]
+      },
+      "properties": {
+        "slug": "property-wheel-cafe",
+        "name": "Wheel Cafe",
+        "territoryGeoid": "391517001002020",
+        "territorySlug": "census-block-391517001002020",
+        "privacyClass": "COMMERCIAL",
+        "publicNameSafe": true,
+        "osmType": "way",
+        "osmId": "591821385",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3759135,
+          40.7989489
+        ]
+      },
+      "properties": {
+        "slug": "property-arcade-coney-s",
+        "name": "Arcade Coney's",
+        "territoryGeoid": "391517001002042",
+        "territorySlug": "census-block-391517001002042",
+        "privacyClass": "COMMERCIAL",
+        "publicNameSafe": true,
+        "osmType": "relation",
+        "osmId": "12118791",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3741523,
+          40.799465
+        ]
+      },
+      "properties": {
+        "slug": "property-pnc-bank",
+        "name": "PNC Bank",
+        "territoryGeoid": "391517001002030",
+        "territorySlug": "census-block-391517001002030",
+        "privacyClass": "COMMERCIAL",
+        "publicNameSafe": true,
+        "osmType": "node",
+        "osmId": "5922956185",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3742618,
+          40.7985111
+        ]
+      },
+      "properties": {
+        "slug": "property-stark-county-clerk-of-courts",
+        "name": "Stark County Clerk of Courts",
+        "territoryGeoid": "391517001002039",
+        "territorySlug": "census-block-391517001002039",
+        "privacyClass": "PUBLIC_CIVIC",
+        "publicNameSafe": true,
+        "osmType": "way",
+        "osmId": "361992311",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3729791,
+          40.7999787
+        ]
+      },
+      "properties": {
+        "slug": "property-stark-county-regional-planning-commission",
+        "name": "Stark County Regional Planning Commission",
+        "territoryGeoid": "391517001002020",
+        "territorySlug": "census-block-391517001002020",
+        "privacyClass": "PUBLIC_CIVIC",
+        "publicNameSafe": true,
+        "osmType": "way",
+        "osmId": "591821378",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.373563,
+          40.8008297
+        ]
+      },
+      "properties": {
+        "slug": "property-canton-city-vital-statistics",
+        "name": "Canton City Vital Statistics",
+        "territoryGeoid": "391517001002012",
+        "territorySlug": "census-block-391517001002012",
+        "privacyClass": "PUBLIC_CIVIC",
+        "publicNameSafe": true,
+        "osmType": "way",
+        "osmId": "361992309",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.3773359,
+          40.7978362
+        ]
+      },
+      "properties": {
+        "slug": "property-canton-post-office",
+        "name": "Canton Post Office",
+        "territoryGeoid": "391517001002062",
+        "territorySlug": "census-block-391517001002062",
+        "privacyClass": "PUBLIC_CIVIC",
+        "publicNameSafe": true,
+        "osmType": "node",
+        "osmId": "357504339",
+        "sourceRefs": [
+          "osm-overpass-downtown-canton-2026-09-13"
+        ]
+      }
+    }
+  ]
+}
