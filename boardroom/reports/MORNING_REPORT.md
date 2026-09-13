@@ -1,12 +1,12 @@
 # CANTON QUESTS — BOARDROOM MORNING REPORT
 
-Run: `20260912-205639-8f4a` on branch `boardroom/astra-overnight-20260912-205639-8f4a` (base `b167f9f1f373`)
-Window: 2026-09-12T20:56:39.784Z → 2026-09-12T21:20:53.982Z
-Sleep prevention: ACTIVE — ACTIVE (caffeinate -w 33451)
+Run: `20260913-002542-75b0` on branch `boardroom/astra-overnight-20260913-002542-75b0` (base `d0793c017285`)
+Window: 2026-09-13T00:25:42.261Z → 2026-09-13T00:42:29.514Z
+Sleep prevention: ACTIVE — ACTIVE (caffeinate -w 50987)
 Stop reason: PHASE_BARRIER_BLOCKED
 
 ## ACTION REQUIRED
-- ACTION REQUIRED: PHASE_1_RECON cannot advance because TASK-20260912-204939-6qw5[BLOCKED] must be resolved first.
+- ACTION REQUIRED: PHASE_2_CORE_EXPERIENCE_SYSTEM cannot advance because TASK-20260912-205010-rvfr[BLOCKED] must be resolved first.
 
 ## SUMMARY (this run only — 1 task(s) touched)
 - Tasks completed this run: 0
@@ -17,9 +17,9 @@ Stop reason: PHASE_BARRIER_BLOCKED
 
 ## QUEUE STATE (all-time — for context only, NOT this run's output)
 - Total tasks in the ledger: 36 (1 touched this run, 35 untouched — prior runs or still waiting)
-- Done (any run, ever): 20
+- Done (any run, ever): 24
 - Blocked (any run, ever): 5
-- Still queued (never yet attempted): 8
+- Still queued (never yet attempted): 4
 
 ## ASTRA USAGE (self-reported only — never inferred)
 - No self-report was recorded this run. Treat Astra allowance as unknown, not full.
@@ -29,13 +29,13 @@ Stop reason: PHASE_BARRIER_BLOCKED
 _none_
 
 ## TASKS TOUCHED THIS RUN
-### TASK-20260912-204939-6qw5 — GRID Compiler 1: Contracts, provenance, historical and privacy types
-- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_1_RECON
+### TASK-20260912-205010-rvfr — GRID Compiler 5: Pipeline orchestration and City Mapper
+- Status: BLOCKED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
 - Primary agent: CLAUDE (fallback: AGY)
 - Blockers: All candidate agents (CLAUDE/AGY/CLAUDE) are unavailable this run.
-- Failed attempts: 2 (see handoff doc for detail)
-- Salvaged snapshots: boardroom-salvage/20260912-205639-8f4a/TASK-20260912-204939-6qw5-attempt1, boardroom-salvage/20260912-205639-8f4a/TASK-20260912-204939-6qw5-attempt2
-- Handoff doc: `boardroom/handoffs/TASK-20260912-204939-6qw5.md`
+- Failed attempts: 3 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260913-002542-75b0/TASK-20260912-205010-rvfr-attempt2, boardroom-salvage/20260913-002542-75b0/TASK-20260912-205010-rvfr-attempt3
+- Handoff doc: `boardroom/handoffs/TASK-20260912-205010-rvfr.md`
 
 
 ## OTHER TASKS IN THE QUEUE (untouched this run — status is from a prior run or still QUEUED)
@@ -253,25 +253,37 @@ _none_
 - Salvaged snapshots: boardroom-salvage/20260912-050423-fb2f/TASK-20260912-032414-jq6j-attempt1, boardroom-salvage/20260912-050423-fb2f/TASK-20260912-032414-jq6j-attempt2
 - Handoff doc: `boardroom/handoffs/TASK-20260912-032414-jq6j.md`
 
-### TASK-20260912-204946-dmbc — GRID Compiler 2: Geometry normalization utilities
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
+### TASK-20260912-204939-6qw5 — GRID Compiler 1: Contracts, provenance, historical and privacy types
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_1_RECON
 - Primary agent: CLAUDE (fallback: AGY)
+- Blockers: All candidate agents (CLAUDE/AGY/CLAUDE) are unavailable this run.
+- Failed attempts: 2 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260912-205639-8f4a/TASK-20260912-204939-6qw5-attempt1, boardroom-salvage/20260912-205639-8f4a/TASK-20260912-204939-6qw5-attempt2
+- Handoff doc: `boardroom/handoffs/TASK-20260912-204939-6qw5.md`
+
+### TASK-20260912-204946-dmbc — GRID Compiler 2: Geometry normalization utilities
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
+- Primary agent: CLAUDE (fallback: AGY)
+- Blockers: All candidate agents (CLAUDE/AGY/CLAUDE) are unavailable this run.
+- Failed attempts: 2 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260912-213233-0f74/TASK-20260912-204946-dmbc-attempt1, boardroom-salvage/20260912-213233-0f74/TASK-20260912-204946-dmbc-attempt2
 - Handoff doc: `boardroom/handoffs/TASK-20260912-204946-dmbc.md`
 
 ### TASK-20260912-204952-azrb — GRID Compiler 3: Adjacency computation and synthetic scale geography
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
 - Primary agent: CLAUDE (fallback: AGY)
+- Blockers: All candidate agents (CLAUDE/AGY/CLAUDE) are unavailable this run.
+- Failed attempts: 2 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260912-213233-0f74/TASK-20260912-204952-azrb-attempt1, boardroom-salvage/20260912-213233-0f74/TASK-20260912-204952-azrb-attempt2
 - Handoff doc: `boardroom/handoffs/TASK-20260912-204952-azrb.md`
 
 ### TASK-20260912-205003-j50e — GRID Compiler 4: Severity-graded validation engine
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
+- Status: DONE | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
 - Primary agent: CLAUDE (fallback: AGY)
+- Blockers: All candidate agents (CLAUDE/AGY/CLAUDE) are unavailable this run.
+- Failed attempts: 2 (see handoff doc for detail)
+- Salvaged snapshots: boardroom-salvage/20260912-213233-0f74/TASK-20260912-205003-j50e-attempt1, boardroom-salvage/20260912-213233-0f74/TASK-20260912-205003-j50e-attempt2
 - Handoff doc: `boardroom/handoffs/TASK-20260912-205003-j50e.md`
-
-### TASK-20260912-205010-rvfr — GRID Compiler 5: Pipeline orchestration and City Mapper
-- Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_2_CORE_EXPERIENCE_SYSTEM
-- Primary agent: CLAUDE (fallback: AGY)
-- Handoff doc: `boardroom/handoffs/TASK-20260912-205010-rvfr.md`
 
 ### TASK-20260912-205022-ozow — GRID Compiler 6: Canton downtown source geography and provenance
 - Status: QUEUED | Confidence: ASSUMPTION | Priority: HIGH | Phase: PHASE_3_FLAGSHIP_MOMENTS
