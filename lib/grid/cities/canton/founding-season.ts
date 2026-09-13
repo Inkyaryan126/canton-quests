@@ -1,4 +1,5 @@
 import type { GridCityPackage } from '../../core/types';
+import { cantonDraftPackageFields } from './geography/canton-draft-package';
 
 export const cantonFoundingSeasonPackage: GridCityPackage = {
   schemaVersion: 1,
@@ -26,11 +27,5 @@ export const cantonFoundingSeasonPackage: GridCityPackage = {
       commandPointRegenMinutes: 60,
     },
   },
-  // Real districts/territories/properties/landmarks arrive through the
-  // City Compiler plan. Empty arrays are intentional while status=draft.
-  districts: [],
-  territories: [],
-  edges: [],
-  properties: [],
-  landmarks: [],
+  ...cantonDraftPackageFields,
 };
