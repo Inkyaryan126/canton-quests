@@ -1,0 +1,169 @@
+{
+  "citySlug": "tiny-city",
+  "cityBoundary": {
+    "type": "MultiPolygon",
+    "coordinates": [
+      [
+        [
+          [-1, -1],
+          [10, -1],
+          [10, 10],
+          [-1, 10],
+          [-1, -1]
+        ]
+      ]
+    ]
+  },
+  "districts": [
+    {
+      "slug": "d1",
+      "name": "District One",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [-1, -1],
+              [10, -1],
+              [10, 10],
+              [-1, 10],
+              [-1, -1]
+            ]
+          ]
+        ]
+      },
+      "sourceRefs": ["src-1"]
+    },
+    {
+      "slug": "d-bad",
+      "name": "District Bad (self-intersecting bowtie)",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [0, 0],
+              [1, 1],
+              [1, 0],
+              [0, 1],
+              [0, 0]
+            ]
+          ]
+        ]
+      },
+      "sourceRefs": ["src-1"]
+    }
+  ],
+  "territories": [
+    {
+      "slug": "t1",
+      "name": "Territory One",
+      "districtSlug": "d1",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 1],
+              [0, 0]
+            ]
+          ]
+        ]
+      },
+      "sourceRefs": ["src-1"]
+    },
+    {
+      "slug": "t2",
+      "name": "Territory Two",
+      "districtSlug": "d1",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [1, 0],
+              [2, 0],
+              [2, 1],
+              [1, 1],
+              [1, 0]
+            ]
+          ]
+        ]
+      },
+      "sourceRefs": ["src-1"]
+    },
+    {
+      "slug": "t3",
+      "name": "Territory Three",
+      "districtSlug": "d1",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [5, 5],
+              [6, 5],
+              [6, 6],
+              [5, 6],
+              [5, 5]
+            ]
+          ]
+        ]
+      },
+      "sourceRefs": ["src-1"]
+    }
+  ],
+  "edges": [
+    { "a": "t1", "b": "t2" },
+    { "a": "t2", "b": "t3" }
+  ],
+  "properties": [
+    {
+      "slug": "p1",
+      "name": "Property One",
+      "territorySlug": "t1",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [0.25, 0.25],
+              [0.75, 0.25],
+              [0.75, 0.75],
+              [0.25, 0.75],
+              [0.25, 0.25]
+            ]
+          ]
+        ]
+      },
+      "privacyClass": "COMMERCIAL",
+      "publicNameSafe": true,
+      "sourceRefs": ["src-1"]
+    }
+  ],
+  "landmarks": [
+    {
+      "slug": "lm1",
+      "name": "Landmark One",
+      "territorySlug": "t2",
+      "point": { "lat": 0.5, "lng": 1.5 },
+      "privacyClass": "PUBLIC_CIVIC",
+      "sourceRefs": ["src-1"]
+    }
+  ],
+  "provenance": [
+    {
+      "id": "src-1",
+      "sourceName": "Test Source",
+      "sourceUrl": "https://example.com/source",
+      "license": "ODbL 1.0",
+      "retrievedAt": "2026-01-01",
+      "transformation": "none",
+      "attribution": "© Test",
+      "confidence": "confirmed"
+    }
+  ]
+}
