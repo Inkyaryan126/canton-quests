@@ -1,0 +1,129 @@
+{
+  "citySlug": "tiny-metro",
+  "cityBoundary": {
+    "type": "MultiPolygon",
+    "coordinates": [
+      [
+        [
+          [0.0, 0.0],
+          [10.0, 0.0],
+          [10.0, 10.0],
+          [0.0, 10.0],
+          [0.0, 0.0]
+        ]
+      ]
+    ]
+  },
+  "districts": [
+    {
+      "slug": "district-core",
+      "name": "Core District",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [0.0, 0.0],
+              [4.0, 0.0],
+              [4.0, 2.0],
+              [0.0, 2.0],
+              [0.0, 0.0]
+            ]
+          ]
+        ]
+      },
+      "sourceRefs": ["tiny-prov-1"]
+    }
+  ],
+  "territories": [
+    {
+      "slug": "territory-alpha",
+      "name": "Alpha Territory",
+      "districtSlug": "district-core",
+      "baseValue": 120,
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [0.0, 0.0],
+              [2.0, 0.0],
+              [2.0, 2.0],
+              [0.0, 2.0],
+              [0.0, 0.0]
+            ]
+          ]
+        ]
+      },
+      "sourceRefs": ["tiny-prov-1"]
+    },
+    {
+      "slug": "territory-beta",
+      "name": "Beta Territory",
+      "districtSlug": "district-core",
+      "baseValue": 150,
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [2.0, 0.0],
+              [4.0, 0.0],
+              [4.0, 2.0],
+              [2.0, 2.0],
+              [2.0, 0.0]
+            ]
+          ]
+        ]
+      },
+      "sourceRefs": ["tiny-prov-1"]
+    }
+  ],
+  "properties": [
+    {
+      "slug": "prop-central-station",
+      "name": "Central Station",
+      "territorySlug": "territory-alpha",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [0.2, 0.2],
+              [0.8, 0.2],
+              [0.8, 0.8],
+              [0.2, 0.8],
+              [0.2, 0.2]
+            ]
+          ]
+        ]
+      },
+      "point": { "lat": 0.5, "lng": 0.5 },
+      "privacyClass": "PUBLIC_CIVIC",
+      "publicNameSafe": true,
+      "sourceRefs": ["tiny-prov-1"]
+    }
+  ],
+  "landmarks": [
+    {
+      "slug": "landmark-clock-tower",
+      "name": "Old Clock Tower",
+      "territorySlug": "territory-beta",
+      "point": { "lat": 1.0, "lng": 3.0 },
+      "privacyClass": "PUBLIC_CIVIC",
+      "sourceRefs": ["tiny-prov-1"]
+    }
+  ],
+  "provenance": [
+    {
+      "id": "tiny-prov-1",
+      "sourceName": "Synthetic City GIS",
+      "sourceUrl": "https://gis.example.org/synthetic",
+      "license": "CC0-1.0",
+      "retrievedAt": "2026-09-12",
+      "transformation": "Synthetic geometry for compiler pipeline unit tests",
+      "attribution": "Synthetic City Open Project",
+      "confidence": "confirmed"
+    }
+  ]
+}
