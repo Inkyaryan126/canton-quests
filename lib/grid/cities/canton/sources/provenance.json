@@ -1,11 +1,11 @@
 [
   {
-    "id": "census-tigerweb-canton-place-2026-09-13",
-    "sourceName": "U.S. Census Bureau TIGERweb — Incorporated Places",
-    "sourceUrl": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/28",
+    "id": "census-tigerline-canton-place-2025",
+    "sourceName": "U.S. Census Bureau TIGER/Line 2025 — Ohio Places",
+    "sourceUrl": "https://www2.census.gov/geo/tiger/TIGER2025/PLACE/tl_2025_39_place.zip",
     "license": "Public domain (U.S. Government work)",
     "retrievedAt": "2026-09-13",
-    "transformation": "Selected Canton city GEOID 3912000 from the TIGERweb Incorporated Places layer and converted Polygon geometry to GeoJSON MultiPolygon without simplification.",
+    "transformation": "Selected Canton city GEOID 3912000 from the official Ohio Places shapefile, converted it to GeoJSON, and applied mapshaper topology cleaning without simplification so the source boundary passes the compiler's polygon-validity gate.",
     "attribution": "U.S. Census Bureau",
     "confidence": "confirmed"
   },
