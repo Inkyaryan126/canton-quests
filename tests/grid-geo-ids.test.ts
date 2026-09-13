@@ -3,7 +3,7 @@ import { deterministicSlug, findDuplicateSlugs } from '../lib/grid/geo/ids';
 
 describe('deterministicSlug', () => {
   it('converts simple strings to lowercase hyphenated format', () => {
-    expect(deterministicSlug('Downtown Canton')).toBe('downtown-canton');
+    expect(deterministicSlug('Downtown Riverside')).toBe('downtown-riverside');
     expect(deterministicSlug('Pro Football Hall of Fame')).toBe('pro-football-hall-of-fame');
   });
 
@@ -22,7 +22,7 @@ describe('deterministicSlug', () => {
 
   it('is idempotent', () => {
     const rawInputs = [
-      'Downtown Canton',
+      'Downtown Riverside',
       'Special #123 @ Spot!',
       'Café au Lait',
       'already-a-slug',
@@ -36,11 +36,11 @@ describe('deterministicSlug', () => {
   });
 
   it('produces stable results across repeated calls (no randomness or time dependency)', () => {
-    const input = 'Canton Cultural Center for the Arts';
+    const input = 'Riverside Cultural Center for the Arts';
     const result1 = deterministicSlug(input);
     const result2 = deterministicSlug(input);
     expect(result1).toBe(result2);
-    expect(result1).toBe('canton-cultural-center-for-the-arts');
+    expect(result1).toBe('riverside-cultural-center-for-the-arts');
   });
 
   it('handles empty or symbols-only strings gracefully', () => {
@@ -79,13 +79,13 @@ describe('findDuplicateSlugs', () => {
 
   it('detects collisions caused by different strings producing the same slug', () => {
     const rawNames = [
-      'Downtown Canton',
-      'Downtown-Canton',
-      'downtown canton',
+      'Downtown Riverside',
+      'Downtown-Riverside',
+      'downtown riverside',
       'Unique Neighborhood',
     ];
     const generatedSlugs = rawNames.map(deterministicSlug);
     const duplicates = findDuplicateSlugs(generatedSlugs);
-    expect(duplicates).toEqual(['downtown-canton']);
+    expect(duplicates).toEqual(['downtown-riverside']);
   });
 });

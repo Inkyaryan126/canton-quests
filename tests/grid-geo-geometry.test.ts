@@ -188,9 +188,9 @@ describe('computeCentroid', () => {
     expect(center.lng).toBeCloseTo(2, 5);
   });
 
-  it('computes correct centroid for a Canton-scale bounding box polygon', () => {
-    // Canton downtown rough bounds: lng ~ -81.38 to -81.36, lat ~ 40.79 to 40.81
-    const downtownCanton: GeoJSON.MultiPolygon = {
+  it('computes correct centroid for a city-scale bounding box polygon', () => {
+    // Downtown Riverside rough bounds: lng ~ -81.38 to -81.36, lat ~ 40.79 to 40.81
+    const downtownArea: GeoJSON.MultiPolygon = {
       type: 'MultiPolygon',
       coordinates: [
         [
@@ -204,7 +204,7 @@ describe('computeCentroid', () => {
         ],
       ],
     };
-    const center = computeCentroid(downtownCanton);
+    const center = computeCentroid(downtownArea);
     expect(center.lng).toBeCloseTo(-81.37, 4);
     expect(center.lat).toBeCloseTo(40.8, 4);
   });

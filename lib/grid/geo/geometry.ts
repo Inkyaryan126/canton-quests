@@ -1,4 +1,4 @@
-// Canonical GeoJSON coordinate order throughout Canton Quests: [longitude, latitude].
+// Canonical GeoJSON coordinate order used throughout THE GRID: [longitude, latitude].
 
 import { area } from '@turf/area';
 import { bbox } from '@turf/bbox';
