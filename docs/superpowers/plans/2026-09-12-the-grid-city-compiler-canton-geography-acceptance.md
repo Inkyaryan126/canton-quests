@@ -61,7 +61,7 @@ The checked-in Canton compiler source snapshot uses real licensed/public data ra
 
 Every checked-in geography feature resolves `sourceRefs` to `provenance.json`. Google Maps/Places and other commercial-provider geometry were not used.
 
-A separate research-only Census Transportation acquisition was also performed on 2026-09-14 and is intentionally not part of the accepted compiler snapshot yet. It fetched 12 primary, 81 secondary, and 4,123 local-road source features by Canton's municipal bounding box, then clipped them against the real municipal polygon to 12 primary, 67 secondary, and 2,251 local road features with **0 containment violations**. Those files remain under local `research/grid/canton/source-data/` for the next road-network/world-map phase and were not silently promoted into territories or committed as accepted city-package inputs.
+A separate research-only Census Transportation acquisition was also performed on 2026-09-14 and is intentionally not part of the accepted compiler snapshot yet. It fetched 12 primary, 81 secondary, and 4,123 local-road source features by Canton's municipal bounding box, then clipped them against the real municipal polygon to 12 primary, 67 secondary, and 2,251 local road features with **0 containment violations**. Those files are checkpointed under `research/grid/canton/source-data/` for the next road-network/world-map phase and remain intentionally excluded from the accepted city-package inputs; committing the research snapshot does not promote it into territories or runtime gameplay data.
 
 ## Human inspection findings
 

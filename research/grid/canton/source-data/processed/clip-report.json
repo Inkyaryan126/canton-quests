@@ -1,0 +1,41 @@
+{
+  "boundarySha256": "17fc564f65ce16a74cd4d24f7ee4958d178751b7ac7fb1f435de739a34b0ebf5",
+  "boundarySource": "research/grid/canton/source-data/raw/canton-city-boundary.geojson",
+  "cityId": "canton-oh",
+  "layers": {
+    "local": {
+      "containmentViolations": 0,
+      "droppedOutsideBoundary": 1872,
+      "inputFeatures": 4123,
+      "output": "research/grid/canton/source-data/processed/canton-local-roads.geojson",
+      "outputFeatures": 2251,
+      "outputLineParts": 3209,
+      "outputSha256": "db3bf4d4b50b469c465b275a5552b8fba80150bc0ee76ac15a4f3bb91bdbc693",
+      "source": "research/grid/canton/source-data/raw/canton-local-roads.geojson",
+      "sourceSha256": "a903edaefeb7257d655f328b3924c6f9778c026cfd4955b4743aa8446caf6af4"
+    },
+    "primary": {
+      "containmentViolations": 0,
+      "droppedOutsideBoundary": 0,
+      "inputFeatures": 12,
+      "output": "research/grid/canton/source-data/processed/canton-primary-roads.geojson",
+      "outputFeatures": 12,
+      "outputLineParts": 22,
+      "outputSha256": "365e8825e1dcbe8f02930450f5ed08a3a6b345fcab24674ff83d140ccf553fa6",
+      "source": "research/grid/canton/source-data/raw/canton-primary-roads.geojson",
+      "sourceSha256": "9c5c793e5cfacc7db5003d5d677119057c3cde51c18b3e4afe75311e4829c2a1"
+    },
+    "secondary": {
+      "containmentViolations": 0,
+      "droppedOutsideBoundary": 14,
+      "inputFeatures": 81,
+      "output": "research/grid/canton/source-data/processed/canton-secondary-roads.geojson",
+      "outputFeatures": 67,
+      "outputLineParts": 225,
+      "outputSha256": "1eb15520bd7c0259f837de90b7798e0b80aa2a53bf8eeb76e35a7303cd5e962d",
+      "source": "research/grid/canton/source-data/raw/canton-secondary-roads.geojson",
+      "sourceSha256": "8ce06946eb4f2456116935ac60fb68091c018e450a33454c62bafa020b99f45d"
+    }
+  },
+  "schemaVersion": 1
+}

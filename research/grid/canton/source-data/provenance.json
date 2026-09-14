@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "cityId": "canton-oh",
+  "cityName": "Canton, Ohio",
+  "censusPlaceGeoid": "3912000",
+  "coordinateReferenceSystem": "EPSG:4326",
+  "acquiredAt": "2026-09-14T11:13:11.442967+00:00",
+  "status": "raw-source",
+  "humanApprovalRequired": true,
+  "sources": [
+    {
+      "name": "Incorporated Places",
+      "file": "raw/canton-city-boundary.geojson",
+      "provider": "U.S. Census Bureau",
+      "service": "TIGERweb",
+      "layer": 4,
+      "featureCount": 1,
+      "sha256": "17fc564f65ce16a74cd4d24f7ee4958d178751b7ac7fb1f435de739a34b0ebf5",
+      "bytes": 118072
+    },
+    {
+      "name": "Primary Roads",
+      "file": "raw/canton-primary-roads.geojson",
+      "provider": "U.S. Census Bureau",
+      "service": "TIGERweb",
+      "layer": 2,
+      "featureCount": 12,
+      "sha256": "9c5c793e5cfacc7db5003d5d677119057c3cde51c18b3e4afe75311e4829c2a1",
+      "bytes": 105539
+    },
+    {
+      "name": "Secondary Roads",
+      "file": "raw/canton-secondary-roads.geojson",
+      "provider": "U.S. Census Bureau",
+      "service": "TIGERweb",
+      "layer": 6,
+      "featureCount": 81,
+      "sha256": "8ce06946eb4f2456116935ac60fb68091c018e450a33454c62bafa020b99f45d",
+      "bytes": 248526
+    },
+    {
+      "name": "Local Roads",
+      "file": "raw/canton-local-roads.geojson",
+      "provider": "U.S. Census Bureau",
+      "service": "TIGERweb",
+      "layer": 8,
+      "featureCount": 4123,
+      "sha256": "a903edaefeb7257d655f328b3924c6f9778c026cfd4955b4743aa8446caf6af4",
+      "bytes": 3710359
+    }
+  ]
+}
