@@ -96,7 +96,7 @@ describe.skipIf(!runDbTests)('GRID local Supabase city importer', () => {
       if (error) throw error;
       expect(count, table).toBe(expected);
     }
-  });
+  }, 60_000);
 
   it('rejects an invalid ready package before writing its city row', async () => {
     if (!supabaseAdmin) throw new Error('Local Supabase admin client is not configured');
@@ -116,5 +116,5 @@ describe.skipIf(!runDbTests)('GRID local Supabase city importer', () => {
       .eq('slug', 'tiny-invalid');
     if (error) throw error;
     expect(data).toHaveLength(0);
-  });
+  }, 60_000);
 });

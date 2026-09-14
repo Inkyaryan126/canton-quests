@@ -11,6 +11,8 @@
     "test": "vitest run",
     "qr:campaign": "node --env-file=.env.local ./node_modules/vite-node/vite-node.mjs scripts/qr-campaign-cli.ts",
     "grid:validate-city": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-validate-city.ts",
+    "grid:compile-city": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-compile-city.ts",
+    "grid:inspect-city": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-inspect-city.ts",
     "boardroom:start": "node --env-file=.env.local ./node_modules/vite-node/vite-node.mjs scripts/boardroom-start.ts",
     "boardroom:lock": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-lock.ts",
     "boardroom:task": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-task.ts",
