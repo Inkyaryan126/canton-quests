@@ -14,6 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/login', priority: 0.5, changeFrequency: 'monthly' },
     { path: '/watch', priority: 0.6, changeFrequency: 'hourly' },
     { path: '/events', priority: 0.7, changeFrequency: 'weekly' },
+    { path: '/grid', priority: 0.8, changeFrequency: 'daily' },
     { path: '/events/canton-weekend-1', priority: 0.9, changeFrequency: 'daily' },
     { path: '/events/canton-weekend-1/drawing', priority: 0.6, changeFrequency: 'daily' },
     { path: '/rules', priority: 0.5, changeFrequency: 'monthly' },
