@@ -1,3 +1,5 @@
+import type { GridEconomyConfig } from './economy-types';
+
 export type GridCityPackageStatus = 'draft' | 'ready';
 
 export interface GridLatLng {
@@ -123,6 +125,8 @@ export interface GridCityPackage {
     durationDays: number;
     surgeHours: number;
     balance: GridBalanceConfig;
+    /** Optional until a city/season explicitly opts into Phase-2 economy gameplay. */
+    economy?: GridEconomyConfig;
   };
   districts: GridDistrictDefinition[];
   territories: GridTerritoryDefinition[];
