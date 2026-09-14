@@ -13,9 +13,10 @@ const milestones = [
   ['03', 'MULTI-CITY CORE', 'City registry, PostGIS foundation, event ledger, and deterministic simulation are built.'],
   ['04', 'CITY COMPILER', 'Deterministic geometry normalization, adjacency, validation, provenance, and package compilation are built.'],
   ['05', 'REAL CANTON DATA', 'Official Census geography and OpenStreetMap public-place data replaced synthetic geography for Canton.'],
-  ['06', 'CANTON PACKAGE', 'A real downtown Canton package is compiling from sourced geography with validation and provenance.'],
+  ['06', 'CANTON PACKAGE', 'A real downtown Canton package compiles deterministically from sourced geography with validation and provenance.'],
   ['07', 'IMPORT BOUNDARY', 'A local Supabase import boundary exists so compiled cities can move into the runtime safely.'],
-  ['08', 'LIVE WORLD', 'Next: turn compiled Canton geography into the first visible, playable Grid world.'],
+  ['08', 'ACCEPTANCE GATE', 'Compiler 1–9 passed the full Grid test suite, CLI validation, architecture boundary scan, lint, and production build.'],
+  ['09', 'LIVE WORLD', 'Next: turn compiled Canton geography into the first visible, playable Grid world.'],
 ] as const;
 
 export default function GridBuildPage() {
@@ -44,7 +45,7 @@ export default function GridBuildPage() {
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            ['COMPILER', 'STAGE 8', 'Development pipeline'],
+            ['COMPILER', '1–9 ACCEPTED', 'City Compiler phase'],
             ['CITY', 'CANTON #001', 'First real package'],
             ['GEOGRAPHY', 'SOURCE-BACKED', 'Census + OpenStreetMap'],
             ['GAMEPLAY', 'LOCKED', 'Until world systems are ready'],
