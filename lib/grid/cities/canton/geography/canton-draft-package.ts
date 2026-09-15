@@ -1,5 +1,6 @@
 import { compileCityPackage } from '../../../compiler/pipeline';
 import type { GridCityPackage } from '../../../core/types';
+import { cantonFoundingSeasonEconomy } from '../founding-season-economy';
 import { cantonRawGeography } from './raw-geography';
 
 const cantonCityMeta: GridCityPackage['city'] = {
@@ -22,6 +23,7 @@ const cantonSeasonTemplate: GridCityPackage['seasonTemplate'] = {
     maxCommandPoints: 10,
     commandPointRegenMinutes: 60,
   },
+  economy: cantonFoundingSeasonEconomy,
 };
 
 const compiled = compileCityPackage(

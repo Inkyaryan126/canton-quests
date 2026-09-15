@@ -1,5 +1,6 @@
 import type { GridCityPackage } from '../../core/types';
 import { cantonDraftPackageFields } from './geography/canton-draft-package';
+import { cantonFoundingSeasonEconomy } from './founding-season-economy';
 
 export const cantonFoundingSeasonPackage: GridCityPackage = {
   schemaVersion: 1,
@@ -26,6 +27,7 @@ export const cantonFoundingSeasonPackage: GridCityPackage = {
       maxCommandPoints: 10,
       commandPointRegenMinutes: 60,
     },
+    economy: cantonFoundingSeasonEconomy,
   },
   ...cantonDraftPackageFields,
 };

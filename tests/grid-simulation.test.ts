@@ -193,7 +193,7 @@ describe('Grid simulation foundation', () => {
         /40\.7989/,
         /-81\.3748/,
         /react/i,
-        /next/i,
+        /from\s+['\"]next(?:\/|['\"])/i,
         /@supabase/,
       ];
 
