@@ -296,6 +296,64 @@ export function createSupabaseGridChatPort(
       if (error) throw new Error(`Failed to leave Grid party chat: ${error.message}`);
     },
 
+    async listPartyMembers(channelId, playerId) {
+      const actorResult = await client
+        .from('grid_chat_members')
+        .select('role')
+        .eq('channel_id', channelId)
+        .eq('player_id', playerId)
+        .is('left_at', null)
+        .maybeSingle();
+      if (actorResult.error) throw new Error(`Failed to verify Grid party membership: ${actorResult.error.message}`);
+      if (!actorResult.data) throw new Error('Grid chat membership required');
+
+      const channelResult = await client
+        .from('grid_chat_channels')
+        .select('channel_type')
+        .eq('id', channelId)
+        .eq('is_archived', false)
+        .maybeSingle();
+      if (channelResult.error) throw new Error(`Failed to verify Grid party channel: ${channelResult.error.message}`);
+      if (!channelResult.data || (channelResult.data as { channel_type: string }).channel_type !== 'party') {
+        throw new Error('Grid chat channel is not a party');
+      }
+
+      const memberResult = await client
+        .from('grid_chat_members')
+        .select('player_id,role,joined_at')
+        .eq('channel_id', channelId)
+        .is('left_at', null)
+        .order('joined_at', { ascending: true });
+      if (memberResult.error) throw new Error(`Failed to read Grid party members: ${memberResult.error.message}`);
+      const rows = (memberResult.data ?? []) as Array<{ player_id: string; role: 'member' | 'moderator' | 'owner'; joined_at: string }>;
+      const profiles = await loadProfiles(client, rows.map((row) => row.player_id));
+      return rows.flatMap((row) => {
+        const profile = profiles.get(row.player_id);
+        return profile ? [{ ...profile, role: row.role, joinedAt: row.joined_at }] : [];
+      });
+    },
+
+    async setPartyMemberRole(channelId, actorPlayerId, targetPlayerId, role, now) {
+      const { error } = await client.rpc('grid_set_party_chat_member_role', {
+        p_channel_id: channelId, p_actor_player_id: actorPlayerId, p_target_player_id: targetPlayerId, p_role: role, p_now: now,
+      });
+      if (error) throw new Error(`Failed to update Grid party role: ${error.message}`);
+    },
+
+    async removePartyMember(channelId, actorPlayerId, targetPlayerId, now) {
+      const { error } = await client.rpc('grid_remove_party_chat_member', {
+        p_channel_id: channelId, p_actor_player_id: actorPlayerId, p_target_player_id: targetPlayerId, p_now: now,
+      });
+      if (error) throw new Error(`Failed to remove Grid party member: ${error.message}`);
+    },
+
+    async transferPartyOwner(channelId, ownerPlayerId, targetPlayerId, now) {
+      const { error } = await client.rpc('grid_transfer_party_chat_owner', {
+        p_channel_id: channelId, p_owner_player_id: ownerPlayerId, p_target_player_id: targetPlayerId, p_now: now,
+      });
+      if (error) throw new Error(`Failed to transfer Grid party ownership: ${error.message}`);
+    },
+
     async listMessages({ channelId, playerId, limit, before }): Promise<GridChatMessagePage> {
       const memberResult = await client
         .from('grid_chat_members')

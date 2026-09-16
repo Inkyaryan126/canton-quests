@@ -4,6 +4,18 @@ import { gridChatError, gridChatJson, requireGridChatContext } from '@/lib/grid/
 
 export const dynamic = 'force-dynamic';
 
+export async function GET(request: Request, { params }: { params: { channelId: string } }) {
+  const context = await requireGridChatContext(request);
+  if ('response' in context) return context.response;
+  try {
+    const members = await createSupabaseGridChatPort().listPartyMembers(params.channelId, context.playerId);
+    return gridChatJson(context.session, { success: true, members });
+  } catch (error) {
+    const mapped = gridChatError(error);
+    return gridChatJson(context.session, { success: false, error: mapped.message }, { status: mapped.status });
+  }
+}
+
 export async function POST(request: Request, { params }: { params: { channelId: string } }) {
   const context = await requireGridChatContext(request);
   if ('response' in context) return context.response;

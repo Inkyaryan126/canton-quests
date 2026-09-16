@@ -27,6 +27,9 @@ describe('Grid chat page contract', () => {
   it('exposes district and private party controls without GPS broadcasting', () => {
     expect(source).toContain('District Channels');
     expect(source).toContain('Create Party');
+    expect(source).toContain('Party Roster');
+    expect(source).toContain('Make Owner');
+    expect(source).toContain('Promote');
     expect(source).toContain('Your precise location is never broadcast');
     expect(source).not.toContain('navigator.geolocation');
   });

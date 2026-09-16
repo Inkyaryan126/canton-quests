@@ -25,6 +25,7 @@ import type {
   GridChatDistrictOption,
   GridChatMessagePage,
   GridChatMessageView,
+  GridChatPartyMember,
 } from '@/lib/grid/core/chat-types';
 
 interface ChannelsResponse {
@@ -81,6 +82,10 @@ export default function GridChatClient() {
   const [showPartyInvite, setShowPartyInvite] = useState(false);
   const [partyCallsign, setPartyCallsign] = useState('');
   const [partyBusy, setPartyBusy] = useState(false);
+  const [showPartyManage, setShowPartyManage] = useState(false);
+  const [partyMembers, setPartyMembers] = useState<GridChatPartyMember[]>([]);
+  const [partyManageLoading, setPartyManageLoading] = useState(false);
+  const [partyManageBusyId, setPartyManageBusyId] = useState<string | null>(null);
   const [directCallsign, setDirectCallsign] = useState('');
   const [startingDirect, setStartingDirect] = useState(false);
   const [reportingMessage, setReportingMessage] = useState<GridChatMessageView | null>(null);
@@ -262,6 +267,79 @@ export default function GridChatClient() {
       setMessageError(error instanceof Error ? error.message : 'Unable to invite player');
     } finally {
       setPartyBusy(false);
+    }
+  }
+
+  async function loadPartyMembers(open = true) {
+    if (!selected || selected.channelType !== 'party') return;
+    if (open) setShowPartyManage(true);
+    setPartyManageLoading(true);
+    setMessageError(null);
+    try {
+      const response = await fetch(`/api/grid/chat/parties/${encodeURIComponent(selected.channelId)}/members`, { cache: 'no-store' });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to load party members');
+      setPartyMembers(body.members ?? []);
+    } catch (error) {
+      setMessageError(error instanceof Error ? error.message : 'Unable to load party members');
+    } finally {
+      setPartyManageLoading(false);
+    }
+  }
+
+  async function setPartyRole(member: GridChatPartyMember, role: 'member' | 'moderator') {
+    if (!selected || selected.channelType !== 'party' || partyManageBusyId) return;
+    setPartyManageBusyId(member.playerId);
+    try {
+      const response = await fetch(`/api/grid/chat/parties/${encodeURIComponent(selected.channelId)}/members/${encodeURIComponent(member.playerId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to update party role');
+      await loadPartyMembers(false);
+    } catch (error) {
+      setMessageError(error instanceof Error ? error.message : 'Unable to update party role');
+    } finally {
+      setPartyManageBusyId(null);
+    }
+  }
+
+  async function removePartyMember(member: GridChatPartyMember) {
+    if (!selected || selected.channelType !== 'party' || partyManageBusyId) return;
+    if (!window.confirm(`Remove ${member.callsign} from ${selected.displayName}?`)) return;
+    setPartyManageBusyId(member.playerId);
+    try {
+      const response = await fetch(`/api/grid/chat/parties/${encodeURIComponent(selected.channelId)}/members/${encodeURIComponent(member.playerId)}`, { method: 'DELETE' });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to remove party member');
+      await loadPartyMembers(false);
+    } catch (error) {
+      setMessageError(error instanceof Error ? error.message : 'Unable to remove party member');
+    } finally {
+      setPartyManageBusyId(null);
+    }
+  }
+
+  async function transferPartyOwner(member: GridChatPartyMember) {
+    if (!selected || selected.channelType !== 'party' || selected.memberRole !== 'owner' || partyManageBusyId) return;
+    if (!window.confirm(`Transfer ownership of ${selected.displayName} to ${member.callsign}?`)) return;
+    setPartyManageBusyId(member.playerId);
+    try {
+      const response = await fetch(`/api/grid/chat/parties/${encodeURIComponent(selected.channelId)}/owner`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: member.playerId }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to transfer party ownership');
+      await loadChannels();
+      await loadPartyMembers(false);
+    } catch (error) {
+      setMessageError(error instanceof Error ? error.message : 'Unable to transfer party ownership');
+    } finally {
+      setPartyManageBusyId(null);
     }
   }
 
@@ -479,6 +557,9 @@ export default function GridChatClient() {
                   </div>
                   {selected.channelType === 'party' && (
                     <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => void loadPartyMembers(true)} className="rounded-xl border border-white/10 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-stone-300 hover:border-cyan-300/20 hover:text-cyan-300">
+                        Members
+                      </button>
                       {(selected.memberRole === 'owner' || selected.memberRole === 'moderator') && (
                         <button type="button" onClick={() => setShowPartyInvite(true)} className="rounded-xl border border-cyan-300/20 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-cyan-300 hover:bg-cyan-300/10">
                           + Invite
@@ -609,6 +690,55 @@ export default function GridChatClient() {
             <p className="mt-3 text-xs leading-relaxed text-stone-600">Private parties are designed for squads and scrimmages. Minor accounts are restricted from private party chat in the first release.</p>
             <button disabled={creatingParty || partyName.trim().length < 2} className="mt-6 w-full rounded-2xl bg-cyan-300 px-4 py-3 font-mono text-xs font-black uppercase tracking-widest text-black disabled:opacity-30">{creatingParty ? 'Creating…' : 'Create Party Channel'}</button>
           </form>
+        </div>
+      )}
+
+      {showPartyManage && selected?.channelType === 'party' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl border border-cyan-400/20 bg-[#0a0c0e] p-6 shadow-2xl">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="font-mono text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">{selected.displayName}</div>
+                <h2 className="mt-1 font-display text-2xl font-black uppercase">Party Roster</h2>
+              </div>
+              <button type="button" onClick={() => setShowPartyManage(false)} className="rounded-lg p-2 text-stone-500 hover:bg-white/5 hover:text-white"><X size={17} /></button>
+            </div>
+            <div className="mt-5 max-h-[55vh] space-y-2 overflow-y-auto">
+              {partyManageLoading ? (
+                <div className="py-10 text-center font-mono text-[10px] uppercase tracking-widest text-stone-600">Reading roster…</div>
+              ) : partyMembers.length === 0 ? (
+                <div className="py-10 text-center text-xs text-stone-600">No active party members.</div>
+              ) : partyMembers.map((member) => {
+                const canOwnerManage = selected.memberRole === 'owner' && member.role !== 'owner';
+                const canModeratorRemove = selected.memberRole === 'moderator' && member.role === 'member';
+                return (
+                  <div key={member.playerId} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[.025] p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 font-display text-sm font-black text-stone-400">{member.callsign.slice(0, 1).toUpperCase()}</div>
+                      <div>
+                        <div className="font-display text-sm font-black uppercase">{member.callsign}</div>
+                        <div className="mt-1 font-mono text-[9px] uppercase tracking-wider text-stone-600">{member.role}</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {canOwnerManage && member.role === 'member' && (
+                        <button type="button" disabled={Boolean(partyManageBusyId)} onClick={() => void setPartyRole(member, 'moderator')} className="rounded-lg border border-cyan-300/20 px-2.5 py-1.5 font-mono text-[9px] font-black uppercase text-cyan-300 disabled:opacity-30">Promote</button>
+                      )}
+                      {canOwnerManage && member.role === 'moderator' && (
+                        <button type="button" disabled={Boolean(partyManageBusyId)} onClick={() => void setPartyRole(member, 'member')} className="rounded-lg border border-white/10 px-2.5 py-1.5 font-mono text-[9px] font-black uppercase text-stone-400 disabled:opacity-30">Demote</button>
+                      )}
+                      {canOwnerManage && (
+                        <button type="button" disabled={Boolean(partyManageBusyId)} onClick={() => void transferPartyOwner(member)} className="rounded-lg border border-amber-300/20 px-2.5 py-1.5 font-mono text-[9px] font-black uppercase text-amber-300 disabled:opacity-30">Make Owner</button>
+                      )}
+                      {(canOwnerManage || canModeratorRemove) && (
+                        <button type="button" disabled={Boolean(partyManageBusyId)} onClick={() => void removePartyMember(member)} className="rounded-lg border border-rose-300/20 px-2.5 py-1.5 font-mono text-[9px] font-black uppercase text-rose-300 disabled:opacity-30">Remove</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
