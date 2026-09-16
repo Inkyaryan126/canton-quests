@@ -80,6 +80,42 @@ explicitly. The authoritative sequence, matched exactly in
    the commit — never released in the gap between an agent's edits and the
    checkpoint landing.
 
+## Launch-critical verification gate (`lib/boardroom/verificationGate.ts`)
+
+Additive to the honesty rules above, not a replacement — this codifies rule 4
+("confidence states must never silently upgrade") into an actual gate for
+the highest-stakes tasks, rather than leaving it a convention nobody checks.
+
+`TESTS_REQUIRED` passing means automated commands exited 0. It does **not**
+mean a human or agent ever actually ran the feature. For most tasks that gap
+is acceptable. For a task marked **launch-critical**, it is not.
+
+1. **Opt-in, not retroactive.** `task.launchCritical` (boolean, default
+   unset/`false`) must be explicitly set. Unset = the pipeline behaves
+   exactly as it always has; nothing about this gate touches a task that
+   doesn't opt in, including every task already queued or in flight.
+2. **`launchCritical: true` requires `verificationEvidence`:**
+   - `exercisedFlow` (string) — a concrete, honest account of what was
+     actually exercised and how (e.g. "started dev server, registered a
+     test player, completed quest X in browser, confirmed leaderboard
+     updated"). Empty strings and placeholders (`n/a`, `TODO`, `...`, etc.)
+     do not satisfy this — see `verificationGate.ts`'s
+     `isRealExercisedFlow`.
+   - `unverifiedItems` (string array) — everything **not** verified or
+     still blocked. The key itself must be present, even as `[]`; nothing
+     gets to be silently omitted.
+3. **Wired into `supervisor.ts`** in the same structural position as the
+   existing `TESTS_REQUIRED` check — immediately after tests pass, before
+   staging/commit. A `BLOCK` is recorded as a failed attempt, subject to
+   the same two-failed-attempt rule (`attempts.ts`) as any other failure. A
+   launch-critical task can therefore never reach `DONE` on automated
+   test/build passes alone.
+4. **`acceptanceCriteria` is still not mechanically enforced** — this gate
+   only checks that verification evidence was recorded and is non-trivial,
+   not that it is true or sufficient. It raises the floor from "nothing
+   required" to "an explicit, checkable claim must exist"; it does not
+   replace human review of the overnight branch before merge.
+
 ## Production safety (`lib/boardroom/productionGuard.ts`, `.githooks/pre-push`)
 
 Boardroom may edit locally, test, build, and commit to the overnight branch.

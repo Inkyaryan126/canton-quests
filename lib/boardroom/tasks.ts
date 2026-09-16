@@ -10,6 +10,8 @@ import { taskFile, tasksDir } from './paths';
 import { writeJsonAtomic, readJsonIfExists, listJsonFiles } from './atomicFile';
 import type { Task, TaskStatus, Decision, Attempt, TestResult, ConfidenceState, AgentName, Priority, Phase, SalvageEntry } from './types';
 
+type VerificationEvidence = NonNullable<Task['verificationEvidence']>;
+
 export function generateTaskId(): string {
   const now = new Date();
   const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '-');
@@ -32,6 +34,9 @@ export function createTask(params: {
   testsRequired?: string[];
   taskId?: string;
   root?: string;
+  /** Opt-in — see verificationGate.ts and boardroom/BOARDROOM.md. Omitted/false = current behavior, unaffected. */
+  launchCritical?: boolean;
+  verificationEvidence?: VerificationEvidence;
 }): Task {
   const now = new Date().toISOString();
   const task: Task = {
@@ -59,6 +64,8 @@ export function createTask(params: {
     blockers: [],
     createdAt: now,
     updatedAt: now,
+    launchCritical: params.launchCritical,
+    verificationEvidence: params.verificationEvidence,
   };
   writeJsonAtomic(taskFile(task.taskId, params.root), task);
   return task;
@@ -106,6 +113,19 @@ export function updateTaskStatus(taskId: string, status: TaskStatus, root?: stri
 export function setConfidence(taskId: string, confidence: ConfidenceState, root?: string): Task {
   const task = requireTask(taskId, root);
   task.confidence = confidence;
+  return saveTask(task, root);
+}
+
+/**
+ * Records the functional-verification evidence a launchCritical task needs
+ * to pass verificationGate.ts (see boardroom/BOARDROOM.md's "Launch-critical
+ * verification gate" section). Replaces any prior evidence wholesale, same
+ * as setWriteScope, rather than merging — the resulting record must stay
+ * unambiguous about what was actually exercised.
+ */
+export function setVerificationEvidence(taskId: string, evidence: VerificationEvidence, root?: string): Task {
+  const task = requireTask(taskId, root);
+  task.verificationEvidence = evidence;
   return saveTask(task, root);
 }
 

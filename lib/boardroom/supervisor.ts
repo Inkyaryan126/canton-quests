@@ -16,6 +16,11 @@
  * continuously through validation and the commit — it is never released in
  * the gap between an agent finishing its edits and the checkpoint landing.
  *
+ * Additive to that sequence: immediately after TESTS_REQUIRED passes, a
+ * launchCritical task (opt-in, default unset — see verificationGate.ts and
+ * boardroom/BOARDROOM.md) must also clear evaluateVerification() before
+ * staging/commit. A non-launchCritical task is entirely unaffected.
+ *
  * Everything that touches the outside world (git, the CLI adapters, the
  * test runner, sleep prevention, process-signal registration) is
  * dependency-injected so the whole loop can run against
@@ -31,6 +36,7 @@ import { recordAttempt, checkThreshold } from './attempts';
 import { getBudgetState, selfReportAllowance, requestReset, classifyTier } from './budget';
 import { defaultAssignment, applyBudgetConservation, isAstraWorthy, type WorkCategory, type RoutingAssignment } from './routing';
 import { evaluateChangedPaths, parseGitStatusShort, isBoardroomBookkeepingPath } from './commitGate';
+import { evaluateVerification } from './verificationGate';
 import { getAdapter } from './adapters/registry';
 import { probeAgentHealth } from './adapters/probe';
 import { salvageWorkingTree, describeSalvage } from './salvage';
@@ -652,6 +658,39 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
           addBlocker(
             task.taskId,
             `Validation failed after ${agent}'s changes: ${failedCommands}. SALVAGE FAILED (${salvage.error}) — the working tree may still contain this task's edits. Stopping the run rather than risk contaminating further tasks.`,
+            root
+          );
+          updateTaskStatus(task.taskId, 'BLOCKED', root);
+          writeHandoff(getTask(task.taskId, root)!, root);
+          releaseLock({ holder: agent, taskId: task.taskId, root });
+          stopReason = `SALVAGE_FAILED (${task.taskId}): ${salvage.error}`;
+          break;
+        }
+        const failedAgents = taskUnavailable.get(task.taskId) ?? new Set<AgentName>();
+        failedAgents.add(agent);
+        taskUnavailable.set(task.taskId, failedAgents);
+        updateTaskStatus(task.taskId, 'READY', root);
+        writeHandoff(getTask(task.taskId, root)!, root);
+        releaseLock({ holder: agent, taskId: task.taskId, root });
+        iterations++;
+        continue;
+      }
+
+      // Opt-in, additive to TESTS_REQUIRED: for a launchCritical task, exit-0
+      // automated commands are not sufficient evidence of a working feature
+      // (see boardroom/BOARDROOM.md's "Launch-critical verification gate"
+      // section). A non-launchCritical task always PASSes here, unaffected.
+      // Runs in the exact same structural position as the TESTS_REQUIRED
+      // check above — a BLOCK is recorded as a failed attempt, subject to
+      // the same two-failed-attempt rule as any other failure.
+      const verification = evaluateVerification(task);
+      if (verification.decision === 'BLOCK') {
+        recordAttempt(task.taskId, { agent, approachSummary: `Implementation attempt (${gate.inScope.length} files)`, outcome: 'FAILED', whyFailed: verification.reason }, root);
+        const salvage = salvageAndRecord({ git, task, agent, attempt: attemptNumber, runId: boot.runId, paths: gate.inScope, reason: `VERIFICATION GATE BLOCKED: ${verification.reason}`, root });
+        if (!salvage.ok) {
+          addBlocker(
+            task.taskId,
+            `Launch-critical verification gate blocked ${task.taskId}: ${verification.reason} SALVAGE FAILED (${salvage.error}) — the working tree may still contain this task's edits. Stopping the run rather than risk contaminating further tasks.`,
             root
           );
           updateTaskStatus(task.taskId, 'BLOCKED', root);

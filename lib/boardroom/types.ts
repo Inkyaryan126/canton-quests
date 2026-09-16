@@ -142,6 +142,27 @@ export interface Task {
   blockers: string[];
   createdAt: string;
   updatedAt: string;
+  /**
+   * Opt-in flag — default unset/undefined (treated as false). Purely
+   * additive: a task that never sets this is completely unaffected by
+   * verificationGate.ts, which only runs its check when this is `true`. See
+   * boardroom/BOARDROOM.md's "Launch-critical verification gate" section.
+   */
+  launchCritical?: boolean;
+  /**
+   * Required only when `launchCritical` is true (enforced by
+   * verificationGate.ts, not by this type alone). Records what was actually,
+   * functionally exercised — not just that automated TESTS_REQUIRED commands
+   * exited 0 — and what explicitly remains unverified, so nothing is
+   * silently omitted. See the honesty rules above: a result must never
+   * silently upgrade past what was actually verified.
+   */
+  verificationEvidence?: {
+    /** What was manually/functionally verified and how, e.g. "started dev server, registered a test player, completed quest X in browser, confirmed leaderboard updated". */
+    exercisedFlow: string;
+    /** Explicit list of what was NOT verified / remains blocked. Must be present (array, possibly empty) — the key itself must exist. */
+    unverifiedItems: string[];
+  };
 }
 
 export type AstraBudgetTier = 'NORMAL' | 'CONSERVE' | 'RESERVE' | 'CRITICAL';

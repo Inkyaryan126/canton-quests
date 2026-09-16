@@ -86,6 +86,19 @@
     "remainingWork": { "type": "string" },
     "blockers": { "type": "array", "items": { "type": "string" } },
     "createdAt": { "type": "string", "format": "date-time" },
-    "updatedAt": { "type": "string", "format": "date-time" }
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "launchCritical": {
+      "type": "boolean",
+      "description": "Opt-in flag (lib/boardroom/verificationGate.ts). Default unset/false = current behavior, completely unaffected. When true, passing TESTS_REQUIRED alone is not sufficient for DONE — verificationEvidence must also satisfy the verification gate before the task can be checkpointed. See boardroom/BOARDROOM.md's \"Launch-critical verification gate\" section."
+    },
+    "verificationEvidence": {
+      "type": "object",
+      "description": "Required only when launchCritical is true. Records what was actually, functionally exercised (not just automated tests/build passing) and what explicitly remains unverified.",
+      "required": ["exercisedFlow", "unverifiedItems"],
+      "properties": {
+        "exercisedFlow": { "type": "string", "description": "Concrete description of what was manually/functionally verified and how, e.g. \"started dev server, registered a test player, completed quest X in browser, confirmed leaderboard updated\"." },
+        "unverifiedItems": { "type": "array", "items": { "type": "string" }, "description": "Explicit list of what was NOT verified / remains blocked. Must be present (array, possibly empty) so nothing is silently omitted." }
+      }
+    }
   }
 }
