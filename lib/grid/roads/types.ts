@@ -193,3 +193,16 @@ export interface GridRoadAccessCandidate {
   snapNodeId: string;
   distanceMillimeters: number;
 }
+export interface GridRoadCorridor {
+  id: string;
+  roadClass: GridRoadClass;
+  name: string;
+  edgeIds: string[];
+  nodeIds: string[];
+  totalLengthMillimeters: number;
+}
+
+export interface GridRoadCorridorIndex {
+  corridors: GridRoadCorridor[];
+  corridorByEdge: Record<string, string>;
+}
