@@ -29,6 +29,7 @@ import type {
   GridChatMessageView,
   GridChatPartyInvite,
   GridChatPartyMember,
+  GridChatRoomSummary,
 } from '@/lib/grid/core/chat-types';
 
 interface ChannelsResponse {
@@ -47,6 +48,7 @@ function channelIcon(type: GridChatChannelSummary['channelType']) {
   if (type === 'direct') return LockKeyhole;
   if (type === 'party') return Users;
   if (type === 'district') return Hash;
+  if (type === 'room') return MessageCircle;
   if (type === 'system') return Radio;
   return Signal;
 }
@@ -76,6 +78,13 @@ export default function GridChatClient() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [showDirect, setShowDirect] = useState(false);
+  const [showRooms, setShowRooms] = useState(false);
+  const [rooms, setRooms] = useState<GridChatRoomSummary[]>([]);
+  const [roomName, setRoomName] = useState('');
+  const [roomTopic, setRoomTopic] = useState('');
+  const [roomLimit, setRoomLimit] = useState(50);
+  const [roomBusyId, setRoomBusyId] = useState<string | null>(null);
+  const [creatingRoom, setCreatingRoom] = useState(false);
   const [showDistricts, setShowDistricts] = useState(false);
   const [districts, setDistricts] = useState<GridChatDistrictOption[]>([]);
   const [districtBusyId, setDistrictBusyId] = useState<string | null>(null);
@@ -257,6 +266,86 @@ export default function GridChatClient() {
       setMessageError(error instanceof Error ? error.message : 'Message failed');
     } finally {
       setSending(false);
+    }
+  }
+
+  async function loadRooms(open = true) {
+    setChannelError(null);
+    try {
+      const response = await fetch('/api/grid/chat/rooms', { cache: 'no-store' });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Chat rooms unavailable');
+      setRooms(body.rooms ?? []);
+      if (open) setShowRooms(true);
+    } catch (error) {
+      setChannelError(error instanceof Error ? error.message : 'Chat rooms unavailable');
+    }
+  }
+
+  async function createRoom(event: FormEvent) {
+    event.preventDefault();
+    if (creatingRoom || roomName.trim().length < 2) return;
+    setCreatingRoom(true);
+    setChannelError(null);
+    try {
+      const response = await fetch('/api/grid/chat/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: roomName, topic: roomTopic, memberLimit: roomLimit }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to create room');
+      setRoomName('');
+      setRoomTopic('');
+      setRoomLimit(50);
+      setShowRooms(false);
+      await loadChannels();
+      setSelectedId(body.channelId);
+    } catch (error) {
+      setChannelError(error instanceof Error ? error.message : 'Unable to create room');
+    } finally {
+      setCreatingRoom(false);
+    }
+  }
+
+  async function joinRoom(room: GridChatRoomSummary) {
+    if (roomBusyId) return;
+    if (room.joined) {
+      setSelectedId(room.channelId);
+      setShowRooms(false);
+      return;
+    }
+    setRoomBusyId(room.channelId);
+    setChannelError(null);
+    try {
+      const response = await fetch(`/api/grid/chat/rooms/${encodeURIComponent(room.channelId)}/join`, { method: 'POST' });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to join room');
+      await loadChannels();
+      setSelectedId(room.channelId);
+      setShowRooms(false);
+    } catch (error) {
+      setChannelError(error instanceof Error ? error.message : 'Unable to join room');
+    } finally {
+      setRoomBusyId(null);
+    }
+  }
+
+  async function leaveRoom() {
+    if (!selected || selected.channelType !== 'room' || selected.memberRole === 'owner' || roomBusyId) return;
+    if (!window.confirm(`Leave ${selected.displayName}? You can rejoin from the Rooms directory.`)) return;
+    setRoomBusyId(selected.channelId);
+    try {
+      const response = await fetch(`/api/grid/chat/rooms/${encodeURIComponent(selected.channelId)}/leave`, { method: 'POST' });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to leave room');
+      setSelectedId(null);
+      await loadChannels();
+      await loadRooms(false);
+    } catch (error) {
+      setMessageError(error instanceof Error ? error.message : 'Unable to leave room');
+    } finally {
+      setRoomBusyId(null);
     }
   }
 
@@ -586,6 +675,7 @@ export default function GridChatClient() {
             <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 ['CITY', 'The shared Canton signal'],
+                ['ROOMS', 'Persistent public player hangouts'],
                 ['DISTRICT', 'Talk inside zones and neighborhoods'],
                 ['PARTY', 'Private scrimmage and squad comms'],
                 ['DIRECT', 'One-to-one player messages'],
@@ -623,7 +713,10 @@ export default function GridChatClient() {
                 <div className="font-mono text-[10px] font-black uppercase tracking-[.22em] text-cyan-300">Canton // City 001</div>
                 <h1 className="mt-1 font-display text-3xl font-black uppercase">Comms</h1>
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap justify-end gap-1.5">
+                <button type="button" onClick={() => void loadRooms(true)} className="inline-flex items-center gap-1 rounded-xl border border-cyan-300/20 bg-cyan-300/5 px-2.5 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-cyan-300 hover:bg-cyan-300/10">
+                  <MessageCircle size={12} /> Rooms
+                </button>
                 <button type="button" onClick={() => void loadDistricts()} className="inline-flex items-center gap-1 rounded-xl border border-white/10 px-2.5 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-stone-300 hover:border-cyan-300/30 hover:text-cyan-300">
                   <Hash size={12} /> District
                 </button>
@@ -740,6 +833,14 @@ export default function GridChatClient() {
                     >
                       {selected.notificationsEnabled ? <Bell size={12} /> : <BellOff size={12} />}
                     </button>
+                  {selected.channelType === 'room' && selected.memberRole !== 'owner' && (
+                    <button type="button" onClick={() => void leaveRoom()} disabled={Boolean(roomBusyId)} className="rounded-xl border border-white/10 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-stone-500 hover:border-rose-300/20 hover:text-rose-300 disabled:opacity-30">
+                      Leave Room
+                    </button>
+                  )}
+                  {selected.channelType === 'room' && selected.memberRole === 'owner' && (
+                    <span className="rounded-xl border border-amber-300/15 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-amber-300/70">Room Owner</span>
+                  )}
                   {selected.channelType === 'party' && (
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={() => void loadPartyMembers(true)} className="rounded-xl border border-white/10 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-stone-300 hover:border-cyan-300/20 hover:text-cyan-300">
@@ -835,6 +936,61 @@ export default function GridChatClient() {
           )}
         </section>
       </div>
+
+      {showRooms && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-3xl border border-cyan-400/20 bg-[#0a0c0e] p-5 shadow-2xl sm:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="font-mono text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">Social Layer // Canton 001</div>
+                <h2 className="mt-1 font-display text-2xl font-black uppercase">Chat Rooms</h2>
+              </div>
+              <button type="button" onClick={() => setShowRooms(false)} className="rounded-lg p-2 text-stone-500 hover:bg-white/5 hover:text-white"><X size={17} /></button>
+            </div>
+            <p className="mt-3 max-w-xl text-xs leading-relaxed text-stone-600">Persistent public spaces created by Grid players. Join the conversation, leave when you want, and find the room again later.</p>
+
+            <form onSubmit={createRoom} className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[.03] p-4">
+              <div className="font-mono text-[10px] font-black uppercase tracking-widest text-cyan-300">Create a room</div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_120px]">
+                <input value={roomName} onChange={(event) => setRoomName(event.target.value)} maxLength={80} placeholder="Room name" className="rounded-xl border border-white/10 bg-black/50 px-3 py-2.5 text-sm outline-none focus:border-cyan-300/40" />
+                <input type="number" min={2} max={200} value={roomLimit} onChange={(event) => setRoomLimit(Number(event.target.value))} aria-label="Room capacity" className="rounded-xl border border-white/10 bg-black/50 px-3 py-2.5 text-sm outline-none focus:border-cyan-300/40" />
+              </div>
+              <textarea value={roomTopic} onChange={(event) => setRoomTopic(event.target.value)} maxLength={240} rows={2} placeholder="What is this room about?" className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-black/50 px-3 py-2.5 text-sm outline-none focus:border-cyan-300/40" />
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-stone-700">{roomTopic.length}/240 · capacity {roomLimit}</span>
+                <button disabled={creatingRoom || roomName.trim().length < 2 || roomLimit < 2 || roomLimit > 200} className="rounded-xl bg-cyan-300 px-4 py-2 font-mono text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-30">{creatingRoom ? 'Creating…' : 'Create Room'}</button>
+              </div>
+            </form>
+
+            <div className="mt-5 flex items-center justify-between">
+              <div className="font-mono text-[10px] font-black uppercase tracking-widest text-stone-500">Open Rooms</div>
+              <button type="button" onClick={() => void loadRooms(false)} className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-stone-600 hover:text-cyan-300"><RefreshCw size={11} /> Refresh</button>
+            </div>
+            <div className="mt-2 max-h-[42vh] space-y-2 overflow-y-auto">
+              {rooms.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 p-8 text-center text-xs text-stone-600">No public rooms yet. Create the first one.</div>
+              ) : rooms.map((room) => {
+                const full = room.memberCount >= room.memberLimit && !room.joined;
+                return (
+                  <button key={room.channelId} type="button" onClick={() => void joinRoom(room)} disabled={Boolean(roomBusyId) || full} className="w-full rounded-2xl border border-white/10 bg-white/[.025] p-4 text-left transition hover:border-cyan-300/25 hover:bg-cyan-300/[.04] disabled:cursor-not-allowed disabled:opacity-45">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="truncate font-display text-base font-black uppercase">{room.displayName}</div>
+                        <div className="mt-1 line-clamp-2 text-xs leading-relaxed text-stone-500">{room.topic || 'No topic set.'}</div>
+                        <div className="mt-2 font-mono text-[9px] uppercase tracking-wider text-stone-700">Hosted by {room.owner?.callsign ?? 'Grid Player'}</div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="font-mono text-xs font-black text-cyan-300">{room.memberCount}/{room.memberLimit}</div>
+                        <div className="mt-1 font-mono text-[9px] uppercase tracking-wider text-stone-600">{roomBusyId === room.channelId ? 'Joining…' : room.joined ? 'Open' : full ? 'Full' : 'Join'}</div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showDistricts && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">

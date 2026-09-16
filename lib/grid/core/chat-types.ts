@@ -1,6 +1,6 @@
 import type { GridChatReportReason } from './chat';
 
-export type GridChatChannelType = 'city' | 'district' | 'party' | 'direct' | 'system';
+export type GridChatChannelType = 'city' | 'district' | 'party' | 'direct' | 'system' | 'room';
 
 export interface GridChatPublicPlayer {
   playerId: string;
@@ -83,4 +83,15 @@ export interface GridChatPartyInvite {
   inviter: GridChatPublicPlayer;
   createdAt: string;
   expiresAt: string;
+}
+
+export interface GridChatRoomSummary {
+  channelId: string;
+  displayName: string;
+  topic: string;
+  memberCount: number;
+  memberLimit: number;
+  joined: boolean;
+  lastMessageAt: string | null;
+  owner: GridChatPublicPlayer | null;
 }

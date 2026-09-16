@@ -262,6 +262,103 @@ export function createSupabaseGridChatPort(
       });
     },
 
+    async listRooms(seasonId, playerId) {
+      const roomResult = await client
+        .from('grid_chat_rooms')
+        .select('channel_id,topic,member_limit')
+        .eq('visibility', 'public');
+      if (roomResult.error) throw new Error(`Failed to read Grid chat rooms: ${roomResult.error.message}`);
+      const roomRows = (roomResult.data ?? []) as Array<{ channel_id: string; topic: string; member_limit: number }>;
+      if (roomRows.length === 0) return [];
+
+      const roomByChannel = new Map(roomRows.map((row) => [row.channel_id, row] as const));
+      const channelIds = roomRows.map((row) => row.channel_id);
+      const channelResult = await client
+        .from('grid_chat_channels')
+        .select('id,display_name,last_message_at,created_by_player_id')
+        .eq('season_id', seasonId)
+        .eq('channel_type', 'room')
+        .eq('is_archived', false)
+        .in('id', channelIds);
+      if (channelResult.error) throw new Error(`Failed to read Grid room channels: ${channelResult.error.message}`);
+      const channels = (channelResult.data ?? []) as Array<{
+        id: string;
+        display_name: string | null;
+        last_message_at: string | null;
+        created_by_player_id: string | null;
+      }>;
+      if (channels.length === 0) return [];
+
+      const activeIds = channels.map((row) => row.id);
+      const membershipResult = await client
+        .from('grid_chat_members')
+        .select('channel_id,player_id')
+        .in('channel_id', activeIds)
+        .is('left_at', null);
+      if (membershipResult.error) throw new Error(`Failed to read Grid room membership: ${membershipResult.error.message}`);
+      const memberships = (membershipResult.data ?? []) as Array<{ channel_id: string; player_id: string }>;
+      const countByChannel = new Map<string, number>();
+      const joined = new Set<string>();
+      for (const membership of memberships) {
+        countByChannel.set(membership.channel_id, (countByChannel.get(membership.channel_id) ?? 0) + 1);
+        if (membership.player_id === playerId) joined.add(membership.channel_id);
+      }
+
+      const ownerProfiles = await loadProfiles(
+        client,
+        channels.flatMap((row) => row.created_by_player_id ? [row.created_by_player_id] : []),
+      );
+
+      return channels.map((channel) => {
+        const room = roomByChannel.get(channel.id)!;
+        return {
+          channelId: channel.id,
+          displayName: channel.display_name ?? 'Untitled Room',
+          topic: room.topic,
+          memberCount: countByChannel.get(channel.id) ?? 0,
+          memberLimit: room.member_limit,
+          joined: joined.has(channel.id),
+          lastMessageAt: channel.last_message_at,
+          owner: channel.created_by_player_id ? ownerProfiles.get(channel.created_by_player_id) ?? null : null,
+        };
+      }).sort((a, b) => {
+        const activity = (b.lastMessageAt ?? '').localeCompare(a.lastMessageAt ?? '');
+        return activity || b.memberCount - a.memberCount || a.displayName.localeCompare(b.displayName);
+      });
+    },
+
+    async createRoom(seasonId, ownerPlayerId, displayName, topic, memberLimit, now) {
+      const { data, error } = await client.rpc('grid_create_public_chat_room', {
+        p_season_id: seasonId,
+        p_owner_player_id: ownerPlayerId,
+        p_display_name: displayName,
+        p_topic: topic,
+        p_member_limit: memberLimit,
+        p_now: now,
+      });
+      if (error) throw new Error(`Failed to create Grid chat room: ${error.message}`);
+      const result = rpcObject<{ channelId: string }>(data, 'Grid chat room');
+      return { channelId: result.channelId };
+    },
+
+    async joinRoom(channelId, playerId, now) {
+      const { error } = await client.rpc('grid_join_public_chat_room', {
+        p_channel_id: channelId,
+        p_player_id: playerId,
+        p_now: now,
+      });
+      if (error) throw new Error(`Failed to join Grid chat room: ${error.message}`);
+    },
+
+    async leaveRoom(channelId, playerId, now) {
+      const { error } = await client.rpc('grid_leave_public_chat_room', {
+        p_channel_id: channelId,
+        p_player_id: playerId,
+        p_now: now,
+      });
+      if (error) throw new Error(`Failed to leave Grid chat room: ${error.message}`);
+    },
+
     async joinDistrict(seasonId, playerId, districtId, now) {
       const { data, error } = await client.rpc('grid_join_district_chat_channel', {
         p_season_id: seasonId, p_player_id: playerId, p_district_id: districtId, p_now: now,
