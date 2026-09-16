@@ -14,6 +14,7 @@ const joinRoute = route('join', 'route.ts');
 const readRoute = route('[sessionId]', 'route.ts');
 const readyRoute = route('[sessionId]', 'ready', 'route.ts');
 const startRoute = route('[sessionId]', 'start', 'route.ts');
+const duelRoute = route('[sessionId]', 'duel', 'route.ts');
 const leaveRoute = route('[sessionId]', 'leave', 'route.ts');
 const cancelRoute = route('[sessionId]', 'cancel', 'route.ts');
 const completeRoute = route('[sessionId]', 'complete', 'route.ts');
@@ -23,6 +24,7 @@ const writeRoutes = [
   joinRoute,
   readyRoute,
   startRoute,
+  duelRoute,
   leaveRoute,
   cancelRoute,
   completeRoute,
@@ -68,6 +70,7 @@ describe('GRID scrimmage API contract', () => {
     expect(joinRoute).toContain('playerId: session.player.id');
     expect(readyRoute).toContain('playerId: session.player.id');
     expect(startRoute).toContain('playerId: session.player.id');
+    expect(duelRoute).toContain('attackerPlayerId: session.player.id');
     expect(leaveRoute).toContain('playerId: session.player.id');
     expect(cancelRoute).toContain('playerId: session.player.id');
     expect(completeRoute).toContain('playerId: session.player.id');
@@ -94,6 +97,17 @@ describe('GRID scrimmage API contract', () => {
     }
   });
 
+  it('keeps Signal Dice authoritative instead of accepting client rolls or Influence', () => {
+    expect(duelRoute).toContain('randomInt(1, dieSides + 1)');
+    expect(duelRoute).toContain('cantonFoundingSeasonContest');
+    expect(duelRoute).toContain(
+      'resolveGridScrimmageDuelSession',
+    );
+    expect(duelRoute).not.toMatch(
+      /body\.(attackerRolls|defenderRolls|attackerCommittedInfluence|defenderCommittedInfluence)/,
+    );
+  });
+
   it('does not expose a scrimmage read to a non-participant', () => {
     expect(readRoute).toContain(
       'getGridScrimmageSessionForPlayer',
@@ -109,6 +123,7 @@ describe('GRID scrimmage API contract', () => {
     expect(joinRoute).toContain('joinGridScrimmageSession');
     expect(readyRoute).toContain('setGridScrimmageSessionReady');
     expect(startRoute).toContain('startGridScrimmageSession');
+    expect(duelRoute).toContain('resolveGridScrimmageDuelSession');
     expect(leaveRoute).toContain('leaveGridScrimmageSession');
     expect(cancelRoute).toContain('cancelGridScrimmageSession');
     expect(completeRoute).toContain('completeGridScrimmageSession');

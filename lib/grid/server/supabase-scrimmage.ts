@@ -18,6 +18,7 @@ interface GridScrimmageRow {
   progression_scope: 'session-only';
   participants: GridScrimmageState['participants'];
   rules: GridScrimmageRules;
+  match_state: GridScrimmageState['match'];
   revision: number;
   created_at: string;
   started_at: string | null;
@@ -36,6 +37,21 @@ function mapRow(row: GridScrimmageRow): GridScrimmageState {
       ...participant,
     })),
     rules: { ...row.rules },
+    match: row.match_state
+      ? {
+          ...row.match_state,
+          combatants: row.match_state.combatants.map((combatant) => ({
+            ...combatant,
+          })),
+          lastRound: row.match_state.lastRound
+            ? {
+                ...row.match_state.lastRound,
+                attackerRolls: [...row.match_state.lastRound.attackerRolls],
+                defenderRolls: [...row.match_state.lastRound.defenderRolls],
+              }
+            : null,
+        }
+      : null,
     revision: row.revision,
     createdAt: row.created_at,
     startedAt: row.started_at,
@@ -53,6 +69,7 @@ function toRow(state: GridScrimmageState) {
     progression_scope: state.progressionScope,
     participants: state.participants,
     rules: state.rules,
+    match_state: state.match,
     revision: state.revision,
     created_at: state.createdAt,
     started_at: state.startedAt,
@@ -142,6 +159,7 @@ export function createSupabaseGridScrimmagePort(
           status: row.status,
           participants: row.participants,
           rules: row.rules,
+          match_state: row.match_state,
           revision: row.revision,
           started_at: row.started_at,
           ended_at: row.ended_at,
