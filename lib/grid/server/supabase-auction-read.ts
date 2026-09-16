@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../../supabase';
+import type { GridCityPackage } from '../core/types';
 import type {
   GridAuctionListing,
   GridAuctionReadPort,
@@ -48,6 +49,43 @@ function minimumNextBid(row: AuctionRow): number {
     throw new Error('Grid auction minimum next bid exceeds safe integer range');
   }
   return next;
+}
+
+export async function resolveSupabaseGridAuctionSeasonId(
+  pkg: GridCityPackage,
+  client: SupabaseClient | null = supabaseAdmin,
+): Promise<string | null> {
+  if (!client) {
+    throw new Error('Grid auction discovery requires Supabase configuration');
+  }
+
+  const cityResult = await client
+    .from('grid_cities')
+    .select('id')
+    .eq('slug', pkg.city.slug)
+    .maybeSingle();
+
+  if (cityResult.error) {
+    throw new Error(
+      `Failed to resolve Grid auction city: ${cityResult.error.message}`,
+    );
+  }
+  if (!cityResult.data) return null;
+
+  const seasonResult = await client
+    .from('grid_seasons')
+    .select('id')
+    .eq('city_id', (cityResult.data as { id: string }).id)
+    .eq('slug', pkg.seasonTemplate.slug)
+    .maybeSingle();
+
+  if (seasonResult.error) {
+    throw new Error(
+      `Failed to resolve Grid auction season: ${seasonResult.error.message}`,
+    );
+  }
+
+  return (seasonResult.data as { id: string } | null)?.id ?? null;
 }
 
 export function createSupabaseGridAuctionReadPort(
