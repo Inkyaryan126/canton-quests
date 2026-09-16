@@ -123,6 +123,24 @@ export function createClaim(
   return candidate;
 }
 
+export function expandClaim(lane: string, scopes: string[], cwd = process.cwd()): AgentClaim {
+  const filename = claimPath(lane, cwd);
+  if (!fs.existsSync(filename)) throw new Error(`lane not claimed: ${lane}`);
+  if (scopes.length === 0) throw new Error('claim expansion requires at least one scope');
+  const claim = JSON.parse(fs.readFileSync(filename, 'utf8')) as AgentClaim;
+  const candidate = { ...claim, scope: [...new Set([...claim.scope, ...scopes])] };
+  const conflicts = readClaims(cwd).filter(
+    (other) => other.lane !== lane && claimScopesOverlap(other, candidate),
+  );
+  if (conflicts.length > 0) {
+    throw new Error(`scope overlaps active lane(s): ${conflicts.map((item) => item.lane).join(', ')}`);
+  }
+  candidate.heartbeatAt = new Date().toISOString();
+  fs.writeFileSync(filename, `${JSON.stringify(candidate, null, 2)}
+`);
+  return candidate;
+}
+
 export function heartbeatClaim(lane: string, cwd = process.cwd()): AgentClaim {
   const filename = claimPath(lane, cwd);
   if (!fs.existsSync(filename)) throw new Error(`lane not claimed: ${lane}`);
@@ -237,6 +255,7 @@ export function staleClaim(claim: AgentClaim, staleMinutes = 360): boolean {
 export interface CoordinationIssue {
   code: 'BOARDROOM_ACTIVE' | 'DIRTY_UNCLAIMED' | 'DIRTY_OUTSIDE_CLAIM' | 'STALE_CLAIM';
   message: string;
+  remediation?: string;
 }
 
 export function coordinationIssues(
@@ -272,9 +291,15 @@ export function coordinationIssues(
 
     for (const dirtyPath of worktree.dirtyPaths) {
       if (worktreeClaims.some((claim) => claimCoversDirtyPath(claim, dirtyPath))) continue;
+      const filePath = dirtyStatusPath(dirtyPath);
+      const owners = worktreeClaims.map((claim) => `lane=${claim.lane} owner=${claim.owner}`).join(', ');
+      const lane = worktreeClaims.length === 1 ? worktreeClaims[0].lane : undefined;
       issues.push({
         code: 'DIRTY_OUTSIDE_CLAIM',
-        message: `Dirty path is outside every claim on ${worktree.branch}: ${dirtyStatusPath(dirtyPath)}`,
+        message: `Dirty path is outside every claim on ${worktree.branch} (${owners}): ${filePath}`,
+        remediation: lane
+          ? `npm run grid:agents -- expand --lane ${lane} --scope "${filePath}"`
+          : 'Coordinate the worktree owners and expand the appropriate claim before editing.',
       });
     }
   }

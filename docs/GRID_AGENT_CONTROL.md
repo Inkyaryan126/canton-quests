@@ -27,6 +27,8 @@ npm run grid:agents -- claim \
   --worktree /tmp/grid-road-network \
   --branch grid-road-network-20260915
 
+npm run grid:agents -- expand --lane road-network --scope "supabase/migrations/20260916090000_grid_roads.sql"
+
 npm run grid:agents -- heartbeat --lane road-network
 npm run grid:agents -- release --lane road-network
 ```
@@ -56,6 +58,8 @@ Durable completion belongs in Git commits and, when applicable, Boardroom tasks/
 `claim` refuses to create a lane when its declared path scope overlaps another active claim. This check is intentionally conservative. If two streams genuinely need the same path, coordinate them explicitly rather than bypassing the claim.
 
 For timestamped database migrations, claim the **exact migration filename** once chosen. Avoid broad patterns such as `supabase/migrations/*chat*.sql`: two wildcard patterns can technically match the same future filename, so the Control Tower correctly treats them as overlapping.
+
+`status` names the lane/owner responsible for a worktree when it finds an out-of-claim write and prints a collision-checked `expand` command for a single owning lane. `expand` updates the live claim without requiring release/reclaim, but refuses scopes that collide with another lane.
 
 `npm run grid:agents -- check` is the machine-readable preflight gate. It exits non-zero when Boardroom autonomous mode is active, a dirty worktree has no claim, a dirty path falls outside every declared claim on that worktree, or a claim is stale. This makes it suitable for agent startup scripts as well as manual use.
 

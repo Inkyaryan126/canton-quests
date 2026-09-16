@@ -3,6 +3,7 @@ import {
   boardroomSummary,
   coordinationIssues,
   createClaim,
+  expandClaim,
   heartbeatClaim,
   listWorktreeStates,
   readClaims,
@@ -81,7 +82,10 @@ function status(): void {
   const issues = coordinationIssues(claims, worktrees, boardroom);
   console.log('\nCoordination warnings:');
   if (issues.length === 0) console.log('  none');
-  else for (const issue of issues) console.log(`  ${issue.code}: ${issue.message}`);
+  else for (const issue of issues) {
+    console.log(`  ${issue.code}: ${issue.message}`);
+    if (issue.remediation) console.log(`    FIX: ${issue.remediation}`);
+  }
 }
 
 function check(): void {
@@ -94,7 +98,10 @@ function check(): void {
     return;
   }
   console.error('GRID AGENT PREFLIGHT BLOCKED');
-  for (const issue of issues) console.error(`  ${issue.code}: ${issue.message}`);
+  for (const issue of issues) {
+    console.error(`  ${issue.code}: ${issue.message}`);
+    if (issue.remediation) console.error(`    FIX: ${issue.remediation}`);
+  }
   process.exit(1);
 }
 function claim(args: string[]): void {
@@ -116,6 +123,17 @@ function claim(args: string[]): void {
   console.log(`  scope=${created.scope.join(', ')}`);
 }
 
+function expand(args: string[]): void {
+  const lane = flag(args, 'lane') ?? args[0];
+  const scope = splitList(flag(args, 'scope'));
+  if (!lane || scope.length === 0) {
+    throw new Error('Usage: grid:agents expand --lane NAME --scope "path/**,other/path"');
+  }
+  const updated = expandClaim(lane, scope);
+  console.log(`EXPANDED ${updated.lane}`);
+  console.log(`  scope=${updated.scope.join(', ')}`);
+}
+
 function heartbeat(args: string[]): void {
   const lane = flag(args, 'lane') ?? args[0];
   if (!lane) throw new Error('Usage: grid:agents heartbeat --lane NAME');
@@ -135,9 +153,10 @@ function main(): void {
   if (command === 'status') return status();
   if (command === 'check') return check();
   if (command === 'claim') return claim(args);
+  if (command === 'expand') return expand(args);
   if (command === 'heartbeat') return heartbeat(args);
   if (command === 'release') return release(args);
-  console.error('Usage: grid:agents <status|check|claim|heartbeat|release> [options]');
+  console.error('Usage: grid:agents <status|check|claim|expand|heartbeat|release> [options]');
   process.exit(2);
 }
 

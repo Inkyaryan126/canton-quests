@@ -8,6 +8,7 @@ import {
   coordinationIssues,
   createClaim,
   dirtyStatusPath,
+  expandClaim,
   heartbeatClaim,
   readClaims,
   releaseClaim,
@@ -96,4 +97,33 @@ describe('GRID agent control', () => {
       'DIRTY_OUTSIDE_CLAIM',
     ]);
   });
+});
+
+it('reports the owning lane and a concrete scope-expansion command for out-of-claim writes', () => {
+  const boardroom = { counts: {}, queued: [], blocked: [], autonomousRunActive: false };
+  const now = new Date().toISOString();
+  const claim = {
+    version: 1 as const, lane: 'chat-system', owner: 'stream', goal: 'chat',
+    scope: ['app/api/grid/chat/**'], worktree: '/tmp/grid-chat', branch: 'grid-chat',
+    claimedAt: now, heartbeatAt: now,
+  };
+  const worktree = {
+    path: '/tmp/grid-chat', head: 'abc', branch: 'grid-chat',
+    dirtyPaths: ['?? supabase/migrations/20260916074000_grid_chat_sync_notifications.sql'],
+    lastCommitSubject: 'chat', lastCommitAt: now, activeProcessCount: 0,
+  };
+  const [issue] = coordinationIssues([claim], [worktree], boardroom);
+  expect(issue.message).toContain('lane=chat-system');
+  expect(issue.message).toContain('owner=stream');
+  expect(issue.message).toContain('supabase/migrations/20260916074000_grid_chat_sync_notifications.sql');
+  expect(issue.remediation).toContain('grid:agents -- expand --lane chat-system --scope');
+});
+
+it('expands a claim only when the new scope does not collide with another lane', () => {
+  const repo = tempRepo();
+  createClaim({ lane: 'chat', owner: 'a', goal: 'chat', scope: ['app/grid/chat/**'], worktree: repo, branch: 'chat' }, repo);
+  createClaim({ lane: 'auction', owner: 'b', goal: 'auction', scope: ['app/grid/auctions/**'], worktree: '/tmp/auction', branch: 'auction' }, repo);
+  const expanded = expandClaim('chat', ['supabase/migrations/20260916074000_grid_chat_sync_notifications.sql'], repo);
+  expect(expanded.scope).toContain('supabase/migrations/20260916074000_grid_chat_sync_notifications.sql');
+  expect(() => expandClaim('chat', ['app/grid/auctions/page.tsx'], repo)).toThrow(/scope overlaps active lane/i);
 });
