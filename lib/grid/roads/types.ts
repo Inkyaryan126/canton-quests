@@ -23,3 +23,47 @@ export interface GridRoadSegment {
   routeType: string | null;
   coordinates: GeoJSON.Position[];
 }
+export interface GridRoadNode {
+  id: string;
+  lng: number;
+  lat: number;
+}
+
+export interface GridRoadGraphEdge {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  roadClass: GridRoadClass;
+  sourceSegmentId: string;
+  sourceVertexIndex: number;
+  name: string | null;
+  mtfcc: string | null;
+  routeType: string | null;
+  lengthMillimeters: number;
+}
+
+export interface GridRoadGraphComponent {
+  id: string;
+  nodeIds: string[];
+  edgeIds: string[];
+}
+
+export interface GridRoadGraph {
+  coordinatePrecision: number;
+  nodes: GridRoadNode[];
+  edges: GridRoadGraphEdge[];
+  components: GridRoadGraphComponent[];
+}
+export interface GridRoadGraphValidationIssue {
+  code: 'DUPLICATE_NODE' | 'DUPLICATE_EDGE' | 'MISSING_ENDPOINT' | 'INVALID_LENGTH' | 'ORPHAN_NODE';
+  message: string;
+  assetId: string;
+}
+
+export interface GridRoadRoute {
+  fromNodeId: string;
+  toNodeId: string;
+  nodeIds: string[];
+  edgeIds: string[];
+  totalLengthMillimeters: number;
+}
