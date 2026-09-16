@@ -269,6 +269,72 @@ export default function HomePage() {
           );
         })()}
 
+        {/* THE GRID — FEATURED COMING SOON */}
+        <section className="cq-section pt-2 pb-12" aria-labelledby="grid-feature-heading">
+          <div className="cq-section-shell">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <span className="cq-kicker">COMING SOON // NEXT FROM CANTON QUESTS</span>
+                <h2 id="grid-feature-heading" className="mt-1 font-display text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">
+                  The City Is Becoming Something Bigger
+                </h2>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
+                <Radio size={12} className="animate-pulse" aria-hidden="true" />
+                CANTON // CITY 001
+              </div>
+            </div>
+
+            <Link
+              href="/grid"
+              className="group block overflow-hidden rounded-[2rem] border border-cyan-400/30 bg-stone-950 shadow-[0_30px_80px_rgba(0,0,0,.45)] transition duration-300 hover:-translate-y-1 hover:border-cyan-300/60 hover:shadow-[0_32px_95px_rgba(34,211,238,.12)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+              aria-label="Enter The Grid coming soon experience"
+            >
+              <div className="relative aspect-[16/9] overflow-hidden bg-black">
+                <Image
+                  src="/canton-quests/grid/canton-grid-hero.jpg"
+                  alt="The Grid coming soon over a cinematic view of downtown Canton with Centennial Plaza, the Palace Theatre, the Onesto, Arts District, and glowing game routes"
+                  fill
+                  priority
+                  sizes="(max-width: 1280px) 100vw, 1200px"
+                  className="object-cover transition duration-700 ease-out group-hover:scale-[1.015]"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/5" aria-hidden="true" />
+                <div className="absolute bottom-4 right-4 hidden items-center gap-2 rounded-full border border-white/20 bg-black/65 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest text-white backdrop-blur sm:inline-flex">
+                  CLICK TO ENTER
+                  <ArrowRight size={13} aria-hidden="true" />
+                </div>
+              </div>
+
+              <div className="relative border-t border-cyan-400/15 bg-gradient-to-br from-cyan-950/35 via-stone-950 to-black p-6 sm:p-8">
+                <div className="pointer-events-none absolute inset-0 opacity-20" aria-hidden="true" style={{
+                  backgroundImage: 'linear-gradient(rgba(34,211,238,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.08) 1px, transparent 1px)',
+                  backgroundSize: '30px 30px',
+                }} />
+                <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+                  <div>
+                    <p className="max-w-3xl font-display text-xl font-black leading-tight text-white sm:text-2xl">
+                      Canton Quests proved the city can be the game board.
+                    </p>
+                    <p className="mt-3 max-w-3xl text-sm leading-relaxed text-stone-300 sm:text-base">
+                      The Grid takes that proof and turns Canton into a living city-scale strategy world — real streets, territories, properties, missions, rival control, and a city that remembers every move. Canton is City 001.
+                    </p>
+                    <div className="mt-5 flex flex-wrap gap-2 font-mono text-[10px] font-bold uppercase tracking-wider">
+                      <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-emerald-300">REAL CANTON</span>
+                      <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1.5 text-cyan-300">CITY-SCALE STRATEGY</span>
+                      <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-amber-300">BUILDING NOW</span>
+                    </div>
+                  </div>
+                  <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/60 bg-amber-300 px-5 py-3 font-mono text-xs font-black uppercase tracking-wider text-black transition group-hover:bg-amber-200">
+                    ENTER THE GRID
+                    <ArrowRight size={15} aria-hidden="true" />
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </section>
+
         {/* B. MISSIONS — THE PRIMARY HOMEPAGE FOCUS */}
         <section id="operations" className="cq-section cq-pillars-section scroll-mt-24" aria-labelledby="operations-heading">
           <div className="cq-section-shell space-y-10">
@@ -323,50 +389,6 @@ export default function HomePage() {
                 </div>
               </div>
             )}
-          </div>
-        </section>
-
-        {/* THE GRID — PUBLIC BUILD STATUS */}
-        <section className="cq-section py-14" aria-labelledby="grid-build-heading">
-          <div className="cq-section-shell">
-            <div className="relative overflow-hidden rounded-3xl border border-cyan-400/25 bg-gradient-to-br from-cyan-950/35 via-stone-950 to-stone-950 p-6 sm:p-8 shadow-2xl">
-              <div
-                className="pointer-events-none absolute inset-0 opacity-30"
-                aria-hidden="true"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(rgba(34,211,238,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.08) 1px, transparent 1px)',
-                  backgroundSize: '34px 34px',
-                }}
-              />
-              <div className="relative grid gap-7 lg:grid-cols-[1fr_auto] lg:items-end">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-widest text-cyan-300">
-                    <Radio size={13} className="animate-pulse" aria-hidden="true" />
-                    BUILD SIGNAL ACTIVE
-                  </div>
-                  <p className="mt-5 text-xs font-mono font-bold uppercase tracking-[.2em] text-amber-400">CANTON // CITY 001</p>
-                  <h2 id="grid-build-heading" className="mt-2 font-display font-black text-3xl sm:text-5xl text-white uppercase tracking-tight">
-                    THE GRID IS COMING ONLINE
-                  </h2>
-                  <p className="mt-3 max-w-3xl text-sm sm:text-base text-stone-300 font-body leading-relaxed">
-                    Canton Quests proved the city can be the game board. Now we are building the larger engine behind it: real Canton geography, territories, properties, city systems, and a foundation designed to expand beyond one city.
-                  </p>
-                  <div className="mt-5 flex flex-wrap gap-2 text-[11px] font-mono font-bold">
-                    <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-emerald-300">REAL CANTON DATA</span>
-                    <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1.5 text-cyan-300">CITY COMPILER</span>
-                    <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-amber-300">BUILDING IN PUBLIC</span>
-                  </div>
-                </div>
-                <Link
-                  href="/grid"
-                  className="cq-gold-button inline-flex items-center justify-center gap-2 px-6 py-4 text-xs font-mono whitespace-nowrap"
-                >
-                  ENTER THE GRID BUILD
-                  <ArrowRight size={15} aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
           </div>
         </section>
 
