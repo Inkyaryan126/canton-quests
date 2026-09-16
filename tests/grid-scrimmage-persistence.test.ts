@@ -13,6 +13,16 @@ const sql = fs
   )
   .toLowerCase();
 
+const matchSql = fs
+  .readFileSync(
+    path.join(
+      process.cwd(),
+      'supabase/migrations/20260916080000_grid_scrimmage_match_state.sql',
+    ),
+    'utf8',
+  )
+  .toLowerCase();
+
 const adapter = fs.readFileSync(
   path.join(
     process.cwd(),
@@ -65,6 +75,18 @@ describe('GRID scrimmage persistence', () => {
     expect(sql).toContain(
       'revoke all on public.grid_scrimmage_sessions from public, anon, authenticated',
     );
+  });
+
+  it('persists combat state only inside the isolated scrimmage row', () => {
+    expect(matchSql).toContain('add column match_state jsonb');
+    expect(matchSql).toContain('grid_scrimmage_match_state_shape_ck');
+    expect(matchSql).toContain("status <> 'active'");
+    expect(matchSql).not.toMatch(
+      /(?:insert into|update)\s+public\.(?:grid_player_season_state|grid_territory_control)/,
+    );
+    expect(matchSql).not.toMatch(/(?:credits|xp)\s*=/);
+    expect(adapter).toContain('match_state: state.match');
+    expect(adapter).toContain('match_state: row.match_state');
   });
 
   it('uses revision compare-and-swap instead of blind session updates', () => {

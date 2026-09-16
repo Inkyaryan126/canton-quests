@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { cantonFoundingSeasonContest } from '../lib/grid/cities/canton/founding-season-contest';
 import type { GridScrimmageState } from '../lib/grid/core/scrimmage-types';
 import type {
   GridScrimmageCreateResult,
@@ -10,6 +11,7 @@ import {
   createGridScrimmageSession,
   getGridScrimmageSessionForPlayer,
   joinGridScrimmageSession,
+  resolveGridScrimmageDuelSession,
   setGridScrimmageSessionReady,
   startGridScrimmageSession,
 } from '../lib/grid/server/scrimmage-service';
@@ -173,6 +175,48 @@ describe('GRID scrimmage server service', () => {
     expect(active.status).toBe('active');
     expect(active.progressionScope).toBe('session-only');
     expect(active.revision).toBe(4);
+  });
+
+  it('generates Signal Dice server-side and persists a duel through compare-and-swap', async () => {
+    const port = new MemoryScrimmagePort();
+    await createGridScrimmageSession(port, createCommand);
+    await joinGridScrimmageSession(port, {
+      playerId: 'guest-1',
+      inviteCode: 'CREW-26',
+      now: '2026-09-16T10:01:00.000Z',
+    });
+    await setGridScrimmageSessionReady(port, 'scrim-1', {
+      playerId: 'host-1',
+      ready: true,
+    });
+    await setGridScrimmageSessionReady(port, 'scrim-1', {
+      playerId: 'guest-1',
+      ready: true,
+    });
+    await startGridScrimmageSession(port, 'scrim-1', {
+      playerId: 'host-1',
+      now: '2026-09-16T10:02:00.000Z',
+    });
+
+    const rolls = [6, 6, 6, 1, 1];
+    const resolved = await resolveGridScrimmageDuelSession(
+      port,
+      'scrim-1',
+      {
+        attackerPlayerId: 'host-1',
+        defenderPlayerId: 'guest-1',
+      },
+      cantonFoundingSeasonContest,
+      () => rolls.shift() ?? 1,
+    );
+
+    expect(resolved.match?.lastRound).toMatchObject({
+      attackerRolls: [6, 6, 6],
+      defenderRolls: [1, 1],
+      winner: 'attacker',
+    });
+    expect(resolved.match?.combatants[1].remainingInfluence).toBe(80);
+    expect(resolved.progressionScope).toBe('session-only');
   });
 
   it('only returns session state to players already in the private lobby', async () => {

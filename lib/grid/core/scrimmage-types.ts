@@ -16,6 +16,33 @@ export interface GridScrimmageParticipant {
   ready: boolean;
 }
 
+export interface GridScrimmageCombatantState {
+  playerId: string;
+  remainingInfluence: number;
+  roundWins: number;
+  roundLosses: number;
+  draws: number;
+  eliminated: boolean;
+}
+
+export interface GridScrimmageRoundRecord {
+  roundNumber: number;
+  attackerPlayerId: string;
+  defenderPlayerId: string;
+  attackerRolls: number[];
+  defenderRolls: number[];
+  attackerInfluenceLost: number;
+  defenderInfluenceLost: number;
+  winner: 'attacker' | 'defender' | 'draw';
+}
+
+export interface GridScrimmageMatchState {
+  startingInfluencePerPlayer: number;
+  roundNumber: number;
+  combatants: GridScrimmageCombatantState[];
+  lastRound: GridScrimmageRoundRecord | null;
+}
+
 export interface GridScrimmageState {
   sessionId: string;
   cityId: string;
@@ -25,6 +52,7 @@ export interface GridScrimmageState {
   progressionScope: 'session-only';
   participants: GridScrimmageParticipant[];
   rules: GridScrimmageRules;
+  match: GridScrimmageMatchState | null;
   revision: number;
   createdAt: string;
   startedAt: string | null;
@@ -63,4 +91,11 @@ export interface GridLeaveScrimmageCommand {
 export interface GridEndScrimmageCommand {
   playerId: string;
   now: string;
+}
+
+export interface GridResolveScrimmageDuelCommand {
+  attackerPlayerId: string;
+  defenderPlayerId: string;
+  attackerRolls: number[];
+  defenderRolls: number[];
 }

@@ -1,3 +1,5 @@
+import { signalDiceForCommit } from '../core/contest';
+import type { GridContestConfig } from '../core/contest-types';
 import {
   cancelGridScrimmage,
   completeGridScrimmage,
@@ -5,6 +7,7 @@ import {
   joinGridScrimmage,
   leaveGridScrimmage,
   normalizeGridScrimmageInviteCode,
+  resolveGridScrimmageDuel,
   setGridScrimmageReady,
   startGridScrimmage,
 } from '../core/scrimmage';
@@ -18,6 +21,13 @@ import type {
   GridStartScrimmageCommand,
 } from '../core/scrimmage-types';
 import type { GridScrimmagePort } from './scrimmage-port';
+
+export type GridScrimmageDiceRoller = (dieSides: number) => number;
+
+export interface GridScrimmageDuelSessionCommand {
+  attackerPlayerId: string;
+  defenderPlayerId: string;
+}
 
 export type GridScrimmageServiceErrorCode =
   | 'NOT_FOUND'
@@ -178,6 +188,58 @@ export async function startGridScrimmageSession(
     port,
     current,
     startGridScrimmage(current, command),
+  );
+}
+
+export async function resolveGridScrimmageDuelSession(
+  port: GridScrimmagePort,
+  sessionId: string,
+  command: GridScrimmageDuelSessionCommand,
+  config: GridContestConfig,
+  rollDie: GridScrimmageDiceRoller,
+): Promise<GridScrimmageState> {
+  const current = await loadById(port, sessionId);
+  const match = current.match;
+  if (!match) {
+    throw new Error('Grid scrimmage duel requires an active match');
+  }
+
+  const attacker = match.combatants.find(
+    (combatant) => combatant.playerId === command.attackerPlayerId,
+  );
+  const defender = match.combatants.find(
+    (combatant) => combatant.playerId === command.defenderPlayerId,
+  );
+
+  const attackerDice = attacker
+    ? signalDiceForCommit(attacker.remainingInfluence, config.attacker)
+    : 0;
+  const defenderDice = defender
+    ? signalDiceForCommit(defender.remainingInfluence, config.defender)
+    : 0;
+
+  const attackerRolls = Array.from(
+    { length: attackerDice },
+    () => rollDie(config.dieSides),
+  );
+  const defenderRolls = Array.from(
+    { length: defenderDice },
+    () => rollDie(config.dieSides),
+  );
+
+  return persistMutation(
+    port,
+    current,
+    resolveGridScrimmageDuel(
+      current,
+      {
+        attackerPlayerId: command.attackerPlayerId,
+        defenderPlayerId: command.defenderPlayerId,
+        attackerRolls,
+        defenderRolls,
+      },
+      config,
+    ),
   );
 }
 
