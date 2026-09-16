@@ -96,3 +96,33 @@ The migration was exercised against local PostgreSQL inside `BEGIN ... ROLLBACK`
 5. Commander/system broadcasts.
 6. Moderator escalation tools, player communication suspensions, and richer audit history.
 7. Optional friends/contact layer before expanding direct-message discovery.
+
+## Comms 2 — District + Party/Scrimmage Channels
+
+Implemented after the Comms 1 checkpoint:
+
+- District chat discovery and join by authoritative `grid_districts.id`.
+- No GPS coordinates or precise player location are required or stored for district chat membership.
+- Private party/scrimmage channel creation with an owner role.
+- Callsign-based party invitations resolved server-side to player identity.
+- Only owners and moderators may invite party members.
+- Blocks are checked before party invitations are accepted.
+- Private party creation/invitation is restricted for minor accounts in the first release.
+- Party members may leave their own membership only.
+- Owners cannot orphan an active party; after the final member leaves, the empty party is archived automatically.
+- `/grid/chat` now exposes District, Party, and Direct as first-class communication actions.
+- Party owners/moderators receive an Invite control; party members receive a controlled Leave action.
+
+### Comms 2 database acceptance
+
+Exercised against local PostgreSQL inside `BEGIN ... ROLLBACK`:
+
+- district join succeeded;
+- private party creation succeeded;
+- owner invitation succeeded;
+- regular-member invitation was rejected;
+- minor private-party creation was rejected;
+- blocked-player invitation was rejected;
+- owner orphaning was rejected;
+- regular member leave succeeded;
+- final owner leave archived the empty party.

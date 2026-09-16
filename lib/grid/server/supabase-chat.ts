@@ -212,6 +212,7 @@ export function createSupabaseGridChatPort(
             unreadCount: unreadResult.count ?? 0,
             mutedUntil: membership.muted_until,
             notificationsEnabled: membership.notifications_enabled,
+            memberRole: membership.role as 'member' | 'moderator' | 'owner',
             directPeer: peer,
           };
         }),
@@ -222,6 +223,77 @@ export function createSupabaseGridChatPort(
         const bTime = b.lastMessageAt ?? '';
         return bTime.localeCompare(aTime) || a.displayName.localeCompare(b.displayName);
       });
+    },
+
+    async listDistricts(seasonId, playerId) {
+      const seasonResult = await client.from('grid_seasons').select('city_id').eq('id', seasonId).maybeSingle();
+      if (seasonResult.error) throw new Error(`Failed to read Grid chat season: ${seasonResult.error.message}`);
+      if (!seasonResult.data) return [];
+      const cityId = (seasonResult.data as { city_id: string }).city_id;
+
+      const districtResult = await client.from('grid_districts').select('id,name').eq('city_id', cityId).order('name', { ascending: true });
+      if (districtResult.error) throw new Error(`Failed to read Grid chat districts: ${districtResult.error.message}`);
+      const districts = (districtResult.data ?? []) as Array<{ id: string; name: string }>;
+
+      const channelResult = await client
+        .from('grid_chat_channels')
+        .select('id,scope_key')
+        .eq('season_id', seasonId)
+        .eq('channel_type', 'district')
+        .eq('is_archived', false);
+      if (channelResult.error) throw new Error(`Failed to read Grid district chat channels: ${channelResult.error.message}`);
+      const channels = (channelResult.data ?? []) as Array<{ id: string; scope_key: string }>;
+      const channelByDistrict = new Map(channels.map((row) => [row.scope_key.replace(/^district:/, ''), row.id] as const));
+
+      const channelIds = channels.map((row) => row.id);
+      let joined = new Set<string>();
+      if (channelIds.length > 0) {
+        const membershipResult = await client
+          .from('grid_chat_members')
+          .select('channel_id')
+          .eq('player_id', playerId)
+          .is('left_at', null)
+          .in('channel_id', channelIds);
+        if (membershipResult.error) throw new Error(`Failed to read Grid district chat membership: ${membershipResult.error.message}`);
+        joined = new Set(((membershipResult.data ?? []) as Array<{ channel_id: string }>).map((row) => row.channel_id));
+      }
+
+      return districts.map((district) => {
+        const channelId = channelByDistrict.get(district.id) ?? null;
+        return { districtId: district.id, name: district.name, channelId, joined: Boolean(channelId && joined.has(channelId)) };
+      });
+    },
+
+    async joinDistrict(seasonId, playerId, districtId, now) {
+      const { data, error } = await client.rpc('grid_join_district_chat_channel', {
+        p_season_id: seasonId, p_player_id: playerId, p_district_id: districtId, p_now: now,
+      });
+      if (error) throw new Error(`Failed to join Grid district chat: ${error.message}`);
+      const result = rpcObject<{ channelId: string }>(data, 'Grid district chat');
+      return { channelId: result.channelId };
+    },
+
+    async createParty(seasonId, ownerPlayerId, displayName, now) {
+      const { data, error } = await client.rpc('grid_create_party_chat_channel', {
+        p_season_id: seasonId, p_owner_player_id: ownerPlayerId, p_display_name: displayName, p_now: now,
+      });
+      if (error) throw new Error(`Failed to create Grid party chat: ${error.message}`);
+      const result = rpcObject<{ channelId: string }>(data, 'Grid party chat');
+      return { channelId: result.channelId };
+    },
+
+    async addPartyMember(channelId, actorPlayerId, targetPlayerId, now) {
+      const { error } = await client.rpc('grid_add_party_chat_member', {
+        p_channel_id: channelId, p_actor_player_id: actorPlayerId, p_target_player_id: targetPlayerId, p_now: now,
+      });
+      if (error) throw new Error(`Failed to invite Grid party member: ${error.message}`);
+    },
+
+    async leaveParty(channelId, playerId, now) {
+      const { error } = await client.rpc('grid_leave_party_chat', {
+        p_channel_id: channelId, p_player_id: playerId, p_now: now,
+      });
+      if (error) throw new Error(`Failed to leave Grid party chat: ${error.message}`);
     },
 
     async listMessages({ channelId, playerId, limit, before }): Promise<GridChatMessagePage> {

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import type {
   GridChatChannelSummary,
+  GridChatDistrictOption,
   GridChatMessagePage,
   GridChatMessageView,
 } from '@/lib/grid/core/chat-types';
@@ -71,6 +72,15 @@ export default function GridChatClient() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [showDirect, setShowDirect] = useState(false);
+  const [showDistricts, setShowDistricts] = useState(false);
+  const [districts, setDistricts] = useState<GridChatDistrictOption[]>([]);
+  const [districtBusyId, setDistrictBusyId] = useState<string | null>(null);
+  const [showParty, setShowParty] = useState(false);
+  const [partyName, setPartyName] = useState('');
+  const [creatingParty, setCreatingParty] = useState(false);
+  const [showPartyInvite, setShowPartyInvite] = useState(false);
+  const [partyCallsign, setPartyCallsign] = useState('');
+  const [partyBusy, setPartyBusy] = useState(false);
   const [directCallsign, setDirectCallsign] = useState('');
   const [startingDirect, setStartingDirect] = useState(false);
   const [reportingMessage, setReportingMessage] = useState<GridChatMessageView | null>(null);
@@ -167,6 +177,108 @@ export default function GridChatClient() {
       setMessageError(error instanceof Error ? error.message : 'Message failed');
     } finally {
       setSending(false);
+    }
+  }
+
+  async function loadDistricts() {
+    setChannelError(null);
+    try {
+      const response = await fetch('/api/grid/chat/districts', { cache: 'no-store' });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'District comms unavailable');
+      setDistricts(body.districts ?? []);
+      setShowDistricts(true);
+    } catch (error) {
+      setChannelError(error instanceof Error ? error.message : 'District comms unavailable');
+    }
+  }
+
+  async function joinDistrict(district: GridChatDistrictOption) {
+    if (districtBusyId) return;
+    if (district.joined && district.channelId) {
+      setSelectedId(district.channelId);
+      setShowDistricts(false);
+      return;
+    }
+    setDistrictBusyId(district.districtId);
+    try {
+      const response = await fetch('/api/grid/chat/districts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ districtId: district.districtId }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to join district comms');
+      await loadChannels();
+      setSelectedId(body.channelId);
+      setShowDistricts(false);
+    } catch (error) {
+      setChannelError(error instanceof Error ? error.message : 'Unable to join district comms');
+    } finally {
+      setDistrictBusyId(null);
+    }
+  }
+
+  async function createParty(event: FormEvent) {
+    event.preventDefault();
+    if (creatingParty || partyName.trim().length < 2) return;
+    setCreatingParty(true);
+    setChannelError(null);
+    try {
+      const response = await fetch('/api/grid/chat/parties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: partyName }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to create party');
+      setPartyName('');
+      setShowParty(false);
+      await loadChannels();
+      setSelectedId(body.channelId);
+    } catch (error) {
+      setChannelError(error instanceof Error ? error.message : 'Unable to create party');
+    } finally {
+      setCreatingParty(false);
+    }
+  }
+
+  async function inviteParty(event: FormEvent) {
+    event.preventDefault();
+    if (!selected || selected.channelType !== 'party' || partyBusy || partyCallsign.trim().length < 2) return;
+    setPartyBusy(true);
+    setMessageError(null);
+    try {
+      const response = await fetch(`/api/grid/chat/parties/${encodeURIComponent(selected.channelId)}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callsign: partyCallsign }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to invite player');
+      setPartyCallsign('');
+      setShowPartyInvite(false);
+    } catch (error) {
+      setMessageError(error instanceof Error ? error.message : 'Unable to invite player');
+    } finally {
+      setPartyBusy(false);
+    }
+  }
+
+  async function leaveParty() {
+    if (!selected || selected.channelType !== 'party' || partyBusy) return;
+    if (!window.confirm(`Leave ${selected.displayName}?`)) return;
+    setPartyBusy(true);
+    try {
+      const response = await fetch(`/api/grid/chat/parties/${encodeURIComponent(selected.channelId)}/leave`, { method: 'POST' });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to leave party');
+      setSelectedId(null);
+      await loadChannels();
+    } catch (error) {
+      setMessageError(error instanceof Error ? error.message : 'Unable to leave party');
+    } finally {
+      setPartyBusy(false);
     }
   }
 
@@ -300,9 +412,17 @@ export default function GridChatClient() {
                 <div className="font-mono text-[10px] font-black uppercase tracking-[.22em] text-cyan-300">Canton // City 001</div>
                 <h1 className="mt-1 font-display text-3xl font-black uppercase">Comms</h1>
               </div>
-              <button type="button" onClick={() => setShowDirect(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-300 px-3 py-2 font-mono text-[10px] font-black uppercase tracking-widest text-black hover:bg-cyan-200">
-                <Plus size={13} /> Direct
-              </button>
+              <div className="flex gap-1.5">
+                <button type="button" onClick={() => void loadDistricts()} className="inline-flex items-center gap-1 rounded-xl border border-white/10 px-2.5 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-stone-300 hover:border-cyan-300/30 hover:text-cyan-300">
+                  <Hash size={12} /> District
+                </button>
+                <button type="button" onClick={() => setShowParty(true)} className="inline-flex items-center gap-1 rounded-xl border border-white/10 px-2.5 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-stone-300 hover:border-cyan-300/30 hover:text-cyan-300">
+                  <Users size={12} /> Party
+                </button>
+                <button type="button" onClick={() => setShowDirect(true)} className="inline-flex items-center gap-1 rounded-xl bg-cyan-300 px-2.5 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-black hover:bg-cyan-200">
+                  <Plus size={12} /> Direct
+                </button>
+              </div>
             </div>
             {channelError && <div className="mt-3 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs text-rose-200">{channelError}</div>}
           </div>
@@ -345,16 +465,30 @@ export default function GridChatClient() {
           {selected ? (
             <>
               <header className="border-b border-white/10 bg-black/35 px-4 py-4 sm:px-6">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-2 text-cyan-300">
-                    <MessageCircle size={17} />
-                  </div>
-                  <div>
-                    <h2 className="font-display text-lg font-black uppercase">{selected.displayName}</h2>
-                    <div className="font-mono text-[9px] uppercase tracking-[.18em] text-stone-600">
-                      {selected.channelType === 'direct' ? 'Private player channel · server protected' : `${selected.channelType} channel · Canton Grid`}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-2 text-cyan-300">
+                      <MessageCircle size={17} />
+                    </div>
+                    <div>
+                      <h2 className="font-display text-lg font-black uppercase">{selected.displayName}</h2>
+                      <div className="font-mono text-[9px] uppercase tracking-[.18em] text-stone-600">
+                        {selected.channelType === 'direct' ? 'Private player channel · server protected' : `${selected.channelType} channel · Canton Grid`}
+                      </div>
                     </div>
                   </div>
+                  {selected.channelType === 'party' && (
+                    <div className="flex items-center gap-2">
+                      {(selected.memberRole === 'owner' || selected.memberRole === 'moderator') && (
+                        <button type="button" onClick={() => setShowPartyInvite(true)} className="rounded-xl border border-cyan-300/20 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-cyan-300 hover:bg-cyan-300/10">
+                          + Invite
+                        </button>
+                      )}
+                      <button type="button" onClick={() => void leaveParty()} disabled={partyBusy} className="rounded-xl border border-white/10 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-stone-500 hover:border-rose-300/20 hover:text-rose-300 disabled:opacity-30">
+                        Leave
+                      </button>
+                    </div>
+                  )}
                 </div>
               </header>
 
@@ -432,6 +566,67 @@ export default function GridChatClient() {
           )}
         </section>
       </div>
+
+      {showDistricts && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-cyan-400/20 bg-[#0a0c0e] p-6 shadow-2xl">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="font-mono text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">Local Comms</div>
+                <h2 className="mt-1 font-display text-2xl font-black uppercase">District Channels</h2>
+              </div>
+              <button type="button" onClick={() => setShowDistricts(false)} className="rounded-lg p-2 text-stone-500 hover:bg-white/5 hover:text-white"><X size={17} /></button>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-stone-600">Join by approved Grid district. Your precise location is never broadcast to the channel.</p>
+            <div className="mt-5 max-h-[50vh] space-y-2 overflow-y-auto">
+              {districts.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 p-5 text-center text-xs text-stone-600">No district channels are available yet.</div>
+              ) : districts.map((district) => (
+                <button key={district.districtId} type="button" onClick={() => void joinDistrict(district)} disabled={Boolean(districtBusyId)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[.025] p-4 text-left hover:border-cyan-300/25 hover:bg-cyan-300/5 disabled:opacity-40">
+                  <div>
+                    <div className="font-display text-sm font-black uppercase">{district.name}</div>
+                    <div className="mt-1 font-mono text-[9px] uppercase tracking-wider text-stone-600">{district.joined ? 'Joined' : 'Available'}</div>
+                  </div>
+                  <span className="font-mono text-[9px] font-black uppercase tracking-wider text-cyan-300">{districtBusyId === district.districtId ? 'Joining…' : district.joined ? 'Open' : 'Join'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showParty && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <form onSubmit={createParty} className="w-full max-w-md rounded-3xl border border-cyan-400/20 bg-[#0a0c0e] p-6 shadow-2xl">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="font-mono text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">Private Squad</div>
+                <h2 className="mt-1 font-display text-2xl font-black uppercase">Create Party</h2>
+              </div>
+              <button type="button" onClick={() => setShowParty(false)} className="rounded-lg p-2 text-stone-500 hover:bg-white/5 hover:text-white"><X size={17} /></button>
+            </div>
+            <input autoFocus value={partyName} onChange={(event) => setPartyName(event.target.value)} maxLength={60} placeholder="Party / scrimmage name" className="mt-6 w-full rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-sm outline-none focus:border-cyan-300/40" />
+            <p className="mt-3 text-xs leading-relaxed text-stone-600">Private parties are designed for squads and scrimmages. Minor accounts are restricted from private party chat in the first release.</p>
+            <button disabled={creatingParty || partyName.trim().length < 2} className="mt-6 w-full rounded-2xl bg-cyan-300 px-4 py-3 font-mono text-xs font-black uppercase tracking-widest text-black disabled:opacity-30">{creatingParty ? 'Creating…' : 'Create Party Channel'}</button>
+          </form>
+        </div>
+      )}
+
+      {showPartyInvite && selected?.channelType === 'party' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <form onSubmit={inviteParty} className="w-full max-w-md rounded-3xl border border-cyan-400/20 bg-[#0a0c0e] p-6 shadow-2xl">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="font-mono text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">{selected.displayName}</div>
+                <h2 className="mt-1 font-display text-2xl font-black uppercase">Invite Player</h2>
+              </div>
+              <button type="button" onClick={() => setShowPartyInvite(false)} className="rounded-lg p-2 text-stone-500 hover:bg-white/5 hover:text-white"><X size={17} /></button>
+            </div>
+            <input autoFocus value={partyCallsign} onChange={(event) => setPartyCallsign(event.target.value)} maxLength={80} placeholder="Exact callsign" className="mt-6 w-full rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-sm outline-none focus:border-cyan-300/40" />
+            <button disabled={partyBusy || partyCallsign.trim().length < 2} className="mt-6 w-full rounded-2xl bg-cyan-300 px-4 py-3 font-mono text-xs font-black uppercase tracking-widest text-black disabled:opacity-30">{partyBusy ? 'Inviting…' : 'Invite to Party'}</button>
+          </form>
+        </div>
+      )}
 
       {showDirect && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">

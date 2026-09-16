@@ -9,6 +9,8 @@ describe('Grid chat page contract', () => {
     for (const fragment of [
       '/api/grid/chat/channels',
       '/api/grid/chat/direct',
+      '/api/grid/chat/districts',
+      '/api/grid/chat/parties',
       '/api/grid/chat/block',
       '/report',
       'clientNonce',
@@ -20,6 +22,13 @@ describe('Grid chat page contract', () => {
   it('renders a feature-flag standby experience without pretending chat is live', () => {
     expect(source).toContain('Network Standby');
     expect(source).toContain('The player communications network is being wired into Canton City 001');
+  });
+
+  it('exposes district and private party controls without GPS broadcasting', () => {
+    expect(source).toContain('District Channels');
+    expect(source).toContain('Create Party');
+    expect(source).toContain('Your precise location is never broadcast');
+    expect(source).not.toContain('navigator.geolocation');
   });
 
   it('polls for new messages without requiring direct browser access to Supabase tables', () => {
