@@ -67,3 +67,24 @@ export interface GridRoadRoute {
   edgeIds: string[];
   totalLengthMillimeters: number;
 }
+export interface GridRoadSpatialIndex {
+  cellSizeDegrees: number;
+  cells: Record<string, string[]>;
+}
+
+export interface GridRoadPoint {
+  lng: number;
+  lat: number;
+}
+
+export interface GridRoadSnap {
+  nodeId: string;
+  lng: number;
+  lat: number;
+  distanceMillimeters: number;
+}
+export interface GridRoadSnappedRoute {
+  fromSnap: GridRoadSnap;
+  toSnap: GridRoadSnap;
+  route: GridRoadRoute;
+}
