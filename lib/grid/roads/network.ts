@@ -1,5 +1,6 @@
 import { buildRoadGraph } from './graph';
 import { normalizeRoadSourceFeatures } from './normalize';
+import { buildRoadRoutingIndex } from './routing';
 import { buildRoadSpatialIndex } from './spatial';
 import { buildRoadTerritoryIndex } from './territories';
 import type {
@@ -20,9 +21,10 @@ export function buildRoadNetwork(
 ): GridRoadNetwork {
   const segments = normalizeRoadSourceFeatures(features);
   const graph = buildRoadGraph(segments, options.coordinatePrecision);
+  const routingIndex = buildRoadRoutingIndex(graph);
   const spatialIndex = buildRoadSpatialIndex(graph, options.cellSizeDegrees);
   const territoryIndex = options.territories
     ? buildRoadTerritoryIndex(graph, options.territories)
     : undefined;
-  return { segments, graph, spatialIndex, territoryIndex };
+  return { segments, graph, routingIndex, spatialIndex, territoryIndex };
 }
