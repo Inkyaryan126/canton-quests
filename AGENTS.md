@@ -1,10 +1,18 @@
 # Instructions & Operating Rules for AI Coding Agents
 
-> **Mandatory Reading**: All AI coding agents (Claude, Gemini, Antigravity, GPT, Cursor, etc.) operating in this repository **MUST** read and adhere to these 20 non-negotiable rules.
+> **Mandatory Reading**: All AI coding agents (Claude, Gemini, Antigravity, GPT, Cursor, etc.) operating in this repository **MUST** read and adhere to these rules.
+
+## Multi-Agent Preflight
+
+When more than one hand-driven coding stream may be active, **before editing any file** run:
+
+`npm run grid:agents -- status`
+
+Then claim an isolated lane/worktree and explicit write scope with `npm run grid:agents -- claim ...`. Heartbeat long-running work and release the claim after its checkpoint is committed. See `docs/GRID_AGENT_CONTROL.md` for the exact workflow. Boardroom-supervised runs continue to follow `boardroom/BOARDROOM.md`; the Control Tower supplements Boardroom rather than replacing its write lock or task ledger.
 
 ---
 
-## 20 Mandatory Agent Rules
+## Mandatory Agent Rules
 
 1. **Read `PROJECT-BRAIN.md` First**: Before undertaking any non-trivial task or feature implementation, read [`PROJECT-BRAIN.md`](file:///Users/inkyaryan126/Desktop/canton-quests/PROJECT-BRAIN.md) to align with the canonical product vision.
 2. **Consult Domain Guidance**: Read the specific domain documents (`GAME-SYSTEM.md`, `TECH-ARCHITECTURE.md`, `DATABASE.md`, `SAFETY-AND-RULES.md`) and specialized skills in `skills/` relevant to your active task. If you are operating as Astra, Claude, or Agy under the Boardroom overnight supervisor, also read [`boardroom/BOARDROOM.md`](file:///Users/inkyaryan126/Desktop/canton-quests/boardroom/BOARDROOM.md) first — it governs commit ownership, write scope, and production safety for that mode.
