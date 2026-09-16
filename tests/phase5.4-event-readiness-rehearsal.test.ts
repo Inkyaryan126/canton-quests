@@ -380,4 +380,102 @@ describe('Canton Quests Phase 5.4 — Real Event Readiness, Launch Gates & Launc
       expect(endEntry?.details).toContain('Official Event Concluded');
     });
   });
+
+  // ===========================================================================
+  // 6. PRECOMPUTED READINESS INPUTS (redundant-audit fix, Vercel Active CPU)
+  // ===========================================================================
+  // `/api/admin/live` is polled every 5-15s per open admin/GM tab and, before
+  // this fix, fanned each poll out into ~6 redundant DB-backed audit
+  // recomputations (evaluateEventLaunchGates and computeEventReadinessReport
+  // each independently re-ran auditEventQRQuests/auditEventQuestsAndLocations
+  // internally). These tests prove the `precomputed` param is actually used
+  // — not silently ignored — by feeding in a stale audit and confirming the
+  // result reflects the stale data rather than transparently recomputing it.
+  describe('6. Precomputed Readiness Inputs Are Reused, Not Recomputed', () => {
+    it('1. evaluateEventLaunchGates trusts a passed-in questAudit instead of recomputing it', async () => {
+      const quests = getQuestsForEvent(TEST_EVENT_ID);
+      const freshQuestAudit = await auditEventQuestsAndLocations(TEST_EVENT_ID, quests);
+      expect(freshQuestAudit.summary.broken).toBe(0);
+
+      // Fabricate a stale/incorrect audit claiming a broken quest that
+      // doesn't really exist. If evaluateEventLaunchGates recomputed the
+      // audit itself instead of trusting the precomputed value, this gate
+      // would still pass.
+      const staleQuestAudit = {
+        ...freshQuestAudit,
+        summary: { ...freshQuestAudit.summary, broken: 1 },
+      };
+
+      const result = await evaluateEventLaunchGates(TEST_EVENT_ID, {
+        quests,
+        questAudit: staleQuestAudit,
+      });
+      const gate = result.gates.find((g) => g.code === 'GATE_NO_BROKEN_QUESTS');
+      expect(gate?.isPassed).toBe(false);
+      expect(result.isLaunchPermitted).toBe(false);
+    });
+
+    it('2. evaluateEventLaunchGates trusts a passed-in qrAudit instead of recomputing it', async () => {
+      const quests = getQuestsForEvent(TEST_EVENT_ID);
+      const freshQrAudit = await auditEventQRQuests(TEST_EVENT_ID, quests);
+      expect(freshQrAudit.brokenCount).toBe(0);
+
+      const staleQrAudit = { ...freshQrAudit, brokenCount: 1 };
+
+      const result = await evaluateEventLaunchGates(TEST_EVENT_ID, {
+        quests,
+        qrAudit: staleQrAudit,
+      });
+      const gate = result.gates.find((g) => g.code === 'GATE_QR_CONFIG_VALID');
+      expect(gate?.isPassed).toBe(false);
+      expect(result.isLaunchPermitted).toBe(false);
+    });
+
+    it('3. computeEventReadinessReport threads precomputed audits into its internal launch-gate call', async () => {
+      const quests = getQuestsForEvent(TEST_EVENT_ID);
+      const freshQrAudit = await auditEventQRQuests(TEST_EVENT_ID, quests);
+      const staleQrAudit = { ...freshQrAudit, brokenCount: 1 };
+
+      const report = await computeEventReadinessReport(TEST_EVENT_ID, {
+        quests,
+        qrAudit: staleQrAudit,
+        questAudit: await auditEventQuestsAndLocations(TEST_EVENT_ID, quests),
+      });
+
+      // qr_codes category reads directly off the passed-in qrAudit.
+      expect(report.categories.qr_codes.status).toBe('BLOCKED');
+      // overallStatus folds in the internal evaluateEventLaunchGates call,
+      // which must also have received the same stale qrAudit rather than
+      // recomputing a clean one.
+      expect(report.overallStatus).toBe('NOT_READY');
+    });
+
+    it('4. omitting precomputed inputs entirely still matches the original no-args behavior', async () => {
+      const withoutPrecomputed = await evaluateEventLaunchGates(TEST_EVENT_ID);
+      expect(withoutPrecomputed.isLaunchPermitted).toBe(true);
+      expect(withoutPrecomputed.failedCriticalCount).toBe(0);
+
+      const report = await computeEventReadinessReport(TEST_EVENT_ID);
+      expect(report.overallStatus).not.toBe('NOT_READY');
+
+      const checklist = await getOperatorChecklist(TEST_EVENT_ID);
+      expect(checklist).toBeDefined();
+    });
+
+    it('5. getOperatorChecklist accepts a precomputed readiness report and reflects it verbatim', async () => {
+      const realReadiness = await computeEventReadinessReport(TEST_EVENT_ID);
+      const staleReadiness = {
+        ...realReadiness,
+        overallStatus: 'NOT_READY' as const,
+        categories: {
+          ...realReadiness.categories,
+          event_configuration: { ...realReadiness.categories.event_configuration, status: 'BLOCKED' as const },
+        },
+      };
+
+      const checklist = await getOperatorChecklist(TEST_EVENT_ID, staleReadiness);
+      const item = checklist.items.find((i) => i.id === 'chk-1-event-confirm');
+      expect(item?.automatedStatus).toBe('BLOCKED');
+    });
+  });
 });

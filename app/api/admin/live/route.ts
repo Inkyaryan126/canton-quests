@@ -48,6 +48,7 @@ import {
   runFullEventRehearsal,
   executeEventClosure,
 } from '@/lib/event-readiness';
+import { getQuestsForEventDB } from '@/lib/supabase-db';
 
 function verifyServerAdminAuth(request: Request): boolean {
   try {
@@ -116,12 +117,25 @@ export async function GET(request: Request) {
     const resolvedEvents = events.filter((e) => e.status === 'resolved' || e.status === 'cancelled' || e.status === 'effect_applied');
 
     // Phase 5.4 Readiness and Audit State
-    const [readiness, launchGates, checklist, qrAudit, questAudit, liveEvents] = await Promise.all([
-      computeEventReadinessReport(eventId),
-      evaluateEventLaunchGates(eventId),
-      getOperatorChecklist(eventId),
-      auditEventQRQuests(eventId),
-      auditEventQuestsAndLocations(eventId),
+    //
+    // This handler is polled every 5s from /admin/live and every 15s from
+    // /gm/[slug] (one interval per open tab). computeEventReadinessReport,
+    // evaluateEventLaunchGates, and getOperatorChecklist each independently
+    // re-fetched the event's quests and recomputed the QR/quest audits
+    // internally, so a single poll fanned out into ~6 redundant DB-backed
+    // audit computations. Fetching quests and both audits once here and
+    // threading them through as `precomputed` inputs collapses that back to
+    // one of each per request — see ReadinessPrecomputedInputs in
+    // lib/event-readiness.ts.
+    const quests = await getQuestsForEventDB(eventId);
+    const [qrAudit, questAudit] = await Promise.all([
+      auditEventQRQuests(eventId, quests),
+      auditEventQuestsAndLocations(eventId, quests),
+    ]);
+    const readiness = await computeEventReadinessReport(eventId, { quests, qrAudit, questAudit });
+    const [launchGates, checklist, liveEvents] = await Promise.all([
+      evaluateEventLaunchGates(eventId, { quests, qrAudit, questAudit }),
+      getOperatorChecklist(eventId, readiness),
       getActiveLiveEventsDB(eventId),
     ]);
 

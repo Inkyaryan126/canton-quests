@@ -65,9 +65,14 @@ let lastRehearsalTimestamp: string | undefined = undefined;
 /**
  * 1. QR READINESS AUDIT ENGINE
  * Inspects all QR-related quests and campaign assignments for integrity and security.
+ *
+ * `questsParam` lets a caller that already fetched the event's quests (e.g. a
+ * route handler assembling several readiness reports in one request) skip a
+ * redundant DB round trip — see the `/api/admin/live` GET handler, which is
+ * polled every 5-15s by open admin/GM tabs.
  */
-export async function auditEventQRQuests(eventId: string): Promise<QRReadinessAuditReport> {
-  const quests = await getQuestsForEventDB(eventId);
+export async function auditEventQRQuests(eventId: string, questsParam?: Quest[]): Promise<QRReadinessAuditReport> {
+  const quests = questsParam ?? (await getQuestsForEventDB(eventId));
   const qrQuests = quests.filter(
     (q) =>
       q.verificationType === 'qr' ||
@@ -154,11 +159,11 @@ export async function auditEventQRQuests(eventId: string): Promise<QRReadinessAu
  * 2. QUEST & LOCATION READINESS AUDIT ENGINE
  * Evaluates all quests for category, XP, locations, proof methods, and prerequisite chains.
  */
-export async function auditEventQuestsAndLocations(eventId: string): Promise<{
+export async function auditEventQuestsAndLocations(eventId: string, questsParam?: Quest[]): Promise<{
   items: QuestAuditItem[];
   summary: { total: number; ready: number; warning: number; broken: number };
 }> {
-  const quests = await getQuestsForEventDB(eventId);
+  const quests = questsParam ?? (await getQuestsForEventDB(eventId));
   const locations = await getLocationsDB();
   const locationMap = new Map<string, LocationInfo>(locations.map((l) => [l.id, l]));
   const questMap = new Map<string, Quest>(quests.map((q) => [q.id, q]));
@@ -270,11 +275,24 @@ export async function auditEventQuestsAndLocations(eventId: string): Promise<{
   };
 }
 
+// Lets a caller thread already-fetched quests / already-computed audits
+// into the functions below instead of triggering a redundant DB fetch and
+// O(n) re-scan of every quest. See `/api/admin/live` GET handler, the one
+// caller that assembles several of these reports in a single poll.
+export type ReadinessPrecomputedInputs = {
+  quests?: Quest[];
+  qrAudit?: QRReadinessAuditReport;
+  questAudit?: { items: QuestAuditItem[]; summary: { total: number; ready: number; warning: number; broken: number } };
+};
+
 /**
  * 3. HARD SERVER-SIDE LAUNCH GATES
  * Blocks live launch if critical configuration or security invariants fail closed.
  */
-export async function evaluateEventLaunchGates(eventId: string): Promise<LaunchGatesEvaluationResult> {
+export async function evaluateEventLaunchGates(
+  eventId: string,
+  precomputed?: ReadinessPrecomputedInputs
+): Promise<LaunchGatesEvaluationResult> {
   const event = await getEventByIdDB(eventId);
   const gates: LaunchGateRule[] = [];
   const blockingReasons: string[] = [];
@@ -327,7 +345,7 @@ export async function evaluateEventLaunchGates(eventId: string): Promise<LaunchG
   }
 
   // Gate 3: Playable Quest Count (Minimum 3 playable quests)
-  const quests = await getQuestsForEventDB(eventId);
+  const quests = precomputed?.quests ?? (await getQuestsForEventDB(eventId));
   const playableQuests = quests.filter((q) => q.status !== 'inactive');
   if (playableQuests.length < 3) {
     gates.push({
@@ -348,7 +366,7 @@ export async function evaluateEventLaunchGates(eventId: string): Promise<LaunchG
   }
 
   // Gate 4: Zero Broken Quests
-  const questAudit = await auditEventQuestsAndLocations(eventId);
+  const questAudit = precomputed?.questAudit ?? (await auditEventQuestsAndLocations(eventId, quests));
   if (questAudit.summary.broken > 0) {
     gates.push({
       code: 'GATE_NO_BROKEN_QUESTS',
@@ -368,7 +386,7 @@ export async function evaluateEventLaunchGates(eventId: string): Promise<LaunchG
   }
 
   // Gate 5: QR Configuration Integrity
-  const qrAudit = await auditEventQRQuests(eventId);
+  const qrAudit = precomputed?.qrAudit ?? (await auditEventQRQuests(eventId, quests));
   if (qrAudit.brokenCount > 0) {
     gates.push({
       code: 'GATE_QR_CONFIG_VALID',
@@ -511,15 +529,25 @@ export async function evaluateEventLaunchGates(eventId: string): Promise<LaunchG
  * 4. EVENT READINESS DASHBOARD REPORT GENERATOR
  * Computes exhaustive health status across all 12 operational subsystems.
  */
-export async function computeEventReadinessReport(eventId: string): Promise<EventReadinessReport> {
+export async function computeEventReadinessReport(
+  eventId: string,
+  precomputed?: ReadinessPrecomputedInputs
+): Promise<EventReadinessReport> {
   const event = await getEventByIdDB(eventId);
   const now = new Date().toISOString();
 
-  const quests = await getQuestsForEventDB(eventId);
-  const [qrAudit, questAudit, launchGates, spectatorSettings, registeredPlayers, audienceEvents, broadcasts] = await Promise.all([
-    auditEventQRQuests(eventId),
-    auditEventQuestsAndLocations(eventId),
-    evaluateEventLaunchGates(eventId),
+  const quests = precomputed?.quests ?? (await getQuestsForEventDB(eventId));
+
+  // Resolve (or reuse) the two audits first, then hand them to
+  // evaluateEventLaunchGates below so it doesn't redo the same DB fetch +
+  // O(n) scan a second time in the same request.
+  const [qrAudit, questAudit] = await Promise.all([
+    precomputed?.qrAudit ? Promise.resolve(precomputed.qrAudit) : auditEventQRQuests(eventId, quests),
+    precomputed?.questAudit ? Promise.resolve(precomputed.questAudit) : auditEventQuestsAndLocations(eventId, quests),
+  ]);
+
+  const [launchGates, spectatorSettings, registeredPlayers, audienceEvents, broadcasts] = await Promise.all([
+    evaluateEventLaunchGates(eventId, { quests, qrAudit, questAudit }),
     getSpectatorSystemSettingsDB(eventId),
     getPlayerCountDB(),
     getAudienceEventsDB(eventId, true),
@@ -804,8 +832,11 @@ export async function computeEventReadinessReport(eventId: string): Promise<Even
  * 5. PRE-EVENT OPERATOR CHECKLIST
  * Returns the interactive Game Master checklist with automated state synchronization.
  */
-export async function getOperatorChecklist(eventId: string): Promise<PreEventChecklistState> {
-  const readiness = await computeEventReadinessReport(eventId);
+export async function getOperatorChecklist(
+  eventId: string,
+  precomputedReadiness?: EventReadinessReport
+): Promise<PreEventChecklistState> {
+  const readiness = precomputedReadiness ?? (await computeEventReadinessReport(eventId));
   let items = checklistStore.get(eventId);
 
   if (!items) {
