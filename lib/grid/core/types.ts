@@ -1,4 +1,5 @@
 import type { GridEconomyConfig } from './economy-types';
+import type { GridContestConfig } from './contest-types';
 
 export type GridCityPackageStatus = 'draft' | 'ready';
 
@@ -127,6 +128,8 @@ export interface GridCityPackage {
     balance: GridBalanceConfig;
     /** Optional until a city/season explicitly opts into Phase-2 economy gameplay. */
     economy?: GridEconomyConfig;
+    /** Optional until a city/season explicitly opts into Signal Dice contests. */
+    contest?: GridContestConfig;
   };
   districts: GridDistrictDefinition[];
   territories: GridTerritoryDefinition[];

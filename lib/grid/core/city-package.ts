@@ -1,4 +1,5 @@
 import { GRID_DEVELOPMENT_BRANCHES } from './economy-types';
+import type { GridContestConfig, GridContestSideConfig } from './contest-types';
 import type {
   GridDevelopmentBonuses,
   GridEconomyConfig,
@@ -191,6 +192,58 @@ function validateGridEconomyConfig(
   }
 }
 
+
+function validateContestSide(
+  side: GridContestSideConfig,
+  path: string,
+  errors: string[]
+): void {
+  if (!isPositiveInteger(side.maxDice)) {
+    errors.push(`${path}.maxDice must be a positive integer`);
+  }
+  if (!Array.isArray(side.bands) || side.bands.length === 0) {
+    errors.push(`${path}.bands requires at least one band`);
+    return;
+  }
+
+  let previousMin = 0;
+  let previousDice = 0;
+  side.bands.forEach((band, index) => {
+    const bandPath = `${path}.bands[${index}]`;
+    if (!isPositiveInteger(band.minCommittedInfluence)) {
+      errors.push(`${bandPath}.minCommittedInfluence must be a positive integer`);
+    }
+    if (band.minCommittedInfluence <= previousMin) {
+      errors.push(`${path}.bands thresholds must be strictly increasing`);
+    }
+    if (!isPositiveInteger(band.dice) || band.dice > side.maxDice) {
+      errors.push(`${bandPath}.dice must be between 1 and maxDice`);
+    }
+    if (band.dice < previousDice) {
+      errors.push(`${path}.bands dice must not decrease as Influence increases`);
+    }
+    previousMin = band.minCommittedInfluence;
+    previousDice = band.dice;
+  });
+}
+
+function validateGridContestConfig(
+  contest: GridContestConfig,
+  errors: string[]
+): void {
+  if (!Number.isInteger(contest.dieSides) || contest.dieSides < 2) {
+    errors.push('contest.dieSides must be an integer >= 2');
+  }
+  if (!isPositiveInteger(contest.influenceLossPerComparison)) {
+    errors.push('contest.influenceLossPerComparison must be a positive integer');
+  }
+  if (contest.tiesFavorDefender !== true) {
+    errors.push('contest.tiesFavorDefender must be true');
+  }
+  validateContestSide(contest.attacker, 'contest.attacker', errors);
+  validateContestSide(contest.defender, 'contest.defender', errors);
+}
+
 export function validateGridCityPackage(
   pkg: GridCityPackage
 ): GridPackageValidation {
@@ -288,6 +341,10 @@ export function validateGridCityPackage(
 
   if (pkg.seasonTemplate.economy) {
     validateGridEconomyConfig(pkg.seasonTemplate.economy, pkg, errors);
+  }
+
+  if (pkg.seasonTemplate.contest) {
+    validateGridContestConfig(pkg.seasonTemplate.contest, errors);
   }
 
   return { ok: errors.length === 0, errors };
