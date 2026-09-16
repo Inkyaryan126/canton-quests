@@ -252,6 +252,32 @@ export function staleClaim(claim: AgentClaim, staleMinutes = 360): boolean {
   const age = Date.now() - new Date(claim.heartbeatAt).getTime();
   return !Number.isFinite(age) || age > staleMinutes * 60_000;
 }
+export interface StaleClaimDiagnosis {
+  lane: string;
+  disposition: 'SAFE_TO_RELEASE' | 'INSPECT';
+  reasons: string[];
+}
+
+export function diagnoseStaleClaims(
+  claims: AgentClaim[],
+  worktrees: WorktreeState[],
+  staleMinutes = 360,
+): StaleClaimDiagnosis[] {
+  const worktreeByPath = new Map(worktrees.map((worktree) => [worktree.path, worktree]));
+  return claims.filter((claim) => staleClaim(claim, staleMinutes)).map((claim) => {
+    const worktree = worktreeByPath.get(claim.worktree);
+    const reasons: string[] = [];
+    if (!worktree) reasons.push('worktree missing');
+    if (worktree?.dirtyPaths.length) reasons.push('dirty worktree');
+    if (worktree?.activeProcessCount) reasons.push('active processes');
+    return {
+      lane: claim.lane,
+      disposition: reasons.length === 0 ? 'SAFE_TO_RELEASE' : 'INSPECT',
+      reasons,
+    };
+  });
+}
+
 export interface CoordinationIssue {
   code: 'BOARDROOM_ACTIVE' | 'DIRTY_UNCLAIMED' | 'DIRTY_OUTSIDE_CLAIM' | 'STALE_CLAIM';
   message: string;

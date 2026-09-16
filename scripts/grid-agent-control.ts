@@ -3,6 +3,7 @@ import {
   boardroomSummary,
   coordinationIssues,
   createClaim,
+  diagnoseStaleClaims,
   expandClaim,
   heartbeatClaim,
   listWorktreeStates,
@@ -88,6 +89,27 @@ function status(): void {
   }
 }
 
+
+function doctor(): void {
+  const claims = readClaims();
+  const worktrees = listWorktreeStates();
+  const diagnoses = diagnoseStaleClaims(claims, worktrees);
+  console.log('# GRID AGENT DOCTOR');
+  if (diagnoses.length === 0) {
+    console.log('No stale claims.');
+    return;
+  }
+  for (const diagnosis of diagnoses) {
+    console.log(`${diagnosis.disposition} ${diagnosis.lane}`);
+    if (diagnosis.reasons.length) console.log(`  reasons=${diagnosis.reasons.join(', ')}`);
+    if (diagnosis.disposition === 'SAFE_TO_RELEASE') {
+      console.log(`  action=npm run grid:agents -- release --lane ${diagnosis.lane}`);
+    } else {
+      console.log('  action=inspect the worktree before changing or releasing this claim');
+    }
+  }
+}
+
 function check(): void {
   const claims = readClaims();
   const worktrees = listWorktreeStates();
@@ -152,11 +174,12 @@ function main(): void {
   const [command = 'status', ...args] = process.argv.slice(2);
   if (command === 'status') return status();
   if (command === 'check') return check();
+  if (command === 'doctor') return doctor();
   if (command === 'claim') return claim(args);
   if (command === 'expand') return expand(args);
   if (command === 'heartbeat') return heartbeat(args);
   if (command === 'release') return release(args);
-  console.error('Usage: grid:agents <status|check|claim|expand|heartbeat|release> [options]');
+  console.error('Usage: grid:agents <status|check|doctor|claim|expand|heartbeat|release> [options]');
   process.exit(2);
 }
 

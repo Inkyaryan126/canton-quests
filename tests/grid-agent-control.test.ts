@@ -8,6 +8,7 @@ import {
   coordinationIssues,
   createClaim,
   dirtyStatusPath,
+  diagnoseStaleClaims,
   expandClaim,
   heartbeatClaim,
   readClaims,
@@ -126,4 +127,22 @@ it('expands a claim only when the new scope does not collide with another lane',
   const expanded = expandClaim('chat', ['supabase/migrations/20260916074000_grid_chat_sync_notifications.sql'], repo);
   expect(expanded.scope).toContain('supabase/migrations/20260916074000_grid_chat_sync_notifications.sql');
   expect(() => expandClaim('chat', ['app/grid/auctions/page.tsx'], repo)).toThrow(/scope overlaps active lane/i);
+});
+
+it('classifies stale claims as safe to release only when their worktree is clean and idle', () => {
+  const old = new Date(Date.now() - 7 * 60 * 60_000).toISOString();
+  const base = { version: 1 as const, owner: 'stream', goal: 'work', scope: ['lib/grid/**'], claimedAt: old, heartbeatAt: old };
+  const claims = [
+    { ...base, lane: 'clean', worktree: '/tmp/clean', branch: 'clean' },
+    { ...base, lane: 'dirty', worktree: '/tmp/dirty', branch: 'dirty' },
+    { ...base, lane: 'busy', worktree: '/tmp/busy', branch: 'busy' },
+  ];
+  const state = (path: string, dirtyPaths: string[], activeProcessCount: number) => ({
+    path, head: 'abc', branch: path.slice(5), dirtyPaths, lastCommitSubject: 'x', lastCommitAt: old, activeProcessCount,
+  });
+  expect(diagnoseStaleClaims(claims, [state('/tmp/clean', [], 0), state('/tmp/dirty', [' M lib/grid/x.ts'], 0), state('/tmp/busy', [], 1)])).toEqual([
+    expect.objectContaining({ lane: 'clean', disposition: 'SAFE_TO_RELEASE' }),
+    expect.objectContaining({ lane: 'dirty', disposition: 'INSPECT', reasons: expect.arrayContaining(['dirty worktree']) }),
+    expect.objectContaining({ lane: 'busy', disposition: 'INSPECT', reasons: expect.arrayContaining(['active processes']) }),
+  ]);
 });

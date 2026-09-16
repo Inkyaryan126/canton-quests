@@ -9,7 +9,7 @@ Boardroom remains the durable task ledger, write-scope/commit authority for supe
 Before editing code:
 
 1. Run `npm run grid:agents -- status`.
-2. Run `npm run grid:agents -- check`; do not begin a new lane if it exits non-zero.
+2. Run `npm run grid:agents -- check`; do not begin a new lane if it exits non-zero. Use `npm run grid:agents -- doctor` to triage stale claims safely.
 3. Confirm no existing claim overlaps the intended file scope.
 4. Use an isolated worktree/branch instead of the main working tree whenever multiple streams are active.
 5. Claim the lane before editing.
@@ -62,6 +62,8 @@ For timestamped database migrations, claim the **exact migration filename** once
 `status` names the lane/owner responsible for a worktree when it finds an out-of-claim write and prints a collision-checked `expand` command for a single owning lane. `expand` updates the live claim without requiring release/reclaim, but refuses scopes that collide with another lane.
 
 `npm run grid:agents -- check` is the machine-readable preflight gate. It exits non-zero when Boardroom autonomous mode is active, a dirty worktree has no claim, a dirty path falls outside every declared claim on that worktree, or a claim is stale. This makes it suitable for agent startup scripts as well as manual use.
+
+`doctor` classifies stale claims as `SAFE_TO_RELEASE` only when the matching worktree exists, is clean, and has no active processes. Dirty, busy, or missing worktrees are `INSPECT`. It never deletes or releases a claim automatically.
 
 Claims older than six hours without a heartbeat are shown as `STALE`; they are never silently deleted. A human/agent should inspect the corresponding worktree before releasing a stale claim.
 
