@@ -54,6 +54,8 @@ Web stays the frictionless first-touch experience. A native app can later add hi
 
 `GRID Mobile 3` supplies a framework-neutral native adapter factory for iOS and Android shells. Capabilities are derived only from ports the shell actually provides, and background location requires an explicit opt-in plus a real location port.
 
+`GRID Mobile 4` adds explicit just-in-time permission flows for foreground/background location, photo proof, and live alerts. Background location is never requested until foreground location has already been granted, and unsupported features return without prompting.
+
 A boundary test scans shared core/server TypeScript and fails if browser globals enter those layers.
 
 ## Native follow-on
