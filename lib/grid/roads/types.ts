@@ -168,3 +168,15 @@ export interface GridRoadAccessDistanceMatrix {
   targetIds: string[];
   distancesMillimeters: Record<string, Record<string, number | null>>;
 }
+export interface GridRoadNetworkSnapshot {
+  schemaVersion: 1;
+  snapshotVersion: string;
+  network: GridRoadNetwork;
+  checksum: string;
+}
+
+export interface GridRoadSnapshotVerification {
+  ok: boolean;
+  expectedChecksum: string;
+  actualChecksum: string;
+}
