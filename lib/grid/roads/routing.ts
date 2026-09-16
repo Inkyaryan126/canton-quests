@@ -1,4 +1,12 @@
-import type { GridRoadGraph, GridRoadGraphEdge, GridRoadRoute } from './types';
+import { findNearestRoadNode } from './spatial';
+import type {
+  GridRoadGraph,
+  GridRoadGraphEdge,
+  GridRoadPoint,
+  GridRoadRoute,
+  GridRoadSnappedRoute,
+  GridRoadSpatialIndex,
+} from './types';
 
 interface QueueEntry {
   nodeId: string;
@@ -115,4 +123,20 @@ export function shortestRoadRoute(
   nodeIds.reverse();
   edgeIds.reverse();
   return { fromNodeId, toNodeId, nodeIds, edgeIds, totalLengthMillimeters };
+}
+
+export function shortestRoadRouteBetweenPoints(
+  graph: GridRoadGraph,
+  index: GridRoadSpatialIndex,
+  fromPoint: GridRoadPoint,
+  toPoint: GridRoadPoint,
+  maxSnapDistanceMeters: number,
+): GridRoadSnappedRoute | null {
+  const fromSnap = findNearestRoadNode(graph, index, fromPoint, maxSnapDistanceMeters);
+  if (!fromSnap) return null;
+  const toSnap = findNearestRoadNode(graph, index, toPoint, maxSnapDistanceMeters);
+  if (!toSnap) return null;
+  const route = shortestRoadRoute(graph, fromSnap.nodeId, toSnap.nodeId);
+  if (!route) return null;
+  return { fromSnap, toSnap, route };
 }
