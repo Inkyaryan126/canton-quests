@@ -88,3 +88,16 @@ export interface GridRoadSnappedRoute {
   toSnap: GridRoadSnap;
   route: GridRoadRoute;
 }
+export interface GridRoadTerritoryDefinition {
+  slug: string;
+  geometry: GeoJSON.MultiPolygon;
+}
+
+export interface GridRoadTerritoryIndex {
+  nodeTerritories: Record<string, string[]>;
+  edgeTerritories: Record<string, string[]>;
+  territoryNodeIds: Record<string, string[]>;
+  territoryEdgeIds: Record<string, string[]>;
+  unassignedNodeIds: string[];
+  unassignedEdgeIds: string[];
+}
