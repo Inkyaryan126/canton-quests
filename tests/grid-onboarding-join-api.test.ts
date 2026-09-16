@@ -38,6 +38,7 @@ describe('Grid onboarding join API contract', () => {
   });
 
   it('uses authenticated player identity and server command time', () => {
+    expect(route).toContain('createSupabaseGridOnboardingHomeCityPort');
     expect(route).toContain('session.player.id');
     expect(route).toContain('new Date().toISOString()');
     expect(route).not.toMatch(/body\.playerId|body\.now/);

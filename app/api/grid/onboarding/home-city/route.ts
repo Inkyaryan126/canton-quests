@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cantonFoundingSeasonPackage } from '@/lib/grid/cities/canton/founding-season';
-import { createSupabaseGridEconomyCommandPort } from '@/lib/grid/server/supabase-economy';
 import { isGridOnboardingWriteEnabled } from '@/lib/grid/server/onboarding-feature-flags';
+import { confirmGridOnboardingHomeCity } from '@/lib/grid/server/onboarding-home-city-service';
 import { createSupabaseGridOnboardingHomeCityPort } from '@/lib/grid/server/supabase-onboarding-home-city';
-import { joinGridOnboardingSeason } from '@/lib/grid/server/onboarding-join-service';
-import { createSupabaseGridOnboardingSeasonPort } from '@/lib/grid/server/supabase-onboarding-season';
 import {
   resolveAuthenticatedSession,
   setAuthCookies,
@@ -34,33 +32,19 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => ({}));
-  const idempotencyKey =
-    typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '';
-
-  if (!idempotencyKey.trim()) {
-    return response(
-      { success: false, error: 'Missing idempotencyKey.' },
-      { status: 400 },
-    );
-  }
-
   try {
-    const result = await joinGridOnboardingSeason(
+    const homeCity = await confirmGridOnboardingHomeCity(
       createSupabaseGridOnboardingHomeCityPort(cantonFoundingSeasonPackage),
-      createSupabaseGridOnboardingSeasonPort(cantonFoundingSeasonPackage),
-      createSupabaseGridEconomyCommandPort(),
-      {
-        playerId: session.player.id,
-        idempotencyKey,
-        now: new Date().toISOString(),
-      },
+      session.player.id,
+      new Date().toISOString(),
     );
 
-    return response({ success: true, player: result });
+    return response({ success: true, homeCity });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Failed to join Grid season.';
+      error instanceof Error
+        ? error.message
+        : 'Failed to confirm Grid Home City.';
     return response({ success: false, error: message }, { status: 400 });
   }
 }

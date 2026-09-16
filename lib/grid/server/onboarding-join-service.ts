@@ -1,5 +1,6 @@
 import { joinGridSeason } from './economy-service';
 import type { GridEconomyCommandPort } from './economy-port';
+import type { GridOnboardingHomeCityPort } from './onboarding-home-city-port';
 import type { GridOnboardingSeasonPort } from './onboarding-season-port';
 
 export interface GridOnboardingJoinRequest {
@@ -17,6 +18,7 @@ export interface GridOnboardingJoinResult {
 }
 
 export async function joinGridOnboardingSeason(
+  homeCityPort: GridOnboardingHomeCityPort,
   seasonPort: GridOnboardingSeasonPort,
   economyPort: GridEconomyCommandPort,
   request: GridOnboardingJoinRequest,
@@ -29,6 +31,13 @@ export async function joinGridOnboardingSeason(
   }
   if (!Number.isFinite(Date.parse(request.now))) {
     throw new Error('Grid onboarding join requires a valid now timestamp');
+  }
+
+  const homeCityConfirmed = await homeCityPort.isHomeCityConfirmed(
+    request.playerId,
+  );
+  if (!homeCityConfirmed) {
+    throw new Error('Grid onboarding Home City must be confirmed before joining');
   }
 
   const season = await seasonPort.getCurrentSeason();

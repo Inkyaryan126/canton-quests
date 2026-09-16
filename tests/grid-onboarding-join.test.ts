@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GridEconomyCommandPort, GridPlayerSeasonState } from '../lib/grid/server/economy-port';
+import type { GridOnboardingHomeCityPort } from '../lib/grid/server/onboarding-home-city-port';
 import type { GridOnboardingSeasonPort } from '../lib/grid/server/onboarding-season-port';
 import { joinGridOnboardingSeason } from '../lib/grid/server/onboarding-join-service';
 
@@ -31,6 +32,14 @@ function economyPort(): GridEconomyCommandPort {
   };
 }
 
+
+function homeCityPort(confirmed = true): GridOnboardingHomeCityPort {
+  return {
+    isHomeCityConfirmed: vi.fn().mockResolvedValue(confirmed),
+    confirmHomeCity: vi.fn(),
+  };
+}
+
 describe('Grid onboarding season join', () => {
   it('resolves the active season and forwards an idempotent server command', async () => {
     const seasonPort: GridOnboardingSeasonPort = {
@@ -42,7 +51,7 @@ describe('Grid onboarding season join', () => {
     const economy = economyPort();
 
     await expect(
-      joinGridOnboardingSeason(seasonPort, economy, request),
+      joinGridOnboardingSeason(homeCityPort(), seasonPort, economy, request),
     ).resolves.toEqual({
       joined: true,
       credits: 5000,
@@ -67,7 +76,7 @@ describe('Grid onboarding season join', () => {
       }),
     };
     await expect(
-      joinGridOnboardingSeason(surgePort, economyPort(), request),
+      joinGridOnboardingSeason(homeCityPort(), surgePort, economyPort(), request),
     ).resolves.toMatchObject({ joined: true });
 
     for (const season of [
@@ -79,9 +88,24 @@ describe('Grid onboarding season join', () => {
         getCurrentSeason: vi.fn().mockResolvedValue(season),
       };
       await expect(
-        joinGridOnboardingSeason(port, economyPort(), request),
+        joinGridOnboardingSeason(homeCityPort(), port, economyPort(), request),
       ).rejects.toThrow('season is not active');
     }
+  });
+
+  it('requires Home City confirmation before resolving season or wallet state', async () => {
+    const home = homeCityPort(false);
+    const seasonPort: GridOnboardingSeasonPort = {
+      getCurrentSeason: vi.fn(),
+    };
+    const economy = economyPort();
+
+    await expect(
+      joinGridOnboardingSeason(home, seasonPort, economy, request),
+    ).rejects.toThrow('Home City must be confirmed before joining');
+
+    expect(seasonPort.getCurrentSeason).not.toHaveBeenCalled();
+    expect(economy.joinSeason).not.toHaveBeenCalled();
   });
 
   it('validates player, idempotency, and time before touching persistence', async () => {
@@ -91,21 +115,21 @@ describe('Grid onboarding season join', () => {
     const economy = economyPort();
 
     await expect(
-      joinGridOnboardingSeason(seasonPort, economy, {
+      joinGridOnboardingSeason(homeCityPort(), seasonPort, economy, {
         ...request,
         playerId: ' ',
       }),
     ).rejects.toThrow('requires playerId');
 
     await expect(
-      joinGridOnboardingSeason(seasonPort, economy, {
+      joinGridOnboardingSeason(homeCityPort(), seasonPort, economy, {
         ...request,
         idempotencyKey: ' ',
       }),
     ).rejects.toThrow('non-empty idempotency key');
 
     await expect(
-      joinGridOnboardingSeason(seasonPort, economy, {
+      joinGridOnboardingSeason(homeCityPort(), seasonPort, economy, {
         ...request,
         now: 'not-a-date',
       }),
