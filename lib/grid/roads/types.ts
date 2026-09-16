@@ -180,3 +180,16 @@ export interface GridRoadSnapshotVerification {
   expectedChecksum: string;
   actualChecksum: string;
 }
+export interface GridRoadAccessRankingOptions {
+  kinds?: GridRoadAccessTargetKind[];
+  maxDistanceMeters?: number;
+  limit?: number;
+  excludeTargetIds?: string[];
+}
+
+export interface GridRoadAccessCandidate {
+  targetId: string;
+  kind: GridRoadAccessTargetKind;
+  snapNodeId: string;
+  distanceMillimeters: number;
+}
