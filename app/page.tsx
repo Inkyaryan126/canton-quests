@@ -326,7 +326,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* THE GRID — PUBLIC BUILD STATUS */}
+        {/* THE GRID — COMING SOON */}
         <section className="cq-section py-14" aria-labelledby="grid-build-heading">
           <div className="cq-section-shell">
             <div className="relative overflow-hidden rounded-3xl border border-cyan-400/25 bg-gradient-to-br from-cyan-950/35 via-stone-950 to-stone-950 p-6 sm:p-8 shadow-2xl">
@@ -343,26 +343,26 @@ export default function HomePage() {
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-widest text-cyan-300">
                     <Radio size={13} className="animate-pulse" aria-hidden="true" />
-                    BUILD SIGNAL ACTIVE
+                    CITY 001 // SIGNAL DETECTED
                   </div>
                   <p className="mt-5 text-xs font-mono font-bold uppercase tracking-[.2em] text-amber-400">CANTON // CITY 001</p>
                   <h2 id="grid-build-heading" className="mt-2 font-display font-black text-3xl sm:text-5xl text-white uppercase tracking-tight">
-                    THE GRID IS COMING ONLINE
+                    THE GRID
                   </h2>
                   <p className="mt-3 max-w-3xl text-sm sm:text-base text-stone-300 font-body leading-relaxed">
-                    Canton Quests proved the city can be the game board. Now we are building the larger engine behind it: real Canton geography, territories, properties, city systems, and a foundation designed to expand beyond one city.
+                    Canton Quests proved the city can be the game board. The Grid takes that idea further — a persistent city-scale strategy game where real geography becomes territory, property, influence, and power.
                   </p>
                   <div className="mt-5 flex flex-wrap gap-2 text-[11px] font-mono font-bold">
-                    <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-emerald-300">REAL CANTON DATA</span>
-                    <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1.5 text-cyan-300">CITY COMPILER</span>
-                    <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-amber-300">BUILDING IN PUBLIC</span>
+                    <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-emerald-300">REAL CITY STRATEGY</span>
+                    <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1.5 text-cyan-300">CANTON // CITY 001</span>
+                    <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-amber-300">COMING SOON</span>
                   </div>
                 </div>
                 <Link
                   href="/grid"
                   className="cq-gold-button inline-flex items-center justify-center gap-2 px-6 py-4 text-xs font-mono whitespace-nowrap"
                 >
-                  ENTER THE GRID BUILD
+                  ENTER THE GRID
                   <ArrowRight size={15} aria-hidden="true" />
                 </Link>
               </div>
