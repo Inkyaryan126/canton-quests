@@ -15,6 +15,7 @@ export interface GridActiveContest {
 export interface GridActiveContestQuery {
   seasonId: string;
   playerId?: string;
+  viewerPlayerId?: string;
   territoryId?: string;
 }
 
