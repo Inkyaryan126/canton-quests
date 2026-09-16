@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { cantonFoundingSeasonPackage } from '../lib/grid/cities/canton/founding-season';
 import type { GridOfflineDefensePolicy } from '../lib/grid/core/offline-defense-types';
 import type {
   GridOfflineDefensePolicyPort,
@@ -8,7 +9,10 @@ import {
   getGridOfflineDefensePolicy,
   setGridOfflineDefensePolicy,
 } from '../lib/grid/server/offline-defense-service';
-import { createSupabaseGridOfflineDefensePolicyPort } from '../lib/grid/server/supabase-offline-defense';
+import {
+  createSupabaseGridOfflineDefensePolicyPort,
+  resolveSupabaseGridSeasonId,
+} from '../lib/grid/server/supabase-offline-defense';
 
 const seasonId = '10000000-0000-4000-8000-000000000001';
 const playerId = '10000000-0000-4000-8000-000000000002';
@@ -108,6 +112,40 @@ describe('Supabase Grid offline defense adapter', () => {
     expect(() =>
       createSupabaseGridOfflineDefensePolicyPort(null as any),
     ).toThrow('Grid offline defense requires Supabase service-role configuration');
+  });
+
+  it('resolves the runtime season from trusted city-package slugs', async () => {
+    const cityMaybeSingle = vi.fn().mockResolvedValue({
+      data: { id: 'city-1' },
+      error: null,
+    });
+    const cityEq = vi.fn().mockReturnValue({ maybeSingle: cityMaybeSingle });
+    const citySelect = vi.fn().mockReturnValue({ eq: cityEq });
+
+    const seasonMaybeSingle = vi.fn().mockResolvedValue({
+      data: { id: seasonId },
+      error: null,
+    });
+    const seasonSlugEq = vi.fn().mockReturnValue({
+      maybeSingle: seasonMaybeSingle,
+    });
+    const seasonCityEq = vi.fn().mockReturnValue({ eq: seasonSlugEq });
+    const seasonSelect = vi.fn().mockReturnValue({ eq: seasonCityEq });
+    const from = vi.fn((table: string) =>
+      table === 'grid_cities'
+        ? { select: citySelect }
+        : { select: seasonSelect },
+    );
+
+    await expect(
+      resolveSupabaseGridSeasonId(cantonFoundingSeasonPackage, { from } as any),
+    ).resolves.toBe(seasonId);
+    expect(cityEq).toHaveBeenCalledWith('slug', cantonFoundingSeasonPackage.city.slug);
+    expect(seasonCityEq).toHaveBeenCalledWith('city_id', 'city-1');
+    expect(seasonSlugEq).toHaveBeenCalledWith(
+      'slug',
+      cantonFoundingSeasonPackage.seasonTemplate.slug,
+    );
   });
 
   it('uses the audited atomic policy RPC for writes', async () => {

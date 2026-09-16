@@ -5,6 +5,7 @@ import type {
   GridOfflineDefensePolicy,
   GridOfflineDefensePriorityRule,
 } from '../core/offline-defense-types';
+import type { GridCityPackage } from '../core/types';
 import type {
   GridOfflineDefensePolicyPort,
   GridOfflineDefensePolicyState,
@@ -54,6 +55,45 @@ function policyFromRow(
     policy,
     updatedAt: row.updated_at,
   };
+}
+
+export async function resolveSupabaseGridSeasonId(
+  pkg: GridCityPackage,
+  client: SupabaseClient | null = supabaseAdmin,
+): Promise<string | null> {
+  if (!client) {
+    throw new Error(
+      'Grid offline defense requires Supabase service-role configuration',
+    );
+  }
+
+  const cityResult = await client
+    .from('grid_cities')
+    .select('id')
+    .eq('slug', pkg.city.slug)
+    .maybeSingle();
+  if (cityResult.error) {
+    throw new Error(
+      `Failed to resolve Grid city for offline defense: ${cityResult.error.message}`,
+    );
+  }
+  if (!cityResult.data) return null;
+
+  const city = cityResult.data as { id: string };
+  const seasonResult = await client
+    .from('grid_seasons')
+    .select('id')
+    .eq('city_id', city.id)
+    .eq('slug', pkg.seasonTemplate.slug)
+    .maybeSingle();
+  if (seasonResult.error) {
+    throw new Error(
+      `Failed to resolve Grid season for offline defense: ${seasonResult.error.message}`,
+    );
+  }
+
+  const season = seasonResult.data as { id: string } | null;
+  return season?.id ?? null;
 }
 
 export function createSupabaseGridOfflineDefensePolicyPort(
