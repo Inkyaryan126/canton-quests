@@ -11,6 +11,10 @@ export async function GET(request: Request, { params }: { params: { channelId: s
   const parsedLimit = Number(url.searchParams.get('limit') ?? 60);
   const limit = Number.isFinite(parsedLimit) ? parsedLimit : 60;
   const before = url.searchParams.get('before');
+  const parsedAfterSequence = Number(url.searchParams.get('afterSequence'));
+  const afterSequence = url.searchParams.has('afterSequence') && Number.isSafeInteger(parsedAfterSequence) && parsedAfterSequence >= 0
+    ? parsedAfterSequence
+    : null;
 
   try {
     const page = await createSupabaseGridChatPort().listMessages({
@@ -18,6 +22,7 @@ export async function GET(request: Request, { params }: { params: { channelId: s
       playerId: context.playerId,
       limit,
       before,
+      afterSequence,
     });
     return gridChatJson(context.session, { success: true, ...page });
   } catch (error) {

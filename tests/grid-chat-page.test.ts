@@ -36,7 +36,12 @@ describe('Grid chat page contract', () => {
 
   it('polls for new messages without requiring direct browser access to Supabase tables', () => {
     expect(source).toContain('window.setInterval');
+    expect(source).toContain('afterSequence');
+    expect(source).toContain('1800');
+    expect(source).toContain('8000');
     expect(source).not.toContain("from('grid_chat_messages')");
     expect(source).not.toContain('supabase.channel');
+    expect(source).toContain('/notifications');
+    expect(source).toContain('document.visibilityState');
   });
 });
