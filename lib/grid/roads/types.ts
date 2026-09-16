@@ -101,3 +101,26 @@ export interface GridRoadTerritoryIndex {
   unassignedNodeIds: string[];
   unassignedEdgeIds: string[];
 }
+export interface GridRoadNetwork {
+  segments: GridRoadSegment[];
+  graph: GridRoadGraph;
+  spatialIndex: GridRoadSpatialIndex;
+  territoryIndex?: GridRoadTerritoryIndex;
+}
+
+export interface GridRoadRouteRoadStep {
+  edgeIndex: number;
+  roadClass: GridRoadClass;
+  name: string | null;
+}
+
+export interface GridRoadRouteTerritoryStep {
+  edgeIndex: number;
+  territorySlugs: string[];
+}
+
+export interface GridRoadRouteContext {
+  roadSteps: GridRoadRouteRoadStep[];
+  territorySteps: GridRoadRouteTerritoryStep[];
+  unassignedEdgeCount: number;
+}
