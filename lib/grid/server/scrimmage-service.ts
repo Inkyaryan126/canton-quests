@@ -80,6 +80,25 @@ async function persistMutation(
   return result.state;
 }
 
+export async function getGridScrimmageSessionForPlayer(
+  port: GridScrimmagePort,
+  sessionId: string,
+  playerId: string,
+): Promise<GridScrimmageState> {
+  const current = await loadById(port, sessionId);
+  if (
+    !current.participants.some(
+      (participant) => participant.playerId === playerId,
+    )
+  ) {
+    throw new GridScrimmageServiceError(
+      'NOT_FOUND',
+      'Grid scrimmage session was not found',
+    );
+  }
+  return current;
+}
+
 export async function createGridScrimmageSession(
   port: GridScrimmagePort,
   command: GridCreateScrimmageCommand,
