@@ -5,6 +5,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import {
   ArrowLeft,
   Ban,
+  Bell,
+  BellOff,
   ChevronRight,
   CircleDot,
   Flag,
@@ -93,6 +95,7 @@ export default function GridChatClient() {
   const [reportDetails, setReportDetails] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const syncCursorRef = useRef<{ channelId: string; sequence: number | null }>({ channelId: '', sequence: null });
 
   const selected = useMemo(
     () => channels.find((channel) => channel.channelId === selectedId) ?? null,
@@ -118,20 +121,52 @@ export default function GridChatClient() {
     }
   }, []);
 
-  const loadMessages = useCallback(async (channelId: string, quiet = false) => {
+  const loadMessages = useCallback(async (
+    channelId: string,
+    options: { quiet?: boolean; incremental?: boolean } = {},
+  ) => {
+    const quiet = options.quiet ?? false;
+    const canIncrement = Boolean(
+      options.incremental
+      && syncCursorRef.current.channelId === channelId
+      && syncCursorRef.current.sequence !== null,
+    );
     if (!quiet) setLoadingMessages(true);
     try {
+      const params = new URLSearchParams({ limit: '80' });
+      if (canIncrement && syncCursorRef.current.sequence !== null) {
+        params.set('afterSequence', String(syncCursorRef.current.sequence));
+      }
       const response = await fetch(
-        `/api/grid/chat/channels/${encodeURIComponent(channelId)}/messages?limit=80`,
+        `/api/grid/chat/channels/${encodeURIComponent(channelId)}/messages?${params.toString()}`,
         { cache: 'no-store' },
       );
       const body = (await response.json()) as MessageResponse;
       if (!response.ok || !body.success) throw new Error(body.error || 'Message feed unavailable');
-      setMessages(body.messages ?? []);
+
+      if (canIncrement) {
+        const incoming = body.messages ?? [];
+        if (incoming.length > 0) {
+          setMessages((current) => {
+            const seen = new Set(current.map((message) => message.messageId));
+            return [...current, ...incoming.filter((message) => !seen.has(message.messageId))];
+          });
+        }
+      } else {
+        setMessages(body.messages ?? []);
+      }
+
+      syncCursorRef.current = {
+        channelId,
+        sequence: body.cursorSequence ?? syncCursorRef.current.sequence,
+      };
       setMessageError(null);
-      void fetch(`/api/grid/chat/channels/${encodeURIComponent(channelId)}/read`, {
-        method: 'PUT',
-      });
+
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        void fetch(`/api/grid/chat/channels/${encodeURIComponent(channelId)}/read`, {
+          method: 'PUT',
+        });
+      }
     } catch (error) {
       setMessageError(error instanceof Error ? error.message : 'Message feed unavailable');
     } finally {
@@ -146,14 +181,25 @@ export default function GridChatClient() {
   useEffect(() => {
     if (!selectedId || enabled !== true) {
       setMessages([]);
+      syncCursorRef.current = { channelId: '', sequence: null };
       return;
     }
+
+    syncCursorRef.current = { channelId: selectedId, sequence: null };
+    setMessages([]);
     void loadMessages(selectedId);
-    const timer = window.setInterval(() => {
-      void loadMessages(selectedId, true);
+
+    const messageTimer = window.setInterval(() => {
+      void loadMessages(selectedId, { quiet: true, incremental: true });
+    }, 1800);
+    const channelTimer = window.setInterval(() => {
       void loadChannels();
-    }, 3000);
-    return () => window.clearInterval(timer);
+    }, 8000);
+
+    return () => {
+      window.clearInterval(messageTimer);
+      window.clearInterval(channelTimer);
+    };
   }, [enabled, loadChannels, loadMessages, selectedId]);
 
   useEffect(() => {
@@ -175,7 +221,7 @@ export default function GridChatClient() {
       });
       const body = await response.json();
       if (!response.ok || !body.success) throw new Error(body.error || 'Message failed');
-      await loadMessages(selectedId, true);
+      await loadMessages(selectedId, { quiet: true, incremental: true });
       await loadChannels();
     } catch (error) {
       setDraft(outgoing);
@@ -384,6 +430,28 @@ export default function GridChatClient() {
     }
   }
 
+  async function toggleNotifications() {
+    if (!selected) return;
+    const enabledNext = !selected.notificationsEnabled;
+    setMessageError(null);
+    try {
+      const response = await fetch(`/api/grid/chat/channels/${encodeURIComponent(selected.channelId)}/notifications`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: enabledNext }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Unable to update channel alerts');
+      setChannels((current) => current.map((channel) =>
+        channel.channelId === selected.channelId
+          ? { ...channel, notificationsEnabled: enabledNext }
+          : channel,
+      ));
+    } catch (error) {
+      setMessageError(error instanceof Error ? error.message : 'Unable to update channel alerts');
+    }
+  }
+
   async function blockPlayer(message: GridChatMessageView) {
     if (message.isMine || message.sender.isSystem || !message.sender.playerId) return;
     if (!window.confirm(`Block ${message.sender.callsign}? Their messages will disappear from your feed.`)) return;
@@ -395,7 +463,10 @@ export default function GridChatClient() {
       });
       const body = await response.json();
       if (!response.ok || !body.success) throw new Error(body.error || 'Block failed');
-      if (selectedId) await loadMessages(selectedId, true);
+      if (selectedId) {
+        syncCursorRef.current = { channelId: selectedId, sequence: null };
+        await loadMessages(selectedId);
+      }
       await loadChannels();
     } catch (error) {
       setMessageError(error instanceof Error ? error.message : 'Block failed');
@@ -555,6 +626,15 @@ export default function GridChatClient() {
                       </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void toggleNotifications()}
+                      className={`rounded-xl border px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider ${selected.notificationsEnabled ? 'border-cyan-300/20 text-cyan-300 hover:bg-cyan-300/10' : 'border-white/10 text-stone-600 hover:text-stone-300'}`}
+                      title={selected.notificationsEnabled ? 'Channel alerts enabled' : 'Channel alerts muted'}
+                    >
+                      {selected.notificationsEnabled ? <Bell size={12} /> : <BellOff size={12} />}
+                    </button>
                   {selected.channelType === 'party' && (
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={() => void loadPartyMembers(true)} className="rounded-xl border border-white/10 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-stone-300 hover:border-cyan-300/20 hover:text-cyan-300">
@@ -570,6 +650,7 @@ export default function GridChatClient() {
                       </button>
                     </div>
                   )}
+                  </div>
                 </div>
               </header>
 

@@ -33,6 +33,7 @@ export interface GridChatPort {
     playerId: string;
     limit: number;
     before: string | null;
+    afterSequence: number | null;
   }): Promise<GridChatMessagePage>;
   sendMessage(input: {
     channelId: string;
@@ -43,6 +44,7 @@ export interface GridChatPort {
     now: string;
   }): Promise<GridChatSendResult>;
   markRead(channelId: string, playerId: string, readAt: string): Promise<void>;
+  setNotifications(channelId: string, playerId: string, enabled: boolean): Promise<void>;
   setBlock(playerId: string, blockedPlayerId: string, blocked: boolean, now: string): Promise<void>;
   reportMessage(command: GridChatReportCommand): Promise<GridChatReportResult>;
 }

@@ -157,3 +157,28 @@ Official Grid transmissions now use a first-class system-message identity instea
 - `/admin/grid-chat` now includes a Commander broadcast composer.
 
 Transactional PostgreSQL acceptance verified first broadcast, duplicate retry, nonce collision rejection, player join after transmission, clean system sender identity, and report rejection before rollback.
+
+## Comms 5 — Incremental Sync + Notification State
+
+The initial safe polling transport has been hardened into a much lighter near-realtime sync loop without exposing chat tables directly to browsers:
+
+- every message now receives a monotonic `sequence_no` cursor;
+- existing rows are backfilled automatically when the migration is applied;
+- initial channel open loads the latest page, then subsequent polls request only rows after the last sequence cursor;
+- the cursor advances across filtered/blocked rows so a blocked sender cannot trap the client on the same page forever;
+- active message sync runs approximately every 1.8 seconds while the heavier channel/unread refresh runs every 8 seconds;
+- read receipts are only advanced while the document is visible, so a background tab does not silently consume unread messages;
+- channel notification preference is persisted per membership and can be toggled from the channel header;
+- unread counting moved into an authoritative database helper so system/Commander messages count correctly while the reader's own messages and blocked-player messages do not;
+- notification preference changes require active channel membership and remain session-bound through the API.
+
+### Comms 5 database acceptance
+
+Applied the foundation, system-message migration, seeded a message before the sync migration, then applied Comms 5 inside `BEGIN ... ROLLBACK`:
+
+- the pre-existing message received sequence `1`;
+- the next Commander message received sequence `2`;
+- unread count correctly included both another player's message and the Commander message;
+- after blocking that player, only the Commander message remained unread;
+- disabling channel alerts persisted on the membership row;
+- a season player who had not joined the channel could not change its notification preference.

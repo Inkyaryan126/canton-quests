@@ -36,6 +36,7 @@ type MessageRow = {
   reply_to_message_id: string | null;
   created_at: string;
   edited_at: string | null;
+  sequence_no: number;
 };
 
 type PlayerRow = {
@@ -188,16 +189,10 @@ export function createSupabaseGridChatPort(
       const summaries = await Promise.all(
         channels.map(async (channel): Promise<GridChatChannelSummary> => {
           const membership = membershipByChannel.get(channel.id)!;
-          let unreadQuery = client
-            .from('grid_chat_messages')
-            .select('id', { count: 'exact', head: true })
-            .eq('channel_id', channel.id)
-            .eq('status', 'visible')
-            .neq('sender_player_id', playerId);
-          if (membership.last_read_at) {
-            unreadQuery = unreadQuery.gt('created_at', membership.last_read_at);
-          }
-          const unreadResult = await unreadQuery;
+          const unreadResult = await client.rpc('grid_chat_unread_count', {
+            p_channel_id: channel.id,
+            p_player_id: playerId,
+          });
           if (unreadResult.error) {
             throw new Error(`Failed to count Grid chat unread messages: ${unreadResult.error.message}`);
           }
@@ -211,7 +206,7 @@ export function createSupabaseGridChatPort(
             channelType: channel.channel_type,
             displayName: peer?.callsign ?? channel.display_name ?? fallback,
             lastMessageAt: channel.last_message_at,
-            unreadCount: unreadResult.count ?? 0,
+            unreadCount: Number(unreadResult.data ?? 0),
             mutedUntil: membership.muted_until,
             notificationsEnabled: membership.notifications_enabled,
             memberRole: membership.role as 'member' | 'moderator' | 'owner',
@@ -356,7 +351,7 @@ export function createSupabaseGridChatPort(
       if (error) throw new Error(`Failed to transfer Grid party ownership: ${error.message}`);
     },
 
-    async listMessages({ channelId, playerId, limit, before }): Promise<GridChatMessagePage> {
+    async listMessages({ channelId, playerId, limit, before, afterSequence }): Promise<GridChatMessagePage> {
       const memberResult = await client
         .from('grid_chat_members')
         .select('channel_id')
@@ -384,13 +379,16 @@ export function createSupabaseGridChatPort(
       const fetchLimit = Math.min(200, safeLimit + blocked.size + 25);
       let query = client
         .from('grid_chat_messages')
-        .select('id,channel_id,sender_player_id,sender_kind,sender_label,body,reply_to_message_id,created_at,edited_at')
+        .select('id,channel_id,sender_player_id,sender_kind,sender_label,body,reply_to_message_id,created_at,edited_at,sequence_no')
         .eq('channel_id', channelId)
         .eq('status', 'visible')
-        .order('created_at', { ascending: false })
-        .order('id', { ascending: false })
+        .order('sequence_no', { ascending: afterSequence !== null })
         .limit(fetchLimit);
-      if (before) query = query.lt('created_at', before);
+      if (afterSequence !== null) {
+        query = query.gt('sequence_no', afterSequence);
+      } else if (before) {
+        query = query.lt('created_at', before);
+      }
       const messageResult = await query;
       if (messageResult.error) {
         throw new Error(`Failed to read Grid chat messages: ${messageResult.error.message}`);
@@ -413,6 +411,7 @@ export function createSupabaseGridChatPort(
           return {
             messageId: row.id,
             channelId: row.channel_id,
+            sequenceNo: row.sequence_no,
             sender,
             body: row.body,
             replyToMessageId: row.reply_to_message_id,
@@ -421,14 +420,19 @@ export function createSupabaseGridChatPort(
             isMine: row.sender_kind === 'player' && row.sender_player_id === playerId,
           };
         })
-        .filter((row): row is GridChatMessageView => Boolean(row))
-        .reverse();
+        .filter((row): row is GridChatMessageView => Boolean(row));
+
+      if (afterSequence === null) messages.reverse();
+      const cursorSequence = rawRows.length > 0
+        ? Math.max(...rawRows.map((row) => Number(row.sequence_no)))
+        : afterSequence;
 
       return {
         messages,
-        nextBefore: rawRows.length >= fetchLimit
+        nextBefore: afterSequence === null && rawRows.length >= fetchLimit
           ? rawRows[rawRows.length - 1]?.created_at ?? null
           : null,
+        cursorSequence,
       };
     },
 
@@ -452,6 +456,15 @@ export function createSupabaseGridChatPort(
         p_read_at: readAt,
       });
       if (error) throw new Error(`Failed to mark Grid chat read: ${error.message}`);
+    },
+
+    async setNotifications(channelId, playerId, enabled) {
+      const { error } = await client.rpc('grid_set_chat_notifications', {
+        p_channel_id: channelId,
+        p_player_id: playerId,
+        p_enabled: enabled,
+      });
+      if (error) throw new Error(`Failed to update Grid chat notifications: ${error.message}`);
     },
 
     async setBlock(playerId, blockedPlayerId, blocked, now) {
