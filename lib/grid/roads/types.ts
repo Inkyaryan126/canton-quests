@@ -145,3 +145,11 @@ export interface GridRoadAccessIndex {
   resolvedTargetIds: string[];
   unresolvedTargetIds: string[];
 }
+export interface GridRoadAccessJourney {
+  fromTargetId: string;
+  toTargetId: string;
+  fromSnap: GridRoadSnap;
+  toSnap: GridRoadSnap;
+  route: GridRoadRoute;
+  context: GridRoadRouteContext;
+}
