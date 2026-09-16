@@ -65,6 +65,9 @@ export function gridChatError(error: unknown): { message: string; status: number
   if (raw.includes('CHAT_MEMBERSHIP_REQUIRED')) return { message: 'You do not have access to this channel.', status: 403 };
   if (raw.includes('PARTY_INVITE_FORBIDDEN')) return { message: 'Only a party owner or moderator can invite players.', status: 403 };
   if (raw.includes('PARTY_OWNER_CANNOT_LEAVE')) return { message: 'The party owner must remain until the other members leave.', status: 409 };
+  if (raw.includes('PARTY_OWNER_REQUIRED')) return { message: 'Only the party owner can do that.', status: 403 };
+  if (raw.includes('PARTY_MODERATION_FORBIDDEN') || raw.includes('PARTY_MODERATOR_SCOPE_FORBIDDEN')) return { message: 'You do not have permission to manage that party member.', status: 403 };
+  if (raw.includes('PARTY_MEMBER_NOT_FOUND')) return { message: 'Party member not found.', status: 404 };
   if (raw.includes('PARTY_NAME_INVALID') || raw.includes('Party name must')) return { message: 'Party name must be 2–60 characters.', status: 400 };
   if (raw.includes('DISTRICT_NOT_IN_CITY')) return { message: 'That district is not available in this city.', status: 404 };
   if (raw.includes('PLAYER_NOT_IN_SEASON')) return { message: 'Join the active Grid season before using chat.', status: 403 };

@@ -126,3 +126,17 @@ Exercised against local PostgreSQL inside `BEGIN ... ROLLBACK`:
 - owner orphaning was rejected;
 - regular member leave succeeded;
 - final owner leave archived the empty party.
+
+## Comms 3A — Party Lifecycle Management
+
+Party/scrimmage channels now have a controlled lifecycle instead of becoming owner-locked dead ends:
+
+- active roster view for any party member;
+- owner promotion/demotion of moderators;
+- owner or moderator removal of regular members;
+- moderators cannot remove owners or other moderators;
+- explicit ownership transfer to an active party member;
+- previous owner becomes a moderator after ownership transfer;
+- every lifecycle mutation remains session-bound and service-role authoritative.
+
+Transactional PostgreSQL acceptance verified promotion, moderator removal scope, owner protection, ownership transfer, and final role state before rollback.

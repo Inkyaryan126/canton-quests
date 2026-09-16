@@ -61,3 +61,8 @@ export interface GridChatDistrictOption {
   joined: boolean;
   channelId: string | null;
 }
+
+export interface GridChatPartyMember extends GridChatPublicPlayer {
+  role: 'member' | 'moderator' | 'owner';
+  joinedAt: string;
+}
