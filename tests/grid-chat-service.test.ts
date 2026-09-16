@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { openGridChat, reportGridChatMessage, sendGridChatMessage, startGridDirectChat } from '../lib/grid/server/chat-service';
+import { createGridChatRoom, openGridChat, reportGridChatMessage, sendGridChatMessage, startGridDirectChat } from '../lib/grid/server/chat-service';
 import type { GridChatPort } from '../lib/grid/server/chat-port';
 
 function port(overrides: Partial<GridChatPort> = {}): GridChatPort {
@@ -9,6 +9,10 @@ function port(overrides: Partial<GridChatPort> = {}): GridChatPort {
     createDirectChannel: vi.fn().mockResolvedValue({ channelId: 'direct-channel' }),
     listChannels: vi.fn().mockResolvedValue([]),
     listDistricts: vi.fn().mockResolvedValue([]),
+    listRooms: vi.fn().mockResolvedValue([]),
+    createRoom: vi.fn().mockResolvedValue({ channelId: 'room-channel' }),
+    joinRoom: vi.fn().mockResolvedValue(undefined),
+    leaveRoom: vi.fn().mockResolvedValue(undefined),
     joinDistrict: vi.fn().mockResolvedValue({ channelId: 'district-channel' }),
     createParty: vi.fn().mockResolvedValue({ channelId: 'party-channel' }),
     addPartyMember: vi.fn().mockResolvedValue(undefined),
@@ -85,5 +89,29 @@ describe('GRID chat service', () => {
       details: 'repeated links',
       now: 'now',
     });
+  });
+});
+
+describe('GRID public room service validation', () => {
+  it('normalizes a room before persistence', async () => {
+    const p = port();
+    const result = await createGridChatRoom(p, {
+      seasonId: 'season',
+      ownerPlayerId: 'me',
+      displayName: '  Night   Owls  ',
+      topic: '  Canton   strategy  ',
+      memberLimit: 42,
+      now: 'now',
+    });
+    expect(p.createRoom).toHaveBeenCalledWith('season', 'me', 'Night Owls', 'Canton strategy', 42, 'now');
+    expect(result.channelId).toBe('room-channel');
+  });
+
+  it('rejects invalid room capacity before persistence', async () => {
+    const p = port();
+    await expect(createGridChatRoom(p, {
+      seasonId: 'season', ownerPlayerId: 'me', displayName: 'Room', memberLimit: 500, now: 'now',
+    })).rejects.toThrow('Room capacity must be between 2 and 200 players');
+    expect(p.createRoom).not.toHaveBeenCalled();
   });
 });

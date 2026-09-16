@@ -11,6 +11,7 @@ describe('Grid chat page contract', () => {
       '/api/grid/chat/direct',
       '/api/grid/chat/districts',
       '/api/grid/chat/parties',
+      '/api/grid/chat/rooms',
       '/api/grid/chat/block',
       '/report',
       'clientNonce',
@@ -27,6 +28,9 @@ describe('Grid chat page contract', () => {
   it('exposes district and private party controls without GPS broadcasting', () => {
     expect(source).toContain('District Channels');
     expect(source).toContain('Create Party');
+    expect(source).toContain('Chat Rooms');
+    expect(source).toContain('Create Room');
+    expect(source).toContain('Open Rooms');
     expect(source).toContain('Party Roster');
     expect(source).toContain('Make Owner');
     expect(source).toContain('Promote');

@@ -103,3 +103,34 @@ export async function inviteGridPartyMember(
   await port.addPartyMember(input.channelId, input.actorPlayerId, target.playerId, input.now);
   return target;
 }
+
+export async function createGridChatRoom(
+  port: GridChatPort,
+  input: {
+    seasonId: string;
+    ownerPlayerId: string;
+    displayName: string;
+    topic?: string | null;
+    memberLimit?: number;
+    now: string;
+  },
+) {
+  const displayName = input.displayName.trim().replace(/\s+/g, ' ');
+  const topic = (input.topic ?? '').trim().replace(/\s+/g, ' ');
+  const memberLimit = input.memberLimit ?? 50;
+  if (displayName.length < 2 || displayName.length > 80) {
+    throw new Error('Room name must be 2–80 characters');
+  }
+  if (topic.length > 240) throw new Error('Room topic must be 240 characters or fewer');
+  if (!Number.isInteger(memberLimit) || memberLimit < 2 || memberLimit > 200) {
+    throw new Error('Room capacity must be between 2 and 200 players');
+  }
+  return port.createRoom(
+    input.seasonId,
+    input.ownerPlayerId,
+    displayName,
+    topic,
+    memberLimit,
+    input.now,
+  );
+}
