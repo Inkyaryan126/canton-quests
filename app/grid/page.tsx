@@ -15,8 +15,10 @@ const milestones = [
   ['05', 'REAL CANTON DATA', 'Official Census geography and OpenStreetMap public-place data replaced synthetic geography for Canton.'],
   ['06', 'CANTON PACKAGE', 'A real downtown Canton package compiles deterministically from sourced geography with validation and provenance.'],
   ['07', 'IMPORT BOUNDARY', 'A local Supabase import boundary exists so compiled cities can move into the runtime safely.'],
-  ['08', 'ACCEPTANCE GATE', 'Compiler 1–9 passed the full Grid test suite, CLI validation, architecture boundary scan, lint, and production build.'],
-  ['09', 'LIVE WORLD', 'Next: turn compiled Canton geography into the first visible, playable Grid world.'],
+  ['08', 'COMPILER ACCEPTED', 'Compiler 1–9 passed validation, architecture checks, lint, tests, and a production build.'],
+  ['09', 'ECONOMY + OWNERSHIP', 'Season joining, Credits, Influence, Command Points, neutral territory claims, properties, development, and Skylines are implemented and accepted in code.'],
+  ['10', 'CITY BOARD', 'A read-only Canton world projection now connects real territory geometry to wallet, ownership, development, expansion targets, and Skyline state.'],
+  ['11', 'CONTEST LAYER', 'Now building the Risk-style pressure layer: contests, Signal Dice, attacks, defense, and the systems that make control fight back.'],
 ] as const;
 
 export default function GridBuildPage() {
@@ -45,10 +47,10 @@ export default function GridBuildPage() {
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            ['COMPILER', '1–9 ACCEPTED', 'City Compiler phase'],
-            ['CITY', 'CANTON #001', 'First real package'],
-            ['GEOGRAPHY', 'SOURCE-BACKED', 'Census + OpenStreetMap'],
-            ['GAMEPLAY', 'LOCKED', 'Until world systems are ready'],
+            ['FOUNDATION', 'ACCEPTED', 'Compiler + real Canton world'],
+            ['ECONOMY', '1–8 ACCEPTED', 'Territories, properties, Skylines'],
+            ['CITY BOARD', 'READ MODEL READY', 'Production activation pending'],
+            ['GAMEPLAY', 'LOCKED', 'Contest layer still in development'],
           ].map(([label, value, note]) => (
             <div key={label} className="rounded-2xl border border-white/10 bg-white/[.035] p-5 backdrop-blur-sm">
               <div className="font-mono text-[10px] font-bold tracking-[.2em] text-stone-500">{label}</div>
@@ -71,7 +73,7 @@ export default function GridBuildPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-display font-black tracking-wide">{title}</h3>
-                      {index < 7 ? <CheckCircle2 size={15} className="text-emerald-400" /> : <Radio size={14} className="text-amber-300 animate-pulse" />}
+                      {index < 10 ? <CheckCircle2 size={15} className="text-emerald-400" /> : <Radio size={14} className="text-amber-300 animate-pulse" />}
                     </div>
                     <p className="mt-1 text-sm leading-relaxed text-stone-400">{copy}</p>
                   </div>
@@ -93,11 +95,22 @@ export default function GridBuildPage() {
               </dl>
             </article>
 
+            <article className="rounded-3xl border border-emerald-400/25 bg-emerald-400/[.045] p-6 sm:p-7">
+              <Network size={26} className="text-emerald-300" />
+              <h2 className="mt-4 font-display text-2xl font-black uppercase">The Board Has Rules Now</h2>
+              <p className="mt-3 text-sm leading-relaxed text-stone-300">
+                The accepted engine can join a season, regenerate resources, claim neutral territory, expand through adjacency, acquire and develop properties, calculate connected Skylines, and project the resulting city state without exposing rival player identities.
+              </p>
+              <div className="mt-5 rounded-xl border border-white/10 bg-black/25 p-4 font-mono text-[11px] leading-relaxed text-stone-400">
+                31 GRID TEST FILES // 218 PASSING // 2 GUARDED SKIPS // 0 FAILURES
+              </div>
+            </article>
+
             <article className="rounded-3xl border border-amber-400/25 bg-amber-400/[.055] p-6 sm:p-7">
               <ShieldCheck size={26} className="text-amber-300" />
-              <h2 className="mt-4 font-display text-2xl font-black uppercase">Build Rule</h2>
+              <h2 className="mt-4 font-display text-2xl font-black uppercase">Still Building Safely</h2>
               <p className="mt-3 text-sm leading-relaxed text-stone-300">
-                No invented Canton geography gets promoted just to make the map look finished. Source provenance, validation, privacy classification, and deterministic output are part of the compiler itself.
+                No invented Canton geography gets promoted just to look finished, and accepted economy code is not automatically production-activated. The public game remains locked while the contest layer and later city systems are built and verified.
               </p>
             </article>
 
