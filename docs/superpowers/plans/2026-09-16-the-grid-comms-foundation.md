@@ -183,7 +183,7 @@ Applied the foundation, system-message migration, seeded a message before the sy
 - disabling channel alerts persisted on the membership row;
 - a season player who had not joined the channel could not change its notification preference.
 
-## Comms 6 — Consent-Based Party Invitations
+## Comms 6A — Consent-Based Party Invitations
 
 Private party invitations now require the invited player's explicit consent instead of allowing an owner or moderator to add another player directly:
 
@@ -198,7 +198,7 @@ Private party invitations now require the invited player's explicit consent inst
 - `/grid/chat` surfaces pending Party Invites with explicit Accept and Decline actions;
 - invite-response routes derive the invitee from the authenticated session and never accept a browser-supplied player id.
 
-### Comms 6 database acceptance
+### Comms 6A database acceptance
 
 The complete Comms migration chain plus Comms 6 was exercised against local PostgreSQL inside `BEGIN ... ROLLBACK`:
 
@@ -210,3 +210,36 @@ The complete Comms migration chain plus Comms 6 was exercised against local Post
 - declining a separate invite created no party membership.
 
 Supabase security advisors were also run against the existing local stack. They reported pre-existing security-definer views and an unrelated permissive event-registration policy outside the Grid Comms schema; this checkpoint did not modify those objects.
+
+## Comms 6B — Public Chat Rooms
+
+The Grid now has a separate persistent public-room concept in addition to City, District, Party/Scrimmage, and Direct channels.
+
+A public room is a player-created social space with:
+
+- persistent room identity and message history;
+- room name and topic;
+- visible joined-member count and capacity;
+- room owner identity;
+- public room directory sorted by recent activity, population, then name;
+- authenticated create, join, and leave flows;
+- creator automatically becomes room owner;
+- serialized capacity enforcement so concurrent joins cannot overfill a room;
+- owner-leave protection until ownership-transfer controls are added;
+- the same authoritative send, block, report, moderation, rate-limit, unread, notification, and incremental-sync systems as every other Grid chat channel.
+
+The player Comms UI exposes **ROOMS** as a first-class doorway alongside District, Party, and Direct communications. Players can browse rooms before joining, see the room topic and population, create a room with a selected capacity, open rooms they already joined, and leave rooms they do not own.
+
+### Public-room database acceptance
+
+Executed the complete chat migration stack plus the room migration against local PostgreSQL inside `BEGIN ... ROLLBACK` and verified:
+
+- room creation and owner membership;
+- capacity enforcement;
+- joined owner and guest could send messages;
+- an unjoined season player could not send into the room;
+- member leave and rejoin;
+- owner leave rejection;
+- persistent room metadata and member count;
+- clean rollback with no shared-database state retained.
+

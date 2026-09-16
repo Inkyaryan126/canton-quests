@@ -74,6 +74,13 @@ export function gridChatError(error: unknown): { message: string; status: number
   if (raw.includes('PARTY_MEMBER_NOT_FOUND')) return { message: 'Party member not found.', status: 404 };
   if (raw.includes('PARTY_NAME_INVALID') || raw.includes('Party name must')) return { message: 'Party name must be 2–60 characters.', status: 400 };
   if (raw.includes('DISTRICT_NOT_IN_CITY')) return { message: 'That district is not available in this city.', status: 404 };
+  if (raw.includes('ROOM_NAME_INVALID') || raw.includes('Room name must')) return { message: 'Room name must be 2–80 characters.', status: 400 };
+  if (raw.includes('ROOM_TOPIC_TOO_LONG') || raw.includes('Room topic must')) return { message: 'Room topic must be 240 characters or fewer.', status: 400 };
+  if (raw.includes('ROOM_MEMBER_LIMIT_INVALID') || raw.includes('Room capacity must')) return { message: 'Room capacity must be between 2 and 200 players.', status: 400 };
+  if (raw.includes('ROOM_FULL')) return { message: 'That room is full.', status: 409 };
+  if (raw.includes('CHAT_ROOM_LOCKED')) return { message: 'That room is currently locked.', status: 423 };
+  if (raw.includes('CHAT_ROOM_ARCHIVED') || raw.includes('CHAT_ROOM_NOT_FOUND')) return { message: 'That room is no longer available.', status: 404 };
+  if (raw.includes('ROOM_OWNER_CANNOT_LEAVE')) return { message: 'Room owners cannot leave until ownership controls are available.', status: 409 };
   if (raw.includes('PLAYER_NOT_IN_SEASON')) return { message: 'Join the active Grid season before using chat.', status: 403 };
   if (raw.includes('CHAT_CALLSIGN_AMBIGUOUS')) return { message: 'That callsign is not unique enough to start a direct chat.', status: 409 };
   if (raw.includes('Player callsign not found')) return { message: 'Player callsign not found.', status: 404 };
