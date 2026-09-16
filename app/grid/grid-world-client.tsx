@@ -9,15 +9,25 @@ import {
   Radio,
   ShieldCheck,
   Sparkles,
+  Trophy,
   Users,
   Zap,
 } from 'lucide-react';
 import type { GridWorldProjection } from '@/lib/grid/server/world-projection';
+import type { GridProgressionSnapshot, GridStatDefinition } from '@/lib/grid/core/progression-types';
 
 interface GridWorldResponse {
   projection: GridWorldProjection;
   runtimeEnabled: boolean;
   runtimeWarning: string | null;
+}
+
+interface GridProgressionResponse {
+  authenticated: boolean;
+  season: GridProgressionSnapshot | null;
+  lifetime: GridProgressionSnapshot | null;
+  statCatalog: GridStatDefinition[];
+  warning: string | null;
 }
 
 interface Bounds {
@@ -142,6 +152,9 @@ export default function GridWorldClient({
   const [projection, setProjection] = useState(initialProjection);
   const [runtimeEnabled, setRuntimeEnabled] = useState(false);
   const [runtimeWarning, setRuntimeWarning] = useState<string | null>(null);
+  const [progression, setProgression] = useState<GridProgressionSnapshot | null>(null);
+  const [progressionCatalogCount, setProgressionCatalogCount] = useState(0);
+  const [progressionWarning, setProgressionWarning] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,6 +171,31 @@ export default function GridWorldClient({
       })
       .catch((error) => {
         if (!cancelled) setRuntimeWarning(error instanceof Error ? error.message : 'Grid world feed unavailable');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/grid/progression', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Grid progression feed unavailable');
+        return (await response.json()) as GridProgressionResponse;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setProgression(data.season ?? data.lifetime);
+        setProgressionCatalogCount(data.statCatalog.length);
+        setProgressionWarning(data.warning);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setProgressionWarning(
+            error instanceof Error ? error.message : 'Grid progression feed unavailable',
+          );
+        }
       });
     return () => {
       cancelled = true;
@@ -322,6 +360,44 @@ export default function GridWorldClient({
                   {projection.player.authenticated
                     ? 'Your Canton Quests identity is recognized, but you have not joined an activated Grid season.'
                     : 'Sign in to Canton Quests to attach your player identity when the Grid runtime opens.'}
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-3xl border border-fuchsia-400/20 bg-fuchsia-400/[.04] p-5">
+              <div className="flex items-center gap-2 font-display text-lg font-black uppercase">
+                <Trophy size={18} className="text-fuchsia-300" />
+                Grid Rank Profile
+              </div>
+              {progression ? (
+                <>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl bg-white/[.04] p-3 text-center">
+                      <div className="font-display text-2xl font-black">{progression.gridRating}</div>
+                      <div className="mt-1 font-mono text-[9px] text-stone-500">GRID RATING</div>
+                    </div>
+                    <div className="rounded-xl bg-white/[.04] p-3 text-center">
+                      <div className="font-display text-2xl font-black">{progression.level}</div>
+                      <div className="mt-1 font-mono text-[9px] text-stone-500">LEVEL</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 font-mono text-[10px] text-fuchsia-200">
+                    {progression.primaryTitle ?? 'NO TITLE EARNED YET'}
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[9px] text-stone-500">
+                    {Object.entries(progression.categoryScores).map(([category, score]) => (
+                      <div key={category} className="flex justify-between gap-2">
+                        <span>{category.toUpperCase()}</span>
+                        <span className="text-stone-300">{score}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="mt-3 text-sm leading-relaxed text-stone-400">
+                  {progressionWarning
+                    ? 'The ranking engine is built, but its database snapshot is not activated on this environment yet.'
+                    : `${progressionCatalogCount || 47} tracked stats are armed across missions, discovery, territory, property, scrimmage, teamwork, and legacy play.`}
                 </p>
               )}
             </div>
