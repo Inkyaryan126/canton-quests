@@ -5,6 +5,7 @@ import type {
   GridChatReportResult,
   GridChatSendResult,
   GridChatPublicPlayer,
+  GridChatDistrictOption,
 } from '../core/chat-types';
 
 export interface GridChatPort {
@@ -17,6 +18,11 @@ export interface GridChatPort {
     now: string,
   ): Promise<{ channelId: string }>;
   listChannels(seasonId: string, playerId: string): Promise<GridChatChannelSummary[]>;
+  listDistricts(seasonId: string, playerId: string): Promise<GridChatDistrictOption[]>;
+  joinDistrict(seasonId: string, playerId: string, districtId: string, now: string): Promise<{ channelId: string }>;
+  createParty(seasonId: string, ownerPlayerId: string, displayName: string, now: string): Promise<{ channelId: string }>;
+  addPartyMember(channelId: string, actorPlayerId: string, targetPlayerId: string, now: string): Promise<void>;
+  leaveParty(channelId: string, playerId: string, now: string): Promise<void>;
   listMessages(input: {
     channelId: string;
     playerId: string;

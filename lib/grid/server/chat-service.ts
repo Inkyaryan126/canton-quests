@@ -81,3 +81,25 @@ export async function reportGridChatMessage(
     now: input.now,
   });
 }
+
+export async function createGridPartyChat(
+  port: GridChatPort,
+  input: { seasonId: string; ownerPlayerId: string; displayName: string; now: string },
+) {
+  const name = input.displayName.trim().replace(/\s+/g, ' ');
+  if (name.length < 2 || name.length > 60) throw new Error('Party name must be 2–60 characters');
+  return port.createParty(input.seasonId, input.ownerPlayerId, name, input.now);
+}
+
+export async function inviteGridPartyMember(
+  port: GridChatPort,
+  input: { channelId: string; actorPlayerId: string; callsign: string; now: string },
+) {
+  const callsign = input.callsign.trim();
+  if (callsign.length < 2 || callsign.length > 80) throw new Error('Enter a valid callsign');
+  const target = await port.resolvePlayerByCallsign(callsign);
+  if (!target) throw new Error('Player callsign not found');
+  if (target.playerId === input.actorPlayerId) throw new Error('You are already in this party');
+  await port.addPartyMember(input.channelId, input.actorPlayerId, target.playerId, input.now);
+  return target;
+}
