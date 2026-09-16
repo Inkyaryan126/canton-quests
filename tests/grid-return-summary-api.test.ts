@@ -30,6 +30,10 @@ describe('Grid return summary API contract', () => {
   it('keeps the Supabase adapter strictly read-only', () => {
     expect(adapter).toContain(".from('grid_game_events')");
     expect(adapter).toContain(".from('grid_contests')");
+    expect(adapter).toContain(".from('grid_season_territory_state')");
+    expect(adapter).toContain(".from('grid_season_property_state')");
+    expect(adapter).toContain('credits_accrual_remainder');
+    expect(adapter).toContain('influence_accrual_remainder');
     expect(adapter).not.toMatch(/\.(insert|update|delete|upsert|rpc)\s*\(/);
   });
 

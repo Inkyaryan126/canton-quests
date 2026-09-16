@@ -35,6 +35,7 @@ export async function GET(request: Request) {
   try {
     const summary = await buildGridReturnSummary(
       createSupabaseGridReturnSummaryPort(cantonFoundingSeasonPackage),
+      cantonFoundingSeasonPackage,
       session.player.id,
       new Date().toISOString(),
     );

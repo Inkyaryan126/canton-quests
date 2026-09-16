@@ -1,3 +1,5 @@
+import type { GridDevelopmentBranch } from '../core/economy-types';
+
 export type GridReturnViewerRole =
   | 'attacker'
   | 'defender'
@@ -12,10 +14,29 @@ export type GridReturnContestOutcome =
   | 'cancelled'
   | null;
 
+export interface GridReturnOwnedProperty {
+  propertySlug: string;
+  developmentBranch: GridDevelopmentBranch | null;
+  developmentLevel: number;
+}
+
+export interface GridReturnResourceState {
+  credits: number;
+  influence: number;
+  commandPoints: number;
+  commandPointsUpdatedAt: string;
+  resourcesSettledAt: string;
+  creditsAccrualRemainder: number;
+  influenceAccrualRemainder: number;
+  ownedTerritorySlugs: string[];
+  ownedProperties: GridReturnOwnedProperty[];
+}
+
 export interface GridReturnSummaryContext {
   cityId: string;
   seasonId: string;
   lastActiveAt: string;
+  resources: GridReturnResourceState;
 }
 
 export interface GridReturnActivityEvent {

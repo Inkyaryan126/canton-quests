@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../../supabase';
+import type { GridDevelopmentBranch } from '../core/economy-types';
 import type { GridCityPackage } from '../core/types';
 import type {
   GridReturnActivityBatch,
@@ -63,7 +64,9 @@ export function createSupabaseGridReturnSummaryPort(
       const seasonId = (seasonResult.data as { id: string }).id;
       const playerResult = await client
         .from('grid_player_season_state')
-        .select('last_active_at')
+        .select(
+          'credits,influence,command_points,command_points_updated_at,last_active_at,resources_settled_at,credits_accrual_remainder,influence_accrual_remainder',
+        )
         .eq('season_id', seasonId)
         .eq('player_id', playerId)
         .maybeSingle();
@@ -74,10 +77,111 @@ export function createSupabaseGridReturnSummaryPort(
       }
       if (!playerResult.data) return null;
 
+      const player = playerResult.data as {
+        credits: number;
+        influence: number;
+        command_points: number;
+        command_points_updated_at: string;
+        last_active_at: string;
+        resources_settled_at: string;
+        credits_accrual_remainder: number;
+        influence_accrual_remainder: number;
+      };
+
+      const territoryStateResult = await client
+        .from('grid_season_territory_state')
+        .select('territory_id')
+        .eq('season_id', seasonId)
+        .eq('owner_player_id', playerId);
+      if (territoryStateResult.error) {
+        throw new Error(
+          `Failed to read Grid return territory ownership: ${territoryStateResult.error.message}`,
+        );
+      }
+
+      const territoryIds = (territoryStateResult.data ?? []).map(
+        (row: { territory_id: string }) => row.territory_id,
+      );
+      let ownedTerritorySlugs: string[] = [];
+      if (territoryIds.length > 0) {
+        const territoryResult = await client
+          .from('grid_territories')
+          .select('id,slug')
+          .in('id', territoryIds);
+        if (territoryResult.error) {
+          throw new Error(
+            `Failed to read Grid return territories: ${territoryResult.error.message}`,
+          );
+        }
+        ownedTerritorySlugs = (
+          (territoryResult.data ?? []) as Array<{ id: string; slug: string }>
+        )
+          .map((row) => row.slug)
+          .sort();
+      }
+
+      const propertyStateResult = await client
+        .from('grid_season_property_state')
+        .select('property_id,development_branch,development_level')
+        .eq('season_id', seasonId)
+        .eq('owner_player_id', playerId);
+      if (propertyStateResult.error) {
+        throw new Error(
+          `Failed to read Grid return property ownership: ${propertyStateResult.error.message}`,
+        );
+      }
+
+      const propertyStates = (propertyStateResult.data ?? []) as Array<{
+        property_id: string;
+        development_branch: GridDevelopmentBranch | null;
+        development_level: number;
+      }>;
+      const propertyIds = propertyStates.map((row) => row.property_id);
+      const propertySlugById = new Map<string, string>();
+      if (propertyIds.length > 0) {
+        const propertyResult = await client
+          .from('grid_properties')
+          .select('id,slug')
+          .in('id', propertyIds);
+        if (propertyResult.error) {
+          throw new Error(
+            `Failed to read Grid return properties: ${propertyResult.error.message}`,
+          );
+        }
+        for (const row of (propertyResult.data ?? []) as Array<{
+          id: string;
+          slug: string;
+        }>) {
+          propertySlugById.set(row.id, row.slug);
+        }
+      }
+
+      const ownedProperties = propertyStates.flatMap((row) => {
+        const propertySlug = propertySlugById.get(row.property_id);
+        return propertySlug
+          ? [{
+              propertySlug,
+              developmentBranch: row.development_branch,
+              developmentLevel: Number(row.development_level),
+            }]
+          : [];
+      });
+
       return {
         cityId,
         seasonId,
-        lastActiveAt: (playerResult.data as { last_active_at: string }).last_active_at,
+        lastActiveAt: player.last_active_at,
+        resources: {
+          credits: Number(player.credits),
+          influence: Number(player.influence),
+          commandPoints: Number(player.command_points),
+          commandPointsUpdatedAt: player.command_points_updated_at,
+          resourcesSettledAt: player.resources_settled_at,
+          creditsAccrualRemainder: Number(player.credits_accrual_remainder),
+          influenceAccrualRemainder: Number(player.influence_accrual_remainder),
+          ownedTerritorySlugs,
+          ownedProperties,
+        },
       };
     },
 

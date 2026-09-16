@@ -1,5 +1,14 @@
+import type { GridCityPackage } from '../core/types';
+import { getDevelopmentBonusesThroughLevel } from '../core/development';
+import {
+  resolvePropertyIncomeRate,
+  resolveTerritoryIncomeRate,
+  settleCommandPoints,
+  settleGridResources,
+} from '../core/resources';
 import type {
   GridReturnActivityEvent,
+  GridReturnResourceState,
   GridReturnSummaryPort,
   GridReturnViewerRole,
 } from './return-summary-port';
@@ -7,8 +16,19 @@ import type {
 export interface GridReturnSummary {
   since: string;
   generatedAt: string;
+  timeAwayMinutes: number;
   truncated: boolean;
   eventsScanned: number;
+  pendingResources: {
+    creditsProduced: number;
+    influenceGenerated: number;
+    commandPointsRestored: number;
+    projectedCredits: number;
+    projectedInfluence: number;
+    projectedCommandPoints: number;
+    billableMinutes: number;
+    offlineAccrualCapped: boolean;
+  };
   cityActivity: {
     territoryClaims: number;
     propertyAcquisitions: number;
@@ -35,9 +55,105 @@ export interface GridReturnSummary {
 
 const MAX_ACTIVITY_EVENTS = 200;
 const MAX_HIGHLIGHTS = 6;
+const MINUTE_MS = 60 * 1000;
 
 function isYou(role: GridReturnViewerRole): boolean {
   return role !== 'none';
+}
+
+function incomeRates(
+  pkg: GridCityPackage,
+  state: GridReturnResourceState,
+): { creditsPerHour: number; influencePerHour: number } {
+  const economy = pkg.seasonTemplate.economy;
+  if (!economy) return { creditsPerHour: 0, influencePerHour: 0 };
+
+  let creditsPerHour = 0;
+  let influencePerHour = 0;
+
+  for (const slug of state.ownedTerritorySlugs) {
+    const rate = resolveTerritoryIncomeRate(economy, slug);
+    creditsPerHour += rate.creditsPerHour;
+    influencePerHour += rate.influencePerHour;
+  }
+
+  for (const property of state.ownedProperties) {
+    const rate = resolvePropertyIncomeRate(economy, property.propertySlug);
+    creditsPerHour += rate.creditsPerHour;
+    influencePerHour += rate.influencePerHour;
+
+    if (property.developmentBranch && property.developmentLevel > 0) {
+      const bonuses = getDevelopmentBonusesThroughLevel(
+        economy.development,
+        property.developmentBranch,
+        property.developmentLevel,
+      );
+      creditsPerHour += bonuses.creditsPerHour;
+      influencePerHour += bonuses.influencePerHour;
+    }
+  }
+
+  return { creditsPerHour, influencePerHour };
+}
+
+function previewResources(
+  pkg: GridCityPackage,
+  state: GridReturnResourceState,
+  generatedAt: string,
+): GridReturnSummary['pendingResources'] {
+  const nowMs = Date.parse(generatedAt);
+  const resourceUpdatedMs = Date.parse(state.resourcesSettledAt);
+  const commandPointsUpdatedMs = Date.parse(state.commandPointsUpdatedAt);
+
+  if (!Number.isFinite(resourceUpdatedMs) || !Number.isFinite(commandPointsUpdatedMs)) {
+    throw new Error('Grid return summary encountered invalid resource timestamps');
+  }
+
+  const economy = pkg.seasonTemplate.economy;
+  const rates = incomeRates(pkg, state);
+
+  const resourceSettlement = economy
+    ? settleGridResources({
+        credits: state.credits,
+        influence: state.influence,
+        creditsPerHour: rates.creditsPerHour,
+        influencePerHour: rates.influencePerHour,
+        remainders: {
+          credits: state.creditsAccrualRemainder,
+          influence: state.influenceAccrualRemainder,
+        },
+        lastSettledAtMs: resourceUpdatedMs,
+        nowMs,
+        offlineAccrualCapMinutes: economy.offlineAccrualCapMinutes,
+      })
+    : {
+        credits: state.credits,
+        influence: state.influence,
+        creditsEarned: 0,
+        influenceEarned: 0,
+        billableMs: 0,
+      };
+
+  const commandPoints = settleCommandPoints({
+    current: state.commandPoints,
+    max: pkg.seasonTemplate.balance.maxCommandPoints,
+    regenIntervalMinutes: pkg.seasonTemplate.balance.commandPointRegenMinutes,
+    updatedAtMs: commandPointsUpdatedMs,
+    nowMs,
+  });
+
+  const elapsedResourceMs = Math.max(0, nowMs - resourceUpdatedMs);
+
+  return {
+    creditsProduced: resourceSettlement.creditsEarned,
+    influenceGenerated: resourceSettlement.influenceEarned,
+    commandPointsRestored: commandPoints.regenerated,
+    projectedCredits: resourceSettlement.credits,
+    projectedInfluence: resourceSettlement.influence,
+    projectedCommandPoints: commandPoints.commandPoints,
+    billableMinutes: Math.floor(resourceSettlement.billableMs / MINUTE_MS),
+    offlineAccrualCapped: elapsedResourceMs > resourceSettlement.billableMs,
+  };
 }
 
 function highlightFor(
@@ -97,6 +213,7 @@ function highlightFor(
 
 export async function buildGridReturnSummary(
   port: GridReturnSummaryPort,
+  pkg: GridCityPackage,
   playerId: string,
   generatedAt: string,
 ): Promise<GridReturnSummary | null> {
@@ -108,6 +225,11 @@ export async function buildGridReturnSummary(
   const context = await port.getContext(playerId);
   if (!context) return null;
 
+  const sinceMs = Date.parse(context.lastActiveAt);
+  if (!Number.isFinite(sinceMs)) {
+    throw new Error('Grid return summary encountered invalid lastActiveAt');
+  }
+
   const batch = await port.listActivity(
     context.seasonId,
     playerId,
@@ -118,8 +240,10 @@ export async function buildGridReturnSummary(
   const summary: GridReturnSummary = {
     since: context.lastActiveAt,
     generatedAt,
+    timeAwayMinutes: Math.max(0, Math.floor((Date.parse(generatedAt) - sinceMs) / MINUTE_MS)),
     truncated: batch.truncated,
     eventsScanned: batch.events.length,
+    pendingResources: previewResources(pkg, context.resources, generatedAt),
     cityActivity: {
       territoryClaims: 0,
       propertyAcquisitions: 0,
