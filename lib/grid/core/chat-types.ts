@@ -16,6 +16,7 @@ export interface GridChatChannelSummary {
   unreadCount: number;
   mutedUntil: string | null;
   notificationsEnabled: boolean;
+  memberRole: 'member' | 'moderator' | 'owner';
   directPeer: GridChatPublicPlayer | null;
 }
 
@@ -52,4 +53,11 @@ export interface GridChatReportCommand {
   reason: GridChatReportReason;
   details: string | null;
   now: string;
+}
+
+export interface GridChatDistrictOption {
+  districtId: string;
+  name: string;
+  joined: boolean;
+  channelId: string | null;
 }
