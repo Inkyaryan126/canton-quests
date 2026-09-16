@@ -5,3 +5,8 @@ export {
   type GridEconomySimulationOptions,
   type GridEconomySimulationReport,
 } from './economy-sim';
+export {
+  runContestRoundSimulation,
+  type GridContestRoundSimulationOptions,
+  type GridContestRoundSimulationReport,
+} from './contest-sim';
