@@ -54,6 +54,67 @@ describe('Grid player-visible world projection', () => {
     expect(JSON.stringify(projection)).not.toContain('rival-secret-id');
   });
 
+  it('shows contested territory publicly but reveals reserve detail only to a participant', () => {
+    const edge = cantonFoundingSeasonPackage.edges[0];
+    expect(edge).toBeDefined();
+
+    const runtime = {
+      seasonId: 'season-1',
+      seasonStatus: 'active',
+      territories: [
+        { territorySlug: edge.a, ownerPlayerId: 'viewer-player', claimedAt: '2026-09-16T06:00:00Z' },
+        { territorySlug: edge.b, ownerPlayerId: 'defender-secret-id', claimedAt: '2026-09-16T06:01:00Z' },
+      ],
+      properties: [],
+      contests: [{
+        contestId: 'contest-1',
+        sourceTerritorySlug: edge.a,
+        targetTerritorySlug: edge.b,
+        attackerPlayerId: 'viewer-player',
+        defenderPlayerId: 'defender-secret-id',
+        attackerRemainingInfluence: 50,
+        defenderRemainingInfluence: 30,
+        roundNumber: 2,
+        status: 'active' as const,
+        startedAt: '2026-09-16T06:02:00Z',
+      }],
+      playerState: {
+        credits: 100,
+        influence: 40,
+        commandPoints: 5,
+        resourcesSettledAt: '2026-09-16T06:02:00Z',
+      },
+    };
+
+    const participant = buildGridWorldProjection(cantonFoundingSeasonPackage, {
+      viewerPlayerId: 'viewer-player',
+      runtime,
+    });
+    const spectator = buildGridWorldProjection(cantonFoundingSeasonPackage, {
+      runtime,
+    });
+
+    expect(participant.territories.find((territory) => territory.slug === edge.b)?.contested).toBe(true);
+    expect(participant.player.activeContests).toEqual([{
+      contestId: 'contest-1',
+      role: 'attacker',
+      sourceTerritorySlug: edge.a,
+      targetTerritorySlug: edge.b,
+      roundNumber: 2,
+      yourRemainingInfluence: 50,
+      opponentRemainingInfluence: 30,
+      startedAt: '2026-09-16T06:02:00Z',
+    }]);
+    expect(JSON.stringify(participant)).not.toContain('defender-secret-id');
+
+    expect(spectator.counts.activeContests).toBe(1);
+    expect(spectator.territories.find((territory) => territory.slug === edge.b)?.contested).toBe(true);
+    expect(spectator.player.activeContests).toEqual([]);
+    expect(JSON.stringify(spectator)).not.toContain('viewer-player');
+    expect(JSON.stringify(spectator)).not.toContain('defender-secret-id');
+    expect(JSON.stringify(spectator)).not.toContain('opponentRemainingInfluence');
+  });
+
   it('projects only the viewer skyline and keeps private property names sanitized', () => {
     const publicProperty = cantonFoundingSeasonPackage.properties.find((property) => property.publicNameSafe);
     const privateProperty = cantonFoundingSeasonPackage.properties.find((property) => !property.publicNameSafe);
@@ -100,5 +161,7 @@ describe('Grid player-visible world projection', () => {
     expect(api).toContain('export async function GET');
     expect(api).not.toMatch(/export async function (POST|PUT|PATCH|DELETE)/);
     expect(adapter).not.toMatch(/\.(insert|update|delete|upsert|rpc)\s*\(/);
+    expect(adapter).toContain(".from('grid_contests')");
+    expect(adapter).toContain('isMissingContestTable');
   });
 });

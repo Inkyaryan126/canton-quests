@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../../supabase';
 import type { GridCityPackage } from '../core/types';
 import type {
+  GridWorldRuntimeContestState,
   GridWorldRuntimePlayerState,
   GridWorldRuntimePropertyState,
   GridWorldRuntimeSnapshot,
@@ -14,6 +15,17 @@ type SlugRow = { id: string; slug: string };
 
 function throwIfError(error: { message?: string } | null, label: string): void {
   if (error) throw new Error(`Failed to read Grid ${label}: ${error.message ?? 'unknown error'}`);
+}
+
+function isMissingContestTable(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  return Boolean(
+    error &&
+      (error.code === '42P01' ||
+        (error.message?.includes('grid_contests') &&
+          error.message.includes('does not exist'))),
+  );
 }
 
 export async function readSupabaseGridWorldRuntime(
@@ -110,6 +122,50 @@ export async function readSupabaseGridWorldRuntime(
       : [];
   });
 
+  const contestResult = await client
+    .from('grid_contests')
+    .select(
+      'id,source_territory_id,target_territory_id,attacker_player_id,defender_player_id,attacker_remaining_influence,defender_remaining_influence,round_number,status,started_at',
+    )
+    .eq('season_id', season.id)
+    .eq('status', 'active');
+
+  let contests: GridWorldRuntimeContestState[] = [];
+  if (!isMissingContestTable(contestResult.error)) {
+    throwIfError(contestResult.error, 'active contests');
+    contests = (
+      (contestResult.data ?? []) as Array<{
+        id: string;
+        source_territory_id: string;
+        target_territory_id: string;
+        attacker_player_id: string;
+        defender_player_id: string;
+        attacker_remaining_influence: number;
+        defender_remaining_influence: number;
+        round_number: number;
+        status: GridWorldRuntimeContestState['status'];
+        started_at: string;
+      }>
+    ).flatMap((row) => {
+      const sourceTerritorySlug = territorySlugById.get(row.source_territory_id);
+      const targetTerritorySlug = territorySlugById.get(row.target_territory_id);
+      return sourceTerritorySlug && targetTerritorySlug
+        ? [{
+            contestId: row.id,
+            sourceTerritorySlug,
+            targetTerritorySlug,
+            attackerPlayerId: row.attacker_player_id,
+            defenderPlayerId: row.defender_player_id,
+            attackerRemainingInfluence: Number(row.attacker_remaining_influence),
+            defenderRemainingInfluence: Number(row.defender_remaining_influence),
+            roundNumber: Number(row.round_number),
+            status: row.status,
+            startedAt: row.started_at,
+          }]
+        : [];
+    });
+  }
+
   let playerState: GridWorldRuntimePlayerState | null = null;
   if (viewerPlayerId) {
     const playerResult = await client
@@ -141,6 +197,7 @@ export async function readSupabaseGridWorldRuntime(
     seasonStatus: season.status,
     territories,
     properties,
+    contests,
     playerState,
   };
 }

@@ -26,11 +26,26 @@ export interface GridWorldRuntimePlayerState {
   commandPoints: number;
   resourcesSettledAt: string;
 }
+
+export interface GridWorldRuntimeContestState {
+  contestId: string;
+  sourceTerritorySlug: string;
+  targetTerritorySlug: string;
+  attackerPlayerId: string;
+  defenderPlayerId: string;
+  attackerRemainingInfluence: number;
+  defenderRemainingInfluence: number;
+  roundNumber: number;
+  status: 'active' | 'captured' | 'defended' | 'withdrawn' | 'cancelled';
+  startedAt: string;
+}
+
 export interface GridWorldRuntimeSnapshot {
   seasonId: string;
   seasonStatus: string;
   territories: GridWorldRuntimeTerritoryState[];
   properties: GridWorldRuntimePropertyState[];
+  contests?: GridWorldRuntimeContestState[];
   playerState: GridWorldRuntimePlayerState | null;
 }
 
@@ -49,6 +64,16 @@ export interface GridWorldProjection {
     authenticated: boolean;
     joined: boolean;
     wallet: GridWorldRuntimePlayerState | null;
+    activeContests: Array<{
+      contestId: string;
+      role: 'attacker' | 'defender';
+      sourceTerritorySlug: string;
+      targetTerritorySlug: string;
+      roundNumber: number;
+      yourRemainingInfluence: number;
+      opponentRemainingInfluence: number;
+      startedAt: string;
+    }>;
   };
   counts: {
     districts: number;
@@ -56,6 +81,7 @@ export interface GridWorldProjection {
     properties: number;
     occupiedTerritories: number;
     occupiedProperties: number;
+    activeContests: number;
   };
   territories: Array<{
     slug: string;
@@ -65,6 +91,7 @@ export interface GridWorldProjection {
     ownership: GridWorldOwnership;
     claimable: boolean;
     starterEligible: boolean;
+    contested: boolean;
   }>;
   properties: Array<{
     slug: string;
@@ -108,6 +135,40 @@ export function buildGridWorldProjection(
     (runtime?.properties ?? []).map((row) => [row.propertySlug, row] as const),
   );
   const joined = Boolean(viewerPlayerId && runtime?.playerState);
+  const activeRuntimeContests = (runtime?.contests ?? []).filter(
+    (contest) => contest.status === 'active',
+  );
+  const contestedTargets = new Set(
+    activeRuntimeContests.map((contest) => contest.targetTerritorySlug),
+  );
+  const activeContests = viewerPlayerId
+    ? activeRuntimeContests.flatMap((contest) => {
+        const role: 'attacker' | 'defender' | null =
+          contest.attackerPlayerId === viewerPlayerId
+            ? 'attacker'
+            : contest.defenderPlayerId === viewerPlayerId
+              ? 'defender'
+              : null;
+        if (!role) return [];
+
+        return [{
+          contestId: contest.contestId,
+          role,
+          sourceTerritorySlug: contest.sourceTerritorySlug,
+          targetTerritorySlug: contest.targetTerritorySlug,
+          roundNumber: contest.roundNumber,
+          yourRemainingInfluence:
+            role === 'attacker'
+              ? contest.attackerRemainingInfluence
+              : contest.defenderRemainingInfluence,
+          opponentRemainingInfluence:
+            role === 'attacker'
+              ? contest.defenderRemainingInfluence
+              : contest.attackerRemainingInfluence,
+          startedAt: contest.startedAt,
+        }];
+      })
+    : [];
 
   const control = projectTerritoryControl({
     territories: pkg.territories,
@@ -133,6 +194,7 @@ export function buildGridWorldProjection(
       ownership: ownershipFor(state?.ownerPlayerId, viewerPlayerId),
       claimable: validClaims.has(territory.slug),
       starterEligible: starterSlugs.has(territory.slug),
+      contested: contestedTargets.has(territory.slug),
     };
   });
 
@@ -185,6 +247,7 @@ export function buildGridWorldProjection(
       authenticated: Boolean(viewerPlayerId),
       joined,
       wallet: runtime?.playerState ?? null,
+      activeContests,
     },
     counts: {
       districts: pkg.districts.length,
@@ -192,6 +255,7 @@ export function buildGridWorldProjection(
       properties: properties.length,
       occupiedTerritories: territories.filter((territory) => territory.ownership !== 'neutral').length,
       occupiedProperties: properties.filter((property) => property.ownership !== 'neutral').length,
+      activeContests: activeRuntimeContests.length,
     },
     territories,
     properties,
