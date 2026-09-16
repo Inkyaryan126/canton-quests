@@ -52,6 +52,8 @@ Web stays the frictionless first-touch experience. A native app can later add hi
 
 `GRID Mobile 2` supplies a real web adapter for foreground geolocation, web sharing, vibration/haptics, deep links, and host-injected camera/push implementations. It deliberately omits secure-storage and background-location claims.
 
+`GRID Mobile 3` supplies a framework-neutral native adapter factory for iOS and Android shells. Capabilities are derived only from ports the shell actually provides, and background location requires an explicit opt-in plus a real location port.
+
 A boundary test scans shared core/server TypeScript and fails if browser globals enter those layers.
 
 ## Native follow-on
