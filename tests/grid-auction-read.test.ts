@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { listGridActiveAuctions } from '../lib/grid/server/auction-read-service';
-import { createSupabaseGridAuctionReadPort } from '../lib/grid/server/supabase-auction-read';
+import { cantonFoundingSeasonPackage } from '../lib/grid/cities/canton/founding-season';
+import {
+  createSupabaseGridAuctionReadPort,
+  resolveSupabaseGridAuctionSeasonId,
+} from '../lib/grid/server/supabase-auction-read';
 import type { GridAuctionReadPort } from '../lib/grid/server/auction-read-port';
 
 describe('Grid auction discovery', () => {
@@ -32,6 +36,49 @@ describe('Grid auction discovery', () => {
         now: 'bad-time',
       }),
     ).rejects.toThrow('valid now timestamp');
+  });
+
+
+
+  it('resolves the runtime season from trusted city package slugs', async () => {
+    const cityMaybeSingle = vi.fn().mockResolvedValue({
+      data: { id: 'city-1' },
+      error: null,
+    });
+    const cityEq = vi.fn().mockReturnValue({ maybeSingle: cityMaybeSingle });
+    const citySelect = vi.fn().mockReturnValue({ eq: cityEq });
+
+    const seasonMaybeSingle = vi.fn().mockResolvedValue({
+      data: { id: 'season-1' },
+      error: null,
+    });
+    const seasonSlugEq = vi.fn().mockReturnValue({
+      maybeSingle: seasonMaybeSingle,
+    });
+    const seasonCityEq = vi.fn().mockReturnValue({ eq: seasonSlugEq });
+    const seasonSelect = vi.fn().mockReturnValue({ eq: seasonCityEq });
+    const from = vi.fn((table: string) =>
+      table === 'grid_cities'
+        ? { select: citySelect }
+        : { select: seasonSelect },
+    );
+
+    await expect(
+      resolveSupabaseGridAuctionSeasonId(
+        cantonFoundingSeasonPackage,
+        { from } as any,
+      ),
+    ).resolves.toBe('season-1');
+
+    expect(cityEq).toHaveBeenCalledWith(
+      'slug',
+      cantonFoundingSeasonPackage.city.slug,
+    );
+    expect(seasonCityEq).toHaveBeenCalledWith('city_id', 'city-1');
+    expect(seasonSlugEq).toHaveBeenCalledWith(
+      'slug',
+      cantonFoundingSeasonPackage.seasonTemplate.slug,
+    );
   });
 
   it('sanitizes private property names and hides leader identity', async () => {
