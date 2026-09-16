@@ -1,14 +1,20 @@
+import { resolveSignalDiceRound } from './contest';
+import type { GridContestConfig } from './contest-types';
 import type {
   GridCreateScrimmageCommand,
   GridEndScrimmageCommand,
   GridJoinScrimmageCommand,
   GridLeaveScrimmageCommand,
+  GridResolveScrimmageDuelCommand,
+  GridScrimmageCombatantState,
   GridScrimmageParticipant,
   GridScrimmageRules,
   GridScrimmageState,
   GridSetScrimmageReadyCommand,
   GridStartScrimmageCommand,
 } from './scrimmage-types';
+
+export const GRID_SCRIMMAGE_STARTING_INFLUENCE = 100;
 
 function requireNonEmpty(value: string, label: string): string {
   const normalized = value.trim();
@@ -60,6 +66,23 @@ function cloneParticipants(
   return participants.map((participant) => ({ ...participant }));
 }
 
+function cloneMatch(
+  match: GridScrimmageState['match'],
+): GridScrimmageState['match'] {
+  if (!match) return null;
+  return {
+    ...match,
+    combatants: match.combatants.map((combatant) => ({ ...combatant })),
+    lastRound: match.lastRound
+      ? {
+          ...match.lastRound,
+          attackerRolls: [...match.lastRound.attackerRolls],
+          defenderRolls: [...match.lastRound.defenderRolls],
+        }
+      : null,
+  };
+}
+
 function updateState(
   state: GridScrimmageState,
   patch: Partial<GridScrimmageState>,
@@ -72,6 +95,10 @@ function updateState(
         ? cloneParticipants(patch.participants)
         : cloneParticipants(state.participants),
     rules: { ...state.rules },
+    match:
+      patch.match !== undefined
+        ? cloneMatch(patch.match)
+        : cloneMatch(state.match),
     revision: state.revision + 1,
   };
 }
@@ -95,6 +122,34 @@ function requireHost(state: GridScrimmageState, playerId: string): void {
   if (state.hostPlayerId !== playerId) {
     throw new Error('Grid scrimmage action requires the session host');
   }
+}
+
+function combatantIndex(
+  state: GridScrimmageState,
+  playerId: string,
+): number {
+  return state.match?.combatants.findIndex(
+    (combatant) => combatant.playerId === playerId,
+  ) ?? -1;
+}
+
+function updateCombatRecord(
+  combatant: GridScrimmageCombatantState,
+  influenceLost: number,
+  result: 'win' | 'loss' | 'draw',
+): GridScrimmageCombatantState {
+  const remainingInfluence = Math.max(
+    0,
+    combatant.remainingInfluence - influenceLost,
+  );
+  return {
+    ...combatant,
+    remainingInfluence,
+    roundWins: combatant.roundWins + (result === 'win' ? 1 : 0),
+    roundLosses: combatant.roundLosses + (result === 'loss' ? 1 : 0),
+    draws: combatant.draws + (result === 'draw' ? 1 : 0),
+    eliminated: remainingInfluence === 0,
+  };
 }
 
 export function createGridScrimmage(
@@ -125,6 +180,7 @@ export function createGridScrimmage(
       },
     ],
     rules,
+    match: null,
     revision: 0,
     createdAt,
     startedAt: null,
@@ -250,6 +306,104 @@ export function startGridScrimmage(
   return updateState(state, {
     status: 'active',
     startedAt,
+    match: {
+      startingInfluencePerPlayer: GRID_SCRIMMAGE_STARTING_INFLUENCE,
+      roundNumber: 0,
+      combatants: state.participants.map((participant) => ({
+        playerId: participant.playerId,
+        remainingInfluence: GRID_SCRIMMAGE_STARTING_INFLUENCE,
+        roundWins: 0,
+        roundLosses: 0,
+        draws: 0,
+        eliminated: false,
+      })),
+      lastRound: null,
+    },
+  });
+}
+
+export function resolveGridScrimmageDuel(
+  state: GridScrimmageState,
+  command: GridResolveScrimmageDuelCommand,
+  config: GridContestConfig,
+): GridScrimmageState {
+  if (state.status !== 'active' || !state.match) {
+    throw new Error('Grid scrimmage duel requires an active match');
+  }
+
+  const attackerPlayerId = requireNonEmpty(
+    command.attackerPlayerId,
+    'attackerPlayerId',
+  );
+  const defenderPlayerId = requireNonEmpty(
+    command.defenderPlayerId,
+    'defenderPlayerId',
+  );
+
+  if (attackerPlayerId === defenderPlayerId) {
+    throw new Error('Grid scrimmage players cannot duel themselves');
+  }
+
+  const attackerIndex = combatantIndex(state, attackerPlayerId);
+  const defenderIndex = combatantIndex(state, defenderPlayerId);
+  if (attackerIndex < 0 || defenderIndex < 0) {
+    throw new Error('Grid scrimmage duel requires two session participants');
+  }
+
+  const attacker = state.match.combatants[attackerIndex];
+  const defender = state.match.combatants[defenderIndex];
+  if (attacker.eliminated || defender.eliminated) {
+    throw new Error('Grid scrimmage eliminated players cannot duel');
+  }
+
+  const result = resolveSignalDiceRound(
+    {
+      attackerCommittedInfluence: attacker.remainingInfluence,
+      defenderCommittedInfluence: defender.remainingInfluence,
+      attackerRolls: command.attackerRolls,
+      defenderRolls: command.defenderRolls,
+    },
+    config,
+  );
+
+  const winner =
+    result.defenderInfluenceLost > result.attackerInfluenceLost
+      ? 'attacker'
+      : result.attackerInfluenceLost > result.defenderInfluenceLost
+        ? 'defender'
+        : 'draw';
+
+  const combatants = state.match.combatants.map((combatant) => ({
+    ...combatant,
+  }));
+  combatants[attackerIndex] = updateCombatRecord(
+    attacker,
+    result.attackerInfluenceLost,
+    winner === 'attacker' ? 'win' : winner === 'defender' ? 'loss' : 'draw',
+  );
+  combatants[defenderIndex] = updateCombatRecord(
+    defender,
+    result.defenderInfluenceLost,
+    winner === 'defender' ? 'win' : winner === 'attacker' ? 'loss' : 'draw',
+  );
+
+  const roundNumber = state.match.roundNumber + 1;
+  return updateState(state, {
+    match: {
+      ...state.match,
+      roundNumber,
+      combatants,
+      lastRound: {
+        roundNumber,
+        attackerPlayerId,
+        defenderPlayerId,
+        attackerRolls: [...command.attackerRolls],
+        defenderRolls: [...command.defenderRolls],
+        attackerInfluenceLost: result.attackerInfluenceLost,
+        defenderInfluenceLost: result.defenderInfluenceLost,
+        winner,
+      },
+    },
   });
 }
 
