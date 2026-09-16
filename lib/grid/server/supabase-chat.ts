@@ -29,7 +29,9 @@ type ChannelRow = {
 type MessageRow = {
   id: string;
   channel_id: string;
-  sender_player_id: string;
+  sender_player_id: string | null;
+  sender_kind: 'player' | 'system';
+  sender_label: string | null;
   body: string;
   reply_to_message_id: string | null;
   created_at: string;
@@ -382,7 +384,7 @@ export function createSupabaseGridChatPort(
       const fetchLimit = Math.min(200, safeLimit + blocked.size + 25);
       let query = client
         .from('grid_chat_messages')
-        .select('id,channel_id,sender_player_id,body,reply_to_message_id,created_at,edited_at')
+        .select('id,channel_id,sender_player_id,sender_kind,sender_label,body,reply_to_message_id,created_at,edited_at')
         .eq('channel_id', channelId)
         .eq('status', 'visible')
         .order('created_at', { ascending: false })
@@ -394,12 +396,19 @@ export function createSupabaseGridChatPort(
         throw new Error(`Failed to read Grid chat messages: ${messageResult.error.message}`);
       }
       const rawRows = (messageResult.data ?? []) as MessageRow[];
-      const visibleRows = rawRows.filter((row) => !blocked.has(row.sender_player_id)).slice(0, safeLimit);
-      const profileById = await loadProfiles(client, visibleRows.map((row) => row.sender_player_id));
+      const visibleRows = rawRows.filter((row) => !row.sender_player_id || !blocked.has(row.sender_player_id)).slice(0, safeLimit);
+      const profileById = await loadProfiles(client, visibleRows.flatMap((row) => row.sender_player_id ? [row.sender_player_id] : []));
 
       const messages = visibleRows
         .map((row): GridChatMessageView | null => {
-          const sender = profileById.get(row.sender_player_id);
+          const sender = row.sender_kind === 'system'
+            ? { playerId: null, callsign: row.sender_label ?? 'SYSTEM', avatarUrl: null, isSystem: true }
+            : row.sender_player_id
+              ? (() => {
+                  const profile = profileById.get(row.sender_player_id!);
+                  return profile ? { ...profile, isSystem: false } : null;
+                })()
+              : null;
           if (!sender) return null;
           return {
             messageId: row.id,
@@ -409,7 +418,7 @@ export function createSupabaseGridChatPort(
             replyToMessageId: row.reply_to_message_id,
             createdAt: row.created_at,
             editedAt: row.edited_at,
-            isMine: row.sender_player_id === playerId,
+            isMine: row.sender_kind === 'player' && row.sender_player_id === playerId,
           };
         })
         .filter((row): row is GridChatMessageView => Boolean(row))

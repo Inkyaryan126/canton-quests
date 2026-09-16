@@ -385,7 +385,7 @@ export default function GridChatClient() {
   }
 
   async function blockPlayer(message: GridChatMessageView) {
-    if (message.isMine) return;
+    if (message.isMine || message.sender.isSystem || !message.sender.playerId) return;
     if (!window.confirm(`Block ${message.sender.callsign}? Their messages will disappear from your feed.`)) return;
     try {
       const response = await fetch('/api/grid/chat/block', {
@@ -587,18 +587,20 @@ export default function GridChatClient() {
                     {messages.map((message) => (
                       <article key={message.messageId} className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}>
                         <div className={`group max-w-[88%] rounded-2xl border px-4 py-3 sm:max-w-[75%] ${
-                          message.isMine
-                            ? 'border-cyan-300/25 bg-cyan-300/10'
-                            : 'border-white/10 bg-white/[.035]'
+                          message.sender.isSystem
+                            ? 'border-amber-300/35 bg-amber-300/[.07] shadow-[0_0_30px_rgba(252,211,77,.05)]'
+                            : message.isMine
+                              ? 'border-cyan-300/25 bg-cyan-300/10'
+                              : 'border-white/10 bg-white/[.035]'
                         }`}>
                           <div className="flex items-center gap-2">
-                            <span className={`font-display text-xs font-black uppercase ${message.isMine ? 'text-cyan-300' : 'text-stone-300'}`}>
-                              {message.isMine ? 'YOU' : message.sender.callsign}
+                            <span className={`font-display text-xs font-black uppercase ${message.sender.isSystem ? 'text-amber-300' : message.isMine ? 'text-cyan-300' : 'text-stone-300'}`}>
+                              {message.sender.isSystem ? `SYSTEM // ${message.sender.callsign}` : message.isMine ? 'YOU' : message.sender.callsign}
                             </span>
                             <span className="font-mono text-[9px] text-stone-700">{timeLabel(message.createdAt)}</span>
                           </div>
                           <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-stone-200">{message.body}</p>
-                          {!message.isMine && (
+                          {!message.isMine && !message.sender.isSystem && (
                             <div className="mt-2 flex gap-3 opacity-50 transition group-hover:opacity-100">
                               <button type="button" onClick={() => setReportingMessage(message)} className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-stone-600 hover:text-amber-300">
                                 <Flag size={10} /> Report
