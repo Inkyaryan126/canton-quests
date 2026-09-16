@@ -124,3 +124,24 @@ export interface GridRoadRouteContext {
   territorySteps: GridRoadRouteTerritoryStep[];
   unassignedEdgeCount: number;
 }
+export type GridRoadAccessTargetKind = 'property' | 'landmark' | 'mission' | 'npc' | 'custom';
+
+export interface GridRoadAccessTarget {
+  id: string;
+  kind: GridRoadAccessTargetKind;
+  point: GridRoadPoint;
+}
+
+export interface GridRoadAccessRecord {
+  targetId: string;
+  kind: GridRoadAccessTargetKind;
+  point: GridRoadPoint;
+  snap: GridRoadSnap | null;
+}
+
+export interface GridRoadAccessIndex {
+  maxSnapDistanceMeters: number;
+  records: GridRoadAccessRecord[];
+  resolvedTargetIds: string[];
+  unresolvedTargetIds: string[];
+}
