@@ -44,7 +44,14 @@ describe('Grid active contest discovery adapter/API contract', () => {
     expect(source).toContain('isGridContestWriteEnabled()');
     expect(source).toContain('Authentication required.');
     expect(source).toContain("searchParams.get('seasonId')");
-    expect(source).toContain("searchParams.get('playerId')");
+    expect(source).not.toContain("searchParams.get('playerId')");
+    expect(source).toContain('playerId: session.player.id');
     expect(source).toContain("searchParams.get('territoryId')");
   });
+});
+
+it('never accepts an arbitrary playerId from the HTTP query string', () => {
+  const source = read(routePath);
+  expect(source).not.toContain("searchParams.get('playerId')");
+  expect(source).toContain('playerId: session.player.id');
 });

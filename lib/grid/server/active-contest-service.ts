@@ -25,9 +25,14 @@ export async function listGridActiveContests(
   requireNonBlank(query.seasonId, 'seasonId');
   requireNonBlank(query.playerId, 'playerId');
   requireNonBlank(query.territoryId, 'territoryId');
+  requireNonBlank(query.viewerPlayerId, 'viewerPlayerId');
   requireUuid(query.seasonId, 'seasonId');
   requireUuid(query.playerId, 'playerId');
   requireUuid(query.territoryId, 'territoryId');
+  requireUuid(query.viewerPlayerId, 'viewerPlayerId');
+  if (query.playerId && query.viewerPlayerId && query.playerId !== query.viewerPlayerId) {
+    throw new Error('Grid active contest discovery cannot query another player');
+  }
 
   const rows = await port.listActiveContests(query);
   return [...rows].sort((a, b) => {
