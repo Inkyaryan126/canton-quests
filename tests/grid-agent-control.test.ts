@@ -7,6 +7,7 @@ import {
   claimScopesOverlap,
   coordinationIssues,
   createClaim,
+  dirtyStatusPath,
   heartbeatClaim,
   readClaims,
   releaseClaim,
@@ -67,16 +68,32 @@ describe('GRID agent control', () => {
     }, repo)).toThrow(/scope overlaps active lane/i);
   });
 
-  it('blocks preflight only for Boardroom activity, dirty unclaimed worktrees, or stale claims', () => {
-    const issues = coordinationIssues(
-      [],
-      [{
-        path: '/tmp/grid-x', head: 'abc', branch: 'grid-x',
-        dirtyPaths: ['?? file.ts'], lastCommitSubject: 'x',
-        lastCommitAt: new Date().toISOString(), activeProcessCount: 0,
-      }],
-      { counts: {}, queued: [], blocked: [], autonomousRunActive: false },
-    );
-    expect(issues.map((issue) => issue.code)).toEqual(['DIRTY_UNCLAIMED']);
+  it('parses dirty paths including rename status lines', () => {
+    expect(dirtyStatusPath('?? lib/grid/new.ts')).toBe('lib/grid/new.ts');
+    expect(dirtyStatusPath(' M lib/grid/changed.ts')).toBe('lib/grid/changed.ts');
+    expect(dirtyStatusPath('R  old.ts -> new.ts')).toBe('new.ts');
+  });
+
+  it('blocks preflight for unclaimed worktrees and dirty files outside a declared claim', () => {
+    const boardroom = { counts: {}, queued: [], blocked: [], autonomousRunActive: false };
+    const worktree = {
+      path: '/tmp/grid-x', head: 'abc', branch: 'grid-x',
+      dirtyPaths: ['?? lib/grid/owned.ts', '?? lib/grid/wandered.ts'],
+      lastCommitSubject: 'x', lastCommitAt: new Date().toISOString(), activeProcessCount: 0,
+    };
+
+    expect(coordinationIssues([], [worktree], boardroom).map((issue) => issue.code)).toEqual([
+      'DIRTY_UNCLAIMED',
+    ]);
+
+    const now = new Date().toISOString();
+    const claim = {
+      version: 1 as const, lane: 'owned', owner: 'stream', goal: 'work',
+      scope: ['lib/grid/owned.ts'], worktree: '/tmp/grid-x', branch: 'grid-x',
+      claimedAt: now, heartbeatAt: now,
+    };
+    expect(coordinationIssues([claim], [worktree], boardroom).map((issue) => issue.code)).toEqual([
+      'DIRTY_OUTSIDE_CLAIM',
+    ]);
   });
 });

@@ -179,8 +179,7 @@ export function listWorktreeStates(cwd = process.cwd()): WorktreeState[] {
   return parseWorktrees(raw).map((entry) => {
     const dirtyPaths = runGit(['status', '--short'], entry.path)
       .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
+      .filter((line) => line.trim().length > 0);
     const lastCommitSubject = runGit(['log', '-1', '--pretty=%s'], entry.path);
     const lastCommitAt = runGit(['log', '-1', '--format=%cI'], entry.path);
     const aliases = worktreeAliases(entry.path);
@@ -236,7 +235,7 @@ export function staleClaim(claim: AgentClaim, staleMinutes = 360): boolean {
   return !Number.isFinite(age) || age > staleMinutes * 60_000;
 }
 export interface CoordinationIssue {
-  code: 'BOARDROOM_ACTIVE' | 'DIRTY_UNCLAIMED' | 'STALE_CLAIM';
+  code: 'BOARDROOM_ACTIVE' | 'DIRTY_UNCLAIMED' | 'DIRTY_OUTSIDE_CLAIM' | 'STALE_CLAIM';
   message: string;
 }
 
@@ -253,12 +252,29 @@ export function coordinationIssues(
     });
   }
 
-  const claimedWorktrees = new Set(claims.map((claim) => claim.worktree));
+  const claimsByWorktree = new Map<string, AgentClaim[]>();
+  for (const claim of claims) {
+    const list = claimsByWorktree.get(claim.worktree) ?? [];
+    list.push(claim);
+    claimsByWorktree.set(claim.worktree, list);
+  }
+
   for (const worktree of worktrees) {
-    if (worktree.dirtyPaths.length > 0 && !claimedWorktrees.has(worktree.path)) {
+    if (worktree.dirtyPaths.length === 0) continue;
+    const worktreeClaims = claimsByWorktree.get(worktree.path) ?? [];
+    if (worktreeClaims.length === 0) {
       issues.push({
         code: 'DIRTY_UNCLAIMED',
         message: `Dirty worktree has no live lane claim: ${worktree.branch} — ${worktree.path}`,
+      });
+      continue;
+    }
+
+    for (const dirtyPath of worktree.dirtyPaths) {
+      if (worktreeClaims.some((claim) => claimCoversDirtyPath(claim, dirtyPath))) continue;
+      issues.push({
+        code: 'DIRTY_OUTSIDE_CLAIM',
+        message: `Dirty path is outside every claim on ${worktree.branch}: ${dirtyStatusPath(dirtyPath)}`,
       });
     }
   }
@@ -273,4 +289,14 @@ export function coordinationIssues(
   }
 
   return issues;
+}
+export function dirtyStatusPath(statusLine: string): string {
+  const stripped = statusLine.replace(/^[ MADRCU?!]{1,2}\s+/, '').trim();
+  const arrow = stripped.lastIndexOf(' -> ');
+  return arrow === -1 ? stripped : stripped.slice(arrow + 4).trim();
+}
+
+function claimCoversDirtyPath(claim: AgentClaim, statusLine: string): boolean {
+  const filePath = dirtyStatusPath(statusLine);
+  return claim.scope.some((scope) => scopesOverlap(scope, filePath));
 }
