@@ -41,7 +41,17 @@ export async function GET(
       session.player.id,
     );
 
-    return response({ success: true, scrimmage });
+    return response({
+      success: true,
+      scrimmage,
+      viewer: {
+        playerId: session.player.id,
+        role:
+          scrimmage.hostPlayerId === session.player.id
+            ? ('host' as const)
+            : ('participant' as const),
+      },
+    });
   } catch {
     return response(
       { success: false, error: 'Grid scrimmage session was not found.' },
