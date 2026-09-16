@@ -25,7 +25,7 @@ function requireTimestamp(value: string, label: string): string {
   return value;
 }
 
-function normalizeInviteCode(value: string): string {
+export function normalizeGridScrimmageInviteCode(value: string): string {
   const normalized = requireNonEmpty(value, 'inviteCode').toUpperCase();
   if (!/^[A-Z0-9-]{4,24}$/.test(normalized)) {
     throw new Error(
@@ -107,7 +107,7 @@ export function createGridScrimmage(
     'hostPlayerId',
   );
   const createdAt = requireTimestamp(command.now, 'now');
-  const inviteCode = normalizeInviteCode(command.inviteCode);
+  const inviteCode = normalizeGridScrimmageInviteCode(command.inviteCode);
   const rules = validateRules(command.rules);
 
   return {
@@ -139,7 +139,7 @@ export function joinGridScrimmage(
   requireLobby(state);
   const playerId = requireNonEmpty(command.playerId, 'playerId');
   const joinedAt = requireTimestamp(command.now, 'now');
-  const inviteCode = normalizeInviteCode(command.inviteCode);
+  const inviteCode = normalizeGridScrimmageInviteCode(command.inviteCode);
 
   if (inviteCode !== state.inviteCode) {
     throw new Error('Grid scrimmage invite code is invalid');
