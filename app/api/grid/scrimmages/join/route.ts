@@ -45,7 +45,17 @@ export async function POST(request: Request) {
       },
     );
 
-    return response({ success: true, scrimmage });
+    return response({
+      success: true,
+      scrimmage,
+      viewer: {
+        playerId: session.player.id,
+        role:
+          scrimmage.hostPlayerId === session.player.id
+            ? ('host' as const)
+            : ('participant' as const),
+      },
+    });
   } catch (error) {
     const message =
       error instanceof Error

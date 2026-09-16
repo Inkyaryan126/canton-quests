@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
+import { getGridCityPackage } from '@/lib/grid/cities/registry';
+import { resolveGridScrimmageCityId } from '@/lib/grid/server/scrimmage-city-resolver';
 import { isGridScrimmageEnabled } from '@/lib/grid/server/scrimmage-feature-flags';
 import { createGridScrimmageSession } from '@/lib/grid/server/scrimmage-service';
 import { createSupabaseGridScrimmagePort } from '@/lib/grid/server/supabase-scrimmage';
@@ -37,7 +39,8 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const cityId = typeof body.cityId === 'string' ? body.cityId : '';
+  const citySlug =
+    typeof body.citySlug === 'string' ? body.citySlug.trim() : 'canton-oh';
   const minPlayers =
     Number.isInteger(body.minPlayers) ? body.minPlayers : 2;
   const maxPlayers =
@@ -45,6 +48,14 @@ export async function POST(request: Request) {
   const requireAllReady = body.requireAllReady !== false;
 
   try {
+    if (!getGridCityPackage(citySlug)) {
+      return response(
+        { success: false, error: 'Grid scrimmage city is not supported.' },
+        { status: 400 },
+      );
+    }
+
+    const cityId = await resolveGridScrimmageCityId(citySlug);
     const scrimmage = await createGridScrimmageSession(
       createSupabaseGridScrimmagePort(),
       {
@@ -61,7 +72,11 @@ export async function POST(request: Request) {
       },
     );
 
-    return response({ success: true, scrimmage });
+    return response({
+      success: true,
+      scrimmage,
+      viewer: { playerId: session.player.id, role: 'host' as const },
+    });
   } catch (error) {
     const message =
       error instanceof Error
