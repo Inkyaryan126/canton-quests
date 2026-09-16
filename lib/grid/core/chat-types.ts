@@ -30,6 +30,7 @@ export interface GridChatMessageSender {
 export interface GridChatMessageView {
   messageId: string;
   channelId: string;
+  sequenceNo: number;
   sender: GridChatMessageSender;
   body: string;
   replyToMessageId: string | null;
@@ -41,6 +42,7 @@ export interface GridChatMessageView {
 export interface GridChatMessagePage {
   messages: GridChatMessageView[];
   nextBefore: string | null;
+  cursorSequence: number | null;
 }
 
 export interface GridChatSendResult {
