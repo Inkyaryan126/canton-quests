@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../../supabase';
+import { normalizeGridChatBody, validateGridChatClientNonce } from '../core/chat';
 import type { GridChatChannelType } from '../core/chat-types';
 
 export type GridChatModerationAction = 'hide' | 'remove' | 'restore' | 'dismiss';
@@ -55,6 +56,23 @@ export function createSupabaseGridChatModeration(
   if (!client) throw new Error('Grid chat moderation requires Supabase service-role configuration');
 
   return {
+    async broadcastCity(input: { seasonId: string; body: string; clientNonce: string; now: string }) {
+      const body = normalizeGridChatBody(input.body);
+      const clientNonce = validateGridChatClientNonce(input.clientNonce);
+      const { data, error } = await client.rpc('grid_broadcast_city_chat_message', {
+        p_season_id: input.seasonId,
+        p_body: body,
+        p_client_nonce: clientNonce,
+        p_sender_label: 'COMMANDER',
+        p_now: input.now,
+      });
+      if (error) throw new Error(`Failed to broadcast Grid Commander message: ${error.message}`);
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        throw new Error('Grid Commander broadcast returned an invalid result');
+      }
+      return data as { messageId: string; channelId: string; duplicate: boolean; createdAt: string };
+    },
+
     async listReports(status = 'pending', limit = 100): Promise<GridChatModerationReport[]> {
       const allowed = new Set(['pending', 'reviewing', 'resolved', 'dismissed', 'all']);
       if (!allowed.has(status)) throw new Error('Unknown Grid chat report status');
