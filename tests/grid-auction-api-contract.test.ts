@@ -41,7 +41,11 @@ describe('Grid auction API contract', () => {
     expect(activeRoute).toContain('isGridAuctionReadEnabled()');
     expect(activeRoute).toContain('Authentication required.');
     expect(activeRoute).toContain('viewerPlayerId: session.player.id');
+    expect(activeRoute).toContain('resolveSupabaseGridAuctionSeasonId');
+    expect(activeRoute).toContain('cantonFoundingSeasonPackage');
+    expect(activeRoute).not.toMatch(/searchParams|get\('seasonId'\)/);
     expect(activeRoute).not.toMatch(/body\.playerId/);
+    expect(activeRoute).not.toMatch(/body\.seasonId/);
     expect(activeRoute).toContain('export async function GET');
     expect(activeRoute).not.toMatch(/export async function (POST|PUT|PATCH|DELETE)/);
   });

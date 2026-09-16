@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
+import { cantonFoundingSeasonPackage } from '@/lib/grid/cities/canton/founding-season';
 import { isGridAuctionReadEnabled } from '@/lib/grid/server/auction-feature-flags';
 import { listGridActiveAuctions } from '@/lib/grid/server/auction-read-service';
-import { createSupabaseGridAuctionReadPort } from '@/lib/grid/server/supabase-auction-read';
+import {
+  createSupabaseGridAuctionReadPort,
+  resolveSupabaseGridAuctionSeasonId,
+} from '@/lib/grid/server/supabase-auction-read';
 import {
   resolveAuthenticatedSession,
   setAuthCookies,
@@ -30,9 +34,16 @@ export async function GET(request: Request) {
     );
   }
 
-  const seasonId = new URL(request.url).searchParams.get('seasonId') ?? '';
-
   try {
+    const seasonId = await resolveSupabaseGridAuctionSeasonId(
+      cantonFoundingSeasonPackage,
+    );
+    if (!seasonId) {
+      return response(
+        { success: false, error: 'Grid season is not available.' },
+        { status: 404 },
+      );
+    }
     const auctions = await listGridActiveAuctions(
       createSupabaseGridAuctionReadPort(),
       {
