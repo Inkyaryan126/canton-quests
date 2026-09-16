@@ -57,7 +57,7 @@ Durable completion belongs in Git commits and, when applicable, Boardroom tasks/
 
 For timestamped database migrations, claim the **exact migration filename** once chosen. Avoid broad patterns such as `supabase/migrations/*chat*.sql`: two wildcard patterns can technically match the same future filename, so the Control Tower correctly treats them as overlapping.
 
-`npm run grid:agents -- check` is the machine-readable preflight gate. It exits non-zero when Boardroom autonomous mode is active, a dirty worktree has no claim, or a claim is stale. This makes it suitable for agent startup scripts as well as manual use.
+`npm run grid:agents -- check` is the machine-readable preflight gate. It exits non-zero when Boardroom autonomous mode is active, a dirty worktree has no claim, a dirty path falls outside every declared claim on that worktree, or a claim is stale. This makes it suitable for agent startup scripts as well as manual use.
 
 Claims older than six hours without a heartbeat are shown as `STALE`; they are never silently deleted. A human/agent should inspect the corresponding worktree before releasing a stale claim.
 
