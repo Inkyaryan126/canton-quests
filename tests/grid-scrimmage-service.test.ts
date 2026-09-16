@@ -8,6 +8,7 @@ import type {
 import {
   cancelGridScrimmageSession,
   createGridScrimmageSession,
+  getGridScrimmageSessionForPlayer,
   joinGridScrimmageSession,
   setGridScrimmageSessionReady,
   startGridScrimmageSession,
@@ -172,6 +173,19 @@ describe('GRID scrimmage server service', () => {
     expect(active.status).toBe('active');
     expect(active.progressionScope).toBe('session-only');
     expect(active.revision).toBe(4);
+  });
+
+  it('only returns session state to players already in the private lobby', async () => {
+    const port = new MemoryScrimmagePort();
+    await createGridScrimmageSession(port, createCommand);
+
+    await expect(
+      getGridScrimmageSessionForPlayer(port, 'scrim-1', 'host-1'),
+    ).resolves.toMatchObject({ sessionId: 'scrim-1' });
+
+    await expect(
+      getGridScrimmageSessionForPlayer(port, 'scrim-1', 'outsider-1'),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('returns not-found for missing invite codes or session ids', async () => {
