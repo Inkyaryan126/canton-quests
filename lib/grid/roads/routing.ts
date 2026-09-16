@@ -227,3 +227,51 @@ export function shortestRoadRouteIndexed(
   edgeIds.reverse();
   return { fromNodeId, toNodeId, nodeIds, edgeIds, totalLengthMillimeters };
 }
+
+export function roadDistancesFromNodeIndexed(
+  index: GridRoadRoutingIndex,
+  fromNodeId: string,
+  targetNodeIds: string[],
+): Record<string, number | null> {
+  const targets = [...new Set(targetNodeIds)].sort();
+  const result: Record<string, number | null> = {};
+  for (const target of targets) result[target] = null;
+  if (!index.adjacency[fromNodeId]) return result;
+
+  const sourceComponent = index.componentByNode[fromNodeId];
+  const remaining = new Set(
+    targets.filter((target) =>
+      index.adjacency[target] && index.componentByNode[target] === sourceComponent,
+    ),
+  );
+  if (remaining.has(fromNodeId)) {
+    result[fromNodeId] = 0;
+    remaining.delete(fromNodeId);
+  }
+  if (remaining.size === 0) return result;
+
+  const distance = new Map<string, number>([[fromNodeId, 0]]);
+  const queue = new MinQueue();
+  queue.push({ nodeId: fromNodeId, distance: 0 });
+  while (remaining.size > 0) {
+    const current = queue.pop();
+    if (!current) break;
+    if (current.distance !== distance.get(current.nodeId)) continue;
+
+    if (remaining.has(current.nodeId)) {
+      result[current.nodeId] = current.distance;
+      remaining.delete(current.nodeId);
+      if (remaining.size === 0) break;
+    }
+
+    for (const arc of index.adjacency[current.nodeId] ?? []) {
+      const candidate = current.distance + arc.lengthMillimeters;
+      const known = distance.get(arc.toNodeId);
+      if (known !== undefined && candidate >= known) continue;
+      distance.set(arc.toNodeId, candidate);
+      queue.push({ nodeId: arc.toNodeId, distance: candidate });
+    }
+  }
+
+  return result;
+}

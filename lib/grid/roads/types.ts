@@ -164,3 +164,7 @@ export interface GridRoadRoutingIndex {
   adjacency: Record<string, GridRoadRoutingArc[]>;
   componentByNode: Record<string, string>;
 }
+export interface GridRoadAccessDistanceMatrix {
+  targetIds: string[];
+  distancesMillimeters: Record<string, Record<string, number | null>>;
+}
