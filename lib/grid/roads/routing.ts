@@ -4,6 +4,7 @@ import type {
   GridRoadGraphEdge,
   GridRoadPoint,
   GridRoadRoute,
+  GridRoadRoutingIndex,
   GridRoadSnappedRoute,
   GridRoadSpatialIndex,
 } from './types';
@@ -139,4 +140,90 @@ export function shortestRoadRouteBetweenPoints(
   const route = shortestRoadRoute(graph, fromSnap.nodeId, toSnap.nodeId);
   if (!route) return null;
   return { fromSnap, toSnap, route };
+}
+
+export function buildRoadRoutingIndex(graph: GridRoadGraph): GridRoadRoutingIndex {
+  const adjacency: GridRoadRoutingIndex['adjacency'] = {};
+  const componentByNode: GridRoadRoutingIndex['componentByNode'] = {};
+  for (const node of graph.nodes) adjacency[node.id] = [];
+
+  for (const edge of graph.edges) {
+    adjacency[edge.fromNodeId]?.push({
+      edgeId: edge.id,
+      toNodeId: edge.toNodeId,
+      lengthMillimeters: edge.lengthMillimeters,
+    });
+    adjacency[edge.toNodeId]?.push({
+      edgeId: edge.id,
+      toNodeId: edge.fromNodeId,
+      lengthMillimeters: edge.lengthMillimeters,
+    });
+  }
+
+  for (const nodeId of Object.keys(adjacency)) {
+    adjacency[nodeId].sort((a, b) => {
+      const nodeDelta = a.toNodeId.localeCompare(b.toNodeId);
+      return nodeDelta !== 0 ? nodeDelta : a.edgeId.localeCompare(b.edgeId);
+    });
+  }
+  for (const component of graph.components) {
+    for (const nodeId of component.nodeIds) componentByNode[nodeId] = component.id;
+  }
+
+  return { adjacency, componentByNode };
+}
+
+export function shortestRoadRouteIndexed(
+  graph: GridRoadGraph,
+  index: GridRoadRoutingIndex,
+  fromNodeId: string,
+  toNodeId: string,
+): GridRoadRoute | null {
+  if (fromNodeId === toNodeId) {
+    return index.adjacency[fromNodeId]
+      ? { fromNodeId, toNodeId, nodeIds: [fromNodeId], edgeIds: [], totalLengthMillimeters: 0 }
+      : null;
+  }
+  if (!index.adjacency[fromNodeId] || !index.adjacency[toNodeId]) return null;
+  if (index.componentByNode[fromNodeId] !== index.componentByNode[toNodeId]) return null;
+
+  const distance = new Map<string, number>([[fromNodeId, 0]]);
+  const previous = new Map<string, { nodeId: string; edgeId: string }>();
+  const queue = new MinQueue();
+  queue.push({ nodeId: fromNodeId, distance: 0 });
+  while (true) {
+    const current = queue.pop();
+    if (!current) break;
+    if (current.distance !== distance.get(current.nodeId)) continue;
+    if (current.nodeId === toNodeId) break;
+
+    for (const arc of index.adjacency[current.nodeId] ?? []) {
+      const candidate = current.distance + arc.lengthMillimeters;
+      const known = distance.get(arc.toNodeId);
+      const prior = previous.get(arc.toNodeId);
+      const betterTie =
+        known === candidate && prior && arc.edgeId.localeCompare(prior.edgeId) < 0;
+      if (known !== undefined && candidate > known) continue;
+      if (known === candidate && !betterTie) continue;
+      distance.set(arc.toNodeId, candidate);
+      previous.set(arc.toNodeId, { nodeId: current.nodeId, edgeId: arc.edgeId });
+      queue.push({ nodeId: arc.toNodeId, distance: candidate });
+    }
+  }
+
+  const totalLengthMillimeters = distance.get(toNodeId);
+  if (totalLengthMillimeters === undefined) return null;
+  const nodeIds = [toNodeId];
+  const edgeIds: string[] = [];
+  let cursor = toNodeId;
+  while (cursor !== fromNodeId) {
+    const step = previous.get(cursor);
+    if (!step) return null;
+    edgeIds.push(step.edgeId);
+    cursor = step.nodeId;
+    nodeIds.push(cursor);
+  }
+  nodeIds.reverse();
+  edgeIds.reverse();
+  return { fromNodeId, toNodeId, nodeIds, edgeIds, totalLengthMillimeters };
 }

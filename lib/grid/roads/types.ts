@@ -104,6 +104,7 @@ export interface GridRoadTerritoryIndex {
 export interface GridRoadNetwork {
   segments: GridRoadSegment[];
   graph: GridRoadGraph;
+  routingIndex: GridRoadRoutingIndex;
   spatialIndex: GridRoadSpatialIndex;
   territoryIndex?: GridRoadTerritoryIndex;
 }
@@ -152,4 +153,14 @@ export interface GridRoadAccessJourney {
   toSnap: GridRoadSnap;
   route: GridRoadRoute;
   context: GridRoadRouteContext;
+}
+export interface GridRoadRoutingArc {
+  edgeId: string;
+  toNodeId: string;
+  lengthMillimeters: number;
+}
+
+export interface GridRoadRoutingIndex {
+  adjacency: Record<string, GridRoadRoutingArc[]>;
+  componentByNode: Record<string, string>;
 }
