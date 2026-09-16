@@ -32,13 +32,12 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const seasonId = searchParams.get('seasonId') ?? '';
-  const playerId = searchParams.get('playerId') ?? undefined;
   const territoryId = searchParams.get('territoryId') ?? undefined;
 
   try {
     const contests = await listGridActiveContests(
       createSupabaseGridActiveContestPort(),
-      { seasonId, playerId, territoryId },
+      { seasonId, playerId: session.player.id, viewerPlayerId: session.player.id, territoryId },
     );
     return response({ success: true, contests });
   } catch (error) {

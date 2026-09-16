@@ -93,3 +93,13 @@ describe('listGridActiveContests', () => {
     });
   });
 });
+
+it('requires the authenticated viewer to be a participant when playerId is supplied', async () => {
+  await expect(
+    listGridActiveContests(portWith([]), {
+      seasonId: ids.season,
+      playerId: ids.attacker,
+      viewerPlayerId: ids.defender,
+    } as any),
+  ).rejects.toThrow('Grid active contest discovery cannot query another player');
+});
