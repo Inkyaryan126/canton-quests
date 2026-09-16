@@ -235,3 +235,42 @@ export function staleClaim(claim: AgentClaim, staleMinutes = 360): boolean {
   const age = Date.now() - new Date(claim.heartbeatAt).getTime();
   return !Number.isFinite(age) || age > staleMinutes * 60_000;
 }
+export interface CoordinationIssue {
+  code: 'BOARDROOM_ACTIVE' | 'DIRTY_UNCLAIMED' | 'STALE_CLAIM';
+  message: string;
+}
+
+export function coordinationIssues(
+  claims: AgentClaim[],
+  worktrees: WorktreeState[],
+  boardroom: BoardroomTaskSummary,
+): CoordinationIssue[] {
+  const issues: CoordinationIssue[] = [];
+  if (boardroom.autonomousRunActive) {
+    issues.push({
+      code: 'BOARDROOM_ACTIVE',
+      message: 'Boardroom autonomous run is active; hand-driven agents must not edit the main repository.',
+    });
+  }
+
+  const claimedWorktrees = new Set(claims.map((claim) => claim.worktree));
+  for (const worktree of worktrees) {
+    if (worktree.dirtyPaths.length > 0 && !claimedWorktrees.has(worktree.path)) {
+      issues.push({
+        code: 'DIRTY_UNCLAIMED',
+        message: `Dirty worktree has no live lane claim: ${worktree.branch} — ${worktree.path}`,
+      });
+    }
+  }
+
+  for (const claim of claims) {
+    if (staleClaim(claim)) {
+      issues.push({
+        code: 'STALE_CLAIM',
+        message: `Claim heartbeat is stale: ${claim.lane} (${claim.worktree})`,
+      });
+    }
+  }
+
+  return issues;
+}

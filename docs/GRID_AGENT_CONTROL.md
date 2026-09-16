@@ -9,11 +9,12 @@ Boardroom remains the durable task ledger, write-scope/commit authority for supe
 Before editing code:
 
 1. Run `npm run grid:agents -- status`.
-2. Confirm no existing claim overlaps the intended file scope.
-3. Use an isolated worktree/branch instead of the main working tree whenever multiple streams are active.
-4. Claim the lane before editing.
-5. Heartbeat the claim periodically during long sessions.
-6. Release the claim after the work is committed or intentionally abandoned.
+2. Run `npm run grid:agents -- check`; do not begin a new lane if it exits non-zero.
+3. Confirm no existing claim overlaps the intended file scope.
+4. Use an isolated worktree/branch instead of the main working tree whenever multiple streams are active.
+5. Claim the lane before editing.
+6. Heartbeat the claim periodically during long sessions.
+7. Release the claim after the work is committed or intentionally abandoned.
 
 Example:
 
@@ -53,6 +54,10 @@ Durable completion belongs in Git commits and, when applicable, Boardroom tasks/
 ## Collision behavior
 
 `claim` refuses to create a lane when its declared path scope overlaps another active claim. This check is intentionally conservative. If two streams genuinely need the same path, coordinate them explicitly rather than bypassing the claim.
+
+For timestamped database migrations, claim the **exact migration filename** once chosen. Avoid broad patterns such as `supabase/migrations/*chat*.sql`: two wildcard patterns can technically match the same future filename, so the Control Tower correctly treats them as overlapping.
+
+`npm run grid:agents -- check` is the machine-readable preflight gate. It exits non-zero when Boardroom autonomous mode is active, a dirty worktree has no claim, or a claim is stale. This makes it suitable for agent startup scripts as well as manual use.
 
 Claims older than six hours without a heartbeat are shown as `STALE`; they are never silently deleted. A human/agent should inspect the corresponding worktree before releasing a stale claim.
 
