@@ -154,6 +154,7 @@ declare global {
   namespace NodeJS {
     interface ProcessEnv {
       GRID_FOUNDATION_ENABLED?: string;
+      GRID_WORLD_READ_ENABLED?: string;
     }
   }
 }
