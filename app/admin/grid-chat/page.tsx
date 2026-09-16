@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, Flag, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, Flag, Radio, RefreshCw, RotateCcw, Send, Trash2 } from 'lucide-react';
 import type { GridChatModerationAction, GridChatModerationReport } from '@/lib/grid/server/chat-moderation';
 
 export default function GridChatModerationPage() {
@@ -11,6 +11,9 @@ export default function GridChatModerationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [broadcastBody, setBroadcastBody] = useState('');
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [broadcastStatus, setBroadcastStatus] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -28,6 +31,30 @@ export default function GridChatModerationPage() {
   }, [status]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function broadcast() {
+    if (!broadcastBody.trim() || broadcasting) return;
+    setBroadcasting(true);
+    setBroadcastStatus(null);
+    try {
+      const clientNonce = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? `commander:${crypto.randomUUID()}`
+        : `commander:${Date.now()}`;
+      const response = await fetch('/api/admin/grid/chat/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: broadcastBody, clientNonce }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Broadcast failed');
+      setBroadcastBody('');
+      setBroadcastStatus('Commander transmission sent to CITY // OPEN CHANNEL.');
+    } catch (reason) {
+      setBroadcastStatus(reason instanceof Error ? reason.message : 'Broadcast failed');
+    } finally {
+      setBroadcasting(false);
+    }
+  }
 
   async function act(reportId: string, action: GridChatModerationAction) {
     setBusyId(reportId);
@@ -67,6 +94,22 @@ export default function GridChatModerationPage() {
             <option value="all">All</option>
           </select>
         </div>
+
+        <section className="mt-8 rounded-3xl border border-cyan-300/15 bg-cyan-300/[.035] p-5 sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-cyan-300/10 p-2 text-cyan-300"><Radio size={17} /></div>
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">Official Grid Signal</div>
+              <h2 className="mt-1 text-xl font-black uppercase">Commander Broadcast</h2>
+            </div>
+          </div>
+          <textarea value={broadcastBody} onChange={(event) => setBroadcastBody(event.target.value)} maxLength={1200} rows={3} placeholder="Transmit an official message to CITY // OPEN CHANNEL…" className="mt-4 w-full resize-none rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-sm outline-none focus:border-cyan-300/40" />
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[10px] uppercase tracking-wider text-slate-600">Players see this as SYSTEM // COMMANDER</span>
+            <button type="button" onClick={() => void broadcast()} disabled={broadcasting || !broadcastBody.trim()} className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-4 py-2 text-xs font-black uppercase tracking-wider text-black disabled:opacity-30"><Send size={13} /> {broadcasting ? 'Transmitting…' : 'Broadcast'}</button>
+          </div>
+          {broadcastStatus && <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-slate-300">{broadcastStatus}</div>}
+        </section>
 
         {error && <div className="mt-5 rounded-xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-200">{error}</div>}
         {loading ? (

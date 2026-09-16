@@ -140,3 +140,20 @@ Party/scrimmage channels now have a controlled lifecycle instead of becoming own
 - every lifecycle mutation remains session-bound and service-role authoritative.
 
 Transactional PostgreSQL acceptance verified promotion, moderator removal scope, owner protection, ownership transfer, and final role state before rollback.
+
+## Comms 3B — Commander / System Broadcasts
+
+Official Grid transmissions now use a first-class system-message identity instead of a fake player account:
+
+- `grid_chat_messages.sender_kind` distinguishes `player` and `system` messages;
+- system messages have no `sender_player_id` and carry a bounded `sender_label` instead;
+- the GM broadcast path fixes the public sender label to `COMMANDER` rather than trusting a request body;
+- CITY // OPEN CHANNEL can receive an official broadcast even before any player has opened Comms;
+- a later player join sees historical system transmissions;
+- system broadcast retries are idempotent through a system-specific nonce index;
+- nonce reuse with different message content is rejected;
+- players cannot block or report official system messages in the UI;
+- the database rejects direct attempts to report a system message;
+- `/admin/grid-chat` now includes a Commander broadcast composer.
+
+Transactional PostgreSQL acceptance verified first broadcast, duplicate retry, nonce collision rejection, player join after transmission, clean system sender identity, and report rejection before rollback.

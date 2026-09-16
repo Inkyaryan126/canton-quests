@@ -20,10 +20,17 @@ export interface GridChatChannelSummary {
   directPeer: GridChatPublicPlayer | null;
 }
 
+export interface GridChatMessageSender {
+  playerId: string | null;
+  callsign: string;
+  avatarUrl: string | null;
+  isSystem: boolean;
+}
+
 export interface GridChatMessageView {
   messageId: string;
   channelId: string;
-  sender: GridChatPublicPlayer;
+  sender: GridChatMessageSender;
   body: string;
   replyToMessageId: string | null;
   createdAt: string;
