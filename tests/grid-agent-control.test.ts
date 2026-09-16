@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   claimScopesOverlap,
+  coordinationIssues,
   createClaim,
   heartbeatClaim,
   readClaims,
@@ -30,6 +31,8 @@ describe('GRID agent control', () => {
     expect(scopesOverlap('lib/grid/roads/**', 'lib/grid/roads/routing.ts')).toBe(true);
     expect(scopesOverlap('tests/grid-road-*.test.ts', 'tests/grid-road-access.test.ts')).toBe(true);
     expect(scopesOverlap('lib/grid/roads/**', 'lib/grid/contest/**')).toBe(false);
+    expect(scopesOverlap('lib/grid/server/chat-*.ts', 'lib/grid/server/auction-*.ts')).toBe(false);
+    expect(scopesOverlap('supabase/migrations/*chat*.sql', 'supabase/migrations/*auction*.sql')).toBe(true);
     expect(scopesOverlap('app/grid/page.tsx', 'app/grid/page.tsx')).toBe(true);
     expect(scopesOverlap('app/grid/page.tsx', 'app/grid/layout.tsx')).toBe(false);
   });
@@ -62,5 +65,18 @@ describe('GRID agent control', () => {
       lane: second.lane, owner: second.owner, goal: 'Build road UI',
       scope: second.scope, worktree: repo, branch: 'roads-ui-branch',
     }, repo)).toThrow(/scope overlaps active lane/i);
+  });
+
+  it('blocks preflight only for Boardroom activity, dirty unclaimed worktrees, or stale claims', () => {
+    const issues = coordinationIssues(
+      [],
+      [{
+        path: '/tmp/grid-x', head: 'abc', branch: 'grid-x',
+        dirtyPaths: ['?? file.ts'], lastCommitSubject: 'x',
+        lastCommitAt: new Date().toISOString(), activeProcessCount: 0,
+      }],
+      { counts: {}, queued: [], blocked: [], autonomousRunActive: false },
+    );
+    expect(issues.map((issue) => issue.code)).toEqual(['DIRTY_UNCLAIMED']);
   });
 });

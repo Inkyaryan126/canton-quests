@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import {
   boardroomSummary,
+  coordinationIssues,
   createClaim,
   heartbeatClaim,
   listWorktreeStates,
@@ -77,16 +78,24 @@ function status(): void {
     console.log(`  blocked=${boardroom.blocked.length} (use Boardroom task show/handoffs for details)`);
   }
 
-  const unclaimedDirty = worktrees.filter((worktree) => worktree.dirtyPaths.length > 0 && !claimByWorktree.has(worktree.path));
-  const stale = claims.filter((claim) => staleClaim(claim));
+  const issues = coordinationIssues(claims, worktrees, boardroom);
   console.log('\nCoordination warnings:');
-  if (!boardroom.autonomousRunActive && unclaimedDirty.length === 0 && stale.length === 0) {
-    console.log('  none');
-  } else {
-    if (boardroom.autonomousRunActive) console.log('  BOARDROOM AUTONOMOUS RUN ACTIVE');
-    for (const worktree of unclaimedDirty) console.log(`  DIRTY UNCLAIMED: ${worktree.branch} — ${worktree.path}`);
-    for (const claim of stale) console.log(`  STALE CLAIM: ${claim.lane} — heartbeat ${formatAge(claim.heartbeatAt)} ago`);
+  if (issues.length === 0) console.log('  none');
+  else for (const issue of issues) console.log(`  ${issue.code}: ${issue.message}`);
+}
+
+function check(): void {
+  const claims = readClaims();
+  const worktrees = listWorktreeStates();
+  const boardroom = boardroomSummary();
+  const issues = coordinationIssues(claims, worktrees, boardroom);
+  if (issues.length === 0) {
+    console.log('GRID AGENT PREFLIGHT OK');
+    return;
   }
+  console.error('GRID AGENT PREFLIGHT BLOCKED');
+  for (const issue of issues) console.error(`  ${issue.code}: ${issue.message}`);
+  process.exit(1);
 }
 function claim(args: string[]): void {
   const lane = flag(args, 'lane');
@@ -124,10 +133,11 @@ function release(args: string[]): void {
 function main(): void {
   const [command = 'status', ...args] = process.argv.slice(2);
   if (command === 'status') return status();
+  if (command === 'check') return check();
   if (command === 'claim') return claim(args);
   if (command === 'heartbeat') return heartbeat(args);
   if (command === 'release') return release(args);
-  console.error('Usage: grid:agents <status|claim|heartbeat|release> [options]');
+  console.error('Usage: grid:agents <status|check|claim|heartbeat|release> [options]');
   process.exit(2);
 }
 

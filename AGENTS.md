@@ -8,7 +8,7 @@ When more than one hand-driven coding stream may be active, **before editing any
 
 `npm run grid:agents -- status`
 
-Then claim an isolated lane/worktree and explicit write scope with `npm run grid:agents -- claim ...`. Heartbeat long-running work and release the claim after its checkpoint is committed. See `docs/GRID_AGENT_CONTROL.md` for the exact workflow. Boardroom-supervised runs continue to follow `boardroom/BOARDROOM.md`; the Control Tower supplements Boardroom rather than replacing its write lock or task ledger.
+Then run `npm run grid:agents -- check`; it must pass before starting a new lane. Claim an isolated lane/worktree and explicit write scope with `npm run grid:agents -- claim ...`. Heartbeat long-running work and release the claim after its checkpoint is committed. Use exact migration filenames in claims rather than broad `supabase/migrations/*...*` globs. See `docs/GRID_AGENT_CONTROL.md` for the exact workflow. Boardroom-supervised runs continue to follow `boardroom/BOARDROOM.md`; the Control Tower supplements Boardroom rather than replacing its write lock or task ledger.
 
 ---
 
