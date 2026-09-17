@@ -2,6 +2,7 @@ import type { GridDevelopmentBranch } from '../core/economy-types';
 import { computeSkylineComponents, matchSkylineRules } from '../core/skyline';
 import { projectTerritoryControl } from '../core/territory-control';
 import type { GridCityPackage } from '../core/types';
+import { deriveSurgeTiming, type SurgeTimingProjection } from '../core/surge-timing';
 
 export type GridWorldOwnership = 'neutral' | 'you' | 'occupied';
 
@@ -67,6 +68,7 @@ export interface GridWorldProjection {
     startsAt: string | null;
     surgeStartsAt: string | null;
     endsAt: string | null;
+    surgeTiming: SurgeTimingProjection;
   };
   player: {
     authenticated: boolean;
@@ -130,11 +132,15 @@ export function buildGridWorldProjection(
   options: {
     viewerPlayerId?: string | null;
     runtime?: GridWorldRuntimeSnapshot | null;
+    now?: string;
   } = {},
 ): GridWorldProjection {
   const viewerPlayerId = options.viewerPlayerId ?? null;
   const runtime = options.runtime ?? null;
   const economy = pkg.seasonTemplate.economy;
+  const surgeTiming = options.now
+    ? deriveSurgeTiming({ surgeStartsAt: runtime?.surgeStartsAt ?? null, endsAt: runtime?.endsAt ?? null }, options.now)
+    : { state: 'unavailable' as const, millisecondsRemaining: null };
 
   const territoryRuntime = new Map(
     (runtime?.territories ?? []).map((row) => [row.territorySlug, row] as const),
@@ -255,6 +261,7 @@ export function buildGridWorldProjection(
       startsAt: runtime?.startsAt ?? null,
       surgeStartsAt: runtime?.surgeStartsAt ?? null,
       endsAt: runtime?.endsAt ?? null,
+      surgeTiming,
     },
     player: {
       authenticated: Boolean(viewerPlayerId),
