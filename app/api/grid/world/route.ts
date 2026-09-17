@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cantonFoundingSeasonPackage } from '@/lib/grid/cities/canton/founding-season';
 import { isGridWorldReadEnabled } from '@/lib/grid/server/feature-flags';
+import { buildGridNpcStrongholdWorldProjection } from '@/lib/grid/server/npc-stronghold-world';
 import { readSupabaseGridWorldRuntime } from '@/lib/grid/server/supabase-world-projection';
 import { buildGridWorldProjection } from '@/lib/grid/server/world-projection';
 import {
@@ -33,9 +34,14 @@ export async function GET(request: Request) {
     viewerPlayerId,
     runtime,
   });
+  const strongholds = buildGridNpcStrongholdWorldProjection(
+    cantonFoundingSeasonPackage,
+    [],
+  );
 
   const response = NextResponse.json({
     projection,
+    strongholds,
     runtimeEnabled,
     runtimeWarning,
   });
