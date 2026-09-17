@@ -1,3 +1,4 @@
+export * from './bootstrap';
 export * from './capabilities';
 export * from './features';
 export * from './launch-intents';

@@ -60,6 +60,8 @@ Web stays the frictionless first-touch experience. A native app can later add hi
 
 `GRID Mobile 6` adds a shared app-lifecycle capability for native and PWA hosts. The runtime exposes current lifecycle state plus resume subscriptions that fire only when a non-active state returns to active, giving clients one safe hook to refresh world state after backgrounding.
 
+`GRID Mobile 7` adds a deterministic bootstrap snapshot for app shells: platform kind, sorted capabilities, feature availability, current lifecycle state, and the normalized initial launch intent are resolved through one shared startup call.
+
 A boundary test scans shared core/server TypeScript and fails if browser globals enter those layers.
 
 ## Native follow-on
