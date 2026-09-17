@@ -5,6 +5,7 @@ import type { GridPlatformAdapter } from '../lib/grid/platform/types';
 describe('GRID platform runtime', () => {
   it('exposes only validated capabilities through typed accessors', async () => {
     const adapter: GridPlatformAdapter = {
+      bridgeVersion: 1,
       kind: 'test',
       capabilities: ['secure-storage', 'haptics'],
       secureStorage: {
@@ -26,6 +27,7 @@ describe('GRID platform runtime', () => {
   it('rejects inconsistent adapters before game code can use them', () => {
     expect(() =>
       createGridPlatformRuntime({
+        bridgeVersion: 1,
         kind: 'web',
         capabilities: ['camera'],
       }),
@@ -34,6 +36,7 @@ describe('GRID platform runtime', () => {
 
   it('throws a clear error when a caller requires an unavailable port', () => {
     const runtime = createGridPlatformRuntime({
+      bridgeVersion: 1,
       kind: 'web',
       capabilities: [],
     });
@@ -44,6 +47,7 @@ describe('GRID platform runtime', () => {
 
   it('freezes the declared capability list exposed by the runtime', () => {
     const runtime = createGridPlatformRuntime({
+      bridgeVersion: 1,
       kind: 'test',
       capabilities: [],
     });

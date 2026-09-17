@@ -23,6 +23,7 @@ const location: GridLocationPort = {
 describe('GRID platform capability validation', () => {
   it('accepts a capability-consistent adapter', () => {
     const adapter: GridPlatformAdapter = {
+      bridgeVersion: 1,
       kind: 'ios',
       capabilities: ['foreground-location'],
       location,
@@ -31,6 +32,7 @@ describe('GRID platform capability validation', () => {
   });
   it('detects missing ports, duplicate capabilities, and background dependency errors', () => {
     const adapter: GridPlatformAdapter = {
+      bridgeVersion: 1,
       kind: 'android',
       capabilities: ['background-location', 'background-location'],
     };
@@ -44,6 +46,7 @@ describe('GRID platform capability validation', () => {
 
   it('detects undeclared ports instead of silently exposing native functionality', () => {
     const adapter: GridPlatformAdapter = {
+      bridgeVersion: 1,
       kind: 'web',
       capabilities: [],
       location,
@@ -57,6 +60,7 @@ describe('GRID platform capability validation', () => {
   });
   it('computes reusable feature availability without platform-specific branching', () => {
     const adapter: GridPlatformAdapter = {
+      bridgeVersion: 1,
       kind: 'ios',
       capabilities: ['foreground-location', 'camera'],
       location,

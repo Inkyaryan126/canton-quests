@@ -39,6 +39,7 @@ describe('GRID platform bootstrap snapshot', () => {
       config: typeof launchConfig,
     ) => Promise<Record<string, unknown>>;
     await expect(build(runtime, launchConfig)).resolves.toMatchObject({
+      bridgeVersion: 1,
       platform: 'ios',
       capabilities: ['app-lifecycle', 'camera', 'deep-links'],
       lifecycleState: 'background',

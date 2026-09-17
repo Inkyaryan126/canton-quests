@@ -95,6 +95,7 @@ export interface GridAppLifecyclePort {
 }
 
 export interface GridPlatformAdapter {
+  bridgeVersion: number;
   kind: GridPlatformKind;
   capabilities: readonly GridPlatformCapability[];
   location?: GridLocationPort;

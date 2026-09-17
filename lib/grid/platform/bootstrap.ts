@@ -15,6 +15,7 @@ import type {
 } from './types';
 
 export interface GridPlatformBootstrapSnapshot {
+  bridgeVersion: number;
   platform: GridPlatformKind;
   capabilities: GridPlatformCapability[];
   features: GridPlatformFeatureSupport[];
@@ -31,6 +32,7 @@ export async function buildGridPlatformBootstrap(
     : null;
 
   return {
+    bridgeVersion: runtime.adapter.bridgeVersion,
     platform: runtime.adapter.kind,
     capabilities: [...runtime.adapter.capabilities].sort(),
     features: listGridPlatformFeatureSupport(runtime.adapter),

@@ -1,3 +1,4 @@
+import { GRID_PLATFORM_BRIDGE_VERSION } from './bridge';
 import type {
   GridAppLifecyclePort,
   GridCameraPort,
@@ -12,6 +13,7 @@ import type {
 
 export interface GridNativePlatformEnvironment {
   kind: 'ios' | 'android';
+  bridgeVersion?: number;
   location?: GridLocationPort;
   backgroundLocation?: boolean;
   camera?: GridCameraPort;
@@ -42,6 +44,7 @@ export function createGridNativePlatformAdapter(
   if (environment.lifecycle) capabilities.push('app-lifecycle');
 
   return {
+    bridgeVersion: environment.bridgeVersion ?? GRID_PLATFORM_BRIDGE_VERSION,
     kind: environment.kind,
     capabilities,
     location: environment.location,

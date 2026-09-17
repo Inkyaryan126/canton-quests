@@ -1,3 +1,4 @@
+export * from './bridge';
 export * from './bootstrap';
 export * from './capabilities';
 export * from './features';

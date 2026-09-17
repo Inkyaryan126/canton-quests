@@ -1,3 +1,4 @@
+import { assessGridPlatformBridgeCompatibility } from './bridge';
 import { assertValidGridPlatformAdapter, hasGridPlatformCapability } from './capabilities';
 import { gridPlatformFeatureSupport } from './features';
 import type { GridPlatformFeature, GridPlatformFeatureSupport } from './features';
@@ -45,6 +46,10 @@ function requirePort<T>(
 export function createGridPlatformRuntime(
   adapter: GridPlatformAdapter,
 ): GridPlatformRuntime {
+  const bridge = assessGridPlatformBridgeCompatibility(adapter.bridgeVersion);
+  if (!bridge.compatible) {
+    throw new Error(`Grid platform bridge version ${adapter.bridgeVersion} is ${bridge.relation}; expected ${bridge.currentVersion}`);
+  }
   assertValidGridPlatformAdapter(adapter);
   const frozenAdapter = Object.freeze({
     ...adapter,

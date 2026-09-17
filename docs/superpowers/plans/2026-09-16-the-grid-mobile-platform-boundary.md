@@ -77,3 +77,5 @@ A future native shell can implement the same interfaces using:
 - native share sheets
 
 No native framework choice is required by the shared game engine. React Native, Expo, Capacitor, or a thin Swift/Kotlin shell can be evaluated later without changing these domain contracts.
+
+`GRID Mobile 8` versions the platform bridge explicitly. Web/native adapters publish a bridge protocol version, native shells may report the version compiled into the installed binary, and incompatible old/new bridge versions are rejected before gameplay runtime initialization.

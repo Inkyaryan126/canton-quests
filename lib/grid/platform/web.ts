@@ -1,3 +1,4 @@
+import { GRID_PLATFORM_BRIDGE_VERSION } from './bridge';
 import type {
   GridAppLifecyclePort,
   GridCameraPort,
@@ -152,6 +153,7 @@ export function createGridWebPlatformAdapter(
   if (environment.lifecycle) capabilities.push('app-lifecycle');
 
   return {
+    bridgeVersion: GRID_PLATFORM_BRIDGE_VERSION,
     kind: 'web',
     capabilities,
     location,
