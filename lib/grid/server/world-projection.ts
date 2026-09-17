@@ -3,6 +3,8 @@ import { computeSkylineComponents, matchSkylineRules } from '../core/skyline';
 import { projectTerritoryControl } from '../core/territory-control';
 import type { GridCityPackage } from '../core/types';
 import { deriveSurgeTiming, type SurgeTimingProjection } from '../core/surge-timing';
+import { projectGridSurge } from '../core/surge';
+import type { GridSurgeConfig, GridSurgeProjection } from '../core/surge-types';
 
 export type GridWorldOwnership = 'neutral' | 'you' | 'occupied';
 
@@ -69,6 +71,7 @@ export interface GridWorldProjection {
     surgeStartsAt: string | null;
     endsAt: string | null;
     surgeTiming: SurgeTimingProjection;
+    surgeGameplay: GridSurgeProjection | null;
   };
   player: {
     authenticated: boolean;
@@ -133,6 +136,7 @@ export function buildGridWorldProjection(
     viewerPlayerId?: string | null;
     runtime?: GridWorldRuntimeSnapshot | null;
     now?: string;
+    surgeConfig?: GridSurgeConfig;
   } = {},
 ): GridWorldProjection {
   const viewerPlayerId = options.viewerPlayerId ?? null;
@@ -141,6 +145,13 @@ export function buildGridWorldProjection(
   const surgeTiming = options.now
     ? deriveSurgeTiming({ surgeStartsAt: runtime?.surgeStartsAt ?? null, endsAt: runtime?.endsAt ?? null }, options.now)
     : { state: 'unavailable' as const, millisecondsRemaining: null };
+  const surgeGameplay = options.now && options.surgeConfig && runtime?.startsAt && runtime?.endsAt
+    ? projectGridSurge(options.now, {
+        startsAt: runtime.startsAt,
+        surgeStartsAt: runtime.surgeStartsAt ?? null,
+        endsAt: runtime.endsAt,
+      }, options.surgeConfig)
+    : null;
 
   const territoryRuntime = new Map(
     (runtime?.territories ?? []).map((row) => [row.territorySlug, row] as const),
@@ -262,6 +273,7 @@ export function buildGridWorldProjection(
       surgeStartsAt: runtime?.surgeStartsAt ?? null,
       endsAt: runtime?.endsAt ?? null,
       surgeTiming,
+      surgeGameplay,
     },
     player: {
       authenticated: Boolean(viewerPlayerId),
