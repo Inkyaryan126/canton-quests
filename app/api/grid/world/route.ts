@@ -32,6 +32,7 @@ export async function GET(request: Request) {
   const projection = buildGridWorldProjection(cantonFoundingSeasonPackage, {
     viewerPlayerId,
     runtime,
+    now: new Date().toISOString(),
   });
 
   const response = NextResponse.json({
