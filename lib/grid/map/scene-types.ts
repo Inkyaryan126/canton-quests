@@ -16,6 +16,7 @@ export interface GridMapSceneFocus {
 
 export interface GridMapDistrictScene {
   slug: string;
+  geometry?: GeoJSON.MultiPolygon;
   focused: boolean;
   territoryCount: number;
   neutralTerritories: number;

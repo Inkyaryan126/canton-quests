@@ -12,6 +12,15 @@ import type {
   GridMapSkylineScene,
 } from './scene-types';
 
+export interface GridMapDistrictFeatureProperties
+  extends GridMapDistrictPresentation {
+  territoryCount: number;
+  neutralTerritories: number;
+  yourTerritories: number;
+  occupiedTerritories: number;
+  contestedTerritories: number;
+}
+
 export interface GridMapTerritoryFeatureProperties
   extends GridMapTerritoryPresentation {
   name: string;
@@ -48,7 +57,7 @@ export interface GridMapContestFrontFeatureProperties {
 }
 
 export interface GridMapInteractionTarget {
-  kind: 'territory' | 'property';
+  kind: 'district' | 'territory' | 'property';
   slug: string;
   districtSlug: string | null;
   territorySlug: string | null;
@@ -61,6 +70,10 @@ export interface GridMapRenderPacket {
   zoom: number;
   zoomBand: GridMapScene['zoomBand'];
   districtSummaries: GridMapDistrictPresentation[];
+  districts: GeoJSON.FeatureCollection<
+    GeoJSON.MultiPolygon,
+    GridMapDistrictFeatureProperties
+  >;
   territories: GeoJSON.FeatureCollection<
     GeoJSON.MultiPolygon,
     GridMapTerritoryFeatureProperties
@@ -105,6 +118,16 @@ function propertyAnchor(
 }
 
 function interactionTargets(scene: GridMapScene): GridMapInteractionTarget[] {
+  const districtTargets = scene.districts
+    .filter((district) => Boolean(district.geometry))
+    .map((district) => ({
+      kind: 'district' as const,
+      slug: district.slug,
+      districtSlug: district.slug,
+      territorySlug: null,
+      propertySlug: null,
+    }));
+
   const territoryTargets = scene.territories.map((territory) => ({
     kind: 'territory' as const,
     slug: territory.slug,
@@ -128,7 +151,7 @@ function interactionTargets(scene: GridMapScene): GridMapInteractionTarget[] {
     propertySlug: property.slug,
   }));
 
-  return [...territoryTargets, ...propertyTargets].sort((a, b) => {
+  return [...districtTargets, ...territoryTargets, ...propertyTargets].sort((a, b) => {
     const kindOrder = a.kind.localeCompare(b.kind);
     return kindOrder || a.slug.localeCompare(b.slug);
   });
@@ -174,12 +197,35 @@ export function buildGridMapRenderPacket(
   scene: GridMapScene,
 ): GridMapRenderPacket {
   const presentation = buildGridMapPresentation(scene);
+  const districtPresentationBySlug = new Map(
+    presentation.districts.map((row) => [row.slug, row] as const),
+  );
   const territoryPresentationBySlug = new Map(
     presentation.territories.map((row) => [row.slug, row] as const),
   );
   const propertyPresentationBySlug = new Map(
     presentation.properties.map((row) => [row.slug, row] as const),
   );
+
+  const districts: GridMapRenderPacket['districts'] = {
+    type: 'FeatureCollection',
+    features: scene.districts.flatMap((district) => {
+      const style = districtPresentationBySlug.get(district.slug);
+      if (!district.geometry || !style) return [];
+      return [{
+        type: 'Feature' as const,
+        geometry: district.geometry,
+        properties: {
+          ...style,
+          territoryCount: district.territoryCount,
+          neutralTerritories: district.neutralTerritories,
+          yourTerritories: district.yourTerritories,
+          occupiedTerritories: district.occupiedTerritories,
+          contestedTerritories: district.contestedTerritories,
+        },
+      }];
+    }),
+  };
 
   const territories: GridMapRenderPacket['territories'] = {
     type: 'FeatureCollection',
@@ -247,6 +293,7 @@ export function buildGridMapRenderPacket(
     zoom: scene.zoom,
     zoomBand: scene.zoomBand,
     districtSummaries: [...presentation.districts],
+    districts,
     territories,
     properties,
     contestFronts: {

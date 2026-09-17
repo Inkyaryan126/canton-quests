@@ -195,6 +195,37 @@ describe('Grid renderer packet', () => {
     );
   });
 
+  it('emits district geometry at city zoom without expanding territory detail', () => {
+    const projection = buildGridWorldProjection(cantonFoundingSeasonPackage);
+    const packet = buildGridMapRenderPacket(
+      buildGridMapScene(projection, { zoom: 9 }),
+    );
+
+    expect(packet.districts.features.length).toBe(packet.districtSummaries.length);
+    expect(packet.districts.features.length).toBeGreaterThan(0);
+    expect(
+      packet.districts.features.every(
+        (feature) => feature.geometry.type === 'MultiPolygon',
+      ),
+    ).toBe(true);
+    expect(packet.territories.features).toEqual([]);
+  });
+
+  it('exposes deterministic district interaction targets at city zoom', () => {
+    const projection = buildGridWorldProjection(cantonFoundingSeasonPackage);
+    const packet = buildGridMapRenderPacket(
+      buildGridMapScene(projection, { zoom: 9 }),
+    );
+
+    const districtTargets = packet.interactionTargets.filter(
+      (target) => target.kind === 'district',
+    );
+    expect(districtTargets).toHaveLength(packet.districts.features.length);
+    expect(districtTargets.length).toBeGreaterThan(0);
+    expect(districtTargets.every((target) => target.districtSlug === target.slug))
+      .toBe(true);
+  });
+
   it('keeps city zoom payload deliberately light', () => {
     const projection = buildGridWorldProjection(cantonFoundingSeasonPackage);
     const packet = buildGridMapRenderPacket(
@@ -205,7 +236,9 @@ describe('Grid renderer packet', () => {
     expect(packet.territories.features).toEqual([]);
     expect(packet.properties.features).toEqual([]);
     expect(packet.virtualBuildings).toEqual([]);
-    expect(packet.interactionTargets).toEqual([]);
+    expect(
+      packet.interactionTargets.every((target) => target.kind === 'district'),
+    ).toBe(true);
     expect(packet.districtSummaries.length).toBeGreaterThan(0);
   });
 });

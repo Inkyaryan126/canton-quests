@@ -29,6 +29,9 @@ export function filterGridMapRenderPacketToViewport(
     return geometryBounds ? envelopesIntersect(geometryBounds, bounds) : false;
   };
 
+  const districts = packet.districts.features.filter((feature) =>
+    geometryVisible(feature.geometry),
+  );
   const territories = packet.territories.features.filter((feature) =>
     geometryVisible(feature.geometry),
   );
@@ -39,6 +42,9 @@ export function filterGridMapRenderPacketToViewport(
     geometryVisible(feature.geometry),
   );
 
+  const visibleDistricts = new Set(
+    districts.map((feature) => feature.properties.slug),
+  );
   const visibleTerritories = new Set(
     territories.map((feature) => feature.properties.slug),
   );
@@ -55,6 +61,7 @@ export function filterGridMapRenderPacketToViewport(
 
   return {
     ...packet,
+    districts: { ...packet.districts, features: districts },
     territories: { ...packet.territories, features: territories },
     properties: { ...packet.properties, features: properties },
     contestFronts: { ...packet.contestFronts, features: contestFronts },
@@ -63,11 +70,11 @@ export function filterGridMapRenderPacketToViewport(
       skyline.territorySlugs.some((slug) => visibleTerritories.has(slug)) ||
       skyline.propertySlugs.some((slug) => visibleProperties.has(slug)),
     ),
-    interactionTargets: packet.interactionTargets.filter((target) =>
-      target.kind === 'territory'
-        ? visibleTerritories.has(target.slug)
-        : visibleProperties.has(target.slug),
-    ),
+    interactionTargets: packet.interactionTargets.filter((target) => {
+      if (target.kind === 'district') return visibleDistricts.has(target.slug);
+      if (target.kind === 'territory') return visibleTerritories.has(target.slug);
+      return visibleProperties.has(target.slug);
+    }),
   };
 }
 

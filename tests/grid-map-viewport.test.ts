@@ -39,6 +39,7 @@ describe('Grid map viewport geometry culling', () => {
     });
 
     expect(filtered.districtSummaries).toEqual(packet.districtSummaries);
+    expect(filtered.districts.features).toEqual([]);
     expect(filtered.territories.features).toEqual([]);
     expect(filtered.properties.features).toEqual([]);
     expect(filtered.contestFronts.features).toEqual([]);

@@ -113,6 +113,15 @@ function districtScenes(
         occupiedTerritories: 0,
         contestedTerritories: 0,
       };
+    if (territory.geometry) {
+      current.geometry = {
+        type: 'MultiPolygon',
+        coordinates: [
+          ...(current.geometry?.coordinates ?? []),
+          ...territory.geometry.coordinates,
+        ],
+      };
+    }
     current.territoryCount += 1;
     if (territory.ownership === 'neutral') current.neutralTerritories += 1;
     if (territory.ownership === 'you') current.yourTerritories += 1;
