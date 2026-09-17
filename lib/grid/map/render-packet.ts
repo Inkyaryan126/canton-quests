@@ -28,6 +28,9 @@ export interface GridMapTerritoryFeatureProperties
   claimable: boolean;
   starterEligible: boolean;
   contested: boolean;
+  propertyCount: number;
+  developedPropertyCount: number;
+  totalDevelopmentLevel: number;
 }
 
 export interface GridMapPropertyFeatureProperties
@@ -244,6 +247,9 @@ export function buildGridMapRenderPacket(
           claimable: territory.claimable,
           starterEligible: territory.starterEligible,
           contested: territory.contested,
+          propertyCount: territory.propertyCount,
+          developedPropertyCount: territory.developedPropertyCount,
+          totalDevelopmentLevel: territory.totalDevelopmentLevel,
         },
       }];
     }),
