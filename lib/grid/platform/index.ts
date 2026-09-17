@@ -1,6 +1,7 @@
 export * from './bridge';
 export * from './bootstrap';
 export * from './capabilities';
+export * from './diagnostics';
 export * from './features';
 export * from './launch-intents';
 export * from './native';
