@@ -142,9 +142,17 @@ function makeCollectorRepo(): string {
   git(repo, 'branch', 'grid-integration-20260916');
   git(repo, 'checkout', '-b', 'grid-integration-20260917');
   commitFile(repo, 'roads.txt', 'roads\n', 'GRID Roads 13: derive stable named road corridors');
+  commitFile(repo, 'legacy-launch.txt', 'legacy\n', 'fix: /admin/live Launch Readiness dashboard now reads real production data');
+  commitFile(repo, 'market-core.txt', 'market core\n', 'GRID Market 4: add canonical transaction log core');
   git(repo, 'checkout', 'main');
   git(repo, 'checkout', '-b', 'grid-anti-cheat-20260917');
   commitFile(repo, 'fraud.txt', 'fraud\n', 'anti-cheat foundation');
+  git(repo, 'checkout', 'main');
+  git(repo, 'checkout', '-b', 'grid-launch-readiness-20260917');
+  commitFile(repo, 'launch.txt', 'launch\n', 'GRID Launch Readiness: add integration verification suite and small-season simulation');
+  git(repo, 'checkout', 'main');
+  git(repo, 'checkout', '-b', 'grid-market-auction-ui-20260917');
+  commitFile(repo, 'market-ui.txt', 'market ui\n', 'GRID Market/Auction: add player-facing market home, auction house, and listing purchase UI');
   git(repo, 'checkout', 'main');
   return repo;
 }
@@ -189,6 +197,19 @@ describe('Grid Master Board runtime collection', () => {
     expect(byId.get('passport')?.status).toBe('IN_PROGRESS');
     expect(byId.get('passport')?.owner).toBe('agent-passport');
     expect(byId.get('anti-cheat')?.status).toBe('READY_TO_INTEGRATE');
+    expect(byId.get('launch-readiness')?.status).toBe('READY_TO_INTEGRATE');
+    expect(byId.get('market')?.status).toBe('READY_TO_INTEGRATE');
+    expect(byId.get('auctions')?.status).toBe('READY_TO_INTEGRATE');
     expect(byId.get('production-activation')?.status).toBe('BLOCKED');
+  });
+});
+
+describe('Grid Master Board completion evidence specificity', () => {
+  it('does not let partial return/takeover core commits stand in for the active completion milestone', () => {
+    const catalog = new Map(GRID_MILESTONES.map((item) => [item.id, item]));
+    expect(catalog.get('return-experience')?.integrationCommitSignals).not.toContain('return summary');
+    expect(catalog.get('return-experience')?.integrationCommitSignals).toContain('return briefing');
+    expect(catalog.get('takeover')?.integrationCommitSignals).not.toContain('takeover damage');
+    expect(catalog.get('takeover')?.integrationCommitSignals).toContain('takeover persistence');
   });
 });
