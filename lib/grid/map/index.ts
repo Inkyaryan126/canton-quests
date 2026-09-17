@@ -1,3 +1,4 @@
+export * from './delta';
 export * from './selection';
 export * from './navigation';
 export * from './presentation';
