@@ -31,6 +31,26 @@ const WIDTH = 1000;
 const HEIGHT = 650;
 const PAD = 30;
 
+export function surgeStatusPresentation(
+  timing: GridWorldProjection['season']['surgeTiming'],
+): { label: string; detail: string } {
+  if (timing.state === 'unavailable' || timing.millisecondsRemaining === null) {
+    return { label: 'SURGE', detail: 'TIMING UNAVAILABLE' };
+  }
+  if (timing.state === 'finished') {
+    return { label: 'SURGE FINISHED', detail: 'SURGE COMPLETE' };
+  }
+
+  const totalHours = Math.floor(Math.max(0, timing.millisecondsRemaining) / 3_600_000);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  const remaining = days > 0 ? `${days}D ${hours}H` : `${hours}H`;
+
+  return timing.state === 'live'
+    ? { label: 'SURGE LIVE', detail: `${remaining} REMAINING` }
+    : { label: 'SURGE UPCOMING', detail: `${remaining} UNTIL SURGE` };
+}
+
 function allCoordinates(geometry?: GeoJSON.MultiPolygon): [number, number][] {
   if (!geometry) return [];
   return geometry.coordinates.flatMap((polygon) =>
@@ -146,6 +166,7 @@ export default function GridWorldClient({
 
   const bounds = useMemo(() => getBounds(projection), [projection]);
   const wallet = projection.player.wallet;
+  const surgeStatus = surgeStatusPresentation(projection.season.surgeTiming);
   const sourceLabel =
     projection.source === 'database'
       ? 'LIVE READ'
@@ -184,6 +205,10 @@ export default function GridWorldClient({
             <div className="text-stone-500">SEASON</div>
             <div className="mt-1 font-black text-cyan-200">{projection.season.name.toUpperCase()}</div>
             <div className="mt-1 text-[10px] text-stone-500">{projection.season.status.toUpperCase()}</div>
+            <div className="mt-3 border-t border-cyan-400/15 pt-3">
+              <div className="font-black text-cyan-200">{surgeStatus.label}</div>
+              <div className="mt-1 text-[10px] text-stone-400">{surgeStatus.detail}</div>
+            </div>
           </div>
         </header>
 
