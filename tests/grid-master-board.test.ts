@@ -115,3 +115,80 @@ describe('Grid Master Board milestone catalog', () => {
     ]));
   });
 });
+
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { collectGridMasterBoard, resolveIntegrationRef } from '../lib/grid/master-board/collect';
+
+function git(cwd: string, ...args: string[]): string {
+  return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+}
+
+function commitFile(cwd: string, filename: string, content: string, message: string): string {
+  writeFileSync(path.join(cwd, filename), content);
+  git(cwd, 'add', filename);
+  git(cwd, 'commit', '-m', message);
+  return git(cwd, 'rev-parse', 'HEAD');
+}
+
+function makeCollectorRepo(): string {
+  const repo = mkdtempSync(path.join(tmpdir(), 'grid-master-board-'));
+  git(repo, 'init', '-b', 'main');
+  git(repo, 'config', 'user.email', 'grid-board@test.local');
+  git(repo, 'config', 'user.name', 'Grid Board Test');
+  commitFile(repo, 'base.txt', 'base\n', 'base');
+  git(repo, 'branch', 'grid-integration-20260916');
+  git(repo, 'checkout', '-b', 'grid-integration-20260917');
+  commitFile(repo, 'roads.txt', 'roads\n', 'GRID Roads 13: derive stable named road corridors');
+  git(repo, 'checkout', 'main');
+  git(repo, 'checkout', '-b', 'grid-anti-cheat-20260917');
+  commitFile(repo, 'fraud.txt', 'fraud\n', 'anti-cheat foundation');
+  git(repo, 'checkout', 'main');
+  return repo;
+}
+
+describe('Grid Master Board runtime collection', () => {
+  it('selects the newest local integration branch when no override is supplied', () => {
+    const repo = makeCollectorRepo();
+    expect(resolveIntegrationRef(repo)).toBe('grid-integration-20260917');
+    expect(resolveIntegrationRef(repo, 'main')).toBe('main');
+  });
+
+  it('derives integrated, active, ready, and blocked milestones from repo evidence', () => {
+    const repo = makeCollectorRepo();
+    const coordination = path.join(repo, '.git', 'grid-agent-control', 'claims');
+    mkdirSync(coordination, { recursive: true });
+    const now = new Date();
+    writeFileSync(path.join(coordination, 'passport.json'), JSON.stringify({
+      version: 1,
+      lane: 'passport',
+      owner: 'agent-passport',
+      goal: 'Build Grid Passport',
+      scope: ['lib/grid/passport/**'],
+      worktree: repo,
+      branch: 'grid-passport-20260917',
+      claimedAt: now.toISOString(),
+      heartbeatAt: now.toISOString(),
+    }));
+
+    const taskDir = path.join(repo, '.boardroom', 'runtime', 'tasks');
+    mkdirSync(taskDir, { recursive: true });
+    writeFileSync(path.join(taskDir, 'production.json'), JSON.stringify({
+      taskId: 'production-activation',
+      title: 'Canton Production Activation',
+      priority: 'P1',
+      status: 'BLOCKED',
+    }));
+
+    const board = collectGridMasterBoard({ cwd: repo, now });
+    const byId = new Map(board.milestones.map((item) => [item.id, item]));
+    expect(board.health.integrationRef).toBe('grid-integration-20260917');
+    expect(byId.get('road-network')?.status).toBe('INTEGRATED');
+    expect(byId.get('passport')?.status).toBe('IN_PROGRESS');
+    expect(byId.get('passport')?.owner).toBe('agent-passport');
+    expect(byId.get('anti-cheat')?.status).toBe('READY_TO_INTEGRATE');
+    expect(byId.get('production-activation')?.status).toBe('BLOCKED');
+  });
+});
