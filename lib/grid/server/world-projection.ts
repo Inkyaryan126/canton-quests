@@ -43,6 +43,9 @@ export interface GridWorldRuntimeContestState {
 export interface GridWorldRuntimeSnapshot {
   seasonId: string;
   seasonStatus: string;
+  startsAt?: string | null;
+  surgeStartsAt?: string | null;
+  endsAt?: string | null;
   territories: GridWorldRuntimeTerritoryState[];
   properties: GridWorldRuntimePropertyState[];
   contests?: GridWorldRuntimeContestState[];
@@ -59,6 +62,11 @@ export interface GridWorldProjection {
     name: string;
     status: string;
     runtimeActive: boolean;
+    phase: 'inactive' | 'regular' | 'surge';
+    surgeHours: number;
+    startsAt: string | null;
+    surgeStartsAt: string | null;
+    endsAt: string | null;
   };
   player: {
     authenticated: boolean;
@@ -242,6 +250,11 @@ export function buildGridWorldProjection(
       name: pkg.seasonTemplate.name,
       status: runtime?.seasonStatus ?? 'not-activated',
       runtimeActive: runtime?.seasonStatus === 'active' || runtime?.seasonStatus === 'surge',
+      phase: runtime?.seasonStatus === 'surge' ? 'surge' : runtime?.seasonStatus === 'active' ? 'regular' : 'inactive',
+      surgeHours: pkg.seasonTemplate.surgeHours,
+      startsAt: runtime?.startsAt ?? null,
+      surgeStartsAt: runtime?.surgeStartsAt ?? null,
+      endsAt: runtime?.endsAt ?? null,
     },
     player: {
       authenticated: Boolean(viewerPlayerId),

@@ -10,7 +10,7 @@ import type {
 } from './world-projection';
 
 type CityRow = { id: string };
-type SeasonRow = { id: string; status: string };
+type SeasonRow = { id: string; status: string; starts_at: string | null; surge_starts_at: string | null; ends_at: string | null };
 type SlugRow = { id: string; slug: string };
 
 function throwIfError(error: { message?: string } | null, label: string): void {
@@ -46,7 +46,7 @@ export async function readSupabaseGridWorldRuntime(
 
   const seasonResult = await client
     .from('grid_seasons')
-    .select('id,status')
+    .select('id,status,starts_at,surge_starts_at,ends_at')
     .eq('city_id', city.id)
     .eq('slug', pkg.seasonTemplate.slug)
     .maybeSingle();
@@ -195,6 +195,9 @@ export async function readSupabaseGridWorldRuntime(
   return {
     seasonId: season.id,
     seasonStatus: season.status,
+    startsAt: season.starts_at,
+    surgeStartsAt: season.surge_starts_at,
+    endsAt: season.ends_at,
     territories,
     properties,
     contests,
