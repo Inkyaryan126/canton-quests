@@ -1,0 +1,108 @@
+import type {
+  GridMilestoneDefinition,
+  GridMilestoneEvidence,
+  GridMilestoneState,
+  GridPromotionStatus,
+} from './types';
+
+function integratedPromotion(evidence: GridMilestoneEvidence): GridPromotionStatus {
+  const matches = evidence.integrationMatches;
+  if (matches.some((item) => item.onOriginMain)) return 'ORIGIN_MAIN';
+  if (matches.some((item) => item.onLocalMain)) return 'LOCAL_MAIN';
+  return 'GRID_INTEGRATION';
+}
+
+export function classifyMilestone(
+  definition: GridMilestoneDefinition,
+  evidence: GridMilestoneEvidence,
+): GridMilestoneState {
+  const base = {
+    id: definition.id,
+    title: definition.title,
+    phase: definition.phase,
+    warnings: [...evidence.warnings],
+  };
+
+  if (evidence.contradictions.length > 0) {
+    return {
+      ...base,
+      status: 'UNKNOWN',
+      promotion: 'DEPLOYMENT_UNKNOWN',
+      detail: evidence.contradictions.join('; '),
+    };
+  }
+  const integrated = evidence.integrationMatches[0];
+  if (integrated) {
+    return {
+      ...base,
+      status: 'INTEGRATED',
+      promotion: integratedPromotion(evidence),
+      detail: `Integrated via ${integrated.commit}: ${integrated.subject}`,
+      evidenceCommit: integrated.commit,
+      evidenceSubject: integrated.subject,
+    };
+  }
+
+  const active = evidence.activeClaims.find((claim) => !claim.stale);
+  if (active) {
+    const staleCount = evidence.activeClaims.filter((claim) => claim.stale).length;
+    return {
+      ...base,
+      status: 'IN_PROGRESS',
+      promotion: 'SIDE_BRANCH_ONLY',
+      detail: `Active lane ${active.lane} owned by ${active.owner}`,
+      owner: active.owner,
+      branch: active.branch,
+      warnings: staleCount > 0 ? [...base.warnings, `${staleCount} stale claim(s) also matched`] : base.warnings,
+    };
+  }
+
+  const staleClaims = evidence.activeClaims.filter((claim) => claim.stale);
+  const completedBranches = evidence.branches.filter((branch) => branch.completionCommit && !branch.mergedIntoIntegration);
+  const cleanCompleted = completedBranches.find((branch) => branch.clean);
+  if (cleanCompleted) {
+    const promotion: GridPromotionStatus = cleanCompleted.onOriginMain
+      ? 'ORIGIN_MAIN'
+      : cleanCompleted.onLocalMain
+        ? 'LOCAL_MAIN'
+        : 'SIDE_BRANCH_ONLY';
+    return {
+      ...base,
+      status: 'READY_TO_INTEGRATE',
+      promotion,
+      detail: `Completed on clean branch ${cleanCompleted.branch}`,
+      branch: cleanCompleted.branch,
+      evidenceCommit: cleanCompleted.completionCommit,
+      evidenceSubject: cleanCompleted.completionSubject,
+      warnings: staleClaims.length > 0 ? [...base.warnings, `${staleClaims.length} stale claim(s) matched`] : base.warnings,
+    };
+  }
+
+  if (completedBranches.length > 0) {
+    return {
+      ...base,
+      status: 'UNKNOWN',
+      promotion: 'SIDE_BRANCH_ONLY',
+      detail: `Completion evidence exists only on dirty branch ${completedBranches[0].branch}`,
+      branch: completedBranches[0].branch,
+      warnings: [...base.warnings, 'Dirty completed branch is not safe to integrate'],
+    };
+  }
+
+  if (evidence.blockers.length > 0) {
+    return {
+      ...base,
+      status: 'BLOCKED',
+      promotion: 'DEPLOYMENT_UNKNOWN',
+      detail: evidence.blockers.join('; '),
+      warnings: staleClaims.length > 0 ? [...base.warnings, `${staleClaims.length} stale claim(s) matched`] : base.warnings,
+    };
+  }
+  return {
+    ...base,
+    status: 'PLANNED',
+    promotion: 'DEPLOYMENT_UNKNOWN',
+    detail: 'No implementation evidence found',
+    warnings: staleClaims.length > 0 ? [...base.warnings, `${staleClaims.length} stale claim(s) matched`] : base.warnings,
+  };
+}
