@@ -15,6 +15,32 @@ describe('Grid player-visible world projection', () => {
     expect(projection.counts.properties).toBe(cantonFoundingSeasonPackage.properties.length);
     expect(projection.territories.every((territory) => territory.ownership === 'neutral')).toBe(true);
     expect(projection.validClaimSlugs).toEqual([]);
+    expect(projection.season.phase).toBe('inactive');
+    expect(projection.season.surgeHours).toBe(72);
+    expect(projection.season.startsAt).toBeNull();
+    expect(projection.season.surgeStartsAt).toBeNull();
+    expect(projection.season.endsAt).toBeNull();
+  });
+
+  it('projects persisted Surge timing without inventing a countdown', () => {
+    const projection = buildGridWorldProjection(cantonFoundingSeasonPackage, {
+      runtime: {
+        seasonId: 'season-1',
+        seasonStatus: 'surge',
+        startsAt: '2026-09-01T12:00:00Z',
+        surgeStartsAt: '2026-09-28T12:00:00Z',
+        endsAt: '2026-10-01T12:00:00Z',
+        territories: [],
+        properties: [],
+        playerState: null,
+      },
+    });
+    expect(projection.season).toMatchObject({
+      phase: 'surge', surgeHours: 72,
+      startsAt: '2026-09-01T12:00:00Z',
+      surgeStartsAt: '2026-09-28T12:00:00Z',
+      endsAt: '2026-10-01T12:00:00Z',
+    });
   });
 
   it('sanitizes rival identity while showing your territory, occupied territory, wallet, and valid expansion', () => {
