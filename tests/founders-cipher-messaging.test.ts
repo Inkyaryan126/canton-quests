@@ -148,21 +148,21 @@ describe('6/7. Message copy is centralized; Founder\'s Cipher gameplay moments r
     expect(questPageSource).toContain("from '@/lib/gameplay/founders-cipher/message-resolver'");
     expect(questPageSource).toContain("showFounderCipherMessage({");
     expect(questPageSource).toMatch(/messageId: 'QUEST_STARTED'/);
-    expect(questPageSource).toMatch(/messageId: 'FIRST_CIPHER_FRAGMENT_RECOVERED'/);
-    expect(questPageSource).toMatch(/messageId: 'CIPHER_FRAGMENT_FOUND'/);
+    expect(questPageSource).toContain("'FIRST_CIPHER_FRAGMENT_RECOVERED'");
+    expect(questPageSource).toContain("'CIPHER_FRAGMENT_FOUND'");
     expect(questPageSource).toMatch(/messageId: 'DISTRICT_READY_TO_DECODE'/);
     expect(questPageSource).toMatch(/messageId: 'FOUNDER_LOCK_RECOVERED'/);
     expect(questPageSource).toMatch(/messageId: 'ALL_THREE_LOCKS_RECOVERED'/);
     expect(questPageSource).toMatch(/messageId: 'ALL_REQUIRED_FRAGMENTS_FOUND'/);
   });
 
-  it('the finale page wires DISTRICT_SIGIL_UNLOCKED, ALL_THREE_SIGILS_DECODED, and MASTER_CIPHER_AVAILABLE on manual decode', () => {
+  it('the rebuilt finale keeps centralized invalid-answer copy while the page itself owns the final reveal', () => {
     const finaleSource = readSource('app/events/[slug]/finale/page.tsx');
     expect(finaleSource).toContain("from '@/lib/gameplay/founders-cipher/message-resolver'");
-    expect(finaleSource).toContain("showFounderCipherMessage({");
-    expect(finaleSource).toContain("'MASTER_CIPHER_AVAILABLE'");
-    expect(finaleSource).toContain("'ALL_THREE_SIGILS_DECODED'");
-    expect(finaleSource).toContain("'DISTRICT_SIGIL_UNLOCKED'");
+    expect(finaleSource).toContain("getFounderCipherMessage('INVALID_ANSWER', path)");
+    expect(finaleSource).toContain('The page itself becomes the finale reveal.');
+    expect(finaleSource).toContain('FINAL CONVERGENCE // THREE DISTRICT RECORDS');
+    expect(finaleSource).not.toContain('CipherFragmentsPanel');
   });
 
   it('the Mission hub page retrieves MISSION_BRIEFING from the same centralized resolver after Cold Open', () => {
