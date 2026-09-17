@@ -4,6 +4,7 @@ import type { GridCityPackage } from '../core/types';
 import type {
   GridAuctionListing,
   GridAuctionReadPort,
+  GridGetActiveAuctionInput,
   GridListActiveAuctionsInput,
 } from './auction-read-port';
 
@@ -88,6 +89,64 @@ export async function resolveSupabaseGridAuctionSeasonId(
   return (seasonResult.data as { id: string } | null)?.id ?? null;
 }
 
+function toAuctionListing(
+  row: AuctionRow,
+  property: PropertyRow,
+  viewerPlayerId: string,
+  nowMs: number,
+): GridAuctionListing {
+  const reserveCredits = safeCredits(row.reserve_credits, 'reserveCredits');
+  const minimumBidIncrementCredits = safeCredits(
+    row.minimum_bid_increment_credits,
+    'minimumBidIncrementCredits',
+  );
+  const leadingBidCredits =
+    row.leading_bid_credits === null
+      ? undefined
+      : safeCredits(row.leading_bid_credits, 'leadingBidCredits');
+
+  return {
+    auctionId: row.id,
+    seasonId: row.season_id,
+    cityId: row.city_id,
+    propertyId: row.property_id,
+    propertySlug: property.slug,
+    propertyName: property.public_name_safe
+      ? property.display_name
+      : 'Grid Property',
+    status:
+      row.status === 'scheduled' && Date.parse(row.starts_at) <= nowMs
+        ? 'open'
+        : row.status,
+    reserveCredits,
+    minimumBidIncrementCredits,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    leadingBidCredits,
+    minimumNextBidCredits: minimumNextBid(row),
+    viewerIsLeadingBidder: row.leading_bidder_player_id === viewerPlayerId,
+  };
+}
+
+async function loadAuctionProperty(
+  client: SupabaseClient,
+  propertyId: string,
+): Promise<PropertyRow> {
+  const { data, error } = await client
+    .from('grid_properties')
+    .select('id,slug,display_name,public_name_safe')
+    .eq('id', propertyId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load Grid auction property: ${error.message}`);
+  }
+  if (!data) {
+    throw new Error('Grid auction references an unknown property');
+  }
+  return data as PropertyRow;
+}
+
 export function createSupabaseGridAuctionReadPort(
   client: SupabaseClient | null = supabaseAdmin,
 ): GridAuctionReadPort {
@@ -140,43 +199,33 @@ export function createSupabaseGridAuctionReadPort(
         if (!property) {
           throw new Error('Grid auction references an unknown property');
         }
-
-        const reserveCredits = safeCredits(
-          row.reserve_credits,
-          'reserveCredits',
-        );
-        const minimumBidIncrementCredits = safeCredits(
-          row.minimum_bid_increment_credits,
-          'minimumBidIncrementCredits',
-        );
-        const leadingBidCredits =
-          row.leading_bid_credits === null
-            ? undefined
-            : safeCredits(row.leading_bid_credits, 'leadingBidCredits');
-
-        return {
-          auctionId: row.id,
-          seasonId: row.season_id,
-          cityId: row.city_id,
-          propertyId: row.property_id,
-          propertySlug: property.slug,
-          propertyName: property.public_name_safe
-            ? property.display_name
-            : 'Grid Property',
-          status:
-            row.status === 'scheduled' && Date.parse(row.starts_at) <= nowMs
-              ? 'open'
-              : row.status,
-          reserveCredits,
-          minimumBidIncrementCredits,
-          startsAt: row.starts_at,
-          endsAt: row.ends_at,
-          leadingBidCredits,
-          minimumNextBidCredits: minimumNextBid(row),
-          viewerIsLeadingBidder:
-            row.leading_bidder_player_id === input.viewerPlayerId,
-        };
+        return toAuctionListing(row, property, input.viewerPlayerId, nowMs);
       });
+    },
+
+    async getActiveAuction(
+      input: GridGetActiveAuctionInput,
+    ): Promise<GridAuctionListing | null> {
+      const { data, error } = await client
+        .from('grid_property_auctions')
+        .select(
+          'id,season_id,city_id,property_id,status,reserve_credits,minimum_bid_increment_credits,starts_at,ends_at,leading_bidder_player_id,leading_bid_credits',
+        )
+        .eq('season_id', input.seasonId)
+        .eq('id', input.auctionId)
+        .in('status', ['scheduled', 'open'])
+        .gt('ends_at', input.now)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(`Failed to load Grid auction: ${error.message}`);
+      }
+      if (!data) return null;
+
+      const row = data as AuctionRow;
+      const property = await loadAuctionProperty(client, row.property_id);
+      const nowMs = Date.parse(input.now);
+      return toAuctionListing(row, property, input.viewerPlayerId, nowMs);
     },
   };
 }

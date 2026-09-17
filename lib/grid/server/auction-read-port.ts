@@ -21,8 +21,18 @@ export interface GridListActiveAuctionsInput {
   now: string;
 }
 
+export interface GridGetActiveAuctionInput {
+  seasonId: string;
+  auctionId: string;
+  viewerPlayerId: string;
+  now: string;
+}
+
 export interface GridAuctionReadPort {
   listActiveAuctions(
     input: GridListActiveAuctionsInput,
   ): Promise<GridAuctionListing[]>;
+  getActiveAuction(
+    input: GridGetActiveAuctionInput,
+  ): Promise<GridAuctionListing | null>;
 }
