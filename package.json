@@ -15,6 +15,7 @@
     "grid:inspect-city": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-inspect-city.ts",
     "grid:simulate-economy": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-economy-sim.ts",
     "grid:agents": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-agent-control.ts",
+    "grid:board": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-master-board.ts",
     "boardroom:start": "node --env-file=.env.local ./node_modules/vite-node/vite-node.mjs scripts/boardroom-start.ts",
     "boardroom:lock": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-lock.ts",
     "boardroom:task": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-task.ts",
