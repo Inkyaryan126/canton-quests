@@ -1,5 +1,6 @@
 export * from './capabilities';
 export * from './features';
+export * from './launch-intents';
 export * from './native';
 export * from './permissions';
 export * from './runtime';

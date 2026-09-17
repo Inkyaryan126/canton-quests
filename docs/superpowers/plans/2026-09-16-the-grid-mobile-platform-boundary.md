@@ -56,6 +56,8 @@ Web stays the frictionless first-touch experience. A native app can later add hi
 
 `GRID Mobile 4` adds explicit just-in-time permission flows for foreground/background location, photo proof, and live alerts. Background location is never requested until foreground location has already been granted, and unsupported features return without prompting.
 
+`GRID Mobile 5` normalizes trusted HTTPS universal links and custom native schemes into the same platform-neutral launch intent. External hosts, unsupported schemes, oversized inputs, and destinations outside the Grid client surface are rejected before gameplay routing sees them.
+
 A boundary test scans shared core/server TypeScript and fails if browser globals enter those layers.
 
 ## Native follow-on
