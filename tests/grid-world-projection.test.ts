@@ -24,6 +24,7 @@ describe('Grid player-visible world projection', () => {
 
   it('projects persisted Surge timing without inventing a countdown', () => {
     const projection = buildGridWorldProjection(cantonFoundingSeasonPackage, {
+      now: '2026-09-29T12:00:00Z',
       runtime: {
         seasonId: 'season-1',
         seasonStatus: 'surge',
@@ -40,6 +41,7 @@ describe('Grid player-visible world projection', () => {
       startsAt: '2026-09-01T12:00:00Z',
       surgeStartsAt: '2026-09-28T12:00:00Z',
       endsAt: '2026-10-01T12:00:00Z',
+      surgeTiming: { state: 'live', millisecondsRemaining: 172_800_000 },
     });
   });
 
