@@ -58,6 +58,8 @@ Web stays the frictionless first-touch experience. A native app can later add hi
 
 `GRID Mobile 5` normalizes trusted HTTPS universal links and custom native schemes into the same platform-neutral launch intent. External hosts, unsupported schemes, oversized inputs, and destinations outside the Grid client surface are rejected before gameplay routing sees them.
 
+`GRID Mobile 6` adds a shared app-lifecycle capability for native and PWA hosts. The runtime exposes current lifecycle state plus resume subscriptions that fire only when a non-active state returns to active, giving clients one safe hook to refresh world state after backgrounding.
+
 A boundary test scans shared core/server TypeScript and fails if browser globals enter those layers.
 
 ## Native follow-on

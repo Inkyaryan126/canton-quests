@@ -2,6 +2,8 @@ import { assertValidGridPlatformAdapter, hasGridPlatformCapability } from './cap
 import { gridPlatformFeatureSupport } from './features';
 import type { GridPlatformFeature, GridPlatformFeatureSupport } from './features';
 import type {
+  GridAppLifecyclePort,
+  GridAppLifecycleState,
   GridCameraPort,
   GridDeepLinksPort,
   GridHapticsPort,
@@ -12,6 +14,11 @@ import type {
   GridSecureStoragePort,
   GridSharePort,
 } from './types';
+
+export interface GridAppResumeEvent {
+  previousState: GridAppLifecycleState;
+  state: 'active';
+}
 
 export interface GridPlatformRuntime {
   readonly adapter: Readonly<GridPlatformAdapter>;
@@ -24,6 +31,8 @@ export interface GridPlatformRuntime {
   requireSecureStorage(): GridSecureStoragePort;
   requireShare(): GridSharePort;
   requireDeepLinks(): GridDeepLinksPort;
+  requireLifecycle(): GridAppLifecyclePort;
+  subscribeResumes(listener: (event: GridAppResumeEvent) => void): Promise<() => void>;
 }
 
 function requirePort<T>(
@@ -59,5 +68,17 @@ export function createGridPlatformRuntime(
     ),
     requireShare: () => requirePort(frozenAdapter.share, 'share'),
     requireDeepLinks: () => requirePort(frozenAdapter.deepLinks, 'deep-links'),
+    requireLifecycle: () => requirePort(frozenAdapter.lifecycle, 'app-lifecycle'),
+    subscribeResumes: async (listener) => {
+      const lifecycle = requirePort(frozenAdapter.lifecycle, 'app-lifecycle');
+      let previousState = await lifecycle.getState();
+      return lifecycle.subscribe((state) => {
+        const prior = previousState;
+        previousState = state;
+        if (state === 'active' && prior !== 'active') {
+          listener({ previousState: prior, state: 'active' });
+        }
+      });
+    },
   };
 }

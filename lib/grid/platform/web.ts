@@ -1,4 +1,5 @@
 import type {
+  GridAppLifecyclePort,
   GridCameraPort,
   GridHapticPattern,
   GridLocationPort,
@@ -45,6 +46,7 @@ export interface GridWebPlatformEnvironment {
   currentUrl?: () => string;
   camera?: GridCameraPort;
   notifications?: GridNotificationsPort;
+  lifecycle?: GridAppLifecyclePort;
 }
 
 function permissionState(
@@ -147,6 +149,7 @@ export function createGridWebPlatformAdapter(
   if (environment.vibrate) capabilities.push('haptics');
   if (share) capabilities.push('share');
   if (environment.currentUrl) capabilities.push('deep-links');
+  if (environment.lifecycle) capabilities.push('app-lifecycle');
 
   return {
     kind: 'web',
@@ -161,5 +164,6 @@ export function createGridWebPlatformAdapter(
     deepLinks: environment.currentUrl
       ? { getInitialUrl: async () => environment.currentUrl!() }
       : undefined,
+    lifecycle: environment.lifecycle,
   };
 }

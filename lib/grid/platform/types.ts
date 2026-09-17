@@ -10,7 +10,8 @@ export type GridPlatformCapability =
   | 'haptics'
   | 'secure-storage'
   | 'share'
-  | 'deep-links';
+  | 'deep-links'
+  | 'app-lifecycle';
 
 export interface GridPlatformLocation {
   latitude: number;
@@ -86,6 +87,13 @@ export interface GridDeepLinksPort {
   getInitialUrl(): Promise<string | null>;
 }
 
+export type GridAppLifecycleState = 'active' | 'inactive' | 'background';
+
+export interface GridAppLifecyclePort {
+  getState(): Promise<GridAppLifecycleState>;
+  subscribe(listener: (state: GridAppLifecycleState) => void): () => void;
+}
+
 export interface GridPlatformAdapter {
   kind: GridPlatformKind;
   capabilities: readonly GridPlatformCapability[];
@@ -96,4 +104,5 @@ export interface GridPlatformAdapter {
   secureStorage?: GridSecureStoragePort;
   share?: GridSharePort;
   deepLinks?: GridDeepLinksPort;
+  lifecycle?: GridAppLifecyclePort;
 }

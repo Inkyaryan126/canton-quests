@@ -19,7 +19,8 @@ type AdapterPortName =
   | 'haptics'
   | 'secureStorage'
   | 'share'
-  | 'deepLinks';
+  | 'deepLinks'
+  | 'lifecycle';
 
 const CAPABILITY_PORT: Record<GridPlatformCapability, AdapterPortName> = {
   'foreground-location': 'location',
@@ -30,6 +31,7 @@ const CAPABILITY_PORT: Record<GridPlatformCapability, AdapterPortName> = {
   'secure-storage': 'secureStorage',
   share: 'share',
   'deep-links': 'deepLinks',
+  'app-lifecycle': 'lifecycle',
 };
 const PORT_CAPABILITIES: Record<AdapterPortName, GridPlatformCapability[]> = {
   location: ['foreground-location', 'background-location'],
@@ -39,6 +41,7 @@ const PORT_CAPABILITIES: Record<AdapterPortName, GridPlatformCapability[]> = {
   secureStorage: ['secure-storage'],
   share: ['share'],
   deepLinks: ['deep-links'],
+  lifecycle: ['app-lifecycle'],
 };
 
 export function hasGridPlatformCapability(

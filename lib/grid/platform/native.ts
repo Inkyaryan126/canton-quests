@@ -1,4 +1,5 @@
 import type {
+  GridAppLifecyclePort,
   GridCameraPort,
   GridDeepLinksPort,
   GridHapticsPort,
@@ -19,6 +20,7 @@ export interface GridNativePlatformEnvironment {
   secureStorage?: GridSecureStoragePort;
   share?: GridSharePort;
   deepLinks?: GridDeepLinksPort;
+  lifecycle?: GridAppLifecyclePort;
 }
 
 export function createGridNativePlatformAdapter(
@@ -37,6 +39,7 @@ export function createGridNativePlatformAdapter(
   if (environment.secureStorage) capabilities.push('secure-storage');
   if (environment.share) capabilities.push('share');
   if (environment.deepLinks) capabilities.push('deep-links');
+  if (environment.lifecycle) capabilities.push('app-lifecycle');
 
   return {
     kind: environment.kind,
@@ -48,5 +51,6 @@ export function createGridNativePlatformAdapter(
     secureStorage: environment.secureStorage,
     share: environment.share,
     deepLinks: environment.deepLinks,
+    lifecycle: environment.lifecycle,
   };
 }

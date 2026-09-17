@@ -95,4 +95,16 @@ describe('GRID web platform adapter', () => {
     expect(adapter.capabilities).toEqual(['camera', 'push-notifications']);
     expect(createGridPlatformRuntime(adapter).feature('photo-proof').available).toBe(true);
   });
+
+  it('accepts a host-supplied lifecycle port for PWA/native parity', async () => {
+    const lifecycle = {
+      getState: async () => 'active' as const,
+      subscribe: () => () => undefined,
+    };
+    const adapter = createGridWebPlatformAdapter({ lifecycle } as never);
+
+    expect(adapter.capabilities).toContain('app-lifecycle');
+    expect(adapter.lifecycle).toBe(lifecycle);
+    await expect(createGridPlatformRuntime(adapter).requireLifecycle().getState()).resolves.toBe('active');
+  });
 });
