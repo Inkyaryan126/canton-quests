@@ -68,4 +68,10 @@ describe('Grid return briefing player UI contract', () => {
     expect(client).not.toContain('attackerPlayerId');
     expect(client).not.toContain('event.payload');
   });
+
+  it('re-enters the private City Board after the recap without exposing it publicly', () => {
+    expect(client).toContain('href="/grid/preview"');
+    expect(client).toContain('Re-enter City Board');
+    expect(publicGrid).not.toContain('href="/grid/preview"');
+  });
 });

@@ -311,6 +311,25 @@ export default function GridReturnClient() {
               />
             </section>
 
+            <section className="mt-5 flex flex-col gap-4 rounded-3xl border border-cyan-300/20 bg-cyan-300/[.045] p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="font-mono text-[10px] font-black tracking-[.18em] text-cyan-300">
+                  READY TO MOVE
+                </div>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-400">
+                  Your private recap is complete. Re-enter the Canton City
+                  Board with your current territory, property, and wallet state.
+                </p>
+              </div>
+              <Link
+                href="/grid/preview"
+                className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 font-display text-sm font-black uppercase tracking-[.08em] text-slate-950"
+              >
+                Re-enter City Board
+                <ChevronRight size={17} aria-hidden="true" />
+              </Link>
+            </section>
+
             <section className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
               <div className="rounded-3xl border border-white/10 bg-black/45 p-5 sm:p-7">
                 <div className="flex items-center justify-between gap-4">

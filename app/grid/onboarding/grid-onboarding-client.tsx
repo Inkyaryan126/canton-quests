@@ -392,6 +392,13 @@ export default function GridOnboardingClient() {
                       Your first-session sequence is complete. The persistent
                       city can now become your primary game board.
                     </p>
+                    <Link
+                      href="/grid/preview"
+                      className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 font-display text-sm font-black uppercase tracking-[.08em] text-slate-950"
+                    >
+                      Open City Board
+                      <ChevronRight size={17} aria-hidden="true" />
+                    </Link>
                   </>
                 ) : nextStep?.id === 'confirm-home-city' ? (
                   <>
@@ -520,6 +527,13 @@ export default function GridOnboardingClient() {
                       This step remains server-controlled and will activate
                       here when its gameplay command is integrated.
                     </div>
+                    <Link
+                      href="/grid/preview"
+                      className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-300/[.08] px-5 py-3 font-display text-sm font-black uppercase tracking-[.08em] text-cyan-100"
+                    >
+                      View your City Board
+                      <ChevronRight size={17} aria-hidden="true" />
+                    </Link>
                   </>
                 )}
               </div>

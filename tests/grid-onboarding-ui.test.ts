@@ -79,4 +79,11 @@ describe('Grid onboarding player UI contract', () => {
     expect(client).toContain('onboarding.totalSteps');
     expect(client).toContain('onboarding?.nextStep');
   });
+
+  it('hands authenticated players into the private City Board without exposing it publicly', () => {
+    expect(client).toContain('href="/grid/preview"');
+    expect(client).toContain('Open City Board');
+    expect(client).toContain('View your City Board');
+    expect(publicGrid).not.toContain('href="/grid/preview"');
+  });
 });
