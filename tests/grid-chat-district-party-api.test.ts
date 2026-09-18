@@ -22,4 +22,24 @@ describe('Grid chat district + party API', () => {
     expect(route).toContain('context.playerId');
     expect(route).not.toContain('body.playerId');
   });
+
+  it('binds party invite listing and responses to the authenticated invitee', () => {
+    const list = source('app/api/grid/chat/party-invites/route.ts');
+    const accept = source('app/api/grid/chat/party-invites/[inviteId]/accept/route.ts');
+    const decline = source('app/api/grid/chat/party-invites/[inviteId]/decline/route.ts');
+
+    expect(list).toContain('context.playerId');
+    expect(accept).toContain('context.playerId');
+    expect(decline).toContain('context.playerId');
+    expect(accept).not.toContain('body.playerId');
+    expect(decline).not.toContain('body.playerId');
+    expect(accept).toContain('params.inviteId');
+    expect(decline).toContain('params.inviteId');
+  });
+
+  it('returns invite metadata instead of implying an invite immediately created membership', () => {
+    const route = source('app/api/grid/chat/parties/[channelId]/members/route.ts');
+    expect(route).toContain('invite: result.invite');
+    expect(route).toContain('target: result.target');
+  });
 });

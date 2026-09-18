@@ -63,6 +63,10 @@ export function gridChatError(error: unknown): { message: string; status: number
   if (raw.includes('PRIVATE_CHAT_MINOR_RESTRICTED')) return { message: 'Private party chat is not available for this account.', status: 403 };
   if (raw.includes('CHAT_BLOCKED')) return { message: 'This conversation is unavailable.', status: 403 };
   if (raw.includes('CHAT_MEMBERSHIP_REQUIRED')) return { message: 'You do not have access to this channel.', status: 403 };
+  if (raw.includes('PARTY_INVITE_RESPONSE_FORBIDDEN')) return { message: 'You do not have access to that party invitation.', status: 403 };
+  if (raw.includes('PARTY_INVITE_EXPIRED')) return { message: 'That party invitation has expired.', status: 409 };
+  if (raw.includes('PARTY_INVITE_NOT_FOUND')) return { message: 'Party invitation not found.', status: 404 };
+  if (raw.includes('PARTY_INVITE_NOT_PENDING') || raw.includes('PARTY_INVITE_ALREADY_PENDING')) return { message: 'That party invitation is no longer actionable.', status: 409 };
   if (raw.includes('PARTY_INVITE_FORBIDDEN')) return { message: 'Only a party owner or moderator can invite players.', status: 403 };
   if (raw.includes('PARTY_OWNER_CANNOT_LEAVE')) return { message: 'The party owner must remain until the other members leave.', status: 409 };
   if (raw.includes('PARTY_OWNER_REQUIRED')) return { message: 'Only the party owner can do that.', status: 403 };

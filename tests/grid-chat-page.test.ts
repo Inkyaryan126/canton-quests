@@ -44,4 +44,17 @@ describe('Grid chat page contract', () => {
     expect(source).toContain('/notifications');
     expect(source).toContain('document.visibilityState');
   });
+
+  it('shows consent-based party invitations with explicit accept and decline actions', () => {
+    expect(source).toContain('/api/grid/chat/party-invites');
+    expect(source).toContain('Party Invites');
+    expect(source).toContain("respondToPartyInvite(invite, 'accept')");
+    expect(source).toContain("respondToPartyInvite(invite, 'decline')");
+    expect(source).toContain('Invited by');
+    const responseFn = source
+      .split('async function respondToPartyInvite', 2)[1]
+      .split('async function loadPartyMembers', 1)[0];
+    expect(responseFn).not.toContain('body: JSON.stringify');
+    expect(responseFn).not.toContain('playerId');
+  });
 });

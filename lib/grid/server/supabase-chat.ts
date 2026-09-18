@@ -4,6 +4,7 @@ import type {
   GridChatChannelSummary,
   GridChatMessagePage,
   GridChatMessageView,
+  GridChatPartyInvite,
   GridChatPublicPlayer,
   GridChatReportResult,
   GridChatSendResult,
@@ -279,11 +280,102 @@ export function createSupabaseGridChatPort(
       return { channelId: result.channelId };
     },
 
-    async addPartyMember(channelId, actorPlayerId, targetPlayerId, now) {
-      const { error } = await client.rpc('grid_add_party_chat_member', {
-        p_channel_id: channelId, p_actor_player_id: actorPlayerId, p_target_player_id: targetPlayerId, p_now: now,
+    async invitePartyMember(channelId, actorPlayerId, targetPlayerId, now) {
+      const { data, error } = await client.rpc('grid_invite_party_chat_member', {
+        p_channel_id: channelId,
+        p_actor_player_id: actorPlayerId,
+        p_target_player_id: targetPlayerId,
+        p_now: now,
       });
       if (error) throw new Error(`Failed to invite Grid party member: ${error.message}`);
+      const result = rpcObject<{ inviteId: string; expiresAt: string }>(
+        data,
+        'Grid party invite',
+      );
+      return { inviteId: result.inviteId, expiresAt: result.expiresAt };
+    },
+
+    async listPartyInvites(playerId, now) {
+      const inviteResult = await client
+        .from('grid_chat_party_invites')
+        .select('id,channel_id,inviter_player_id,created_at,expires_at')
+        .eq('invitee_player_id', playerId)
+        .eq('status', 'pending')
+        .gt('expires_at', now)
+        .order('created_at', { ascending: false });
+      if (inviteResult.error) {
+        throw new Error(`Failed to read Grid party invites: ${inviteResult.error.message}`);
+      }
+
+      const rows = (inviteResult.data ?? []) as Array<{
+        id: string;
+        channel_id: string;
+        inviter_player_id: string;
+        created_at: string;
+        expires_at: string;
+      }>;
+      if (rows.length === 0) return [];
+
+      const channelIds = [...new Set(rows.map((row) => row.channel_id))];
+      const channelResult = await client
+        .from('grid_chat_channels')
+        .select('id,display_name,is_archived,channel_type')
+        .in('id', channelIds);
+      if (channelResult.error) {
+        throw new Error(`Failed to read Grid party invite channels: ${channelResult.error.message}`);
+      }
+      const channelById = new Map(
+        ((channelResult.data ?? []) as Array<{
+          id: string;
+          display_name: string | null;
+          is_archived: boolean;
+          channel_type: string;
+        }>)
+          .filter((row) => row.channel_type === 'party' && !row.is_archived)
+          .map((row) => [row.id, row] as const),
+      );
+      const profiles = await loadProfiles(
+        client,
+        rows.map((row) => row.inviter_player_id),
+      );
+
+      return rows.flatMap((row): GridChatPartyInvite[] => {
+        const channel = channelById.get(row.channel_id);
+        const inviter = profiles.get(row.inviter_player_id);
+        if (!channel || !inviter) return [];
+        return [{
+          inviteId: row.id,
+          channelId: row.channel_id,
+          displayName: channel.display_name ?? 'GRID PARTY',
+          inviter,
+          createdAt: row.created_at,
+          expiresAt: row.expires_at,
+        }];
+      });
+    },
+
+    async acceptPartyInvite(inviteId, playerId, now) {
+      const { data, error } = await client.rpc('grid_accept_party_chat_invite', {
+        p_invite_id: inviteId,
+        p_player_id: playerId,
+        p_now: now,
+      });
+      if (error) throw new Error(`Failed to accept Grid party invite: ${error.message}`);
+      const result = rpcObject<{ channelId: string; accepted: boolean }>(
+        data,
+        'Grid party invite acceptance',
+      );
+      if (!result.accepted) throw new Error('PARTY_INVITE_EXPIRED');
+      return { channelId: result.channelId };
+    },
+
+    async declinePartyInvite(inviteId, playerId, now) {
+      const { error } = await client.rpc('grid_decline_party_chat_invite', {
+        p_invite_id: inviteId,
+        p_player_id: playerId,
+        p_now: now,
+      });
+      if (error) throw new Error(`Failed to decline Grid party invite: ${error.message}`);
     },
 
     async leaveParty(channelId, playerId, now) {
