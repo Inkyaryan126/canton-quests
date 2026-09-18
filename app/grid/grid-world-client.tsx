@@ -20,6 +20,7 @@ interface GridWorldResponse {
   projection: GridWorldProjection;
   runtimeEnabled: boolean;
   economyWriteEnabled: boolean;
+  contestWriteEnabled: boolean;
   runtimeWarning: string | null;
 }
 
@@ -50,6 +51,37 @@ interface GridPropertyActionResponse {
     developmentBranch?: GridDevelopmentBranch;
     developmentLevel?: number;
     skylineFormed?: boolean;
+  };
+  error?: string;
+}
+
+interface GridContestLaunchResponse {
+  success: boolean;
+  contest?: {
+    outcome: 'contest-started' | 'captured-by-auto-retreat';
+    contestId?: string;
+    sourceTerritorySlug: string;
+    targetTerritorySlug: string;
+    attackerCommittedInfluence?: number;
+    defenderCommittedInfluence?: number;
+    status?: string;
+    startedAt?: string;
+    capturedAt?: string;
+  };
+  error?: string;
+}
+
+interface GridContestRoundResponse {
+  success: boolean;
+  contest?: {
+    contestId: string;
+    roundNumber: number;
+    status: string;
+    attackerRolls: number[];
+    defenderRolls: number[];
+    attackerRemainingInfluence: number;
+    defenderRemainingInfluence: number;
+    territoryCaptured: boolean;
   };
   error?: string;
 }
@@ -169,9 +201,11 @@ export default function GridWorldClient({
   const [projection, setProjection] = useState(initialProjection);
   const [runtimeEnabled, setRuntimeEnabled] = useState(false);
   const [economyWriteEnabled, setEconomyWriteEnabled] = useState(false);
+  const [contestWriteEnabled, setContestWriteEnabled] = useState(false);
   const [runtimeWarning, setRuntimeWarning] = useState<string | null>(null);
   const [busyClaim, setBusyClaim] = useState<string | null>(null);
   const [busyPropertyAction, setBusyPropertyAction] = useState<string | null>(null);
+  const [busyContestAction, setBusyContestAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
@@ -182,6 +216,7 @@ export default function GridWorldClient({
     setProjection(data.projection);
     setRuntimeEnabled(data.runtimeEnabled);
     setEconomyWriteEnabled(data.economyWriteEnabled);
+    setContestWriteEnabled(data.contestWriteEnabled);
     setRuntimeWarning(data.runtimeWarning);
   }, []);
 
@@ -315,6 +350,103 @@ export default function GridWorldClient({
       );
     } finally {
       setBusyPropertyAction(null);
+    }
+  };
+
+  const launchContest = async (
+    sourceTerritorySlug: string,
+    targetTerritorySlug: string,
+    attackerCommittedInfluence: number,
+  ) => {
+    const scope =
+      'contest-launch:' +
+      sourceTerritorySlug +
+      ':' +
+      targetTerritorySlug +
+      ':' +
+      attackerCommittedInfluence;
+    setBusyContestAction(scope);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch('/api/grid/contests/launch', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sourceTerritorySlug,
+          targetTerritorySlug,
+          attackerCommittedInfluence,
+          idempotencyKey: commandKey(scope),
+        }),
+      });
+      const payload = (await response.json()) as GridContestLaunchResponse;
+      if (!response.ok || !payload.success || !payload.contest) {
+        if (response.status === 404) {
+          throw new Error('Grid contests are not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Contest launch failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice(
+        payload.contest.outcome === 'captured-by-auto-retreat'
+          ? 'Target captured after the defender auto-retreated.'
+          : 'Contest started. Roll Signal Dice to resolve the next round.',
+      );
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Contest launch failed.',
+      );
+    } finally {
+      setBusyContestAction(null);
+    }
+  };
+
+  const resolveContestRound = async (
+    contestId: string,
+    nextRoundNumber: number,
+  ) => {
+    const scope = 'contest-round:' + contestId + ':' + nextRoundNumber;
+    setBusyContestAction(scope);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch(
+        '/api/grid/contests/' + contestId + '/round',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ idempotencyKey: commandKey(scope) }),
+        },
+      );
+      const payload = (await response.json()) as GridContestRoundResponse;
+      if (!response.ok || !payload.success || !payload.contest) {
+        if (response.status === 404) {
+          throw new Error('Grid contests are not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Contest round failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice(
+        'Signal Dice: ' +
+          payload.contest.attackerRolls.join(', ') +
+          ' vs ' +
+          payload.contest.defenderRolls.join(', ') +
+          '. Contest status: ' +
+          payload.contest.status +
+          '.',
+      );
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Contest round failed.',
+      );
+    } finally {
+      setBusyContestAction(null);
     }
   };
 
@@ -555,6 +687,168 @@ export default function GridWorldClient({
                         </div>
                       );
                     })}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="rounded-3xl border border-fuchsia-300/20 bg-black/45 p-5">
+              <div className="flex items-center gap-2 font-display text-lg font-black uppercase">
+                <Crosshair size={18} className="text-fuchsia-300" />
+                Contests
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-stone-400">
+                Attack only occupied territory touching your network. Signal Dice,
+                defender policy, adjacency, ownership, and final capture remain
+                server-authoritative.
+              </p>
+
+              {projection.player.activeContests.length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  <div className="font-mono text-[9px] font-black tracking-[.14em] text-stone-600">
+                    ACTIVE CONTESTS
+                  </div>
+                  {projection.player.activeContests.map((contest) => {
+                    const nextRound = contest.roundNumber + 1;
+                    const roundScope =
+                      'contest-round:' + contest.contestId + ':' + nextRound;
+                    return (
+                      <div
+                        key={contest.contestId}
+                        className="rounded-xl border border-fuchsia-300/15 bg-fuchsia-300/[.035] p-3"
+                      >
+                        <div className="text-xs font-black text-stone-200">
+                          {contest.sourceTerritorySlug} →{' '}
+                          {contest.targetTerritorySlug}
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[9px] text-stone-500">
+                          <span>YOU: {contest.yourRemainingInfluence} INF</span>
+                          <span>
+                            OPPONENT: {contest.opponentRemainingInfluence} INF
+                          </span>
+                          <span>ROUND {contest.roundNumber}</span>
+                          <span>{contest.role.toUpperCase()}</span>
+                        </div>
+                        {contest.role === 'attacker' ? (
+                          <button
+                            type="button"
+                            disabled={
+                              !contestWriteEnabled ||
+                              busyContestAction !== null
+                            }
+                            onClick={() =>
+                              void resolveContestRound(
+                                contest.contestId,
+                                nextRound,
+                              )
+                            }
+                            className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-fuchsia-300/25 bg-fuchsia-300/[.08] px-3 py-2 font-display text-[11px] font-black uppercase tracking-[.08em] text-fuchsia-100 disabled:cursor-not-allowed disabled:opacity-35"
+                          >
+                            {busyContestAction === roundScope ? (
+                              <Loader2
+                                size={13}
+                                className="animate-spin"
+                                aria-hidden="true"
+                              />
+                            ) : null}
+                            {contestWriteEnabled
+                              ? 'Roll next round'
+                              : 'Contests locked'}
+                          </button>
+                        ) : (
+                          <div className="mt-3 rounded-lg border border-white/10 bg-white/[.02] px-3 py-2 font-mono text-[9px] text-stone-500">
+                            DEFENDER // ATTACKER ROLLS NEXT ROUND
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              {projection.territories.some((territory) => territory.attackable) ? (
+                <div className="mt-4 space-y-3">
+                  <div className="font-mono text-[9px] font-black tracking-[.14em] text-stone-600">
+                    ATTACKABLE TARGETS
+                  </div>
+                  {projection.territories
+                    .filter((territory) => territory.attackable)
+                    .map((territory) => (
+                      <div
+                        key={territory.slug}
+                        className="rounded-xl border border-white/10 bg-white/[.025] p-3"
+                      >
+                        <div className="text-xs font-black text-stone-200">
+                          {territory.name}
+                        </div>
+                        <div className="mt-1 font-mono text-[9px] text-stone-600">
+                          {territory.districtSlug.toUpperCase()}
+                        </div>
+                        {territory.attackSourceSlugs.map((sourceSlug) => (
+                          <div
+                            key={sourceSlug}
+                            className="mt-3 border-t border-white/[.06] pt-3"
+                          >
+                            <div className="font-mono text-[9px] text-stone-500">
+                              ATTACK FROM {sourceSlug.toUpperCase()}
+                            </div>
+                            <div className="mt-2 grid grid-cols-3 gap-2">
+                              {projection.player.attackCommitOptions.map(
+                                (option) => {
+                                  const scope =
+                                    'contest-launch:' +
+                                    sourceSlug +
+                                    ':' +
+                                    territory.slug +
+                                    ':' +
+                                    option.influence;
+                                  return (
+                                    <button
+                                      key={option.influence}
+                                      type="button"
+                                      disabled={
+                                        !contestWriteEnabled ||
+                                        !option.affordable ||
+                                        busyContestAction !== null
+                                      }
+                                      onClick={() =>
+                                        void launchContest(
+                                          sourceSlug,
+                                          territory.slug,
+                                          option.influence,
+                                        )
+                                      }
+                                      className="rounded-lg border border-fuchsia-300/20 bg-fuchsia-300/[.055] px-2 py-2 text-center disabled:cursor-not-allowed disabled:opacity-35"
+                                    >
+                                      {busyContestAction === scope ? (
+                                        <Loader2
+                                          size={12}
+                                          className="mx-auto animate-spin"
+                                          aria-hidden="true"
+                                        />
+                                      ) : (
+                                        <>
+                                          <span className="block font-display text-[11px] font-black text-fuchsia-100">
+                                            {option.influence} INF
+                                          </span>
+                                          <span className="mt-1 block font-mono text-[8px] text-stone-500">
+                                            {option.dice} DIE
+                                            {option.dice === 1 ? '' : 'S'}
+                                          </span>
+                                        </>
+                                      )}
+                                    </button>
+                                  );
+                                },
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                </div>
+              ) : projection.player.activeContests.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-white/10 bg-white/[.02] px-3 py-3 text-xs text-stone-500">
+                  No adjacent occupied territory is currently attackable.
                 </div>
               ) : null}
             </div>

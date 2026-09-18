@@ -73,6 +73,11 @@ export interface GridWorldProjection {
     authenticated: boolean;
     joined: boolean;
     wallet: GridWorldRuntimePlayerState | null;
+    attackCommitOptions: Array<{
+      influence: number;
+      dice: number;
+      affordable: boolean;
+    }>;
     activeContests: Array<{
       contestId: string;
       role: 'attacker' | 'defender';
@@ -100,6 +105,8 @@ export interface GridWorldProjection {
     ownership: GridWorldOwnership;
     claimable: boolean;
     claimCost: { credits: number; commandPoints: number };
+    attackable: boolean;
+    attackSourceSlugs: string[];
     starterEligible: boolean;
     contested: boolean;
   }>;
@@ -214,9 +221,37 @@ export function buildGridWorldProjection(
   const validClaimSlugs = joined ? control.validClaimSlugs : [];
   const validClaims = new Set(validClaimSlugs);
   const starterSlugs = new Set(economy?.neutralClaims.starterTerritorySlugs ?? []);
+  const ownedTerritorySlugs = new Set(control.ownedTerritorySlugs);
+  const ownerByTerritorySlug = new Map(
+    pkg.territories.map((territory) => [
+      territory.slug,
+      territoryRuntime.get(territory.slug)?.ownerPlayerId ?? null,
+    ] as const),
+  );
+  const attackSourcesByTarget = new Map<string, Set<string>>();
+
+  if (joined && viewerPlayerId) {
+    const addAttackSource = (sourceSlug: string, targetSlug: string) => {
+      const targetOwner = ownerByTerritorySlug.get(targetSlug);
+      if (!targetOwner || targetOwner === viewerPlayerId) return;
+      const sources = attackSourcesByTarget.get(targetSlug) ?? new Set<string>();
+      sources.add(sourceSlug);
+      attackSourcesByTarget.set(targetSlug, sources);
+    };
+
+    for (const edge of pkg.edges) {
+      if (ownedTerritorySlugs.has(edge.a)) addAttackSource(edge.a, edge.b);
+      if (ownedTerritorySlugs.has(edge.b)) addAttackSource(edge.b, edge.a);
+    }
+  }
 
   const territories = pkg.territories.map((territory) => {
     const state = territoryRuntime.get(territory.slug);
+    const attackSourceSlugs = [
+      ...(attackSourcesByTarget.get(territory.slug) ?? new Set<string>()),
+    ].sort();
+    const contested = contestedTargets.has(territory.slug);
+
     return {
       slug: territory.slug,
       name: territory.name,
@@ -227,8 +262,10 @@ export function buildGridWorldProjection(
       claimCost: economy
         ? resolveTerritoryClaimCost(economy, territory.slug)
         : { credits: 0, commandPoints: 0 },
+      attackable: attackSourceSlugs.length > 0 && !contested,
+      attackSourceSlugs,
       starterEligible: starterSlugs.has(territory.slug),
-      contested: contestedTargets.has(territory.slug),
+      contested,
     };
   });
 
@@ -311,6 +348,21 @@ export function buildGridWorldProjection(
         .filter((component) => component.ruleIds.length > 0)
     : [];
 
+  const attackCommitOptions =
+    joined && runtime?.playerState && pkg.seasonTemplate.contest
+      ? [...pkg.seasonTemplate.contest.attacker.bands]
+          .sort(
+            (a, b) =>
+              a.minCommittedInfluence - b.minCommittedInfluence,
+          )
+          .map((band) => ({
+            influence: band.minCommittedInfluence,
+            dice: band.dice,
+            affordable:
+              runtime.playerState!.influence >= band.minCommittedInfluence,
+          }))
+      : [];
+
   return {
     version: 1,
     readOnly: true,
@@ -326,6 +378,7 @@ export function buildGridWorldProjection(
       authenticated: Boolean(viewerPlayerId),
       joined,
       wallet: runtime?.playerState ?? null,
+      attackCommitOptions,
       activeContests,
     },
     counts: {

@@ -158,6 +158,65 @@ describe('Grid player-visible world projection', () => {
     ).toBe(true);
   });
 
+  it('projects only adjacent occupied contest targets and real Signal Dice commit bands', () => {
+    const edge = cantonFoundingSeasonPackage.edges[0];
+    expect(edge).toBeDefined();
+
+    const runtime = {
+      seasonId: 'season-1',
+      seasonStatus: 'active',
+      territories: [
+        {
+          territorySlug: edge.a,
+          ownerPlayerId: 'viewer-player',
+          claimedAt: '2026-09-18T05:40:00Z',
+        },
+        {
+          territorySlug: edge.b,
+          ownerPlayerId: 'rival-secret-id',
+          claimedAt: '2026-09-18T05:41:00Z',
+        },
+      ],
+      properties: [],
+      playerState: {
+        credits: 1000,
+        influence: 35,
+        commandPoints: 5,
+        resourcesSettledAt: '2026-09-18T05:42:00Z',
+      },
+    };
+
+    const player = buildGridWorldProjection(cantonFoundingSeasonPackage, {
+      viewerPlayerId: 'viewer-player',
+      runtime,
+    });
+    const target = player.territories.find(
+      (territory) => territory.slug === edge.b,
+    );
+
+    expect(target).toMatchObject({
+      ownership: 'occupied',
+      attackable: true,
+      attackSourceSlugs: [edge.a],
+      contested: false,
+    });
+    expect(player.player.attackCommitOptions).toEqual([
+      { influence: 10, dice: 1, affordable: true },
+      { influence: 30, dice: 2, affordable: true },
+      { influence: 60, dice: 3, affordable: false },
+    ]);
+    expect(JSON.stringify(player)).not.toContain('rival-secret-id');
+
+    const spectator = buildGridWorldProjection(cantonFoundingSeasonPackage, {
+      runtime,
+    });
+    expect(
+      spectator.territories.find((territory) => territory.slug === edge.b)
+        ?.attackable,
+    ).toBe(false);
+    expect(spectator.player.attackCommitOptions).toEqual([]);
+  });
+
   it('shows contested territory publicly but reveals reserve detail only to a participant', () => {
     const edge = cantonFoundingSeasonPackage.edges[0];
     expect(edge).toBeDefined();
