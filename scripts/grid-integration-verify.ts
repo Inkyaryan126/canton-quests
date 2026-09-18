@@ -19,6 +19,17 @@ import { projectGridNpcStronghold } from '../lib/grid/core/npc-strongholds';
 import { instantiateGridDynamicEvent, projectGridDynamicEventStack } from '../lib/grid/core/dynamic-events';
 import { buildGridWorldProjection } from '../lib/grid/server/world-projection';
 import { planGridFixedPricePurchase, openGridFixedPriceListing } from '../lib/grid/core/market-listings';
+import { buildGridReturnSummary } from '../lib/grid/server/return-summary-service';
+import type { GridReturnSummaryPort } from '../lib/grid/server/return-summary-port';
+import { buildGridProgressionSnapshot } from '../lib/grid/core/progression';
+import { rankGridProgression } from '../lib/grid/core/progression-ranking';
+import { buildDirectChatScopeKey, normalizeGridChatBody } from '../lib/grid/core/chat';
+import {
+  createGridScrimmage,
+  joinGridScrimmage,
+  setGridScrimmageReady,
+  startGridScrimmage,
+} from '../lib/grid/core/scrimmage';
 import type { GridCityPackage } from '../lib/grid/core/types';
 import type { GridDevelopmentBranch } from '../lib/grid/core/economy-types';
 
@@ -471,6 +482,150 @@ export interface LaunchReadinessReport {
   readyForIntegration: boolean;
 }
 
+/**
+ * Small, side-effect-free probes for contracts that are already on this base.
+ * These deliberately use public core/service contracts and never require a
+ * Supabase connection or production credentials.
+ */
+export async function runGridContractDiagnostics(
+  pkg: GridCityPackage = cantonFoundingSeasonPackage,
+  cwd = process.cwd(),
+): Promise<VerificationCheckResult[]> {
+  const checks: VerificationCheckResult[] = [];
+  const pass = (id: string, name: string, subsystem: string, evidence: string) =>
+    checks.push({ id, name, subsystem, status: 'PASS', evidence });
+  const regression = (id: string, name: string, subsystem: string, error: unknown) =>
+    checks.push({
+      id,
+      name,
+      subsystem,
+      status: 'REAL_REGRESSION',
+      evidence: error instanceof Error ? error.message : String(error),
+    });
+
+  try {
+    const returnPort: GridReturnSummaryPort = {
+      async getContext() {
+        return {
+          cityId: pkg.city.slug,
+          seasonId: pkg.seasonTemplate.slug,
+          lastActiveAt: '2026-09-17T12:00:00.000Z',
+          resources: {
+            credits: 1000,
+            influence: 100,
+            commandPoints: 2,
+            commandPointsUpdatedAt: '2026-09-17T12:00:00.000Z',
+            resourcesSettledAt: '2026-09-17T12:00:00.000Z',
+            creditsAccrualRemainder: 0,
+            influenceAccrualRemainder: 0,
+            ownedTerritorySlugs: [pkg.territories[0]?.slug ?? ''],
+            ownedProperties: [],
+          },
+        };
+      },
+      async listActivity() {
+        return {
+          truncated: false,
+          events: [{
+            eventType: 'grid:territory_claimed',
+            entityType: 'territory',
+            createdAt: '2026-09-17T13:00:00.000Z',
+            viewerRole: 'actor',
+            contestOutcome: null,
+          }],
+        };
+      },
+    };
+    const summary = await buildGridReturnSummary(returnPort, pkg, 'player-1', '2026-09-17T14:00:00.000Z');
+    if (!summary || summary.timeAwayMinutes !== 120 || summary.yourActivity.territoryClaims !== 1) {
+      throw new Error('return summary did not preserve private activity and elapsed-time facts');
+    }
+    pass('verify:return:briefing', 'Onboarding Return Briefing & Offline Settlement', 'Onboarding / Return', 'Private return summary counted actor activity and projected two hours of elapsed resources.');
+  } catch (error) {
+    regression('verify:return:briefing', 'Onboarding Return Briefing & Offline Settlement', 'Onboarding / Return', error);
+  }
+
+  try {
+    const candidates = [
+      { playerId: 'player-b', snapshot: buildGridProgressionSnapshot({ xp: 500, territoriesCaptured: 2 }) },
+      { playerId: 'player-a', snapshot: buildGridProgressionSnapshot({ xp: 500, territoriesCaptured: 2 }) },
+    ];
+    const ranked = rankGridProgression(candidates, { type: 'overall' });
+    if (ranked[0]?.playerId !== 'player-a' || ranked[0]?.rank !== 1 || ranked[1]?.rank !== 1) {
+      throw new Error('progression ranking tie-break/rank semantics changed');
+    }
+    pass('verify:progression:public-ranking', 'Progression Snapshot & Public Ranking Semantics', 'Progression / Rankings', 'Equal snapshots share rank and resolve deterministic player-id ordering.');
+  } catch (error) {
+    regression('verify:progression:public-ranking', 'Progression Snapshot & Public Ranking Semantics', 'Progression / Rankings', error);
+  }
+
+  try {
+    if (normalizeGridChatBody('  Signal\tcheck  \n\n  Ready. ') !== 'Signal check\n\nReady.') {
+      throw new Error('chat body normalization changed');
+    }
+    if (buildDirectChatScopeKey('player-b', 'player-a') !== 'direct:player-a:player-b') {
+      throw new Error('direct chat scope is not canonicalized');
+    }
+    pass('verify:communications:scope', 'Communications Normalization & Private Scope', 'Communications', 'Chat text is normalized and direct-channel identity is symmetric/canonical.');
+  } catch (error) {
+    regression('verify:communications:scope', 'Communications Normalization & Private Scope', 'Communications', error);
+  }
+
+  try {
+    const created = createGridScrimmage({
+      sessionId: 'diag-scrim',
+      cityId: pkg.city.slug,
+      hostPlayerId: 'host',
+      inviteCode: 'diag-26',
+      rules: { minPlayers: 2, maxPlayers: 2, requireAllReady: true },
+      now: '2026-09-17T12:00:00.000Z',
+    });
+    const joined = joinGridScrimmage(created, { playerId: 'guest', inviteCode: 'DIAG-26', now: '2026-09-17T12:01:00.000Z' });
+    const hostReady = setGridScrimmageReady(joined, { playerId: 'host', ready: true });
+    const ready = setGridScrimmageReady(hostReady, { playerId: 'guest', ready: true });
+    const active = startGridScrimmage(ready, { playerId: 'host', now: '2026-09-17T12:02:00.000Z' });
+    if (active.status !== 'active' || active.progressionScope !== 'session-only' || active.revision !== 4) {
+      throw new Error('scrimmage lifecycle did not advance through guarded revisions');
+    }
+    pass('verify:scrimmage:lifecycle', 'Private Scrimmage Lifecycle & Session-Only Progression', 'Scrimmage', 'Invite normalization, two-player readiness, host start, and revision increments passed without permanent progression.');
+  } catch (error) {
+    regression('verify:scrimmage:lifecycle', 'Private Scrimmage Lifecycle & Session-Only Progression', 'Scrimmage', error);
+  }
+
+  try {
+    const runtime = {
+      seasonId: pkg.seasonTemplate.slug,
+      seasonStatus: 'active',
+      territories: [{ territorySlug: pkg.territories[0].slug, ownerPlayerId: 'other', claimedAt: '2026-09-17T12:00:00.000Z' }],
+      properties: [],
+      playerState: { credits: 1000, influence: 100, commandPoints: 5, resourcesSettledAt: '2026-09-17T12:00:00.000Z' },
+      contests: [],
+    };
+    const anonymous = buildGridWorldProjection(pkg, { runtime, now: '2026-09-17T13:00:00.000Z' });
+    const player = buildGridWorldProjection(pkg, { runtime, viewerPlayerId: 'player-1', now: '2026-09-17T13:00:00.000Z' });
+    if (anonymous.validClaimSlugs.length !== 0 || player.territories[0]?.ownership !== 'occupied' || player.player.joined !== true) {
+      throw new Error('world projection leaked action state or misclassified ownership');
+    }
+    pass('verify:world:projection-boundary', 'City Board World Projection & Action Boundary', 'City Board / Realtime World', 'Anonymous projections expose no claim actions; authenticated views preserve occupied ownership and joined state.');
+  } catch (error) {
+    regression('verify:world:projection-boundary', 'City Board World Projection & Action Boundary', 'City Board / Realtime World', error);
+  }
+
+  for (const feature of [
+    ['passport', 'Passport / Cross-City Boundary', 'Passport / Multi-City', 'No Passport public contract is present on this base; verify after the claimed lane integrates.'],
+    ['alliances', 'Alliance Membership & Boundary', 'Alliances', 'No Alliance public contract is present on this base; verify after the claimed lane integrates.'],
+    ['location-attestation', 'Location Enhancement / Attestation', 'Location Safety', 'No location attestation public contract is present on this base; verify after the claimed lane integrates.'],
+    ['world-revision', 'Realtime World Revision Sync', 'Realtime World', 'No world-revision public contract is present on this base; verify after the claimed lane integrates.'],
+  ] as const) {
+    const modulePath = path.resolve(cwd, `lib/grid/${feature[0] === 'passport' ? 'core/passport.ts' : feature[0] === 'alliances' ? 'core/alliance.ts' : feature[0] === 'location-attestation' ? 'server/location-attestation.ts' : 'server/world-revision.ts'}`);
+    if (!fs.existsSync(modulePath)) {
+      checks.push({ id: `feature:${feature[0]}`, name: feature[1], subsystem: feature[2], status: 'FEATURE_NOT_INTEGRATED_YET', evidence: feature[3] });
+    }
+  }
+
+  return checks;
+}
+
 export interface AgentClaimRecord {
   lane: string;
   owner: string;
@@ -530,6 +685,21 @@ export async function executeGridLaunchVerification(cwd = process.cwd()): Promis
         details: { owner: active.owner, branch: active.branch, worktree: active.worktree },
       });
     }
+  }
+
+  // Keep the dashboard honest as Control Tower lane names evolve. Any active
+  // claim other than this verifier lane is still isolated work, even if the
+  // older human-readable subsystem catalogue has not learned its name yet.
+  for (const active of claims) {
+    if (active.lane === 'integration-reconcile' || results.some((check) => check.id === `gate:blocked:${active.lane}`)) continue;
+    record({
+      id: `gate:blocked:${active.lane}`,
+      name: `Active isolated lane: ${active.lane}`,
+      subsystem: 'Grid integration boundary',
+      status: 'BLOCKED_BY_ACTIVE_WORK',
+      evidence: `Active claim by '${active.owner}' in branch '${active.branch}'. Goal: "${active.goal}". Scopes: ${active.scope.slice(0, 3).join(', ')}${active.scope.length > 3 ? '...' : ''}`,
+      details: { owner: active.owner, branch: active.branch, worktree: active.worktree },
+    });
   }
 
   // --------------------------------------------------------------------------
@@ -860,6 +1030,10 @@ export async function executeGridLaunchVerification(cwd = process.cwd()): Promis
     });
   }
 
+  for (const check of await runGridContractDiagnostics(cantonFoundingSeasonPackage, cwd)) {
+    record(check);
+  }
+
   // Compute summary
   const summary: Record<VerificationStatus, number> = {
     PASS: 0,
@@ -878,7 +1052,7 @@ export async function executeGridLaunchVerification(cwd = process.cwd()): Promis
 
   return {
     timestamp,
-    baseBranch: 'grid-integration-20260917',
+    baseBranch: process.env.GIT_BRANCH ?? 'grid-integration-reconcile-20260918',
     activeClaimsCount: claims.length,
     blockedLanes,
     summary,

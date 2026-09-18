@@ -70,4 +70,18 @@ describe('The Grid: Deterministic Small-Season Multi-Player Simulation', () => {
     expect(surgeEvent).toBeDefined();
     expect(surgeEvent?.hour).toBe(48); // 72 - 24 = 48
   });
+
+  it('preserves event ordering, ownership conservation, and idempotent replay evidence', () => {
+    const first = runSmallSeasonSimulation(cantonFoundingSeasonPackage, { seed, seasonHours: 72 });
+    const replay = runSmallSeasonSimulation(cantonFoundingSeasonPackage, { seed, seasonHours: 72 });
+
+    expect(first).toEqual(replay);
+    expect(first.events.every((event, index) => event.sequence === index + 1)).toBe(true);
+
+    const territoryOwners = Object.values(first.territoryOwnership).filter(Boolean);
+    expect(new Set(territoryOwners).size).toBeLessThanOrEqual(first.players.length);
+    expect(first.players.reduce((sum, player) => sum + player.ownedTerritories.length, 0))
+      .toBe(territoryOwners.length);
+    expect(first.players.every((player) => player.attacksLaunched >= player.contestsWon)).toBe(true);
+  });
 });

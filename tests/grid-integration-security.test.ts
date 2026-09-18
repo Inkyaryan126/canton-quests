@@ -34,6 +34,8 @@ import type { GridOnboardingHomeCityPort } from '../lib/grid/server/onboarding-h
 import type { GridOnboardingSeasonPort } from '../lib/grid/server/onboarding-season-port';
 import type { GridEconomyCommandPort, GridPlayerSeasonState } from '../lib/grid/server/economy-port';
 import type { GridOnboardingStarterClaimPort } from '../lib/grid/server/onboarding-starter-claim-port';
+import { buildDirectChatScopeKey, normalizeGridChatBody } from '../lib/grid/core/chat';
+import { createGridScrimmage, joinGridScrimmage } from '../lib/grid/core/scrimmage';
 
 describe('The Grid: Security, Server Authority, Multi-Tenancy & Concurrency', () => {
   const seasonId = 'season-canton-2026';
@@ -46,6 +48,43 @@ describe('The Grid: Security, Server Authority, Multi-Tenancy & Concurrency', ()
   const balance = cantonFoundingSeasonPackage.seasonTemplate.balance;
   const economy = cantonFoundingSeasonPackage.seasonTemplate.economy!;
   const contestConfig = cantonFoundingSeasonPackage.seasonTemplate.contest!;
+
+  it('keeps communications scoped and rejects malformed player input', () => {
+    expect(buildDirectChatScopeKey(playerBravo, playerAlpha)).toBe(
+      `direct:${playerAlpha}:${playerBravo}`,
+    );
+    expect(() => buildDirectChatScopeKey(playerAlpha, playerAlpha)).toThrow(
+      'Direct chat requires two different players',
+    );
+    expect(() => normalizeGridChatBody('hello\u0007world')).toThrow(
+      'unsupported control characters',
+    );
+  });
+
+  it('keeps scrimmage invite identity city-bound and does not silently add a player twice', () => {
+    const lobby = createGridScrimmage({
+      sessionId: 'security-scrimmage',
+      cityId,
+      hostPlayerId: playerAlpha,
+      inviteCode: 'SECURE-26',
+      rules: { minPlayers: 2, maxPlayers: 2, requireAllReady: true },
+      now: t0,
+    });
+    const joined = joinGridScrimmage(lobby, {
+      playerId: playerBravo,
+      inviteCode: ' secure-26 ',
+      now: t0,
+    });
+    const repeated = joinGridScrimmage(joined, {
+      playerId: playerBravo,
+      inviteCode: 'SECURE-26',
+      now: t0,
+    });
+    expect(repeated).toEqual(joined);
+    expect(repeated.participants).toHaveLength(2);
+    expect(repeated.cityId).toBe(cityId);
+    expect(repeated.progressionScope).toBe('session-only');
+  });
 
   // --------------------------------------------------------------------------
   // 1. SERVER AUTHORITY & ANTI-TAMPERING

@@ -60,6 +60,8 @@ import type {
   GridMarketAssetSnapshot,
   GridMarketBuyerSnapshot,
 } from '../lib/grid/core/market-listing-types';
+import { buildGridProgressionSnapshot } from '../lib/grid/core/progression';
+import { rankGridProgression } from '../lib/grid/core/progression-ranking';
 
 describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
   const seasonId = 'season-canton-founding-2026';
@@ -323,6 +325,17 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
 
     const neutralTerritory = spectatorWorld.territories.find((t) => t.slug !== claimedStarterSlug);
     expect(neutralTerritory?.ownership).toBe('neutral');
+  });
+
+  it('Stage 6: returns deterministic public progression rankings after the player loop', () => {
+    const ranked = rankGridProgression([
+      { playerId: playerBravo, snapshot: buildGridProgressionSnapshot({ xp: 750, territoriesCaptured: 2 }) },
+      { playerId: playerAlpha, snapshot: buildGridProgressionSnapshot({ xp: 750, territoriesCaptured: 2 }) },
+    ], { type: 'overall' });
+
+    expect(ranked.map((entry) => entry.playerId)).toEqual([playerAlpha, playerBravo]);
+    expect(ranked.map((entry) => entry.rank)).toEqual([1, 1]);
+    expect(ranked.every((entry) => entry.snapshot.version === 1)).toBe(true);
   });
 
   it('Stage 6: resolves resource generation, offline caps, and property development', () => {
