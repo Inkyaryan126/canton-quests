@@ -80,6 +80,27 @@ describe('validateGridCityPackage', () => {
     expect(result.errors).toContain('territory t-1 references unknown district missing-district');
   });
 
+  it('validates optional Alliance rules through the shared Grid core contract', () => {
+    const pkg = basePackage();
+    pkg.seasonTemplate.alliance = {
+      maxMembers: 4,
+      leaveCooldownSeconds: 3600,
+      influencePoolCap: 400,
+      baseUpkeepInfluencePerTick: 4,
+      memberUpkeepInfluencePerTick: 2,
+      disconnectedComponentUpkeepInfluencePerTick: 4,
+      largeAllianceThreshold: 5,
+      largeAllianceSurchargeInfluencePerMemberPerTick: 3,
+    };
+
+    const result = validateGridCityPackage(pkg);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      'alliance.largeAllianceThreshold cannot exceed maxMembers',
+    );
+  });
+
   it('rejects self-edges and edges that reference unknown territory', () => {
     const pkg = basePackage();
     pkg.districts = [{ slug: 'd-1', name: 'District' }];
