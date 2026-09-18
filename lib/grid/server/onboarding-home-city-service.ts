@@ -7,7 +7,7 @@ export async function confirmGridOnboardingHomeCity(
   port: GridOnboardingHomeCityPort,
   playerId: string,
   now: string,
-): Promise<Pick<GridOnboardingHomeCityResult, 'citySlug' | 'confirmed'>> {
+): Promise<GridOnboardingHomeCityResult> {
   if (!playerId.trim()) {
     throw new Error('Grid onboarding Home City confirmation requires playerId');
   }
@@ -19,6 +19,7 @@ export async function confirmGridOnboardingHomeCity(
 
   const result = await port.confirmHomeCity(playerId, now);
   return {
+    cityId: result.cityId,
     citySlug: result.citySlug,
     confirmed: result.confirmed,
   };

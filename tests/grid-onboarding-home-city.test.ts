@@ -3,7 +3,7 @@ import type { GridOnboardingHomeCityPort } from '../lib/grid/server/onboarding-h
 import { confirmGridOnboardingHomeCity } from '../lib/grid/server/onboarding-home-city-service';
 
 describe('Grid onboarding Home City confirmation', () => {
-  it('confirms the configured city and hides the internal city id', async () => {
+  it('confirms the configured city and returns its server-only identity to trusted callers', async () => {
     const port: GridOnboardingHomeCityPort = {
       isHomeCityConfirmed: vi.fn(),
       confirmHomeCity: vi.fn().mockResolvedValue({
@@ -20,6 +20,7 @@ describe('Grid onboarding Home City confirmation', () => {
         '2026-09-16T18:20:00.000Z',
       ),
     ).resolves.toEqual({
+      cityId: 'secret-city-id',
       citySlug: 'canton-oh',
       confirmed: true,
     });
