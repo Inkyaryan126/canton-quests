@@ -42,6 +42,7 @@ describe('Grid onboarding player UI contract', () => {
     expect(client).toContain("'/api/grid/onboarding/properties/acquire'");
     expect(client).toContain("'/api/grid/onboarding/properties/develop'");
     expect(client).toContain("'/api/grid/onboarding/income/collect'");
+    expect(client).toContain("'/api/grid/onboarding/tutorial-contest'");
     expect(client).not.toContain('/api/grid/contests');
     expect(client).not.toContain('/api/grid/properties');
   });
@@ -98,6 +99,21 @@ describe('Grid onboarding player UI contract', () => {
     expect(client).toContain('income.collectibleAt');
     expect(client).toContain('humanizeWait(incomeWaitMs)');
     expect(client).toContain('disabled={!incomeReady');
+  });
+
+  it('runs a safe Signal Dice tutorial without exposing live contest mutation controls', () => {
+    expect(client).toContain("nextStep?.id === 'complete-tutorial-contest'");
+    expect(client).toContain('Roll practice dice');
+    expect(client).toContain('two attack dice against one defender die');
+    expect(client).toContain('Practice mode spends 0 Influence');
+    expect(client).toContain('tutorialResult.attackerRolls.map');
+    expect(client).toContain('tutorialResult.defenderRolls.map');
+    expect(client).toContain('ties favor the defender');
+    expect(client).not.toContain('sourceTerritoryId');
+    expect(client).not.toContain('targetTerritoryId');
+    expect(client).toContain(
+      'body: JSON.stringify({ idempotencyKey: commandKey(scope) })',
+    );
   });
 
   it('renders the complete nine-step projection rather than hard-coding progress', () => {

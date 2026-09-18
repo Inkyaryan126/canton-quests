@@ -121,6 +121,29 @@ interface IncomeResponse {
   error?: string;
 }
 
+interface TutorialContestResult {
+  completed: true;
+  alreadyComplete: boolean;
+  attackerCommittedInfluence: number;
+  defenderCommittedInfluence: number;
+  attackerRolls: number[];
+  defenderRolls: number[];
+  comparisons: Array<{
+    attackerRoll: number;
+    defenderRoll: number;
+    winner: 'attacker' | 'defender';
+  }>;
+  attackerInfluenceLost: number;
+  defenderInfluenceLost: number;
+  tiesFavorDefender: true;
+}
+
+interface TutorialContestResponse {
+  success: boolean;
+  tutorial?: TutorialContestResult;
+  error?: string;
+}
+
 function commandKey(scope: string): string {
   const storageKey = 'grid:onboarding:' + scope + ':idempotency';
   const existing = window.sessionStorage.getItem(storageKey);
@@ -193,6 +216,8 @@ export default function GridOnboardingClient() {
   const [starters, setStarters] = useState<StarterProjection | null>(null);
   const [properties, setProperties] = useState<PropertyProjection | null>(null);
   const [income, setIncome] = useState<IncomeProjection | null>(null);
+  const [tutorialResult, setTutorialResult] =
+    useState<TutorialContestResult | null>(null);
   const [clockMs, setClockMs] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -396,6 +421,38 @@ export default function GridOnboardingClient() {
       { idempotencyKey: commandKey(scope) },
       scope,
     );
+  };
+
+  const runTutorialContest = async () => {
+    const scope = 'tutorial-contest';
+    setBusyAction(scope);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch('/api/grid/onboarding/tutorial-contest', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ idempotencyKey: commandKey(scope) }),
+      });
+      const payload = await readJson<TutorialContestResponse>(response);
+      if (!response.ok || !payload.success || !payload.tutorial) {
+        if (response.status === 404) {
+          throw new Error('This onboarding step is staged but not open yet.');
+        }
+        throw new Error(payload.error ?? 'Tutorial contest failed.');
+      }
+
+      clearCommandKey(scope);
+      setTutorialResult(payload.tutorial);
+      setNotice('Practice contest complete. No resources or territory were changed.');
+      await loadState();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Tutorial contest failed.',
+      );
+    } finally {
+      setBusyAction(null);
+    }
   };
 
   const incomeReady =
@@ -861,6 +918,102 @@ export default function GridOnboardingClient() {
                         : income.collectibleAt
                           ? `Ready in ${humanizeWait(incomeWaitMs)}`
                           : 'Income not producing yet'}
+                    </button>
+                  </>
+                ) : tutorialResult ? (
+                  <>
+                    <h2 className="mt-4 font-display text-4xl font-black uppercase">
+                      Practice round complete
+                    </h2>
+                    <p className="mt-3 max-w-xl text-sm leading-relaxed text-stone-400">
+                      Signal Dice compare highest rolls first. A tie belongs to
+                      the defender. This practice round changed no wallet,
+                      property, or territory state.
+                    </p>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-cyan-300/20 bg-black/35 p-4">
+                        <div className="font-mono text-[9px] font-black tracking-[.14em] text-stone-600">
+                          YOUR ATTACK DICE
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          {tutorialResult.attackerRolls.map((roll, index) => (
+                            <span
+                              key={index}
+                              className="flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/[.08] font-display text-2xl font-black text-cyan-100"
+                            >
+                              {roll}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-rose-300/20 bg-black/35 p-4">
+                        <div className="font-mono text-[9px] font-black tracking-[.14em] text-stone-600">
+                          PRACTICE DEFENDER
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          {tutorialResult.defenderRolls.map((roll, index) => (
+                            <span
+                              key={index}
+                              className="flex h-12 w-12 items-center justify-center rounded-xl border border-rose-300/30 bg-rose-300/[.08] font-display text-2xl font-black text-rose-100"
+                            >
+                              {roll}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-white/10 bg-white/[.025] px-4 py-3 text-xs leading-relaxed text-stone-400">
+                      {tutorialResult.comparisons[0]
+                        ? tutorialResult.comparisons[0].winner === 'attacker'
+                          ? 'Your highest die won the comparison.'
+                          : tutorialResult.comparisons[0].attackerRoll ===
+                              tutorialResult.comparisons[0].defenderRoll
+                            ? 'The dice tied, so the defender won the comparison.'
+                            : 'The defender rolled higher and won the comparison.'
+                        : 'Practice comparison recorded.'}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setTutorialResult(null)}
+                      className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 font-display text-sm font-black uppercase tracking-[.08em] text-slate-950"
+                    >
+                      Continue
+                      <ChevronRight size={17} aria-hidden="true" />
+                    </button>
+                  </>
+                ) : nextStep?.id === 'complete-tutorial-contest' ? (
+                  <>
+                    <h2 className="mt-4 font-display text-4xl font-black uppercase">
+                      Practice Signal Dice
+                    </h2>
+                    <p className="mt-3 max-w-xl text-sm leading-relaxed text-stone-400">
+                      Run one safe contest round before the full city opens.
+                      You will roll two attack dice against one defender die.
+                      Highest roll wins the comparison; ties favor the defender.
+                    </p>
+                    <div className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/[.05] px-4 py-3 text-xs leading-relaxed text-emerald-100">
+                      Practice mode spends 0 Influence and cannot change
+                      ownership, income, buildings, or territory.
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busyAction !== null}
+                      onClick={() => void runTutorialContest()}
+                      className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-300 px-5 py-3 font-display text-sm font-black uppercase tracking-[.08em] text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {busyAction === 'tutorial-contest' ? (
+                        <Loader2
+                          size={17}
+                          className="animate-spin"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <Zap size={17} aria-hidden="true" />
+                      )}
+                      Roll practice dice
                     </button>
                   </>
                 ) : (
