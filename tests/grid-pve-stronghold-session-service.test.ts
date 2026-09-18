@@ -36,6 +36,7 @@ function port(): GridPveStrongholdSessionPort {
       cityId: 'city-1',
       attackerPlayerId: 'player-1',
       sourceTerritoryId: 'source-1',
+      sourceTerritorySlug: 'source-slug',
       targetTerritoryId: 'target-1',
       stronghold: {
         strongholdId: 'stronghold-1',
@@ -105,7 +106,7 @@ describe('Grid PvE stronghold session service', () => {
     const p = port();
     await launchGridPveStrongholdSession(p, {
       attackerPlayerId: 'player-1',
-      sourceTerritoryId: 'source-1',
+      sourceTerritorySlug: 'source-slug',
       strongholdId: 'stronghold-1',
       attackerCommittedInfluence: 70,
       idempotencyKey: 'pve:start:1',
@@ -114,7 +115,7 @@ describe('Grid PvE stronghold session service', () => {
 
     expect(p.getStartContext).toHaveBeenCalledWith({
       attackerPlayerId: 'player-1',
-      sourceTerritoryId: 'source-1',
+      sourceTerritorySlug: 'source-slug',
       strongholdId: 'stronghold-1',
       now,
     });
@@ -139,13 +140,13 @@ describe('Grid PvE stronghold session service', () => {
     const p = port();
     vi.mocked(p.getStartContext).mockResolvedValueOnce({
       ...(await p.getStartContext({
-        attackerPlayerId: 'player-1', sourceTerritoryId: 'source-1', strongholdId: 'stronghold-1', now,
+        attackerPlayerId: 'player-1', sourceTerritorySlug: 'source-slug', strongholdId: 'stronghold-1', now,
       })),
       attackerPlayerId: 'different-player',
     });
 
     await expect(launchGridPveStrongholdSession(p, {
-      attackerPlayerId: 'player-1', sourceTerritoryId: 'source-1', strongholdId: 'stronghold-1',
+      attackerPlayerId: 'player-1', sourceTerritorySlug: 'source-slug', strongholdId: 'stronghold-1',
       attackerCommittedInfluence: 70, idempotencyKey: 'pve:start:1', now,
     })).rejects.toThrow('context identity mismatch');
     expect(p.startContest).not.toHaveBeenCalled();
@@ -202,7 +203,7 @@ describe('Grid PvE stronghold session service', () => {
   it('validates start input before trusted context reads', async () => {
     const p = port();
     await expect(launchGridPveStrongholdSession(p, {
-      attackerPlayerId: ' ', sourceTerritoryId: 'source-1', strongholdId: 'stronghold-1',
+      attackerPlayerId: ' ', sourceTerritorySlug: 'source-slug', strongholdId: 'stronghold-1',
       attackerCommittedInfluence: 70, idempotencyKey: 'pve:start:1', now,
     })).rejects.toThrow('attackerPlayerId');
     expect(p.getStartContext).not.toHaveBeenCalled();

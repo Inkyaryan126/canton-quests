@@ -19,6 +19,7 @@ describe('Supabase Grid PvE stronghold adapter', () => {
     expect(source).toContain(".from('grid_seasons')");
     expect(source.match(/\.from\('grid_territories'\)/g)?.length).toBe(2);
     expect(source).toContain(".eq('slug', stronghold.objective.territorySlug)");
+    expect(source).toContain(".eq('slug', request.sourceTerritorySlug)");
   });
 
   it('calls only the dedicated PvE RPCs for state changes', () => {

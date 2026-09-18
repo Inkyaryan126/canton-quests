@@ -10,7 +10,7 @@ import type {
 
 export interface GridLaunchPveStrongholdRequest {
   attackerPlayerId: string;
-  sourceTerritoryId: string;
+  sourceTerritorySlug: string;
   strongholdId: string;
   attackerCommittedInfluence: number;
   idempotencyKey: string;
@@ -61,7 +61,7 @@ export async function launchGridPveStrongholdSession(
   request: GridLaunchPveStrongholdRequest,
 ): Promise<GridStartPveStrongholdSessionResult> {
   const attackerPlayerId = requireNonBlank(request.attackerPlayerId, 'attackerPlayerId');
-  const sourceTerritoryId = requireNonBlank(request.sourceTerritoryId, 'sourceTerritoryId');
+  const sourceTerritorySlug = requireNonBlank(request.sourceTerritorySlug, 'sourceTerritorySlug');
   const strongholdId = requireNonBlank(request.strongholdId, 'strongholdId');
   requireNonBlank(request.idempotencyKey, 'a non-empty idempotency key');
   requireTimestamp(request.now);
@@ -69,14 +69,14 @@ export async function launchGridPveStrongholdSession(
 
   const context = await port.getStartContext({
     attackerPlayerId,
-    sourceTerritoryId,
+    sourceTerritorySlug,
     strongholdId,
     now: request.now,
   });
 
   if (
     context.attackerPlayerId !== attackerPlayerId ||
-    context.sourceTerritoryId !== sourceTerritoryId ||
+    context.sourceTerritorySlug !== sourceTerritorySlug ||
     context.stronghold.strongholdId !== strongholdId
   ) {
     throw new Error('Grid PvE stronghold context identity mismatch');
@@ -96,7 +96,7 @@ export async function launchGridPveStrongholdSession(
     strongholdId: state.strongholdId,
     factionId: state.factionId,
     attackerPlayerId,
-    sourceTerritoryId,
+    sourceTerritoryId: context.sourceTerritoryId,
     targetTerritoryId: context.targetTerritoryId,
     objectiveKind: state.objective.kind,
     landmarkSlug: state.objective.landmarkSlug ?? null,

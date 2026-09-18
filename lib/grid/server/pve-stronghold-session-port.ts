@@ -3,7 +3,7 @@ import type { GridPveStrongholdContestStatus } from '../core/pve-stronghold-cont
 
 export interface GridPveStrongholdStartContextRequest {
   attackerPlayerId: string;
-  sourceTerritoryId: string;
+  sourceTerritorySlug: string;
   strongholdId: string;
   now: string;
 }
@@ -13,6 +13,7 @@ export interface GridPveStrongholdStartContext {
   cityId: string;
   attackerPlayerId: string;
   sourceTerritoryId: string;
+  sourceTerritorySlug: string;
   targetTerritoryId: string;
   stronghold: GridNpcStrongholdProjection;
 }

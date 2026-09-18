@@ -79,8 +79,8 @@ export function createSupabaseGridPveStrongholdSessionPort(
       const [sourceResult, targetResult] = await Promise.all([
         client
           .from('grid_territories')
-          .select('id')
-          .eq('id', request.sourceTerritoryId)
+          .select('id,slug')
+          .eq('slug', request.sourceTerritorySlug)
           .eq('city_id', city.id)
           .single(),
         client
@@ -96,7 +96,7 @@ export function createSupabaseGridPveStrongholdSessionPort(
       if (targetResult.error) {
         throw new Error(`Failed to resolve Grid PvE target territory: ${targetResult.error.message}`);
       }
-      const source = requireObject<{ id: string }>(sourceResult.data, 'Grid PvE source territory');
+      const source = requireObject<{ id: string; slug: string }>(sourceResult.data, 'Grid PvE source territory');
       const target = requireObject<{ id: string }>(targetResult.data, 'Grid PvE target territory');
 
       return {
@@ -104,6 +104,7 @@ export function createSupabaseGridPveStrongholdSessionPort(
         cityId: season.city_id,
         attackerPlayerId: request.attackerPlayerId,
         sourceTerritoryId: source.id,
+        sourceTerritorySlug: source.slug,
         targetTerritoryId: target.id,
         stronghold,
       };
