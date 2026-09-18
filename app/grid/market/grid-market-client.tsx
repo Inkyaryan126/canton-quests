@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Coins,
   Gavel,
+  Handshake,
   History,
   Loader2,
   LockKeyhole,
@@ -439,6 +440,25 @@ export default function GridMarketClient() {
                     </ul>
                   )}
                 </div>
+
+                <Link
+                  href="/grid/market/deals"
+                  className="block rounded-3xl border border-emerald-300/20 bg-emerald-300/[.035] p-5 transition hover:border-emerald-300/40 sm:p-7"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 font-mono text-[10px] font-black tracking-[.2em] text-emerald-300">
+                        <Handshake size={13} aria-hidden="true" />
+                        DIRECT DEALS
+                      </div>
+                      <p className="mt-3 max-w-xl text-sm leading-relaxed text-stone-400">
+                        Send private Credit/property offers by callsign and
+                        accept only the exact terms you were shown.
+                      </p>
+                    </div>
+                    <ArrowRight size={18} className="text-emerald-200" aria-hidden="true" />
+                  </div>
+                </Link>
 
                 <div className="rounded-3xl border border-white/10 bg-black/45 p-5 sm:p-7">
                   <div className="flex items-center gap-2 font-mono text-[10px] font-black tracking-[.2em] text-stone-400">
