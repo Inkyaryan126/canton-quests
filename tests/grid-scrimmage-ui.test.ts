@@ -79,6 +79,11 @@ describe('GRID player Scrimmage UI', () => {
     expect(clientSource).toContain('viewer?.playerId === playerId');
   });
 
+  it('announces the final surviving combatant instead of leaving the result implicit', () => {
+    expect(clientSource).toContain('scrimmage.match.winnerPlayerId');
+    expect(clientSource).toContain('LAST PLAYER STANDING');
+  });
+
   it('uses private aliases instead of rendering raw database ids as names', () => {
     expect(clientSource).toContain("return 'YOU'");
     expect(clientSource).toContain("return 'HOST'");

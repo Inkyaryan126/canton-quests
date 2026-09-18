@@ -675,6 +675,17 @@ export default function ScrimmageClient() {
                     </div>
                   </div>
 
+                  {scrimmage.match.winnerPlayerId ? (
+                    <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-300/[.07] px-5 py-4">
+                      <div className="font-mono text-[9px] font-black tracking-[.18em] text-amber-300">
+                        LAST PLAYER STANDING
+                      </div>
+                      <div className="mt-1 font-display text-2xl font-black uppercase text-amber-100">
+                        {playerLabel(scrimmage.match.winnerPlayerId)}
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {scrimmage.match.combatants.map((combatant) => {
                       const isYou = combatant.playerId === viewer?.playerId;

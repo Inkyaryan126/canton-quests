@@ -309,6 +309,7 @@ export function startGridScrimmage(
     match: {
       startingInfluencePerPlayer: GRID_SCRIMMAGE_STARTING_INFLUENCE,
       roundNumber: 0,
+      winnerPlayerId: null,
       combatants: state.participants.map((participant) => ({
         playerId: participant.playerId,
         remainingInfluence: GRID_SCRIMMAGE_STARTING_INFLUENCE,
@@ -388,10 +389,19 @@ export function resolveGridScrimmageDuel(
   );
 
   const roundNumber = state.match.roundNumber + 1;
+  const remainingCombatants = combatants.filter(
+    (combatant) => !combatant.eliminated,
+  );
+  const winnerPlayerId =
+    remainingCombatants.length === 1
+      ? remainingCombatants[0].playerId
+      : null;
+
   return updateState(state, {
     match: {
       ...state.match,
       roundNumber,
+      winnerPlayerId,
       combatants,
       lastRound: {
         roundNumber,

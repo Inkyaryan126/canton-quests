@@ -50,6 +50,7 @@ describe('GRID scrimmage Signal Duel', () => {
     expect(state.match).toMatchObject({
       startingInfluencePerPlayer: 100,
       roundNumber: 0,
+      winnerPlayerId: null,
       lastRound: null,
     });
     expect(
@@ -149,6 +150,7 @@ describe('GRID scrimmage Signal Duel', () => {
       remainingInfluence: 0,
       eliminated: true,
     });
+    expect(eliminated.match?.winnerPlayerId).toBe('alpha');
 
     expect(() =>
       resolveGridScrimmageDuel(
