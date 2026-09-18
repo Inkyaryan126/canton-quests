@@ -5,7 +5,13 @@ import {
   isGridEconomyWriteEnabled,
   isGridWorldReadEnabled,
 } from '@/lib/grid/server/feature-flags';
+import {
+  buildGridDynamicEventWorldProjection,
+  type GridDynamicEventWorldProjection,
+} from '@/lib/grid/server/dynamic-event-world';
+import { listActiveGridDynamicEvents } from '@/lib/grid/server/dynamic-event-service';
 import { buildGridNpcStrongholdWorldProjection } from '@/lib/grid/server/npc-stronghold-world';
+import { createSupabaseGridDynamicEventPort } from '@/lib/grid/server/supabase-dynamic-events';
 import { readSupabaseGridWorldRuntime } from '@/lib/grid/server/supabase-world-projection';
 import { buildGridWorldProjection } from '@/lib/grid/server/world-projection';
 import {
@@ -22,6 +28,7 @@ export async function GET(request: Request) {
   const economyWriteEnabled = isGridEconomyWriteEnabled();
   const contestWriteEnabled = isGridContestWriteEnabled();
 
+  const now = new Date().toISOString();
   let runtime = null;
   let runtimeWarning: string | null = null;
 
@@ -39,17 +46,45 @@ export async function GET(request: Request) {
   const projection = buildGridWorldProjection(cantonFoundingSeasonPackage, {
     viewerPlayerId,
     runtime,
-    now: new Date().toISOString(),
-    generatedAt: new Date().toISOString(),
+    now,
+    generatedAt: now,
   });
   const strongholds = buildGridNpcStrongholdWorldProjection(
     cantonFoundingSeasonPackage,
     [],
   );
 
+  let dynamicEvents: GridDynamicEventWorldProjection[] = [];
+  if (runtimeEnabled) {
+    try {
+      const eventInstances = await listActiveGridDynamicEvents(
+        createSupabaseGridDynamicEventPort(),
+        {
+          citySlug: cantonFoundingSeasonPackage.city.slug,
+          seasonSlug: cantonFoundingSeasonPackage.seasonTemplate.slug,
+          now,
+        },
+      );
+      dynamicEvents = buildGridDynamicEventWorldProjection(
+        cantonFoundingSeasonPackage,
+        eventInstances,
+        now,
+      );
+    } catch (error) {
+      const eventWarning =
+        error instanceof Error
+          ? error.message
+          : 'Grid dynamic event read failed';
+      runtimeWarning = runtimeWarning
+        ? runtimeWarning + '; ' + eventWarning
+        : eventWarning;
+    }
+  }
+
   const response = NextResponse.json({
     projection,
     strongholds,
+    dynamicEvents,
     runtimeEnabled,
     economyWriteEnabled,
     contestWriteEnabled,
