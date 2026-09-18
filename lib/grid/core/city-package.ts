@@ -1,3 +1,4 @@
+import { validateGridAllianceRules } from './alliance';
 import { GRID_DEVELOPMENT_BRANCHES } from './economy-types';
 import type { GridContestConfig, GridContestSideConfig } from './contest-types';
 import type {
@@ -345,6 +346,18 @@ export function validateGridCityPackage(
 
   if (pkg.seasonTemplate.contest) {
     validateGridContestConfig(pkg.seasonTemplate.contest, errors);
+  }
+
+  if (pkg.seasonTemplate.alliance) {
+    try {
+      validateGridAllianceRules(pkg.seasonTemplate.alliance);
+    } catch (error) {
+      errors.push(
+        `alliance.${
+          error instanceof Error ? error.message : 'configuration is invalid'
+        }`,
+      );
+    }
   }
 
   return { ok: errors.length === 0, errors };
