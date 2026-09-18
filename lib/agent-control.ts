@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 export interface AgentClaim {
   version: 1;
@@ -26,6 +29,11 @@ export interface WorktreeState {
 
 function runGit(args: string[], cwd = process.cwd()): string {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+}
+
+async function runGitAsync(args: string[], cwd = process.cwd()): Promise<string> {
+  const result = await execFileAsync('git', args, { cwd, encoding: 'utf8' });
+  return result.stdout.trim();
 }
 
 export function repoRoot(cwd = process.cwd()): string {
@@ -173,19 +181,74 @@ function worktreeAliases(worktreePath: string): string[] {
   return [...aliases];
 }
 
+function activeProcessCount(worktreePath: string, processes: string[]): number {
+  const aliases = worktreeAliases(worktreePath);
+  return processes.filter((command) => aliases.some((alias) => command.includes(alias))).length;
+}
+
+function inspectWorktree(
+  entry: { path: string; head: string; branch: string },
+  processes: string[],
+): WorktreeState {
+  const dirtyPaths = runGit(['status', '--short'], entry.path)
+    .split('\n')
+    .filter((line) => line.trim().length > 0);
+  const [lastCommitSubject = '', lastCommitAt = ''] = runGit(
+    ['log', '-1', '--pretty=%s%x1f%cI'],
+    entry.path,
+  ).split('\x1f');
+  return {
+    ...entry,
+    dirtyPaths,
+    lastCommitSubject,
+    lastCommitAt,
+    activeProcessCount: activeProcessCount(entry.path, processes),
+  };
+}
+
+async function inspectWorktreeAsync(
+  entry: { path: string; head: string; branch: string },
+  processes: string[],
+): Promise<WorktreeState> {
+  const [status, commit] = await Promise.all([
+    runGitAsync(['status', '--short'], entry.path),
+    runGitAsync(['log', '-1', '--pretty=%s%x1f%cI'], entry.path),
+  ]);
+  const dirtyPaths = status.split('\n').filter((line) => line.trim().length > 0);
+  const [lastCommitSubject = '', lastCommitAt = ''] = commit.split('\x1f');
+  return {
+    ...entry,
+    dirtyPaths,
+    lastCommitSubject,
+    lastCommitAt,
+    activeProcessCount: activeProcessCount(entry.path, processes),
+  };
+}
+
+export function worktreeCount(cwd = process.cwd()): number {
+  return parseWorktrees(runGit(['worktree', 'list', '--porcelain'], cwd)).length;
+}
+
 export function listWorktreeStates(cwd = process.cwd()): WorktreeState[] {
-  const raw = runGit(['worktree', 'list', '--porcelain'], cwd);
+  const entries = parseWorktrees(runGit(['worktree', 'list', '--porcelain'], cwd));
   const processes = processCommands();
-  return parseWorktrees(raw).map((entry) => {
-    const dirtyPaths = runGit(['status', '--short'], entry.path)
-      .split('\n')
-      .filter((line) => line.trim().length > 0);
-    const lastCommitSubject = runGit(['log', '-1', '--pretty=%s'], entry.path);
-    const lastCommitAt = runGit(['log', '-1', '--format=%cI'], entry.path);
-    const aliases = worktreeAliases(entry.path);
-    const activeProcessCount = processes.filter((command) => aliases.some((alias) => command.includes(alias))).length;
-    return { ...entry, dirtyPaths, lastCommitSubject, lastCommitAt, activeProcessCount };
-  });
+  return entries.map((entry) => inspectWorktree(entry, processes));
+}
+
+export async function listLiveWorktreeStates(
+  claims: AgentClaim[],
+  cwd = process.cwd(),
+): Promise<WorktreeState[]> {
+  const entries = parseWorktrees(runGit(['worktree', 'list', '--porcelain'], cwd));
+  const processes = processCommands();
+  const primaryPath = entries[0]?.path;
+  const claimedPaths = new Set(claims.map((claim) => claim.worktree));
+  const liveEntries = entries.filter((entry) => (
+    entry.path === primaryPath
+    || claimedPaths.has(entry.path)
+    || activeProcessCount(entry.path, processes) > 0
+  ));
+  return Promise.all(liveEntries.map((entry) => inspectWorktreeAsync(entry, processes)));
 }
 export interface BoardroomTaskSummary {
   counts: Record<string, number>;
