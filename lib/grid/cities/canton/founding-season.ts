@@ -2,6 +2,7 @@ import type { GridCityPackage } from '../../core/types';
 import { cantonDraftPackageFields } from './geography/canton-draft-package';
 import { cantonFoundingSeasonEconomy } from './founding-season-economy';
 import { cantonFoundingSeasonContest } from './founding-season-contest';
+import { cantonFoundingSeasonCityPower } from './founding-season-city-power';
 
 export const cantonFoundingSeasonPackage: GridCityPackage = {
   schemaVersion: 1,
@@ -30,6 +31,7 @@ export const cantonFoundingSeasonPackage: GridCityPackage = {
     },
     economy: cantonFoundingSeasonEconomy,
     contest: cantonFoundingSeasonContest,
+    cityPower: cantonFoundingSeasonCityPower,
   },
   ...cantonDraftPackageFields,
 };

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 type BoardKey =
+  | 'city-power'
   | 'overall'
   | 'progression'
   | 'missions'
@@ -53,7 +54,8 @@ const BOARDS: Array<{
   description: string;
   Icon: typeof Trophy;
 }> = [
-  { key: 'overall', label: 'Overall', description: 'Balanced Grid Rating', Icon: Crown },
+  { key: 'city-power', label: 'City Power', description: 'Seasonal control + economy + contests + objectives', Icon: Crown },
+  { key: 'overall', label: 'Overall', description: 'Balanced Grid Rating', Icon: Trophy },
   { key: 'territory', label: 'Territory', description: 'Control + captures + defense', Icon: Shield },
   { key: 'economy', label: 'Economy', description: 'Property + wealth + influence', Icon: Building2 },
   { key: 'competitive', label: 'Competitive', description: 'Scrimmage + strategy + survival', Icon: Swords },
@@ -65,7 +67,7 @@ const BOARDS: Array<{
 ];
 
 function scoreLabel(board: BoardKey, score: number): string {
-  return board === 'overall'
+  return board === 'overall' || board === 'city-power'
     ? `${score.toLocaleString()} / 10,000`
     : `${score.toLocaleString()} / 1,000`;
 }
@@ -78,7 +80,7 @@ function RankMark({ rank }: { rank: number }) {
 }
 
 export default function GridRankingsClient() {
-  const [board, setBoard] = useState<BoardKey>('overall');
+  const [board, setBoard] = useState<BoardKey>('city-power');
   const [entries, setEntries] = useState<PublicRankEntry[]>([]);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [seasonStatus, setSeasonStatus] = useState<string | null>(null);
@@ -95,7 +97,12 @@ export default function GridRankingsClient() {
     setLoading(true);
     setError(null);
 
-    fetch(`/api/grid/progression/leaderboard?board=${encodeURIComponent(board)}&limit=50`, {
+    const endpoint =
+      board === 'city-power'
+        ? '/api/grid/city-power/leaderboard?limit=50'
+        : `/api/grid/progression/leaderboard?board=${encodeURIComponent(board)}&limit=50`;
+
+    fetch(endpoint, {
       cache: 'no-store',
     })
       .then(async (response) => {
@@ -159,8 +166,8 @@ export default function GridRankingsClient() {
             There Is More Than One Way To Rule A City.
           </h1>
           <p className="mt-5 max-w-3xl text-sm leading-relaxed text-stone-400 sm:text-base">
-            XP is only one signal. The Grid measures territory, economy, competition, discovery,
-            missions, leadership, and long-term legacy so different kinds of players can build a name.
+            City Power is the seasonal main score, built from multiple capped axes so one strategy
+            cannot own the entire board. Specialist rankings still show the different ways players build a name.
           </p>
         </header>
 
