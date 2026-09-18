@@ -60,6 +60,9 @@ function port(overrides: Partial<GridAlliancePersistencePort> = {}): GridAllianc
       leftAt: command.leftAt,
       cooldownUntil: command.cooldownUntil,
     })),
+    getPlayerInfluence: vi.fn().mockResolvedValue(100),
+    getInfluenceContributionReplay: vi.fn().mockResolvedValue(null),
+    applyInfluenceContribution: vi.fn(),
     ...overrides,
   };
 }

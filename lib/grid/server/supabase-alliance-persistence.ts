@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../../supabase';
 import type { GridAllianceMembership } from '../core/alliance-types';
 import type {
+  GridAllianceInfluenceContributionPersistenceResult,
   GridAlliancePersistencePort,
   GridAllianceState,
   GridCreateAlliancePersistenceResult,
@@ -163,6 +164,74 @@ export function createSupabaseGridAlliancePersistencePort(
         throw new Error(`Failed to leave Grid Alliance: ${error.message}`);
       }
       return requireObject<GridAllianceMembership>(data, 'Grid Alliance leave');
+    },
+
+    async getPlayerInfluence(seasonId, playerId) {
+      const { data, error } = await client
+        .from('grid_player_season_state')
+        .select('influence')
+        .eq('season_id', seasonId)
+        .eq('player_id', playerId)
+        .maybeSingle();
+      if (error) {
+        throw new Error(`Failed to read Grid Alliance player Influence: ${error.message}`);
+      }
+      return data ? Number((data as { influence: number }).influence) : null;
+    },
+
+    async getInfluenceContributionReplay(
+      seasonId,
+      allianceId,
+      playerId,
+      idempotencyKey,
+    ) {
+      const { data, error } = await client
+        .from('grid_game_events')
+        .select('id,payload')
+        .eq('season_id', seasonId)
+        .eq('actor_player_id', playerId)
+        .eq('entity_id', allianceId)
+        .eq('event_type', 'alliance_influence_contribution')
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+      if (error) {
+        throw new Error(`Failed to replay Grid Alliance contribution: ${error.message}`);
+      }
+      if (!data) return null;
+      const event = data as { id: string; payload: unknown };
+      const payload = requireObject<Omit<GridAllianceInfluenceContributionPersistenceResult, 'eventId' | 'replayed'>>(
+        event.payload,
+        'Grid Alliance contribution replay',
+      );
+      return { ...payload, eventId: event.id, replayed: true };
+    },
+
+    async applyInfluenceContribution(command) {
+      const { data, error } = await client.rpc(
+        'grid_apply_alliance_influence_contribution',
+        {
+          p_alliance_id: command.allianceId,
+          p_season_id: command.seasonId,
+          p_player_id: command.playerId,
+          p_expected_alliance_revision: command.expectedAllianceRevision,
+          p_expected_player_influence: command.expectedPlayerInfluence,
+          p_accepted_influence: command.acceptedInfluence,
+          p_player_influence_after: command.playerInfluenceAfter,
+          p_pool_influence_after: command.poolInfluenceAfter,
+          p_pool_cap: command.poolCap,
+          p_constraints: command.constraints,
+          p_idempotency_key: command.idempotencyKey,
+          p_now: command.now,
+        },
+      );
+      if (error) {
+        throw new Error(`Failed to contribute Grid Alliance Influence: ${error.message}`);
+      }
+      if (data === null) return null;
+      return requireObject<GridAllianceInfluenceContributionPersistenceResult>(
+        data,
+        'Grid Alliance Influence contribution',
+      );
     },
   };
 }

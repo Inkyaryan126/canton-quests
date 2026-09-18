@@ -46,6 +46,32 @@ export interface GridLeaveAlliancePersistenceCommand {
   cooldownUntil: string;
 }
 
+
+export interface GridAllianceInfluenceContributionPersistenceCommand {
+  allianceId: string;
+  seasonId: string;
+  playerId: string;
+  expectedAllianceRevision: number;
+  expectedPlayerInfluence: number;
+  acceptedInfluence: number;
+  playerInfluenceAfter: number;
+  poolInfluenceAfter: number;
+  poolCap: number;
+  constraints: Array<'player-balance' | 'pool-capacity'>;
+  idempotencyKey: string;
+  now: string;
+}
+
+export interface GridAllianceInfluenceContributionPersistenceResult {
+  acceptedInfluence: number;
+  playerInfluenceAfter: number;
+  poolInfluenceAfter: number;
+  allianceRevision: number;
+  constraints: Array<'player-balance' | 'pool-capacity'>;
+  eventId: string;
+  replayed: boolean;
+}
+
 export interface GridAlliancePersistencePort {
   getAllianceById(allianceId: string): Promise<GridAllianceState | null>;
   getMembershipHistory(
@@ -62,4 +88,14 @@ export interface GridAlliancePersistencePort {
   leaveAlliance(
     command: GridLeaveAlliancePersistenceCommand,
   ): Promise<GridAllianceMembership>;
+  getPlayerInfluence(seasonId: string, playerId: string): Promise<number | null>;
+  getInfluenceContributionReplay(
+    seasonId: string,
+    allianceId: string,
+    playerId: string,
+    idempotencyKey: string,
+  ): Promise<GridAllianceInfluenceContributionPersistenceResult | null>;
+  applyInfluenceContribution(
+    command: GridAllianceInfluenceContributionPersistenceCommand,
+  ): Promise<GridAllianceInfluenceContributionPersistenceResult | null>;
 }

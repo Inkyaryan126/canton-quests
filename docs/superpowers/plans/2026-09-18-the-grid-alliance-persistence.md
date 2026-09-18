@@ -15,3 +15,11 @@
 - Consume the pure Alliance core for membership eligibility and leave cooldowns.
 - Fail closed on concurrency conflicts.
 - Keep all resource-changing commands server authoritative.
+
+
+## Task 4 — pooled Influence contribution
+- Evaluate requested contributions with the deterministic Alliance core.
+- Require active membership and a live player-season Influence balance.
+- Apply the exact decision through a locked optimistic RPC.
+- Record/replay successful transfers through the game-event idempotency ledger.
+- Never mutate Credits or Command Points.

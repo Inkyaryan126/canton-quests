@@ -1,4 +1,5 @@
 import {
+  contributeGridAllianceInfluence,
   evaluateGridAllianceJoin,
   leaveGridAlliance as closeGridAllianceMembership,
   validateGridAllianceRules,
@@ -11,6 +12,7 @@ import type {
 import type {
   GridAlliancePersistencePort,
   GridAllianceState,
+  GridAllianceInfluenceContributionPersistenceResult,
   GridCreateAlliancePersistenceResult,
 } from './alliance-persistence-port';
 
@@ -206,4 +208,105 @@ export async function leaveGridAllianceMembership(
     leftAt: closed.leftAt!,
     cooldownUntil: closed.cooldownUntil!,
   });
+}
+
+
+export interface GridContributeAllianceInfluenceCommand {
+  allianceId: string;
+  seasonId: string;
+  playerId: string;
+  requestedInfluence: number;
+  idempotencyKey: string;
+  now: string;
+}
+
+export interface GridPersistentAllianceInfluenceContributionResult
+  extends Omit<GridAllianceInfluenceContributionPersistenceResult, 'eventId'> {
+  eventId: string | null;
+  persisted: boolean;
+}
+
+export async function contributePersistentGridAllianceInfluence(
+  port: GridAlliancePersistencePort,
+  command: GridContributeAllianceInfluenceCommand,
+  rules: GridAllianceRules,
+): Promise<GridPersistentAllianceInfluenceContributionResult> {
+  validateGridAllianceRules(rules);
+  const allianceId = requireText(command.allianceId, 'allianceId');
+  const seasonId = requireText(command.seasonId, 'seasonId');
+  const playerId = requireText(command.playerId, 'playerId');
+  const idempotencyKey = requireText(command.idempotencyKey, 'idempotencyKey');
+  const now = requireTimestamp(command.now, 'now');
+
+  const replay = await port.getInfluenceContributionReplay(
+    seasonId,
+    allianceId,
+    playerId,
+    idempotencyKey,
+  );
+  if (replay) {
+    return { ...replay, persisted: true };
+  }
+
+  const alliance = requireActiveAlliance(
+    await port.getAllianceById(allianceId),
+    seasonId,
+  );
+  const membershipHistory = await port.getMembershipHistory(seasonId, playerId);
+  const isActiveMember = membershipHistory.some(
+    (membership) =>
+      membership.allianceId === allianceId &&
+      membership.seasonId === seasonId &&
+      membership.playerId === playerId &&
+      membership.leftAt === null,
+  );
+  if (!isActiveMember) {
+    throw new Error('Grid Alliance Influence contribution requires active membership');
+  }
+
+  const playerInfluence = await port.getPlayerInfluence(seasonId, playerId);
+  if (playerInfluence === null) {
+    throw new Error('Grid Alliance player season Influence state was not found');
+  }
+
+  const decision = contributeGridAllianceInfluence(
+    {
+      requestedInfluence: command.requestedInfluence,
+      playerInfluence,
+      poolInfluence: alliance.influencePool,
+    },
+    rules,
+  );
+
+  if (decision.acceptedInfluence === 0) {
+    return {
+      ...decision,
+      allianceRevision: alliance.revision,
+      eventId: null,
+      replayed: false,
+      persisted: false,
+    };
+  }
+
+  const persisted = await port.applyInfluenceContribution({
+    allianceId,
+    seasonId,
+    playerId,
+    expectedAllianceRevision: alliance.revision,
+    expectedPlayerInfluence: playerInfluence,
+    acceptedInfluence: decision.acceptedInfluence,
+    playerInfluenceAfter: decision.playerInfluenceAfter,
+    poolInfluenceAfter: decision.poolInfluenceAfter,
+    poolCap: rules.influencePoolCap,
+    constraints: decision.constraints,
+    idempotencyKey,
+    now,
+  });
+  if (!persisted) {
+    throw new Error(
+      'Grid Alliance contribution changed; reload before retrying',
+    );
+  }
+
+  return { ...persisted, persisted: true };
 }
