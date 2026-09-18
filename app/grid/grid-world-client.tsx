@@ -15,6 +15,10 @@ import {
   Zap,
 } from 'lucide-react';
 import type { GridDevelopmentBranch } from '@/lib/grid/core/economy-types';
+import {
+  GRID_REVISION_HIDDEN_POLL_MS,
+  normalizeGridRevisionPollMs,
+} from '@/lib/grid/client/world-revision-polling';
 import type { GridWorldProjection } from '@/lib/grid/server/world-projection';
 import type { GridProgressionSnapshot, GridStatDefinition } from '@/lib/grid/core/progression-types';
 
@@ -312,6 +316,72 @@ export default function GridWorldClient({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!runtimeEnabled || !projection.player.authenticated) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let revisionEtag: string | null = null;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void pollRevision();
+      }, delayMs);
+    };
+
+    const pollRevision = async () => {
+      if (cancelled) return;
+      if (document.visibilityState === 'hidden') {
+        schedule(GRID_REVISION_HIDDEN_POLL_MS);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/grid/world/revision', {
+          cache: 'no-store',
+          headers: revisionEtag ? { 'If-None-Match': revisionEtag } : undefined,
+        });
+        if (cancelled) return;
+        if (response.status === 401 || response.status === 404) return;
+
+        const pollAfterMs = normalizeGridRevisionPollMs(
+          response.headers.get('x-grid-poll-after-ms'),
+        );
+        if (response.status === 304) {
+          schedule(pollAfterMs);
+          return;
+        }
+        if (!response.ok) throw new Error('Grid world revision unavailable');
+
+        const nextEtag = response.headers.get('etag');
+        const needsWorldRefresh =
+          revisionEtag === null || nextEtag === null || nextEtag !== revisionEtag;
+        revisionEtag = nextEtag;
+
+        if (needsWorldRefresh) await loadWorld();
+        schedule(pollAfterMs);
+      } catch {
+        schedule(GRID_REVISION_HIDDEN_POLL_MS);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (timer) clearTimeout(timer);
+      void pollRevision();
+    };
+
+    void pollRevision();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadWorld, projection.player.authenticated, runtimeEnabled]);
 
   const claimTerritory = async (territorySlug: string) => {
     const scope = 'claim:' + territorySlug;
