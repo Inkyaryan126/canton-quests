@@ -60,3 +60,5 @@ export interface GridContractProgressPort {
    */
   commit(input: GridContractCommitInput): Promise<GridContractCommitResult>;
 }
+
+export type { GridContractPersistencePort } from './contract-persistence-port';
