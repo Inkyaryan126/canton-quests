@@ -133,21 +133,21 @@ export function validateGridSurgeConfig(config: GridSurgeConfig): void {
   }
 }
 
-function validateSeasonWindow(window: GridSurgeSeasonWindow): {
+function validateSeasonWindow(seasonWindow: GridSurgeSeasonWindow): {
   startsAtMs: number;
   endsAtMs: number;
   explicitSurgeStartsAtMs: number | null;
 } {
-  const startsAtMs = parseTimestamp(window.startsAt, 'startsAt');
-  const endsAtMs = parseTimestamp(window.endsAt, 'endsAt');
+  const startsAtMs = parseTimestamp(seasonWindow.startsAt, 'startsAt');
+  const endsAtMs = parseTimestamp(seasonWindow.endsAt, 'endsAt');
   if (startsAtMs >= endsAtMs) {
     throw new Error('Grid Surge season startsAt must be before endsAt');
   }
 
   let explicitSurgeStartsAtMs: number | null = null;
-  if (window.surgeStartsAt) {
+  if (seasonWindow.surgeStartsAt) {
     explicitSurgeStartsAtMs = parseTimestamp(
-      window.surgeStartsAt,
+      seasonWindow.surgeStartsAt,
       'surgeStartsAt',
     );
     if (
@@ -164,12 +164,12 @@ function validateSeasonWindow(window: GridSurgeSeasonWindow): {
 }
 
 export function resolveGridSurgeStartAt(
-  window: GridSurgeSeasonWindow,
+  seasonWindow: GridSurgeSeasonWindow,
   config: GridSurgeConfig,
 ): string {
   validateGridSurgeConfig(config);
   const { startsAtMs, endsAtMs, explicitSurgeStartsAtMs } =
-    validateSeasonWindow(window);
+    validateSeasonWindow(seasonWindow);
   const durationMs = config.durationMinutes * 60_000;
   const derivedStartAtMs = Math.max(startsAtMs, endsAtMs - durationMs);
   return new Date(explicitSurgeStartsAtMs ?? derivedStartAtMs).toISOString();
@@ -309,14 +309,14 @@ function activeEffects(config: GridSurgeConfig): GridSurgeEffects {
 
 export function projectGridSurge(
   now: string,
-  window: GridSurgeSeasonWindow,
+  seasonWindow: GridSurgeSeasonWindow,
   config: GridSurgeConfig,
   hotspotCandidates: readonly GridSurgeHotspotCandidate[] = [],
 ): GridSurgeProjection {
   validateGridSurgeConfig(config);
   const nowMs = parseTimestamp(now, 'now');
   const { startsAtMs, endsAtMs, explicitSurgeStartsAtMs } =
-    validateSeasonWindow(window);
+    validateSeasonWindow(seasonWindow);
   const durationMs = config.durationMinutes * 60_000;
   const surgeStartsAtMs =
     explicitSurgeStartsAtMs ?? Math.max(startsAtMs, endsAtMs - durationMs);
