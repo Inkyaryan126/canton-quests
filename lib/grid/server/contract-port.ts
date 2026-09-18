@@ -30,6 +30,10 @@ export interface GridContractStoredInstance {
   version: number;
 }
 export interface GridContractCommitInput extends GridContractScope {
+  objectiveId: string;
+  amount: number;
+  nowMs: number;
+  locationEnhanced?: boolean;
   idempotencyKey: string;
   expectedVersion: number;
   nextInstance: GridContractInstance;

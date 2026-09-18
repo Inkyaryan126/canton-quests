@@ -253,4 +253,35 @@ describe('GRID contract progress service', () => {
       instance: { status: 'expired', progress: { 'break-stronghold': 0 } },
     });
   });
+
+  it('does not emit a second reward intent after duplicate completion', async () => {
+    const completed = {
+      ...initialInstance(),
+      status: 'completed' as const,
+      completedAtMs: 1_500,
+      progress: { 'break-stronghold': 1 },
+    };
+    const commit = vi.fn(async (input) => ({
+      outcome: 'applied' as const,
+      stored: { instance: input.nextInstance, version: 9 },
+    }));
+
+    const result = await progressGridContract(
+      { getDefinition: async () => definition },
+      { load: async () => ({ instance: completed, version: 8 }), commit },
+      command,
+    );
+
+    expect(commit).toHaveBeenCalledWith(expect.objectContaining({
+      rewardIntent: null,
+      locationBonusIntent: null,
+      nextInstance: expect.objectContaining({ status: 'completed' }),
+    }));
+    expect(result).toMatchObject({
+      outcome: 'applied',
+      completedNow: false,
+      rewardQueued: false,
+      locationBonusQueued: false,
+    });
+  });
 });
