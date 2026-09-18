@@ -1,3 +1,4 @@
+export * from './effects';
 export * from './frame';
 export * from './camera';
 export * from './layers';

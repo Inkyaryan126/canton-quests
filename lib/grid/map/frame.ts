@@ -8,6 +8,10 @@ import {
   type GridMapRenderDelta,
 } from './delta';
 import {
+  deriveGridMapEffectCues,
+  type GridMapEffectCue,
+} from './effects';
+import {
   buildGridMapLayerManifest,
   type GridMapLayerDescriptor,
 } from './layers';
@@ -29,6 +33,7 @@ export interface GridMapFrame {
   packet: GridMapRenderPacket;
   layers: GridMapLayerDescriptor[];
   delta: GridMapRenderDelta | null;
+  effects: GridMapEffectCue[];
 }
 
 export interface GridMapFrameInteraction {
@@ -54,6 +59,9 @@ export function buildGridMapFrame(
     delta: previousPacket
       ? diffGridMapRenderPackets(previousPacket, packet)
       : null,
+    effects: previousPacket
+      ? deriveGridMapEffectCues(previousPacket, packet)
+      : [],
   };
 }
 function sameTarget(

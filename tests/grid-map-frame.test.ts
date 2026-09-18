@@ -18,6 +18,7 @@ describe('Grid map renderer frame', () => {
     expect(frame.layers.map((layer) => layer.order))
       .toEqual([...frame.layers.map((layer) => layer.order)].sort((a, b) => a - b));
     expect(frame.delta).toBeNull();
+    expect(frame.effects).toEqual([]);
   });
   it('produces an incremental delta against the previous renderer packet', () => {
     const projection = buildGridWorldProjection(cantonFoundingSeasonPackage);
@@ -33,6 +34,7 @@ describe('Grid map renderer frame', () => {
     expect(districtFrame.delta?.cameraChanged).toBe(true);
     expect(districtFrame.delta?.zoomBandChanged).toBe(true);
     expect(districtFrame.delta?.territories.added.length).toBeGreaterThan(0);
+    expect(districtFrame.effects).toEqual([]);
   });
 
   it('reports no entity work for a byte-equivalent subsequent frame', () => {
@@ -42,6 +44,7 @@ describe('Grid map renderer frame', () => {
 
     expect(second.delta).not.toBeNull();
     expect(second.delta?.cameraChanged).toBe(false);
+    expect(second.effects).toEqual([]);
     expect(second.delta?.districts).toEqual({
       added: [],
       removed: [],
