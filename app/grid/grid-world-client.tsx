@@ -733,7 +733,7 @@ export default function GridWorldClient({
                 </div>
               </div>
               <div className="font-mono text-[9px] text-stone-500">
-                {dynamicEvents.length} EVENT{dynamicEvents.length === 1 ? '' : 'S'} // {strongholds.length} STRONGHOLD{strongholds.length === 1 ? '' : 'S'}
+                {dynamicEvents.length} EVENT{dynamicEvents.length === 1 ? '' : 'S'}{' // '}{strongholds.length} STRONGHOLD{strongholds.length === 1 ? '' : 'S'}
               </div>
             </div>
 
@@ -775,7 +775,7 @@ export default function GridWorldClient({
                       : stronghold.target.territoryName}
                   </div>
                   <div className="mt-2 text-xs text-stone-400">
-                    {stronghold.status.toUpperCase()} // {stronghold.factionId}
+                    {stronghold.status.toUpperCase()}{' // '}{stronghold.factionId}
                   </div>
                   <div className="mt-3 font-mono text-[9px] text-stone-500">
                     GARRISON {stronghold.garrisonInfluence} INFLUENCE
