@@ -8,7 +8,7 @@ import { createTask, recordDecision, recordTestResult, checkpoint, getTask, upda
 import { recordAttempt } from '../lib/boardroom/attempts';
 import { renderHandoff, writeHandoff } from '../lib/boardroom/handoff';
 import { renderMorningReport, writeMorningReport } from '../lib/boardroom/report';
-import { handoffFile, morningReportFile } from '../lib/boardroom/paths';
+import { handoffFile, morningReportExportFile, morningReportFile } from '../lib/boardroom/paths';
 import { getBudgetState, selfReportAllowance } from '../lib/boardroom/budget';
 
 let root: string;
@@ -153,11 +153,12 @@ describe('renderMorningReport / writeMorningReport', () => {
     expect(otherSection).toContain('TASK-OLD-BLOCKED');
   });
 
-  it('writeMorningReport writes to boardroom/reports/MORNING_REPORT.md under the given root', () => {
+  it('writeMorningReport writes to Git-common coordination storage under the given root', () => {
     writeMorningReport(
       { run: { runId: 'R1', branch: 'b', baseCommit: 'abc', startedAt: 't0', endedAt: 't1', sleepPrevention: { active: false, reason: 'NOT ACTIVE (not macOS)' }, stopReason: 'NO_MORE_READY_TASKS' }, tasks: [], budget: getBudgetState(root), commits: [], actionsRequired: [], touchedThisRunTaskIds: [] },
       root
     );
     expect(fs.existsSync(morningReportFile(root))).toBe(true);
+    expect(fs.existsSync(morningReportExportFile(root))).toBe(false);
   });
 });

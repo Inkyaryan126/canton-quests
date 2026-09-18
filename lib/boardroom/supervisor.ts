@@ -34,7 +34,7 @@ import { evaluateChangedPaths, parseGitStatusShort, isBoardroomBookkeepingPath }
 import { getAdapter } from './adapters/registry';
 import { probeAgentHealth } from './adapters/probe';
 import { salvageWorkingTree, describeSalvage } from './salvage';
-import { invocationLogFile } from './paths';
+import { invocationLogFile, morningReportFile } from './paths';
 import { writeHandoff } from './handoff';
 import { writeMorningReport, type RunSummary } from './report';
 import type { Task, AgentName, TestResult, Priority } from './types';
@@ -736,11 +736,10 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
   };
   const reportContent = writeMorningReport({ run, tasks: finalTasks, budget, commits, actionsRequired, touchedThisRunTaskIds: Array.from(touchedThisRun) }, root);
 
-  // Sweep any remaining Boardroom bookkeeping (a final task's own handoff doc,
-  // which is written after its commit and so is never included in it, plus
-  // the morning report just written above) into one closing commit — so
-  // boardroom/ actually stays git-tracked as intended, rather than left as
-  // uncommitted local files at the end of a run with nothing further to do.
+  // Sweep any remaining durable Boardroom bookkeeping (a final task's own
+  // handoff doc, which is written after its commit and so is never included in
+  // it) into one closing commit. The generated report lives in Git-common
+  // coordination storage and is intentionally outside this checkout.
   try {
     const trailingPaths = parseGitStatusShort(statusShort(git)).filter(isBoardroomBookkeepingPath);
     if (trailingPaths.length > 0) {
@@ -764,7 +763,7 @@ export async function runSupervisor(deps: SupervisorDeps = {}): Promise<Supervis
     branch: boot.branch,
     iterations,
     actionsRequired,
-    reportPath: `boardroom/reports/MORNING_REPORT.md`,
+    reportPath: morningReportFile(root),
     reportContent,
   };
 }

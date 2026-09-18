@@ -6,7 +6,7 @@ Boardroom remains the durable task ledger, write-scope/commit authority for supe
 
 ### Boardroom bookkeeping ownership
 
-Generated Boardroom coordination artifacts under .boardroom/, boardroom/handoffs/, and boardroom/reports/ are globally Boardroom-owned bookkeeping. Control Tower excludes those known bookkeeping paths from DIRTY_UNCLAIMED and DIRTY_OUTSIDE_CLAIM lane-scope warnings. The exclusion is intentionally narrow: unrelated source or gameplay changes in the same worktree still trigger normal coordination warnings.
+Generated Boardroom coordination artifacts under the Git-common `grid-agent-control/` directory are globally Boardroom-owned bookkeeping. Runtime reports must stay there so autonomous refreshes cannot dirty a tracked worktree file. `boardroom/handoffs/` remains durable bookkeeping, and `boardroom/reports/MORNING_REPORT.md` is only updated by an explicit manual export. Control Tower excludes the known durable bookkeeping paths from DIRTY_UNCLAIMED and DIRTY_OUTSIDE_CLAIM lane-scope warnings. The exclusion is intentionally narrow: unrelated source or gameplay changes in the same worktree still trigger normal coordination warnings.
 
 
 ## Required preflight for hand-driven parallel agents

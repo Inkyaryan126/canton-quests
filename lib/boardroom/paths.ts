@@ -7,6 +7,7 @@
  * this suite ever reads or writes real Boardroom state.
  */
 import path from 'path';
+import { gitCommonDir } from '../agent-control';
 
 export const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -46,7 +47,27 @@ export function boardroomDurableDir(root: string = REPO_ROOT): string {
   return path.join(root, 'boardroom');
 }
 
+/**
+ * Generated coordination output belongs beside the shared Git metadata, not
+ * in a worktree. This keeps autonomous reporting visible to operators while
+ * preventing a report refresh from dirtying (or overwriting) a checkout file.
+ */
+export function boardroomCoordinationDir(root: string = REPO_ROOT): string {
+  try {
+    return path.join(gitCommonDir(root), 'grid-agent-control', 'boardroom');
+  } catch {
+    // Unit callers may provide a filesystem-only fixture rather than a Git
+    // checkout. Keep that fixture isolated without changing real-repo behavior.
+    return path.join(root, '.boardroom', 'runtime');
+  }
+}
+
 export function morningReportFile(root: string = REPO_ROOT): string {
+  return path.join(boardroomCoordinationDir(root), 'reports', 'MORNING_REPORT.md');
+}
+
+/** The deliberate, human-requested checkout export location. */
+export function morningReportExportFile(root: string = REPO_ROOT): string {
   return path.join(boardroomDurableDir(root), 'reports', 'MORNING_REPORT.md');
 }
 
