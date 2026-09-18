@@ -21,13 +21,17 @@ export async function POST(request: Request, { params }: { params: { channelId: 
   if ('response' in context) return context.response;
   const body = await request.json().catch(() => ({}));
   try {
-    const target = await inviteGridPartyMember(createSupabaseGridChatPort(), {
+    const result = await inviteGridPartyMember(createSupabaseGridChatPort(), {
       channelId: params.channelId,
       actorPlayerId: context.playerId,
       callsign: typeof body.callsign === 'string' ? body.callsign : '',
       now: new Date().toISOString(),
     });
-    return gridChatJson(context.session, { success: true, target });
+    return gridChatJson(context.session, {
+      success: true,
+      target: result.target,
+      invite: result.invite,
+    });
   } catch (error) {
     const mapped = gridChatError(error);
     return gridChatJson(context.session, { success: false, error: mapped.message }, { status: mapped.status });

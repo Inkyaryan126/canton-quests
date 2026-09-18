@@ -27,6 +27,7 @@ import type {
   GridChatDistrictOption,
   GridChatMessagePage,
   GridChatMessageView,
+  GridChatPartyInvite,
   GridChatPartyMember,
 } from '@/lib/grid/core/chat-types';
 
@@ -86,6 +87,8 @@ export default function GridChatClient() {
   const [partyBusy, setPartyBusy] = useState(false);
   const [showPartyManage, setShowPartyManage] = useState(false);
   const [partyMembers, setPartyMembers] = useState<GridChatPartyMember[]>([]);
+  const [partyInvites, setPartyInvites] = useState<GridChatPartyInvite[]>([]);
+  const [partyInviteBusyId, setPartyInviteBusyId] = useState<string | null>(null);
   const [partyManageLoading, setPartyManageLoading] = useState(false);
   const [partyManageBusyId, setPartyManageBusyId] = useState<string | null>(null);
   const [directCallsign, setDirectCallsign] = useState('');
@@ -118,6 +121,23 @@ export default function GridChatClient() {
       setChannelError(error instanceof Error ? error.message : 'Comms unavailable');
     } finally {
       setLoadingChannels(false);
+    }
+  }, []);
+
+  const loadPartyInvites = useCallback(async () => {
+    try {
+      const response = await fetch('/api/grid/chat/party-invites', {
+        cache: 'no-store',
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) {
+        throw new Error(body.error || 'Party invites unavailable');
+      }
+      setPartyInvites(body.invites ?? []);
+    } catch (error) {
+      setChannelError(
+        error instanceof Error ? error.message : 'Party invites unavailable',
+      );
     }
   }, []);
 
@@ -177,6 +197,15 @@ export default function GridChatClient() {
   useEffect(() => {
     void loadChannels();
   }, [loadChannels]);
+
+  useEffect(() => {
+    if (enabled !== true) return;
+    void loadPartyInvites();
+    const inviteTimer = window.setInterval(() => {
+      void loadPartyInvites();
+    }, 8000);
+    return () => window.clearInterval(inviteTimer);
+  }, [enabled, loadPartyInvites]);
 
   useEffect(() => {
     if (!selectedId || enabled !== true) {
@@ -313,6 +342,39 @@ export default function GridChatClient() {
       setMessageError(error instanceof Error ? error.message : 'Unable to invite player');
     } finally {
       setPartyBusy(false);
+    }
+  }
+
+  async function respondToPartyInvite(
+    invite: GridChatPartyInvite,
+    action: 'accept' | 'decline',
+  ) {
+    if (partyInviteBusyId) return;
+    setPartyInviteBusyId(invite.inviteId);
+    setChannelError(null);
+    try {
+      const response = await fetch(
+        `/api/grid/chat/party-invites/${encodeURIComponent(invite.inviteId)}/${action}`,
+        { method: 'POST' },
+      );
+      const body = await response.json();
+      if (!response.ok || !body.success) {
+        throw new Error(body.error || `Unable to ${action} party invite`);
+      }
+
+      await loadPartyInvites();
+      if (action === 'accept') {
+        await loadChannels();
+        setSelectedId(body.channelId ?? invite.channelId);
+      }
+    } catch (error) {
+      setChannelError(
+        error instanceof Error
+          ? error.message
+          : `Unable to ${action} party invite`,
+      );
+    } finally {
+      setPartyInviteBusyId(null);
     }
   }
 
@@ -574,6 +636,49 @@ export default function GridChatClient() {
               </div>
             </div>
             {channelError && <div className="mt-3 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs text-rose-200">{channelError}</div>}
+            {partyInvites.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/[.06] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="font-mono text-[9px] font-black uppercase tracking-[.18em] text-amber-300">
+                    Party Invites
+                  </div>
+                  <span className="rounded-full bg-amber-300 px-1.5 py-0.5 font-mono text-[9px] font-black text-black">
+                    {partyInvites.length}
+                  </span>
+                </div>
+                <div className="mt-2 space-y-2">
+                  {partyInvites.map((invite) => (
+                    <div key={invite.inviteId} className="rounded-xl border border-white/10 bg-black/35 p-3">
+                      <div className="font-display text-sm font-black uppercase text-white">
+                        {invite.displayName}
+                      </div>
+                      <div className="mt-1 text-[11px] text-stone-500">
+                        Invited by <span className="font-bold text-stone-300">{invite.inviter.callsign}</span>
+                        {' · '}expires {timeLabel(invite.expiresAt)}
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          disabled={Boolean(partyInviteBusyId)}
+                          onClick={() => void respondToPartyInvite(invite, 'accept')}
+                          className="flex-1 rounded-lg bg-amber-300 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-black hover:bg-amber-200 disabled:opacity-40"
+                        >
+                          {partyInviteBusyId === invite.inviteId ? 'Working…' : 'Accept'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={Boolean(partyInviteBusyId)}
+                          onClick={() => void respondToPartyInvite(invite, 'decline')}
+                          className="flex-1 rounded-lg border border-white/10 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-stone-400 hover:border-rose-300/25 hover:text-rose-300 disabled:opacity-40"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 overflow-x-auto px-3 pb-4 lg:block lg:max-h-[calc(100vh-155px)] lg:space-y-1 lg:overflow-y-auto lg:px-3">

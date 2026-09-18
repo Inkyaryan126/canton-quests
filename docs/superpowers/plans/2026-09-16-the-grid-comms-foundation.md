@@ -182,3 +182,31 @@ Applied the foundation, system-message migration, seeded a message before the sy
 - after blocking that player, only the Commander message remained unread;
 - disabling channel alerts persisted on the membership row;
 - a season player who had not joined the channel could not change its notification preference.
+
+## Comms 6 — Consent-Based Party Invitations
+
+Private party invitations now require the invited player's explicit consent instead of allowing an owner or moderator to add another player directly:
+
+- invitations are stored separately from active channel membership with pending, accepted, declined, cancelled, and expired states;
+- creating an invitation never inserts the invitee into `grid_chat_members`;
+- invitations expire after 24 hours and duplicate pending invitations are rejected;
+- only the invited player may accept or decline;
+- acceptance rechecks season membership, minor restrictions, inviter authority, channel state, and two-way block state before membership is created;
+- the old `grid_add_party_chat_member` force-add RPC is no longer executable by `service_role`;
+- the invite table has RLS enabled and no direct `anon` or `authenticated` table privileges;
+- all invite commands remain server-only and `security invoker`;
+- `/grid/chat` surfaces pending Party Invites with explicit Accept and Decline actions;
+- invite-response routes derive the invitee from the authenticated session and never accept a browser-supplied player id.
+
+### Comms 6 database acceptance
+
+The complete Comms migration chain plus Comms 6 was exercised against local PostgreSQL inside `BEGIN ... ROLLBACK`:
+
+- the invite table was created with RLS enabled;
+- browser roles had no table privileges while `service_role` retained the required server access;
+- only the new invite, accept, and decline RPCs were executable by `service_role`;
+- the retired force-add RPC was not executable by `service_role`;
+- an invited player had zero party membership before acceptance and one active membership after acceptance;
+- declining a separate invite created no party membership.
+
+Supabase security advisors were also run against the existing local stack. They reported pre-existing security-definer views and an unrelated permissive event-registration policy outside the Grid Comms schema; this checkpoint did not modify those objects.

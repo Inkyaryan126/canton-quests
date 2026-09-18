@@ -75,3 +75,12 @@ export interface GridChatPartyMember extends GridChatPublicPlayer {
   role: 'member' | 'moderator' | 'owner';
   joinedAt: string;
 }
+
+export interface GridChatPartyInvite {
+  inviteId: string;
+  channelId: string;
+  displayName: string;
+  inviter: GridChatPublicPlayer;
+  createdAt: string;
+  expiresAt: string;
+}

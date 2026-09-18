@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { openGridChat, reportGridChatMessage, sendGridChatMessage, startGridDirectChat } from '../lib/grid/server/chat-service';
+import {
+  acceptGridPartyInvite,
+  declineGridPartyInvite,
+  inviteGridPartyMember,
+  listGridPartyInvites,
+  openGridChat,
+  reportGridChatMessage,
+  sendGridChatMessage,
+  startGridDirectChat,
+} from '../lib/grid/server/chat-service';
 import type { GridChatPort } from '../lib/grid/server/chat-port';
 
 function port(overrides: Partial<GridChatPort> = {}): GridChatPort {
@@ -11,7 +20,13 @@ function port(overrides: Partial<GridChatPort> = {}): GridChatPort {
     listDistricts: vi.fn().mockResolvedValue([]),
     joinDistrict: vi.fn().mockResolvedValue({ channelId: 'district-channel' }),
     createParty: vi.fn().mockResolvedValue({ channelId: 'party-channel' }),
-    addPartyMember: vi.fn().mockResolvedValue(undefined),
+    invitePartyMember: vi.fn().mockResolvedValue({
+      inviteId: 'invite-1',
+      expiresAt: '2026-09-17T10:00:00Z',
+    }),
+    listPartyInvites: vi.fn().mockResolvedValue([]),
+    acceptPartyInvite: vi.fn().mockResolvedValue({ channelId: 'party-channel' }),
+    declinePartyInvite: vi.fn().mockResolvedValue(undefined),
     leaveParty: vi.fn().mockResolvedValue(undefined),
     listPartyMembers: vi.fn().mockResolvedValue([]),
     setPartyMemberRole: vi.fn().mockResolvedValue(undefined),
@@ -67,6 +82,55 @@ describe('GRID chat service', () => {
       replyToMessageId: null,
       now: 'now',
     });
+  });
+
+  it('creates a consent invite instead of directly adding party membership', async () => {
+    const p = port();
+    const result = await inviteGridPartyMember(p, {
+      channelId: 'party-channel',
+      actorPlayerId: 'me',
+      callsign: ' Target ',
+      now: '2026-09-17T09:00:00Z',
+    });
+
+    expect(p.resolvePlayerByCallsign).toHaveBeenCalledWith('Target');
+    expect(p.invitePartyMember).toHaveBeenCalledWith(
+      'party-channel',
+      'me',
+      'target',
+      '2026-09-17T09:00:00Z',
+    );
+    expect(result).toMatchObject({
+      target: { playerId: 'target' },
+      invite: { inviteId: 'invite-1' },
+    });
+  });
+
+  it('routes invitee list, accept, and decline through authenticated player context', async () => {
+    const p = port({
+      listPartyInvites: vi.fn().mockResolvedValue([
+        {
+          inviteId: 'invite-1',
+          channelId: 'party-channel',
+          displayName: 'Night Crew',
+          inviter: { playerId: 'owner', callsign: 'Owner', avatarUrl: null },
+          createdAt: 'now',
+          expiresAt: 'later',
+        },
+      ]),
+    });
+
+    await expect(listGridPartyInvites(p, 'me', 'now')).resolves.toHaveLength(1);
+    await expect(
+      acceptGridPartyInvite(p, 'invite-1', 'me', 'now'),
+    ).resolves.toEqual({ channelId: 'party-channel' });
+    await expect(
+      declineGridPartyInvite(p, 'invite-1', 'me', 'now'),
+    ).resolves.toBeUndefined();
+
+    expect(p.listPartyInvites).toHaveBeenCalledWith('me', 'now');
+    expect(p.acceptPartyInvite).toHaveBeenCalledWith('invite-1', 'me', 'now');
+    expect(p.declinePartyInvite).toHaveBeenCalledWith('invite-1', 'me', 'now');
   });
 
   it('validates reports before persistence', async () => {

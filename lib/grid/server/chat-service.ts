@@ -100,6 +100,39 @@ export async function inviteGridPartyMember(
   const target = await port.resolvePlayerByCallsign(callsign);
   if (!target) throw new Error('Player callsign not found');
   if (target.playerId === input.actorPlayerId) throw new Error('You are already in this party');
-  await port.addPartyMember(input.channelId, input.actorPlayerId, target.playerId, input.now);
-  return target;
+  const invite = await port.invitePartyMember(
+    input.channelId,
+    input.actorPlayerId,
+    target.playerId,
+    input.now,
+  );
+  return { target, invite };
+}
+
+export async function listGridPartyInvites(
+  port: GridChatPort,
+  playerId: string,
+  now: string,
+) {
+  return port.listPartyInvites(playerId, now);
+}
+
+export async function acceptGridPartyInvite(
+  port: GridChatPort,
+  inviteId: string,
+  playerId: string,
+  now: string,
+) {
+  if (!inviteId.trim()) throw new Error('Party invite id required');
+  return port.acceptPartyInvite(inviteId, playerId, now);
+}
+
+export async function declineGridPartyInvite(
+  port: GridChatPort,
+  inviteId: string,
+  playerId: string,
+  now: string,
+) {
+  if (!inviteId.trim()) throw new Error('Party invite id required');
+  return port.declinePartyInvite(inviteId, playerId, now);
 }

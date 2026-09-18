@@ -6,6 +6,7 @@ import type {
   GridChatSendResult,
   GridChatPublicPlayer,
   GridChatDistrictOption,
+  GridChatPartyInvite,
   GridChatPartyMember,
 } from '../core/chat-types';
 
@@ -22,7 +23,15 @@ export interface GridChatPort {
   listDistricts(seasonId: string, playerId: string): Promise<GridChatDistrictOption[]>;
   joinDistrict(seasonId: string, playerId: string, districtId: string, now: string): Promise<{ channelId: string }>;
   createParty(seasonId: string, ownerPlayerId: string, displayName: string, now: string): Promise<{ channelId: string }>;
-  addPartyMember(channelId: string, actorPlayerId: string, targetPlayerId: string, now: string): Promise<void>;
+  invitePartyMember(
+    channelId: string,
+    actorPlayerId: string,
+    targetPlayerId: string,
+    now: string,
+  ): Promise<{ inviteId: string; expiresAt: string }>;
+  listPartyInvites(playerId: string, now: string): Promise<GridChatPartyInvite[]>;
+  acceptPartyInvite(inviteId: string, playerId: string, now: string): Promise<{ channelId: string }>;
+  declinePartyInvite(inviteId: string, playerId: string, now: string): Promise<void>;
   leaveParty(channelId: string, playerId: string, now: string): Promise<void>;
   listPartyMembers(channelId: string, playerId: string): Promise<GridChatPartyMember[]>;
   setPartyMemberRole(channelId: string, actorPlayerId: string, targetPlayerId: string, role: 'member' | 'moderator', now: string): Promise<void>;
