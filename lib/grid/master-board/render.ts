@@ -6,8 +6,11 @@ import type { GridMasterBoard, GridMilestoneState, GridMilestoneStatus } from '.
 const STATUS_ORDER: GridMilestoneStatus[] = [
   'IN_PROGRESS',
   'READY_TO_INTEGRATE',
+  'SAFE_NEXT_WORK',
   'INTEGRATED',
+  'DIRTY_DORMANT',
   'BLOCKED',
+  'REJECTED',
   'PLANNED',
   'UNKNOWN',
 ];
@@ -15,8 +18,11 @@ const STATUS_ORDER: GridMilestoneStatus[] = [
 const STATUS_LABEL: Record<GridMilestoneStatus, string> = {
   IN_PROGRESS: 'IN PROGRESS',
   READY_TO_INTEGRATE: 'READY TO INTEGRATE',
+  SAFE_NEXT_WORK: 'SAFE NEXT WORK',
   INTEGRATED: 'INTEGRATED',
+  DIRTY_DORMANT: 'DIRTY DORMANT',
   BLOCKED: 'BLOCKED',
+  REJECTED: 'REJECTED',
   PLANNED: 'PLANNED',
   UNKNOWN: 'UNKNOWN',
 };
@@ -34,12 +40,18 @@ function compactEvidence(item: GridMilestoneState): string {
   return parts.join('  ');
 }
 export function renderMasterBoardText(board: GridMasterBoard): string {
+  const scanBadge = board.health.deepScan ? ' [DEEP SCAN]' : '';
   const lines = [
-    'THE GRID — MASTER BOARD',
+    `THE GRID — MASTER BOARD${scanBadge}`,
     `Generated: ${board.health.generatedAt}`,
     `Integration ref: ${board.health.integrationRef ?? 'UNKNOWN'}${board.health.integrationCommit ? ` @ ${board.health.integrationCommit.slice(0, 8)}` : ''}`,
-    `Health: claims=${board.health.liveClaimCount} stale=${board.health.staleClaimCount} warnings=${board.health.coordinationWarnings.length} boardroom=${board.health.boardroomAutonomousRunActive ? 'ACTIVE' : 'inactive'}`,
+    `Health: claims=${board.health.liveClaimCount} stale=${board.health.staleClaimCount} safeNext=${board.health.safeNextWorkCount ?? 0} dirtyDormant=${board.health.dirtyDormantCount ?? 0} warnings=${board.health.coordinationWarnings.length} boardroom=${board.health.boardroomAutonomousRunActive ? 'ACTIVE' : 'inactive'}`,
   ];
+
+  if (board.health.hygiene) {
+    const h = board.health.hygiene;
+    lines.push(`Hygiene: totalWorktrees=${h.totalWorktrees} safeToPrune=${h.safeToPruneCount} dirtyDormant=${h.dirtyDormantCount} unmergedDormant=${h.unmergedDormantCount}`);
+  }
 
   if (board.health.coordinationWarnings.length > 0) {
     lines.push('', 'COORDINATION WARNINGS');
@@ -66,13 +78,19 @@ export function serializeMasterBoardJson(board: GridMasterBoard): string {
   return `${JSON.stringify(board, null, 2)}\n`;
 }
 export function renderMasterBoardMarkdown(board: GridMasterBoard): string {
+  const scanBadge = board.health.deepScan ? ' *(Deep Scan)*' : '';
   const lines = [
-    '# THE GRID — MASTER BOARD',
+    `# THE GRID — MASTER BOARD${scanBadge}`,
     '',
     `Generated: ${board.health.generatedAt}  `,
     `Integration ref: ${board.health.integrationRef ?? 'UNKNOWN'}${board.health.integrationCommit ? ` @ ${board.health.integrationCommit.slice(0, 8)}` : ''}  `,
-    `Health: ${board.health.liveClaimCount} live claims · ${board.health.staleClaimCount} stale · ${board.health.coordinationWarnings.length} coordination warnings`,
+    `Health: ${board.health.liveClaimCount} live claims · ${board.health.staleClaimCount} stale · ${board.health.safeNextWorkCount ?? 0} safe next · ${board.health.dirtyDormantCount ?? 0} dirty dormant · ${board.health.coordinationWarnings.length} coordination warnings`,
   ];
+
+  if (board.health.hygiene) {
+    const h = board.health.hygiene;
+    lines.push(`Hygiene: ${h.totalWorktrees} worktrees (${h.safeToPruneCount} safe to prune, ${h.dirtyDormantCount} dirty dormant, ${h.unmergedDormantCount} unmerged dormant)`);
+  }
 
   if (board.health.coordinationWarnings.length > 0) {
     lines.push('', '## COORDINATION WARNINGS');

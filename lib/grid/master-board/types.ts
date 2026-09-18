@@ -1,8 +1,13 @@
+import type { WorkspaceHygieneReport } from '../../agent-control';
+
 export type GridMilestoneStatus =
   | 'INTEGRATED'
   | 'READY_TO_INTEGRATE'
   | 'IN_PROGRESS'
+  | 'DIRTY_DORMANT'
   | 'BLOCKED'
+  | 'REJECTED'
+  | 'SAFE_NEXT_WORK'
   | 'PLANNED'
   | 'UNKNOWN';
 
@@ -30,6 +35,7 @@ export interface GridClaimEvidence {
   branch: string;
   stale: boolean;
 }
+
 export interface GridBranchEvidence {
   branch: string;
   clean: boolean;
@@ -38,6 +44,7 @@ export interface GridBranchEvidence {
   mergedIntoIntegration: boolean;
   onLocalMain: boolean;
   onOriginMain: boolean;
+  dirtyCount?: number;
 }
 
 export interface GridCommitEvidence {
@@ -52,6 +59,7 @@ export interface GridMilestoneEvidence {
   branches: GridBranchEvidence[];
   integrationMatches: GridCommitEvidence[];
   blockers: string[];
+  rejected: string[];
   warnings: string[];
   contradictions: string[];
 }
@@ -79,11 +87,21 @@ export interface GridBoardHealth {
   boardroomAutonomousRunActive: boolean;
   liveClaimCount: number;
   staleClaimCount: number;
+  safeNextWorkCount?: number;
+  dirtyDormantCount?: number;
   coordinationWarnings: Array<{ code: string; message: string }>;
+  deepScan?: boolean;
+  hygiene?: {
+    totalWorktrees: number;
+    safeToPruneCount: number;
+    dirtyDormantCount: number;
+    unmergedDormantCount: number;
+  };
 }
 
 export interface GridMasterBoard {
   version: 1;
   health: GridBoardHealth;
   milestones: GridMilestoneState[];
+  hygiene?: WorkspaceHygieneReport;
 }
