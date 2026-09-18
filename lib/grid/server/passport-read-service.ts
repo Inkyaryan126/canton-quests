@@ -1,10 +1,15 @@
 import type { GridPassportHistory } from '../core/passport-types';
-import type { GridPassportReadPort, GridPassportStoredProfile } from './passport-read-port';
+import type {
+  GridPassportCityLabel,
+  GridPassportReadPort,
+  GridPassportStoredProfile,
+} from './passport-read-port';
 
 export interface GridPassportView {
   homeCityId: string | null;
   globalReputation: number;
   history: GridPassportHistory;
+  cities: GridPassportCityLabel[];
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -103,9 +108,32 @@ export async function readGridPassport(
     throw new Error('Grid Passport stored global reputation is invalid');
   }
 
+  const history = parseHistory(profile);
+  const cityIds = [...new Set([
+    ...(profile.homeCityId ? [profile.homeCityId] : []),
+    ...history.stamps.map((stamp) => stamp.cityId),
+  ])];
+  const cityRows = cityIds.length > 0 ? await port.getCities(cityIds) : [];
+  const requested = new Set(cityIds);
+  const seen = new Set<string>();
+  const cities = cityRows.map((city) => {
+    if (!requested.has(city.cityId) || seen.has(city.cityId)) {
+      throw new Error('Grid Passport city directory returned inconsistent results');
+    }
+    if (![city.cityId, city.slug, city.name, city.regionCode, city.countryCode].every((value) => value.trim())) {
+      throw new Error('Grid Passport city directory returned invalid labels');
+    }
+    seen.add(city.cityId);
+    return { ...city };
+  });
+
+  const order = new Map(cityIds.map((cityId, index) => [cityId, index]));
+  cities.sort((a, b) => (order.get(a.cityId) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.cityId) ?? Number.MAX_SAFE_INTEGER));
+
   return {
     homeCityId: profile.homeCityId,
     globalReputation: profile.globalReputation,
-    history: parseHistory(profile),
+    history,
+    cities,
   };
 }

@@ -11,6 +11,13 @@ function port(passport: unknown): GridPassportReadPort {
       globalReputation: 12,
       passport,
     }),
+    getCities: vi.fn().mockImplementation(async (cityIds: readonly string[]) => cityIds.map((cityId) => ({
+      cityId,
+      slug: cityId === HOME ? 'home-city' : cityId,
+      name: cityId === HOME ? 'Home City' : 'City Two',
+      regionCode: 'OH',
+      countryCode: 'US',
+    }))),
   };
 }
 
@@ -20,6 +27,7 @@ describe('Grid Passport read service', () => {
       homeCityId: HOME,
       globalReputation: 12,
       history: { version: 1, homeCityId: HOME, citiesEntered: 0, entriesRecorded: 0, stamps: [] },
+      cities: [{ cityId: HOME, slug: 'home-city', name: 'Home City', regionCode: 'OH', countryCode: 'US' }],
     });
   });
 
@@ -52,7 +60,7 @@ describe('Grid Passport read service', () => {
   });
 
   it('returns null when the player has no Grid profile', async () => {
-    const p: GridPassportReadPort = { getProfile: vi.fn().mockResolvedValue(null) };
+    const p: GridPassportReadPort = { getProfile: vi.fn().mockResolvedValue(null), getCities: vi.fn() };
     await expect(readGridPassport(p, 'player-1')).resolves.toBeNull();
   });
 });

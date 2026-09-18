@@ -19,6 +19,8 @@ describe('Grid Passport read API contract', () => {
   it('reads only permanent profile state and never seasonal economy tables', () => {
     expect(adapter).toContain(".from('grid_player_profiles')");
     expect(adapter).toContain(".select('home_city_id,global_reputation,passport')");
+    expect(adapter).toContain(".from('grid_cities')");
+    expect(adapter).toContain(".select('id,slug,name,region_code,country_code')");
     expect(adapter).not.toContain('grid_player_season_state');
     expect(adapter).not.toContain('grid_game_events');
     expect(adapter).not.toMatch(/\.(insert|update|delete|upsert|rpc)\s*\(/);
