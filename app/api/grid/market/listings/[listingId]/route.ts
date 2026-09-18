@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { cantonFoundingSeasonPackage } from '@/lib/grid/cities/canton/founding-season';
-import { isGridMarketListingReadEnabled } from '@/lib/grid/server/market-listing-feature-flags';
+import {
+  isGridMarketListingReadEnabled,
+  isGridMarketListingWriteEnabled,
+} from '@/lib/grid/server/market-listing-feature-flags';
+import { cancelGridPlayerMarketListing } from '@/lib/grid/server/market-listing-action-service';
 import { getGridMarketListing } from '@/lib/grid/server/market-listing-read-service';
+import { createSupabaseGridMarketSettlementPort } from '@/lib/grid/server/supabase-market-settlement';
 import {
   createSupabaseGridMarketListingReadPort,
   resolveSupabaseGridMarketSeasonId,
@@ -79,6 +84,75 @@ export async function GET(
       error instanceof Error
         ? error.message
         : 'Failed to load the Grid market listing.';
+    return response({ success: false, error: message }, { status: 400 });
+  }
+}
+
+
+export async function DELETE(
+  request: Request,
+  context: { params: { listingId: string } },
+) {
+  const session = await resolveAuthenticatedSession(request);
+  const response = (body: unknown, init?: ResponseInit) => {
+    const result = NextResponse.json(body, init);
+    setAuthCookies(result, session.refreshedSession, session.player?.id);
+    return result;
+  };
+
+  if (!isGridMarketListingWriteEnabled()) {
+    return response(
+      { success: false, error: 'Grid market listing writes are not enabled.' },
+      { status: 404 },
+    );
+  }
+  if (!session.player) {
+    return response(
+      { success: false, error: 'Authentication required.' },
+      { status: 401 },
+    );
+  }
+
+  const listingId = context.params.listingId ?? '';
+  const body = await request.json().catch(() => ({}));
+  const idempotencyKey =
+    typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '';
+
+  if (!listingId.trim() || !idempotencyKey.trim()) {
+    return response(
+      { success: false, error: 'Missing listingId or idempotencyKey.' },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const seasonId = await resolveSupabaseGridMarketSeasonId(
+      cantonFoundingSeasonPackage,
+    );
+    if (!seasonId) {
+      return response(
+        { success: false, error: 'Grid season is not available.' },
+        { status: 404 },
+      );
+    }
+
+    const listing = await cancelGridPlayerMarketListing(
+      createSupabaseGridMarketSettlementPort(),
+      {
+        seasonId,
+        sellerPlayerId: session.player.id,
+        listingId,
+        idempotencyKey,
+        now: new Date().toISOString(),
+      },
+    );
+
+    return response({ success: true, listing });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to cancel Grid market listing.';
     return response({ success: false, error: message }, { status: 400 });
   }
 }

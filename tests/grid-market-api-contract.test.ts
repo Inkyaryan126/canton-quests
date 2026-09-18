@@ -54,6 +54,8 @@ describe('Grid market API contract', () => {
       expect(route).toContain('resolveAuthenticatedSession(request)');
       expect(route).toContain('Authentication required.');
       expect(route).toContain('export async function GET');
+    }
+    for (const route of [transactionsRoute, auctionDetailRoute]) {
       expect(route).not.toMatch(/export async function (POST|PUT|PATCH|DELETE)/);
     }
     expect(listingsRoute).toContain('viewerPlayerId: session.player.id');
@@ -70,6 +72,18 @@ describe('Grid market API contract', () => {
       expect(route).not.toMatch(/body\.buyerPlayerId/);
       expect(route).toContain('cantonFoundingSeasonPackage');
     }
+  });
+
+  it('derives seller identity and command time on the server for listing writes', () => {
+    expect(listingsRoute).toContain('export async function POST');
+    expect(listingsRoute).toContain('isGridMarketListingWriteEnabled()');
+    expect(listingsRoute).toContain('sellerPlayerId: session.player.id');
+    expect(listingsRoute).toContain('now: new Date().toISOString()');
+
+    expect(listingDetailRoute).toContain('export async function DELETE');
+    expect(listingDetailRoute).toContain('isGridMarketListingWriteEnabled()');
+    expect(listingDetailRoute).toContain('sellerPlayerId: session.player.id');
+    expect(listingDetailRoute).toContain('now: new Date().toISOString()');
   });
 
   it('derives the buyer identity and command time on the server for purchases', () => {
