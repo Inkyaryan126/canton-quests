@@ -10,7 +10,10 @@ import {
   type GridDynamicEventWorldProjection,
 } from '@/lib/grid/server/dynamic-event-world';
 import { listActiveGridDynamicEvents } from '@/lib/grid/server/dynamic-event-service';
-import { buildGridNpcStrongholdWorldProjection } from '@/lib/grid/server/npc-stronghold-world';
+import { listGridNpcStrongholdLiveWorld } from '@/lib/grid/server/npc-stronghold-live-service';
+import type { GridNpcStrongholdWorldProjection } from '@/lib/grid/server/npc-stronghold-world';
+import { createSupabaseGridNpcStrongholdRegistryPort } from '@/lib/grid/server/supabase-npc-stronghold-registry';
+import { createSupabaseGridNpcStrongholdRuntimeEvidencePort } from '@/lib/grid/server/supabase-npc-stronghold-runtime';
 import { createSupabaseGridDynamicEventPort } from '@/lib/grid/server/supabase-dynamic-events';
 import { readSupabaseGridWorldRuntime } from '@/lib/grid/server/supabase-world-projection';
 import { buildGridWorldProjection } from '@/lib/grid/server/world-projection';
@@ -49,10 +52,33 @@ export async function GET(request: Request) {
     now,
     generatedAt: now,
   });
-  const strongholds = buildGridNpcStrongholdWorldProjection(
-    cantonFoundingSeasonPackage,
-    [],
-  );
+  let strongholds: GridNpcStrongholdWorldProjection[] = [];
+  if (runtimeEnabled) {
+    try {
+      const strongholdRuntime = await listGridNpcStrongholdLiveWorld(
+        createSupabaseGridNpcStrongholdRegistryPort(),
+        createSupabaseGridNpcStrongholdRuntimeEvidencePort(),
+        cantonFoundingSeasonPackage,
+        now,
+      );
+      if (strongholdRuntime.status === 'ready') {
+        strongholds = strongholdRuntime.strongholds;
+      } else {
+        const strongholdWarning = 'Grid stronghold runtime incomplete';
+        runtimeWarning = runtimeWarning
+          ? runtimeWarning + '; ' + strongholdWarning
+          : strongholdWarning;
+      }
+    } catch (error) {
+      const strongholdWarning =
+        error instanceof Error
+          ? 'Grid stronghold runtime read failed'
+          : 'Grid stronghold runtime read failed';
+      runtimeWarning = runtimeWarning
+        ? runtimeWarning + '; ' + strongholdWarning
+        : strongholdWarning;
+    }
+  }
 
   let dynamicEvents: GridDynamicEventWorldProjection[] = [];
   if (runtimeEnabled) {

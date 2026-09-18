@@ -14,10 +14,24 @@ describe('Grid NPC strongholds world API wiring', () => {
     const route = readWorldRoute();
 
     expect(route).toContain(
-      "import { buildGridNpcStrongholdWorldProjection } from '@/lib/grid/server/npc-stronghold-world';",
+      "import { listGridNpcStrongholdLiveWorld } from '@/lib/grid/server/npc-stronghold-live-service';",
     );
-    expect(route).toContain('const strongholds = buildGridNpcStrongholdWorldProjection(');
+    expect(route).toContain('createSupabaseGridNpcStrongholdRegistryPort()');
+    expect(route).toContain('createSupabaseGridNpcStrongholdRuntimeEvidencePort()');
+    expect(route).toContain('await listGridNpcStrongholdLiveWorld(');
+    expect(route).toContain('strongholds = strongholdRuntime.strongholds');
     expect(route).toContain('strongholds,');
+    expect(route).not.toContain('buildGridNpcStrongholdWorldProjection(\n    cantonFoundingSeasonPackage,\n    [],');
+  });
+
+
+  it('fails soft without exposing exact stronghold readiness facts on the world response', () => {
+    const route = readWorldRoute();
+
+    expect(route).toContain("const strongholdWarning = 'Grid stronghold runtime incomplete'");
+    expect(route).toContain("'Grid stronghold runtime read failed'");
+    expect(route).not.toContain('strongholdRuntime.missingFacts');
+    expect(route).not.toContain('missingFacts: strongholdRuntime');
   });
 
   it('keeps stronghold exposure additive and leaves the world endpoint read-only', () => {
