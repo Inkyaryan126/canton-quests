@@ -17,6 +17,9 @@ describe('Grid PvE stronghold player API', () => {
     expect(list).toContain('listGridNpcStrongholdLiveWorld');
     expect(list).not.toContain('missingFacts: result.missingFacts');
     expect(list).toContain('Grid strongholds are temporarily unavailable.');
+    expect(list).toContain('readSupabaseGridWorldRuntime');
+    expect(list).toContain('attackSourceTerritorySlugs');
+    expect(list).toContain('targetNeutral');
   });
 
   it('accepts player-safe source territory slugs rather than database ids', () => {

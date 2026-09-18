@@ -4,6 +4,7 @@ import { isGridWorldReadEnabled } from '@/lib/grid/server/feature-flags';
 import { listGridNpcStrongholdLiveWorld } from '@/lib/grid/server/npc-stronghold-live-service';
 import { createSupabaseGridNpcStrongholdRegistryPort } from '@/lib/grid/server/supabase-npc-stronghold-registry';
 import { createSupabaseGridNpcStrongholdRuntimeEvidencePort } from '@/lib/grid/server/supabase-npc-stronghold-runtime';
+import { readSupabaseGridWorldRuntime } from '@/lib/grid/server/supabase-world-projection';
 import {
   resolveAuthenticatedSession,
   setAuthCookies,
@@ -45,7 +46,39 @@ export async function GET(request: Request) {
         { status: 503 },
       );
     }
-    return response({ success: true, strongholds: result.strongholds });
+
+    const runtime = await readSupabaseGridWorldRuntime(
+      cantonFoundingSeasonPackage,
+      session.player.id,
+    );
+    const runtimeTerritories = runtime?.territories ?? [];
+    const ownerByTerritorySlug = new Map(
+      runtimeTerritories.map((territory) => [
+        territory.territorySlug,
+        territory.ownerPlayerId,
+      ] as const),
+    );
+    const ownedTerritorySlugs = new Set(
+      runtimeTerritories
+        .filter((territory) => territory.ownerPlayerId === session.player?.id)
+        .map((territory) => territory.territorySlug),
+    );
+    const attackSourcesFor = (targetTerritorySlug: string) =>
+      cantonFoundingSeasonPackage.edges
+        .flatMap((edge) => {
+          if (edge.a === targetTerritorySlug && ownedTerritorySlugs.has(edge.b)) return [edge.b];
+          if (edge.b === targetTerritorySlug && ownedTerritorySlugs.has(edge.a)) return [edge.a];
+          return [];
+        })
+        .sort();
+
+    const strongholds = result.strongholds.map((stronghold) => ({
+      ...stronghold,
+      targetNeutral: !ownerByTerritorySlug.get(stronghold.target.territorySlug),
+      attackSourceTerritorySlugs: attackSourcesFor(stronghold.target.territorySlug),
+    }));
+
+    return response({ success: true, strongholds });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to read Grid strongholds.';
