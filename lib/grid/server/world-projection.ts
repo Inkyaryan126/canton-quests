@@ -1,4 +1,7 @@
-import { getNextDevelopmentLevel } from '../core/development';
+import {
+  getDevelopmentBonusesThroughLevel,
+  getNextDevelopmentLevel,
+} from '../core/development';
 import {
   GRID_DEVELOPMENT_BRANCHES,
   type GridDevelopmentBranch,
@@ -6,7 +9,10 @@ import {
 } from '../core/economy-types';
 import {
   resolvePropertyAcquisitionCost,
+  resolvePropertyIncomeRate,
   resolveTerritoryClaimCost,
+  resolveTerritoryIncomeRate,
+  settleGridResources,
 } from '../core/resources';
 import { computeSkylineComponents, matchSkylineRules } from '../core/skyline';
 import { projectTerritoryControl } from '../core/territory-control';
@@ -34,6 +40,8 @@ export interface GridWorldRuntimePlayerState {
   influence: number;
   commandPoints: number;
   resourcesSettledAt: string;
+  creditsAccrualRemainder?: number;
+  influenceAccrualRemainder?: number;
 }
 
 export interface GridWorldRuntimeContestState {
@@ -78,6 +86,13 @@ export interface GridWorldProjection {
       dice: number;
       affordable: boolean;
     }>;
+    income: {
+      pendingCredits: number;
+      pendingInfluence: number;
+      creditsPerHour: number;
+      influencePerHour: number;
+      collectibleAt: string | null;
+    } | null;
     activeContests: Array<{
       contestId: string;
       role: 'attacker' | 'defender';
@@ -155,11 +170,39 @@ function canAfford(
       wallet.commandPoints >= cost.commandPoints,
   );
 }
+
+const HOUR_MS = 60 * 60 * 1000;
+
+function msUntilWholeResource(
+  ratePerHour: number,
+  remainder: number,
+): number | null {
+  if (ratePerHour <= 0) return null;
+  return Math.max(1, Math.ceil((HOUR_MS - remainder) / ratePerHour));
+}
+
+function nextCollectibleAt(
+  generatedAt: string,
+  creditsPerHour: number,
+  influencePerHour: number,
+  creditsRemainder: number,
+  influenceRemainder: number,
+): string | null {
+  const waits = [
+    msUntilWholeResource(creditsPerHour, creditsRemainder),
+    msUntilWholeResource(influencePerHour, influenceRemainder),
+  ].filter((value): value is number => value !== null);
+
+  if (waits.length === 0) return null;
+  return new Date(Date.parse(generatedAt) + Math.min(...waits)).toISOString();
+}
+
 export function buildGridWorldProjection(
   pkg: GridCityPackage,
   options: {
     viewerPlayerId?: string | null;
     runtime?: GridWorldRuntimeSnapshot | null;
+    generatedAt?: string | null;
   } = {},
 ): GridWorldProjection {
   const viewerPlayerId = options.viewerPlayerId ?? null;
@@ -363,6 +406,73 @@ export function buildGridWorldProjection(
           }))
       : [];
 
+  let income: GridWorldProjection['player']['income'] = null;
+  const generatedAt =
+    options.generatedAt ?? runtime?.playerState?.resourcesSettledAt ?? null;
+
+  if (
+    economy &&
+    runtime?.playerState &&
+    generatedAt &&
+    Number.isFinite(Date.parse(generatedAt))
+  ) {
+    let creditsPerHour = 0;
+    let influencePerHour = 0;
+
+    for (const territorySlug of control.ownedTerritorySlugs) {
+      const rate = resolveTerritoryIncomeRate(economy, territorySlug);
+      creditsPerHour += rate.creditsPerHour;
+      influencePerHour += rate.influencePerHour;
+    }
+
+    for (const property of yourPropertyStates) {
+      const rate = resolvePropertyIncomeRate(economy, property.propertySlug);
+      creditsPerHour += rate.creditsPerHour;
+      influencePerHour += rate.influencePerHour;
+
+      if (property.developmentBranch && property.developmentLevel > 0) {
+        const bonuses = getDevelopmentBonusesThroughLevel(
+          economy.development,
+          property.developmentBranch,
+          property.developmentLevel,
+        );
+        creditsPerHour += bonuses.creditsPerHour;
+        influencePerHour += bonuses.influencePerHour;
+      }
+    }
+
+    const settlement = settleGridResources({
+      credits: runtime.playerState.credits,
+      influence: runtime.playerState.influence,
+      creditsPerHour,
+      influencePerHour,
+      remainders: {
+        credits: runtime.playerState.creditsAccrualRemainder ?? 0,
+        influence: runtime.playerState.influenceAccrualRemainder ?? 0,
+      },
+      lastSettledAtMs: Date.parse(runtime.playerState.resourcesSettledAt),
+      nowMs: Date.parse(generatedAt),
+      offlineAccrualCapMinutes: economy.offlineAccrualCapMinutes,
+    });
+
+    income = {
+      pendingCredits: settlement.creditsEarned,
+      pendingInfluence: settlement.influenceEarned,
+      creditsPerHour,
+      influencePerHour,
+      collectibleAt:
+        settlement.creditsEarned > 0 || settlement.influenceEarned > 0
+          ? null
+          : nextCollectibleAt(
+              generatedAt,
+              creditsPerHour,
+              influencePerHour,
+              settlement.remainders.credits,
+              settlement.remainders.influence,
+            ),
+    };
+  }
+
   return {
     version: 1,
     readOnly: true,
@@ -379,6 +489,7 @@ export function buildGridWorldProjection(
       joined,
       wallet: runtime?.playerState ?? null,
       attackCommitOptions,
+      income,
       activeContests,
     },
     counts: {

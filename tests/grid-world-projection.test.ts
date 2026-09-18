@@ -5,6 +5,8 @@ import { cantonFoundingSeasonPackage } from '../lib/grid/cities/canton/founding-
 import {
   resolvePropertyAcquisitionCost,
   resolveTerritoryClaimCost,
+  resolveTerritoryIncomeRate,
+  settleGridResources,
 } from '../lib/grid/core/resources';
 import { buildGridWorldProjection } from '../lib/grid/server/world-projection';
 
@@ -156,6 +158,92 @@ describe('Grid player-visible world projection', () => {
         (option) => option.level === 1 && option.affordable,
       ),
     ).toBe(true);
+  });
+
+  it('projects live income with the exact core settlement math and next collectible time', () => {
+    const economy = cantonFoundingSeasonPackage.seasonTemplate.economy!;
+    const territorySlug = economy.neutralClaims.starterTerritorySlugs[0];
+    const settledAt = '2026-09-18T05:00:00.000Z';
+    const generatedAt = '2026-09-18T06:00:00.000Z';
+    const rate = resolveTerritoryIncomeRate(economy, territorySlug);
+    const expected = settleGridResources({
+      credits: 1000,
+      influence: 100,
+      creditsPerHour: rate.creditsPerHour,
+      influencePerHour: rate.influencePerHour,
+      remainders: { credits: 0, influence: 0 },
+      lastSettledAtMs: Date.parse(settledAt),
+      nowMs: Date.parse(generatedAt),
+      offlineAccrualCapMinutes: economy.offlineAccrualCapMinutes,
+    });
+
+    const projection = buildGridWorldProjection(
+      cantonFoundingSeasonPackage,
+      {
+        viewerPlayerId: 'viewer-player',
+        generatedAt,
+        runtime: {
+          seasonId: 'season-1',
+          seasonStatus: 'active',
+          territories: [
+            {
+              territorySlug,
+              ownerPlayerId: 'viewer-player',
+              claimedAt: settledAt,
+            },
+          ],
+          properties: [],
+          playerState: {
+            credits: 1000,
+            influence: 100,
+            commandPoints: 5,
+            resourcesSettledAt: settledAt,
+            creditsAccrualRemainder: 0,
+            influenceAccrualRemainder: 0,
+          },
+        },
+      },
+    );
+
+    expect(projection.player.income).toEqual({
+      pendingCredits: expected.creditsEarned,
+      pendingInfluence: expected.influenceEarned,
+      creditsPerHour: rate.creditsPerHour,
+      influencePerHour: rate.influencePerHour,
+      collectibleAt: null,
+    });
+
+    const justSettled = buildGridWorldProjection(
+      cantonFoundingSeasonPackage,
+      {
+        viewerPlayerId: 'viewer-player',
+        generatedAt: settledAt,
+        runtime: {
+          seasonId: 'season-1',
+          seasonStatus: 'active',
+          territories: [
+            {
+              territorySlug,
+              ownerPlayerId: 'viewer-player',
+              claimedAt: settledAt,
+            },
+          ],
+          properties: [],
+          playerState: {
+            credits: 1000,
+            influence: 100,
+            commandPoints: 5,
+            resourcesSettledAt: settledAt,
+            creditsAccrualRemainder: 0,
+            influenceAccrualRemainder: 0,
+          },
+        },
+      },
+    );
+
+    expect(justSettled.player.income?.pendingCredits).toBe(0);
+    expect(justSettled.player.income?.pendingInfluence).toBe(0);
+    expect(justSettled.player.income?.collectibleAt).not.toBeNull();
   });
 
   it('projects only adjacent occupied contest targets and real Signal Dice commit bands', () => {

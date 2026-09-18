@@ -86,6 +86,25 @@ interface GridContestRoundResponse {
   error?: string;
 }
 
+interface GridIncomeCollectResponse {
+  success: boolean;
+  income?: {
+    credits: number;
+    influence: number;
+    commandPoints: number;
+    resourcesSettledAt: string;
+  };
+  error?: string;
+}
+
+function humanizeWait(milliseconds: number): string {
+  if (milliseconds <= 0) return 'ready now';
+  const seconds = Math.ceil(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return minutes > 0 ? `${minutes}m ${remainder}s` : `${remainder}s`;
+}
+
 function commandKey(scope: string): string {
   const storageKey = 'grid:world-command:' + scope;
   const existing = window.sessionStorage.getItem(storageKey);
@@ -206,6 +225,8 @@ export default function GridWorldClient({
   const [busyClaim, setBusyClaim] = useState<string | null>(null);
   const [busyPropertyAction, setBusyPropertyAction] = useState<string | null>(null);
   const [busyContestAction, setBusyContestAction] = useState<string | null>(null);
+  const [busyIncome, setBusyIncome] = useState(false);
+  const [clockMs, setClockMs] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
@@ -227,6 +248,12 @@ export default function GridWorldClient({
       );
     });
   }, [loadWorld]);
+
+  useEffect(() => {
+    setClockMs(Date.now());
+    const timer = window.setInterval(() => setClockMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const claimTerritory = async (territorySlug: string) => {
     const scope = 'claim:' + territorySlug;
@@ -353,6 +380,38 @@ export default function GridWorldClient({
     }
   };
 
+  const collectIncome = async () => {
+    const scope = 'income-collect';
+    setBusyIncome(true);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch('/api/grid/income/collect', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ idempotencyKey: commandKey(scope) }),
+      });
+      const payload = (await response.json()) as GridIncomeCollectResponse;
+      if (!response.ok || !payload.success || !payload.income) {
+        if (response.status === 404) {
+          throw new Error('Grid economy writes are not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Income collection failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice('Production collected into your Grid wallet.');
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Income collection failed.',
+      );
+    } finally {
+      setBusyIncome(false);
+    }
+  };
+
   const launchContest = async (
     sourceTerritorySlug: string,
     targetTerritorySlug: string,
@@ -452,6 +511,17 @@ export default function GridWorldClient({
 
   const bounds = useMemo(() => getBounds(projection), [projection]);
   const wallet = projection.player.wallet;
+  const income = projection.player.income;
+  const incomeReady = Boolean(
+    income &&
+      (income.pendingCredits > 0 ||
+        income.pendingInfluence > 0 ||
+        (income.collectibleAt && clockMs >= Date.parse(income.collectibleAt))),
+  );
+  const incomeWaitMs =
+    income?.collectibleAt
+      ? Math.max(0, Date.parse(income.collectibleAt) - clockMs)
+      : 0;
   const sourceLabel =
     projection.source === 'database'
       ? 'LIVE READ'
@@ -594,20 +664,73 @@ export default function GridWorldClient({
                 Player Economy
               </div>
               {wallet ? (
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  <div className="rounded-xl bg-white/[.04] p-3 text-center">
-                    <div className="font-display text-xl font-black">{wallet.credits}</div>
-                    <div className="mt-1 font-mono text-[9px] text-stone-500">CREDITS</div>
+                <>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="rounded-xl bg-white/[.04] p-3 text-center">
+                      <div className="font-display text-xl font-black">{wallet.credits}</div>
+                      <div className="mt-1 font-mono text-[9px] text-stone-500">CREDITS</div>
+                    </div>
+                    <div className="rounded-xl bg-white/[.04] p-3 text-center">
+                      <div className="font-display text-xl font-black">{wallet.influence}</div>
+                      <div className="mt-1 font-mono text-[9px] text-stone-500">INFLUENCE</div>
+                    </div>
+                    <div className="rounded-xl bg-white/[.04] p-3 text-center">
+                      <div className="font-display text-xl font-black">{wallet.commandPoints}</div>
+                      <div className="mt-1 font-mono text-[9px] text-stone-500">COMMAND</div>
+                    </div>
                   </div>
-                  <div className="rounded-xl bg-white/[.04] p-3 text-center">
-                    <div className="font-display text-xl font-black">{wallet.influence}</div>
-                    <div className="mt-1 font-mono text-[9px] text-stone-500">INFLUENCE</div>
-                  </div>
-                  <div className="rounded-xl bg-white/[.04] p-3 text-center">
-                    <div className="font-display text-xl font-black">{wallet.commandPoints}</div>
-                    <div className="mt-1 font-mono text-[9px] text-stone-500">COMMAND</div>
-                  </div>
-                </div>
+
+                  {income ? (
+                    <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[.035] p-3">
+                      <div className="font-mono text-[9px] font-black tracking-[.14em] text-stone-600">
+                        LIVE PRODUCTION
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded-lg bg-black/25 p-2.5">
+                          <div className="font-display text-lg font-black text-amber-100">
+                            +{income.pendingCredits}
+                          </div>
+                          <div className="mt-1 font-mono text-[8px] text-stone-500">
+                            CREDITS · {income.creditsPerHour}/HR
+                          </div>
+                        </div>
+                        <div className="rounded-lg bg-black/25 p-2.5">
+                          <div className="font-display text-lg font-black text-cyan-100">
+                            +{income.pendingInfluence}
+                          </div>
+                          <div className="mt-1 font-mono text-[8px] text-stone-500">
+                            INFLUENCE · {income.influencePerHour}/HR
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={
+                          !economyWriteEnabled ||
+                          !incomeReady ||
+                          busyIncome
+                        }
+                        onClick={() => void collectIncome()}
+                        className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-amber-300/25 bg-amber-300/[.08] px-3 py-2 font-display text-[11px] font-black uppercase tracking-[.08em] text-amber-100 transition hover:bg-amber-300/[.14] disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        {busyIncome ? (
+                          <Loader2
+                            size={13}
+                            className="animate-spin"
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        {!economyWriteEnabled
+                          ? 'Economy actions locked'
+                          : incomeReady
+                            ? 'Collect production'
+                            : income.collectibleAt
+                              ? `Ready in ${humanizeWait(incomeWaitMs)}`
+                              : 'No production available'}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
               ) : (
                 <p className="mt-3 text-sm leading-relaxed text-stone-400">
                   {projection.player.authenticated

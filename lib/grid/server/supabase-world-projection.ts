@@ -170,7 +170,9 @@ export async function readSupabaseGridWorldRuntime(
   if (viewerPlayerId) {
     const playerResult = await client
       .from('grid_player_season_state')
-      .select('credits,influence,command_points,resources_settled_at')
+      .select(
+        'credits,influence,command_points,resources_settled_at,credits_accrual_remainder,influence_accrual_remainder',
+      )
       .eq('season_id', season.id)
       .eq('player_id', viewerPlayerId)
       .maybeSingle();
@@ -180,6 +182,8 @@ export async function readSupabaseGridWorldRuntime(
       influence: number;
       command_points: number;
       resources_settled_at: string;
+      credits_accrual_remainder: number;
+      influence_accrual_remainder: number;
     } | null;
 
     if (row) {
@@ -188,6 +192,8 @@ export async function readSupabaseGridWorldRuntime(
         influence: Number(row.influence),
         commandPoints: Number(row.command_points),
         resourcesSettledAt: row.resources_settled_at,
+        creditsAccrualRemainder: Number(row.credits_accrual_remainder),
+        influenceAccrualRemainder: Number(row.influence_accrual_remainder),
       };
     }
   }
