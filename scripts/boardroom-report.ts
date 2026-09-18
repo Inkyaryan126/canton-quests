@@ -1,15 +1,16 @@
 /**
- * Regenerates boardroom/reports/MORNING_REPORT.md on demand from the
- * current task ledger and budget state, without running the supervisor.
- * Useful to check the report mid-run or after a manual intervention.
+ * Renders the current task ledger and budget state on demand, without
+ * running the supervisor. By default this is preview-only; use --export when
+ * a human deliberately wants to update the tracked checkout report.
  *
  *   npm run boardroom:report
+ *   npm run boardroom:report -- --export
  */
 import { execFileSync } from 'child_process';
 import { listTasks } from '../lib/boardroom/tasks';
 import { getBudgetState } from '../lib/boardroom/budget';
 import { getMarker } from '../lib/boardroom/runLifecycle';
-import { writeMorningReport } from '../lib/boardroom/report';
+import { renderMorningReport, writeMorningReportExport } from '../lib/boardroom/report';
 
 function currentCommit(): string {
   try {
@@ -25,7 +26,7 @@ function main() {
   const marker = getMarker();
   const head = currentCommit();
 
-  const content = writeMorningReport({
+  const input = {
     run: {
       runId: marker?.runId ?? '(no active run)',
       branch: marker?.branch ?? '(unknown)',
@@ -44,7 +45,11 @@ function main() {
     // up, so every task is honestly reported as "other" (untouched by any
     // run this command knows about) rather than guessing.
     touchedThisRunTaskIds: [],
-  });
+  };
+
+  const content = process.argv.includes('--export')
+    ? writeMorningReportExport(input)
+    : renderMorningReport(input);
 
   console.log(content);
 }

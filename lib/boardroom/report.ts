@@ -16,7 +16,7 @@
  * counts are computed only from that set; everything else is reported
  * separately as "prior/untouched" queue state.
  */
-import { morningReportFile } from './paths';
+import { morningReportExportFile, morningReportFile } from './paths';
 import { writeFileAtomic } from './atomicFile';
 import type { Task, AstraBudgetState, TaskStatus } from './types';
 
@@ -130,5 +130,15 @@ export function renderMorningReport(input: MorningReportInput): string {
 export function writeMorningReport(input: MorningReportInput, root?: string): string {
   const content = renderMorningReport(input);
   writeFileAtomic(morningReportFile(root), content);
+  return content;
+}
+
+/**
+ * Explicitly export a report into the tracked checkout for a human review or
+ * handoff. Autonomous callers must use writeMorningReport instead.
+ */
+export function writeMorningReportExport(input: MorningReportInput, root?: string): string {
+  const content = renderMorningReport(input);
+  writeFileAtomic(morningReportExportFile(root), content);
   return content;
 }
