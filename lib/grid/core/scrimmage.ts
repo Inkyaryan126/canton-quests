@@ -7,6 +7,7 @@ import type {
   GridLeaveScrimmageCommand,
   GridResolveScrimmageDuelCommand,
   GridScrimmageCombatantState,
+  GridScrimmageRoundRecord,
   GridScrimmageParticipant,
   GridScrimmageRules,
   GridScrimmageState,
@@ -73,6 +74,11 @@ function cloneMatch(
   return {
     ...match,
     combatants: match.combatants.map((combatant) => ({ ...combatant })),
+    roundHistory: match.roundHistory.map((round) => ({
+      ...round,
+      attackerRolls: [...round.attackerRolls],
+      defenderRolls: [...round.defenderRolls],
+    })),
     lastRound: match.lastRound
       ? {
           ...match.lastRound,
@@ -310,6 +316,7 @@ export function startGridScrimmage(
       startingInfluencePerPlayer: GRID_SCRIMMAGE_STARTING_INFLUENCE,
       roundNumber: 0,
       winnerPlayerId: null,
+      roundHistory: [],
       combatants: state.participants.map((participant) => ({
         playerId: participant.playerId,
         remainingInfluence: GRID_SCRIMMAGE_STARTING_INFLUENCE,
@@ -397,22 +404,25 @@ export function resolveGridScrimmageDuel(
       ? remainingCombatants[0].playerId
       : null;
 
+  const roundRecord: GridScrimmageRoundRecord = {
+    roundNumber,
+    attackerPlayerId,
+    defenderPlayerId,
+    attackerRolls: [...command.attackerRolls],
+    defenderRolls: [...command.defenderRolls],
+    attackerInfluenceLost: result.attackerInfluenceLost,
+    defenderInfluenceLost: result.defenderInfluenceLost,
+    winner,
+  };
+
   return updateState(state, {
     match: {
       ...state.match,
       roundNumber,
       winnerPlayerId,
+      roundHistory: [...state.match.roundHistory, roundRecord],
       combatants,
-      lastRound: {
-        roundNumber,
-        attackerPlayerId,
-        defenderPlayerId,
-        attackerRolls: [...command.attackerRolls],
-        defenderRolls: [...command.defenderRolls],
-        attackerInfluenceLost: result.attackerInfluenceLost,
-        defenderInfluenceLost: result.defenderInfluenceLost,
-        winner,
-      },
+      lastRound: roundRecord,
     },
   });
 }

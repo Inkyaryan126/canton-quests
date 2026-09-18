@@ -84,6 +84,12 @@ describe('GRID player Scrimmage UI', () => {
     expect(clientSource).toContain('LAST PLAYER STANDING');
   });
 
+  it('renders a readable round log from the persisted session history', () => {
+    expect(clientSource).toContain('ROUND LOG');
+    expect(clientSource).toContain('scrimmage.match.roundHistory');
+    expect(clientSource).toContain('.slice(-6)');
+  });
+
   it('uses private aliases instead of rendering raw database ids as names', () => {
     expect(clientSource).toContain("return 'YOU'");
     expect(clientSource).toContain("return 'HOST'");

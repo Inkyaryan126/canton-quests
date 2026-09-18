@@ -51,6 +51,7 @@ describe('GRID scrimmage Signal Duel', () => {
       startingInfluencePerPlayer: 100,
       roundNumber: 0,
       winnerPlayerId: null,
+      roundHistory: [],
       lastRound: null,
     });
     expect(
@@ -84,6 +85,7 @@ describe('GRID scrimmage Signal Duel', () => {
       attackerInfluenceLost: 0,
       defenderInfluenceLost: 20,
     });
+    expect(after.match?.roundHistory).toEqual([after.match?.lastRound]);
     expect(after.match?.combatants[0]).toMatchObject({
       remainingInfluence: 100,
       roundWins: 1,
@@ -94,6 +96,39 @@ describe('GRID scrimmage Signal Duel', () => {
       roundWins: 0,
       roundLosses: 1,
     });
+  });
+
+  it('keeps an ordered immutable round history across multiple duels', () => {
+    const before = activeScrimmage();
+    const first = resolveGridScrimmageDuel(
+      before,
+      {
+        attackerPlayerId: 'alpha',
+        defenderPlayerId: 'bravo',
+        attackerRolls: [6, 6, 6],
+        defenderRolls: [1, 1],
+      },
+      cantonFoundingSeasonContest,
+    );
+    const second = resolveGridScrimmageDuel(
+      first,
+      {
+        attackerPlayerId: 'bravo',
+        defenderPlayerId: 'alpha',
+        attackerRolls: [6, 6, 6],
+        defenderRolls: [1, 1],
+      },
+      cantonFoundingSeasonContest,
+    );
+
+    expect(before.match?.roundHistory).toEqual([]);
+    expect(first.match?.roundHistory).toHaveLength(1);
+    expect(second.match?.roundHistory).toHaveLength(2);
+    expect(second.match?.roundHistory.map((round) => round.roundNumber)).toEqual([
+      1,
+      2,
+    ]);
+    expect(first.match?.roundHistory).toHaveLength(1);
   });
 
   it('records split comparisons as a draw for both combatants', () => {
