@@ -13,6 +13,7 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
+import type { GridDevelopmentBranch } from '@/lib/grid/core/economy-types';
 import type { GridWorldProjection } from '@/lib/grid/server/world-projection';
 
 interface GridWorldResponse {
@@ -33,6 +34,22 @@ interface GridTerritoryClaimResponse {
     credits: number;
     influence: number;
     commandPoints: number;
+  };
+  error?: string;
+}
+
+interface GridPropertyActionResponse {
+  success: boolean;
+  property?: {
+    propertySlug: string;
+    creditsSpent: number;
+    commandPointsSpent: number;
+    credits: number;
+    influence: number;
+    commandPoints: number;
+    developmentBranch?: GridDevelopmentBranch;
+    developmentLevel?: number;
+    skylineFormed?: boolean;
   };
   error?: string;
 }
@@ -154,6 +171,7 @@ export default function GridWorldClient({
   const [economyWriteEnabled, setEconomyWriteEnabled] = useState(false);
   const [runtimeWarning, setRuntimeWarning] = useState<string | null>(null);
   const [busyClaim, setBusyClaim] = useState<string | null>(null);
+  const [busyPropertyAction, setBusyPropertyAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
@@ -213,6 +231,90 @@ export default function GridWorldClient({
       );
     } finally {
       setBusyClaim(null);
+    }
+  };
+
+  const acquireProperty = async (propertySlug: string) => {
+    const scope = 'property-acquire:' + propertySlug;
+    setBusyPropertyAction(scope);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch('/api/grid/properties/acquire', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          propertySlug,
+          idempotencyKey: commandKey(scope),
+        }),
+      });
+      const payload = (await response.json()) as GridPropertyActionResponse;
+      if (!response.ok || !payload.success || !payload.property) {
+        if (response.status === 404) {
+          throw new Error('Property economy actions are not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Property acquisition failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice(
+        'Property acquired. Spent ' +
+          payload.property.creditsSpent +
+          ' Credits and ' +
+          payload.property.commandPointsSpent +
+          ' Command.',
+      );
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Property acquisition failed.',
+      );
+    } finally {
+      setBusyPropertyAction(null);
+    }
+  };
+
+  const developProperty = async (
+    propertySlug: string,
+    branch: GridDevelopmentBranch,
+  ) => {
+    const scope = 'property-develop:' + propertySlug + ':' + branch;
+    setBusyPropertyAction(scope);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch('/api/grid/properties/develop', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          propertySlug,
+          branch,
+          idempotencyKey: commandKey(scope),
+        }),
+      });
+      const payload = (await response.json()) as GridPropertyActionResponse;
+      if (!response.ok || !payload.success || !payload.property) {
+        if (response.status === 404) {
+          throw new Error('Property economy actions are not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Property development failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice(
+        'Property developed to level ' +
+          String(payload.property.developmentLevel ?? '?') +
+          (payload.property.skylineFormed ? ' — Skyline formed.' : '.'),
+      );
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Property development failed.',
+      );
+    } finally {
+      setBusyPropertyAction(null);
     }
   };
 
@@ -460,19 +562,134 @@ export default function GridWorldClient({
             <div className="rounded-3xl border border-white/10 bg-black/45 p-5">
               <div className="flex items-center gap-2 font-display text-lg font-black uppercase">
                 <Building2 size={18} className="text-cyan-300" />
-                Property Layer
+                Property Actions
               </div>
-              <div className="mt-3 space-y-2">
-                {projection.properties.slice(0, 8).map((property) => (
-                  <div key={property.slug} className="flex items-center justify-between gap-3 border-b border-white/[.06] py-2 text-xs">
-                    <span className="truncate text-stone-300">{property.name}</span>
-                    <span className="font-mono text-[9px] text-stone-500">
-                      {property.developmentLevel > 0
-                        ? `${property.developmentBranch?.toUpperCase()} L${property.developmentLevel}`
-                        : property.ownership.toUpperCase()}
-                    </span>
+              <p className="mt-3 text-sm leading-relaxed text-stone-400">
+                Property actions appear only inside territory you control.
+                Acquisition and every upgrade are revalidated atomically on the server.
+              </p>
+              <div className="mt-4 space-y-3">
+                {projection.properties
+                  .filter(
+                    (property) =>
+                      property.acquirable || property.ownership === 'you',
+                  )
+                  .map((property) => (
+                    <div
+                      key={property.slug}
+                      className="rounded-xl border border-white/10 bg-white/[.025] p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-black text-stone-200">
+                            {property.name}
+                          </div>
+                          <div className="mt-1 font-mono text-[9px] text-stone-600">
+                            {property.territorySlug.toUpperCase()}
+                          </div>
+                        </div>
+                        <div className="font-mono text-[9px] text-cyan-100">
+                          {property.developmentLevel > 0
+                            ? `${property.developmentBranch?.toUpperCase()} L${property.developmentLevel}`
+                            : property.ownership === 'you'
+                              ? 'OWNED'
+                              : 'AVAILABLE'}
+                        </div>
+                      </div>
+
+                      {property.acquirable ? (
+                        <>
+                          <div className="mt-3 font-mono text-[9px] text-stone-500">
+                            ACQUIRE · {property.acquisitionCost.credits} CR ·{' '}
+                            {property.acquisitionCost.commandPoints} CP
+                          </div>
+                          <button
+                            type="button"
+                            disabled={
+                              !economyWriteEnabled ||
+                              !property.affordableToAcquire ||
+                              busyPropertyAction !== null
+                            }
+                            onClick={() => void acquireProperty(property.slug)}
+                            className="mt-2 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-300/[.08] px-3 py-2 font-display text-[11px] font-black uppercase tracking-[.08em] text-cyan-100 transition hover:bg-cyan-300/[.14] disabled:cursor-not-allowed disabled:opacity-35"
+                          >
+                            {busyPropertyAction ===
+                            'property-acquire:' + property.slug ? (
+                              <Loader2
+                                size={13}
+                                className="animate-spin"
+                                aria-hidden="true"
+                              />
+                            ) : null}
+                            {!economyWriteEnabled
+                              ? 'Property actions locked'
+                              : property.affordableToAcquire
+                                ? 'Acquire property'
+                                : 'Resources required'}
+                          </button>
+                        </>
+                      ) : null}
+
+                      {property.ownership === 'you' ? (
+                        property.developmentOptions.length > 0 ? (
+                          <div className="mt-3 grid gap-2">
+                            {property.developmentOptions.map((option) => {
+                              const actionKey =
+                                'property-develop:' +
+                                property.slug +
+                                ':' +
+                                option.branch;
+                              return (
+                                <button
+                                  key={option.branch}
+                                  type="button"
+                                  disabled={
+                                    !economyWriteEnabled ||
+                                    !option.affordable ||
+                                    busyPropertyAction !== null
+                                  }
+                                  onClick={() =>
+                                    void developProperty(
+                                      property.slug,
+                                      option.branch,
+                                    )
+                                  }
+                                  className="rounded-lg border border-cyan-300/20 bg-cyan-300/[.055] p-2.5 text-left disabled:cursor-not-allowed disabled:opacity-35"
+                                >
+                                  <span className="font-display text-[11px] font-black uppercase text-cyan-100">
+                                    {option.branch} · Level {option.level}
+                                  </span>
+                                  <span className="mt-1 block font-mono text-[9px] text-stone-500">
+                                    {option.cost.credits} CR ·{' '}
+                                    {option.cost.commandPoints} CP
+                                  </span>
+                                  {busyPropertyAction === actionKey ? (
+                                    <Loader2
+                                      size={12}
+                                      className="mt-2 animate-spin"
+                                      aria-hidden="true"
+                                    />
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="mt-3 rounded-lg border border-white/10 bg-white/[.02] px-3 py-2 font-mono text-[9px] text-stone-500">
+                            NO FURTHER UPGRADE AVAILABLE
+                          </div>
+                        )
+                      ) : null}
+                    </div>
+                  ))}
+                {projection.properties.every(
+                  (property) =>
+                    !property.acquirable && property.ownership !== 'you',
+                ) ? (
+                  <div className="rounded-xl border border-white/10 bg-white/[.02] px-3 py-3 text-xs text-stone-500">
+                    Control territory containing a property to unlock acquisition and development here.
                   </div>
-                ))}
+                ) : null}
               </div>
             </div>
 

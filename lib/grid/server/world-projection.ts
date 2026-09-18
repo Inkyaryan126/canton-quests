@@ -1,5 +1,13 @@
-import type { GridDevelopmentBranch } from '../core/economy-types';
-import { resolveTerritoryClaimCost } from '../core/resources';
+import { getNextDevelopmentLevel } from '../core/development';
+import {
+  GRID_DEVELOPMENT_BRANCHES,
+  type GridDevelopmentBranch,
+  type GridEconomyCost,
+} from '../core/economy-types';
+import {
+  resolvePropertyAcquisitionCost,
+  resolveTerritoryClaimCost,
+} from '../core/resources';
 import { computeSkylineComponents, matchSkylineRules } from '../core/skyline';
 import { projectTerritoryControl } from '../core/territory-control';
 import type { GridCityPackage } from '../core/types';
@@ -102,8 +110,18 @@ export interface GridWorldProjection {
     point?: GridCityPackage['city']['mapCenter'];
     geometry?: GeoJSON.MultiPolygon;
     ownership: GridWorldOwnership;
+    territoryOwnership: GridWorldOwnership;
+    acquisitionCost: GridEconomyCost;
+    acquirable: boolean;
+    affordableToAcquire: boolean;
     developmentBranch: GridDevelopmentBranch | null;
     developmentLevel: number;
+    developmentOptions: Array<{
+      branch: GridDevelopmentBranch;
+      level: number;
+      cost: GridEconomyCost;
+      affordable: boolean;
+    }>;
     conditionBps: number;
   }>;
   validClaimSlugs: string[];
@@ -118,6 +136,17 @@ export interface GridWorldProjection {
 function ownershipFor(ownerPlayerId: string | null | undefined, viewerPlayerId: string | null): GridWorldOwnership {
   if (!ownerPlayerId) return 'neutral';
   return viewerPlayerId && ownerPlayerId === viewerPlayerId ? 'you' : 'occupied';
+}
+
+function canAfford(
+  wallet: GridWorldRuntimePlayerState | null,
+  cost: GridEconomyCost,
+): boolean {
+  return Boolean(
+    wallet &&
+      wallet.credits >= cost.credits &&
+      wallet.commandPoints >= cost.commandPoints,
+  );
 }
 export function buildGridWorldProjection(
   pkg: GridCityPackage,
@@ -203,17 +232,62 @@ export function buildGridWorldProjection(
     };
   });
 
+  const territoryOwnershipBySlug = new Map(
+    territories.map((territory) => [territory.slug, territory.ownership] as const),
+  );
+
   const properties = pkg.properties.map((property) => {
     const state = propertyRuntime.get(property.slug);
+    const ownership = ownershipFor(state?.ownerPlayerId, viewerPlayerId);
+    const territoryOwnership =
+      territoryOwnershipBySlug.get(property.territorySlug) ?? 'neutral';
+    const acquisitionCost = economy
+      ? resolvePropertyAcquisitionCost(economy, property.slug)
+      : { credits: 0, commandPoints: 0 };
+    const acquirable =
+      joined && ownership === 'neutral' && territoryOwnership === 'you';
+    const developmentBranch = state?.developmentBranch ?? null;
+    const developmentLevel = state?.developmentLevel ?? 0;
+    const branches =
+      ownership === 'you'
+        ? developmentBranch
+          ? [developmentBranch]
+          : [...GRID_DEVELOPMENT_BRANCHES]
+        : [];
+    const developmentOptions =
+      economy && ownership === 'you'
+        ? branches.flatMap((branch) => {
+            const next = getNextDevelopmentLevel(
+              economy.development,
+              branch,
+              developmentLevel,
+            );
+            return next
+              ? [{
+                  branch,
+                  level: next.level,
+                  cost: { ...next.cost },
+                  affordable: canAfford(runtime?.playerState ?? null, next.cost),
+                }]
+              : [];
+          })
+        : [];
+
     return {
       slug: property.slug,
       name: property.publicNameSafe ? property.name : 'Grid Property',
       territorySlug: property.territorySlug,
       point: property.point,
       geometry: property.geometry,
-      ownership: ownershipFor(state?.ownerPlayerId, viewerPlayerId),
-      developmentBranch: state?.developmentBranch ?? null,
-      developmentLevel: state?.developmentLevel ?? 0,
+      ownership,
+      territoryOwnership,
+      acquisitionCost,
+      acquirable,
+      affordableToAcquire:
+        acquirable && canAfford(runtime?.playerState ?? null, acquisitionCost),
+      developmentBranch,
+      developmentLevel,
+      developmentOptions,
       conditionBps: state?.conditionBps ?? 10000,
     };
   });

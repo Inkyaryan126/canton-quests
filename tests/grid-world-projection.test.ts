@@ -2,7 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cantonFoundingSeasonPackage } from '../lib/grid/cities/canton/founding-season';
-import { resolveTerritoryClaimCost } from '../lib/grid/core/resources';
+import {
+  resolvePropertyAcquisitionCost,
+  resolveTerritoryClaimCost,
+} from '../lib/grid/core/resources';
 import { buildGridWorldProjection } from '../lib/grid/server/world-projection';
 
 describe('Grid player-visible world projection', () => {
@@ -62,6 +65,97 @@ describe('Grid player-visible world projection', () => {
       ),
     );
     expect(JSON.stringify(projection)).not.toContain('rival-secret-id');
+  });
+
+  it('projects property acquisition and development actions only inside territory you control', () => {
+    const territorySlug =
+      cantonFoundingSeasonPackage.seasonTemplate.economy!.neutralClaims
+        .starterTerritorySlugs[0];
+    const property = cantonFoundingSeasonPackage.properties.find(
+      (candidate) => candidate.territorySlug === territorySlug,
+    );
+    expect(property).toBeDefined();
+
+    const baseRuntime = {
+      seasonId: 'season-1',
+      seasonStatus: 'active',
+      territories: [
+        {
+          territorySlug,
+          ownerPlayerId: 'viewer-player',
+          claimedAt: '2026-09-18T05:00:00Z',
+        },
+      ],
+      playerState: {
+        credits: 10000,
+        influence: 100,
+        commandPoints: 20,
+        resourcesSettledAt: '2026-09-18T05:00:00Z',
+      },
+    };
+
+    const acquisition = buildGridWorldProjection(
+      cantonFoundingSeasonPackage,
+      {
+        viewerPlayerId: 'viewer-player',
+        runtime: {
+          ...baseRuntime,
+          properties: [],
+        },
+      },
+    );
+    const available = acquisition.properties.find(
+      (candidate) => candidate.slug === property!.slug,
+    );
+    expect(available).toMatchObject({
+      ownership: 'neutral',
+      territoryOwnership: 'you',
+      acquirable: true,
+      affordableToAcquire: true,
+      developmentOptions: [],
+    });
+    expect(available?.acquisitionCost).toEqual(
+      resolvePropertyAcquisitionCost(
+        cantonFoundingSeasonPackage.seasonTemplate.economy!,
+        property!.slug,
+      ),
+    );
+
+    const development = buildGridWorldProjection(
+      cantonFoundingSeasonPackage,
+      {
+        viewerPlayerId: 'viewer-player',
+        runtime: {
+          ...baseRuntime,
+          properties: [
+            {
+              propertySlug: property!.slug,
+              ownerPlayerId: 'viewer-player',
+              acquiredAt: '2026-09-18T05:05:00Z',
+              developmentBranch: null,
+              developmentLevel: 0,
+              conditionBps: 10000,
+            },
+          ],
+        },
+      },
+    );
+    const owned = development.properties.find(
+      (candidate) => candidate.slug === property!.slug,
+    );
+    expect(owned?.acquirable).toBe(false);
+    expect(owned?.developmentOptions.map((option) => option.branch)).toEqual([
+      'commerce',
+      'influence',
+      'fortress',
+      'intel',
+      'prestige',
+    ]);
+    expect(
+      owned?.developmentOptions.every(
+        (option) => option.level === 1 && option.affordable,
+      ),
+    ).toBe(true);
   });
 
   it('shows contested territory publicly but reveals reserve detail only to a participant', () => {
