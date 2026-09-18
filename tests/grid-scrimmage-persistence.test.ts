@@ -89,6 +89,12 @@ describe('GRID scrimmage persistence', () => {
     expect(adapter).toContain('match_state: row.match_state');
   });
 
+  it('normalizes pre-winner match rows for backward compatibility', () => {
+    expect(adapter).toContain(
+      'winnerPlayerId: row.match_state.winnerPlayerId ?? null',
+    );
+  });
+
   it('uses revision compare-and-swap instead of blind session updates', () => {
     expect(adapter).toContain(".eq('id', sessionId)");
     expect(adapter).toContain(

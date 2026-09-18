@@ -40,6 +40,7 @@ function mapRow(row: GridScrimmageRow): GridScrimmageState {
     match: row.match_state
       ? {
           ...row.match_state,
+          winnerPlayerId: row.match_state.winnerPlayerId ?? null,
           combatants: row.match_state.combatants.map((combatant) => ({
             ...combatant,
           })),
