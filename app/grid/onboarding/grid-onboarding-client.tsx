@@ -105,6 +105,22 @@ interface PropertyResponse {
   error?: string;
 }
 
+interface IncomeProjection {
+  state: 'unavailable' | 'income-not-started' | 'accumulating' | 'collectible';
+  pendingCredits: number;
+  pendingInfluence: number;
+  creditsPerHour: number;
+  influencePerHour: number;
+  collectibleAt: string | null;
+  wallet: { credits: number; influence: number; commandPoints: number } | null;
+}
+
+interface IncomeResponse {
+  success: boolean;
+  income?: IncomeProjection;
+  error?: string;
+}
+
 function commandKey(scope: string): string {
   const storageKey = 'grid:onboarding:' + scope + ':idempotency';
   const existing = window.sessionStorage.getItem(storageKey);
@@ -120,6 +136,15 @@ function clearCommandKey(scope: string): void {
 
 async function readJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
+}
+
+function humanizeWait(milliseconds: number): string {
+  if (milliseconds <= 0) return 'ready now';
+  const totalSeconds = Math.ceil(milliseconds / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
 }
 
 function ActionButton(props: {
@@ -167,6 +192,8 @@ export default function GridOnboardingClient() {
     useState<OnboardingProjection | null>(null);
   const [starters, setStarters] = useState<StarterProjection | null>(null);
   const [properties, setProperties] = useState<PropertyProjection | null>(null);
+  const [income, setIncome] = useState<IncomeProjection | null>(null);
+  const [clockMs, setClockMs] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -177,30 +204,38 @@ export default function GridOnboardingClient() {
     setLoading(true);
     setError(null);
     try {
-      const [statusResponse, starterResponse, propertyResponse] =
-        await Promise.all([
-          fetch('/api/grid/onboarding/status', { cache: 'no-store' }),
-          fetch('/api/grid/onboarding/starter-territories', {
-            cache: 'no-store',
-          }),
-          fetch('/api/grid/onboarding/properties', { cache: 'no-store' }),
-        ]);
+      const [
+        statusResponse,
+        starterResponse,
+        propertyResponse,
+        incomeResponse,
+      ] = await Promise.all([
+        fetch('/api/grid/onboarding/status', { cache: 'no-store' }),
+        fetch('/api/grid/onboarding/starter-territories', {
+          cache: 'no-store',
+        }),
+        fetch('/api/grid/onboarding/properties', { cache: 'no-store' }),
+        fetch('/api/grid/onboarding/income', { cache: 'no-store' }),
+      ]);
 
       if (
         statusResponse.status === 401 ||
         starterResponse.status === 401 ||
-        propertyResponse.status === 401
+        propertyResponse.status === 401 ||
+        incomeResponse.status === 401
       ) {
         setAuthRequired(true);
         setOnboarding(null);
         setStarters(null);
         setProperties(null);
+        setIncome(null);
         return;
       }
 
       const status = await readJson<OnboardingResponse>(statusResponse);
       const starter = await readJson<StarterResponse>(starterResponse);
       const property = await readJson<PropertyResponse>(propertyResponse);
+      const incomePayload = await readJson<IncomeResponse>(incomeResponse);
       if (!statusResponse.ok || !status.success || !status.onboarding) {
         throw new Error(status.error ?? 'Grid onboarding is unavailable.');
       }
@@ -222,11 +257,17 @@ export default function GridOnboardingClient() {
           property.error ?? 'Onboarding property feed is unavailable.',
         );
       }
+      if (!incomeResponse.ok || !incomePayload.success || !incomePayload.income) {
+        throw new Error(
+          incomePayload.error ?? 'Onboarding income feed is unavailable.',
+        );
+      }
 
       setAuthRequired(false);
       setOnboarding(status.onboarding);
       setStarters(starter.starterTerritories);
       setProperties(property.properties);
+      setIncome(incomePayload.income);
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : 'Grid onboarding unavailable.',
@@ -239,6 +280,12 @@ export default function GridOnboardingClient() {
   useEffect(() => {
     void loadState();
   }, [loadState]);
+
+  useEffect(() => {
+    setClockMs(Date.now());
+    const timer = window.setInterval(() => setClockMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const postAction = useCallback(
     async (
@@ -340,6 +387,27 @@ export default function GridOnboardingClient() {
       scope,
     );
   };
+
+  const collectIncome = () => {
+    const scope = 'first-income';
+    void postAction(
+      scope,
+      '/api/grid/onboarding/income/collect',
+      { idempotencyKey: commandKey(scope) },
+      scope,
+    );
+  };
+
+  const incomeReady =
+    income?.state === 'collectible' ||
+    Boolean(
+      income?.collectibleAt &&
+        clockMs >= Date.parse(income.collectibleAt),
+    );
+  const incomeWaitMs =
+    income?.collectibleAt
+      ? Math.max(0, Date.parse(income.collectibleAt) - clockMs)
+      : 0;
 
   return (
     <div className="min-h-screen bg-[#05080c] text-white">
@@ -736,6 +804,64 @@ export default function GridOnboardingClient() {
                         readable while the server state is reconciled.
                       </div>
                     )}
+                  </>
+                ) : nextStep?.id === 'observe-first-income' && income ? (
+                  <>
+                    <h2 className="mt-4 font-display text-4xl font-black uppercase">
+                      Collect your first income
+                    </h2>
+                    <p className="mt-3 max-w-xl text-sm leading-relaxed text-stone-400">
+                      Your territory and developed property are producing in
+                      real time. The preview below is read-only until at least
+                      one whole resource is ready to settle.
+                    </p>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-amber-300/20 bg-black/35 p-4">
+                        <div className="font-mono text-[9px] font-black tracking-[.14em] text-stone-600">
+                          CREDITS
+                        </div>
+                        <div className="mt-2 font-display text-3xl font-black text-amber-100">
+                          +{income.pendingCredits}
+                        </div>
+                        <div className="mt-1 text-xs text-stone-500">
+                          {income.creditsPerHour} per hour
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-cyan-300/20 bg-black/35 p-4">
+                        <div className="font-mono text-[9px] font-black tracking-[.14em] text-stone-600">
+                          INFLUENCE
+                        </div>
+                        <div className="mt-2 font-display text-3xl font-black text-cyan-100">
+                          +{income.pendingInfluence}
+                        </div>
+                        <div className="mt-1 text-xs text-stone-500">
+                          {income.influencePerHour} per hour
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={!incomeReady || busyAction !== null}
+                      onClick={collectIncome}
+                      className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-300 px-5 py-3 font-display text-sm font-black uppercase tracking-[.08em] text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {busyAction === 'first-income' ? (
+                        <Loader2
+                          size={17}
+                          className="animate-spin"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <Coins size={17} aria-hidden="true" />
+                      )}
+                      {incomeReady
+                        ? 'Collect first income'
+                        : income.collectibleAt
+                          ? `Ready in ${humanizeWait(incomeWaitMs)}`
+                          : 'Income not producing yet'}
+                    </button>
                   </>
                 ) : (
                   <>

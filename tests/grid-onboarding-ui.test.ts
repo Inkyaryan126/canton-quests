@@ -23,12 +23,13 @@ describe('Grid onboarding player UI contract', () => {
     expect(publicGrid).not.toContain('href="/grid/onboarding"');
   });
 
-  it('reads onboarding, starter, and property state from guarded APIs', () => {
+  it('reads onboarding, starter, property, and income state from guarded APIs', () => {
     expect(client).toContain("fetch('/api/grid/onboarding/status'");
     expect(client).toContain(
       "fetch('/api/grid/onboarding/starter-territories'",
     );
     expect(client).toContain("fetch('/api/grid/onboarding/properties'");
+    expect(client).toContain("fetch('/api/grid/onboarding/income'");
     expect(client).toContain("cache: 'no-store'");
   });
 
@@ -40,6 +41,7 @@ describe('Grid onboarding player UI contract', () => {
     );
     expect(client).toContain("'/api/grid/onboarding/properties/acquire'");
     expect(client).toContain("'/api/grid/onboarding/properties/develop'");
+    expect(client).toContain("'/api/grid/onboarding/income/collect'");
     expect(client).not.toContain('/api/grid/contests');
     expect(client).not.toContain('/api/grid/properties');
   });
@@ -85,6 +87,17 @@ describe('Grid onboarding player UI contract', () => {
     expect(client).toContain('option.cost.commandPoints');
     expect(client).toContain('!property.affordableToAcquire');
     expect(client).toContain('!option.affordable');
+  });
+
+  it('previews real first-income production and waits until a whole resource is collectible', () => {
+    expect(client).toContain("nextStep?.id === 'observe-first-income'");
+    expect(client).toContain('income.pendingCredits');
+    expect(client).toContain('income.pendingInfluence');
+    expect(client).toContain('income.creditsPerHour');
+    expect(client).toContain('income.influencePerHour');
+    expect(client).toContain('income.collectibleAt');
+    expect(client).toContain('humanizeWait(incomeWaitMs)');
+    expect(client).toContain('disabled={!incomeReady');
   });
 
   it('renders the complete nine-step projection rather than hard-coding progress', () => {
