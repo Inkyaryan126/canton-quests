@@ -1,4 +1,19 @@
-import type { GridDevelopmentBranch } from '../core/economy-types';
+import {
+  getDevelopmentBonusesThroughLevel,
+  getNextDevelopmentLevel,
+} from '../core/development';
+import {
+  GRID_DEVELOPMENT_BRANCHES,
+  type GridDevelopmentBranch,
+  type GridEconomyCost,
+} from '../core/economy-types';
+import {
+  resolvePropertyAcquisitionCost,
+  resolvePropertyIncomeRate,
+  resolveTerritoryClaimCost,
+  resolveTerritoryIncomeRate,
+  settleGridResources,
+} from '../core/resources';
 import { computeSkylineComponents, matchSkylineRules } from '../core/skyline';
 import { projectTerritoryControl } from '../core/territory-control';
 import type { GridCityPackage } from '../core/types';
@@ -28,6 +43,8 @@ export interface GridWorldRuntimePlayerState {
   influence: number;
   commandPoints: number;
   resourcesSettledAt: string;
+  creditsAccrualRemainder?: number;
+  influenceAccrualRemainder?: number;
 }
 
 export interface GridWorldRuntimeContestState {
@@ -77,6 +94,18 @@ export interface GridWorldProjection {
     authenticated: boolean;
     joined: boolean;
     wallet: GridWorldRuntimePlayerState | null;
+    attackCommitOptions: Array<{
+      influence: number;
+      dice: number;
+      affordable: boolean;
+    }>;
+    income: {
+      pendingCredits: number;
+      pendingInfluence: number;
+      creditsPerHour: number;
+      influencePerHour: number;
+      collectibleAt: string | null;
+    } | null;
     activeContests: Array<{
       contestId: string;
       role: 'attacker' | 'defender';
@@ -103,6 +132,9 @@ export interface GridWorldProjection {
     geometry?: GeoJSON.MultiPolygon;
     ownership: GridWorldOwnership;
     claimable: boolean;
+    claimCost: { credits: number; commandPoints: number };
+    attackable: boolean;
+    attackSourceSlugs: string[];
     starterEligible: boolean;
     contested: boolean;
   }>;
@@ -113,8 +145,18 @@ export interface GridWorldProjection {
     point?: GridCityPackage['city']['mapCenter'];
     geometry?: GeoJSON.MultiPolygon;
     ownership: GridWorldOwnership;
+    territoryOwnership: GridWorldOwnership;
+    acquisitionCost: GridEconomyCost;
+    acquirable: boolean;
+    affordableToAcquire: boolean;
     developmentBranch: GridDevelopmentBranch | null;
     developmentLevel: number;
+    developmentOptions: Array<{
+      branch: GridDevelopmentBranch;
+      level: number;
+      cost: GridEconomyCost;
+      affordable: boolean;
+    }>;
     conditionBps: number;
   }>;
   validClaimSlugs: string[];
@@ -130,6 +172,44 @@ function ownershipFor(ownerPlayerId: string | null | undefined, viewerPlayerId: 
   if (!ownerPlayerId) return 'neutral';
   return viewerPlayerId && ownerPlayerId === viewerPlayerId ? 'you' : 'occupied';
 }
+
+function canAfford(
+  wallet: GridWorldRuntimePlayerState | null,
+  cost: GridEconomyCost,
+): boolean {
+  return Boolean(
+    wallet &&
+      wallet.credits >= cost.credits &&
+      wallet.commandPoints >= cost.commandPoints,
+  );
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+
+function msUntilWholeResource(
+  ratePerHour: number,
+  remainder: number,
+): number | null {
+  if (ratePerHour <= 0) return null;
+  return Math.max(1, Math.ceil((HOUR_MS - remainder) / ratePerHour));
+}
+
+function nextCollectibleAt(
+  generatedAt: string,
+  creditsPerHour: number,
+  influencePerHour: number,
+  creditsRemainder: number,
+  influenceRemainder: number,
+): string | null {
+  const waits = [
+    msUntilWholeResource(creditsPerHour, creditsRemainder),
+    msUntilWholeResource(influencePerHour, influenceRemainder),
+  ].filter((value): value is number => value !== null);
+
+  if (waits.length === 0) return null;
+  return new Date(Date.parse(generatedAt) + Math.min(...waits)).toISOString();
+}
+
 export function buildGridWorldProjection(
   pkg: GridCityPackage,
   options: {
@@ -137,6 +217,7 @@ export function buildGridWorldProjection(
     runtime?: GridWorldRuntimeSnapshot | null;
     now?: string;
     surgeConfig?: GridSurgeConfig;
+    generatedAt?: string | null;
   } = {},
 ): GridWorldProjection {
   const viewerPlayerId = options.viewerPlayerId ?? null;
@@ -208,9 +289,37 @@ export function buildGridWorldProjection(
   const validClaimSlugs = joined ? control.validClaimSlugs : [];
   const validClaims = new Set(validClaimSlugs);
   const starterSlugs = new Set(economy?.neutralClaims.starterTerritorySlugs ?? []);
+  const ownedTerritorySlugs = new Set(control.ownedTerritorySlugs);
+  const ownerByTerritorySlug = new Map(
+    pkg.territories.map((territory) => [
+      territory.slug,
+      territoryRuntime.get(territory.slug)?.ownerPlayerId ?? null,
+    ] as const),
+  );
+  const attackSourcesByTarget = new Map<string, Set<string>>();
+
+  if (joined && viewerPlayerId) {
+    const addAttackSource = (sourceSlug: string, targetSlug: string) => {
+      const targetOwner = ownerByTerritorySlug.get(targetSlug);
+      if (!targetOwner || targetOwner === viewerPlayerId) return;
+      const sources = attackSourcesByTarget.get(targetSlug) ?? new Set<string>();
+      sources.add(sourceSlug);
+      attackSourcesByTarget.set(targetSlug, sources);
+    };
+
+    for (const edge of pkg.edges) {
+      if (ownedTerritorySlugs.has(edge.a)) addAttackSource(edge.a, edge.b);
+      if (ownedTerritorySlugs.has(edge.b)) addAttackSource(edge.b, edge.a);
+    }
+  }
 
   const territories = pkg.territories.map((territory) => {
     const state = territoryRuntime.get(territory.slug);
+    const attackSourceSlugs = [
+      ...(attackSourcesByTarget.get(territory.slug) ?? new Set<string>()),
+    ].sort();
+    const contested = contestedTargets.has(territory.slug);
+
     return {
       slug: territory.slug,
       name: territory.name,
@@ -218,22 +327,72 @@ export function buildGridWorldProjection(
       geometry: territory.geometry,
       ownership: ownershipFor(state?.ownerPlayerId, viewerPlayerId),
       claimable: validClaims.has(territory.slug),
+      claimCost: economy
+        ? resolveTerritoryClaimCost(economy, territory.slug)
+        : { credits: 0, commandPoints: 0 },
+      attackable: attackSourceSlugs.length > 0 && !contested,
+      attackSourceSlugs,
       starterEligible: starterSlugs.has(territory.slug),
-      contested: contestedTargets.has(territory.slug),
+      contested,
     };
   });
 
+  const territoryOwnershipBySlug = new Map(
+    territories.map((territory) => [territory.slug, territory.ownership] as const),
+  );
+
   const properties = pkg.properties.map((property) => {
     const state = propertyRuntime.get(property.slug);
+    const ownership = ownershipFor(state?.ownerPlayerId, viewerPlayerId);
+    const territoryOwnership =
+      territoryOwnershipBySlug.get(property.territorySlug) ?? 'neutral';
+    const acquisitionCost = economy
+      ? resolvePropertyAcquisitionCost(economy, property.slug)
+      : { credits: 0, commandPoints: 0 };
+    const acquirable =
+      joined && ownership === 'neutral' && territoryOwnership === 'you';
+    const developmentBranch = state?.developmentBranch ?? null;
+    const developmentLevel = state?.developmentLevel ?? 0;
+    const branches =
+      ownership === 'you'
+        ? developmentBranch
+          ? [developmentBranch]
+          : [...GRID_DEVELOPMENT_BRANCHES]
+        : [];
+    const developmentOptions =
+      economy && ownership === 'you'
+        ? branches.flatMap((branch) => {
+            const next = getNextDevelopmentLevel(
+              economy.development,
+              branch,
+              developmentLevel,
+            );
+            return next
+              ? [{
+                  branch,
+                  level: next.level,
+                  cost: { ...next.cost },
+                  affordable: canAfford(runtime?.playerState ?? null, next.cost),
+                }]
+              : [];
+          })
+        : [];
+
     return {
       slug: property.slug,
       name: property.publicNameSafe ? property.name : 'Grid Property',
       territorySlug: property.territorySlug,
       point: property.point,
       geometry: property.geometry,
-      ownership: ownershipFor(state?.ownerPlayerId, viewerPlayerId),
-      developmentBranch: state?.developmentBranch ?? null,
-      developmentLevel: state?.developmentLevel ?? 0,
+      ownership,
+      territoryOwnership,
+      acquisitionCost,
+      acquirable,
+      affordableToAcquire:
+        acquirable && canAfford(runtime?.playerState ?? null, acquisitionCost),
+      developmentBranch,
+      developmentLevel,
+      developmentOptions,
       conditionBps: state?.conditionBps ?? 10000,
     };
   });
@@ -257,6 +416,88 @@ export function buildGridWorldProjection(
         .filter((component) => component.ruleIds.length > 0)
     : [];
 
+  const attackCommitOptions =
+    joined && runtime?.playerState && pkg.seasonTemplate.contest
+      ? [...pkg.seasonTemplate.contest.attacker.bands]
+          .sort(
+            (a, b) =>
+              a.minCommittedInfluence - b.minCommittedInfluence,
+          )
+          .map((band) => ({
+            influence: band.minCommittedInfluence,
+            dice: band.dice,
+            affordable:
+              runtime.playerState!.influence >= band.minCommittedInfluence,
+          }))
+      : [];
+
+  let income: GridWorldProjection['player']['income'] = null;
+  const generatedAt =
+    options.generatedAt ?? runtime?.playerState?.resourcesSettledAt ?? null;
+
+  if (
+    economy &&
+    runtime?.playerState &&
+    generatedAt &&
+    Number.isFinite(Date.parse(generatedAt))
+  ) {
+    let creditsPerHour = 0;
+    let influencePerHour = 0;
+
+    for (const territorySlug of control.ownedTerritorySlugs) {
+      const rate = resolveTerritoryIncomeRate(economy, territorySlug);
+      creditsPerHour += rate.creditsPerHour;
+      influencePerHour += rate.influencePerHour;
+    }
+
+    for (const property of yourPropertyStates) {
+      const rate = resolvePropertyIncomeRate(economy, property.propertySlug);
+      creditsPerHour += rate.creditsPerHour;
+      influencePerHour += rate.influencePerHour;
+
+      if (property.developmentBranch && property.developmentLevel > 0) {
+        const bonuses = getDevelopmentBonusesThroughLevel(
+          economy.development,
+          property.developmentBranch,
+          property.developmentLevel,
+        );
+        creditsPerHour += bonuses.creditsPerHour;
+        influencePerHour += bonuses.influencePerHour;
+      }
+    }
+
+    const settlement = settleGridResources({
+      credits: runtime.playerState.credits,
+      influence: runtime.playerState.influence,
+      creditsPerHour,
+      influencePerHour,
+      remainders: {
+        credits: runtime.playerState.creditsAccrualRemainder ?? 0,
+        influence: runtime.playerState.influenceAccrualRemainder ?? 0,
+      },
+      lastSettledAtMs: Date.parse(runtime.playerState.resourcesSettledAt),
+      nowMs: Date.parse(generatedAt),
+      offlineAccrualCapMinutes: economy.offlineAccrualCapMinutes,
+    });
+
+    income = {
+      pendingCredits: settlement.creditsEarned,
+      pendingInfluence: settlement.influenceEarned,
+      creditsPerHour,
+      influencePerHour,
+      collectibleAt:
+        settlement.creditsEarned > 0 || settlement.influenceEarned > 0
+          ? null
+          : nextCollectibleAt(
+              generatedAt,
+              creditsPerHour,
+              influencePerHour,
+              settlement.remainders.credits,
+              settlement.remainders.influence,
+            ),
+    };
+  }
+
   return {
     version: 1,
     readOnly: true,
@@ -279,6 +520,8 @@ export function buildGridWorldProjection(
       authenticated: Boolean(viewerPlayerId),
       joined,
       wallet: runtime?.playerState ?? null,
+      attackCommitOptions,
+      income,
       activeContests,
     },
     counts: {

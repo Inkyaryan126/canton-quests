@@ -23,11 +23,13 @@ describe('Grid onboarding player UI contract', () => {
     expect(publicGrid).not.toContain('href="/grid/onboarding"');
   });
 
-  it('reads onboarding progress and starter availability from existing APIs', () => {
+  it('reads onboarding, starter, property, and income state from guarded APIs', () => {
     expect(client).toContain("fetch('/api/grid/onboarding/status'");
     expect(client).toContain(
       "fetch('/api/grid/onboarding/starter-territories'",
     );
+    expect(client).toContain("fetch('/api/grid/onboarding/properties'");
+    expect(client).toContain("fetch('/api/grid/onboarding/income'");
     expect(client).toContain("cache: 'no-store'");
   });
 
@@ -37,6 +39,11 @@ describe('Grid onboarding player UI contract', () => {
     expect(client).toContain(
       "'/api/grid/onboarding/starter-territories/claim'",
     );
+    expect(client).toContain("'/api/grid/onboarding/properties/acquire'");
+    expect(client).toContain("'/api/grid/onboarding/properties/develop'");
+    expect(client).toContain("'/api/grid/onboarding/income/collect'");
+    expect(client).toContain("'/api/grid/onboarding/tutorial-contest'");
+    expect(client).toContain("'/api/grid/onboarding/unlock'");
     expect(client).not.toContain('/api/grid/contests');
     expect(client).not.toContain('/api/grid/properties');
   });
@@ -73,10 +80,62 @@ describe('Grid onboarding player UI contract', () => {
     expect(client).toContain("'Resources required'");
   });
 
+  it('renders the first property acquisition and five development branches from server costs', () => {
+    expect(client).toContain("nextStep?.id === 'complete-first-upgrade'");
+    expect(client).toContain('{property.acquisitionCost.credits} CR');
+    expect(client).toContain('{property.acquisitionCost.commandPoints} CP');
+    expect(client).toContain('property.developmentOptions.map');
+    expect(client).toContain('option.cost.credits');
+    expect(client).toContain('option.cost.commandPoints');
+    expect(client).toContain('!property.affordableToAcquire');
+    expect(client).toContain('!option.affordable');
+  });
+
+  it('previews real first-income production and waits until a whole resource is collectible', () => {
+    expect(client).toContain("nextStep?.id === 'observe-first-income'");
+    expect(client).toContain('income.pendingCredits');
+    expect(client).toContain('income.pendingInfluence');
+    expect(client).toContain('income.creditsPerHour');
+    expect(client).toContain('income.influencePerHour');
+    expect(client).toContain('income.collectibleAt');
+    expect(client).toContain('humanizeWait(incomeWaitMs)');
+    expect(client).toContain('disabled={!incomeReady');
+  });
+
+  it('runs a safe Signal Dice tutorial without exposing live contest mutation controls', () => {
+    expect(client).toContain("nextStep?.id === 'complete-tutorial-contest'");
+    expect(client).toContain('Roll practice dice');
+    expect(client).toContain('two attack dice against one defender die');
+    expect(client).toContain('Practice mode spends 0 Influence');
+    expect(client).toContain('tutorialResult.attackerRolls.map');
+    expect(client).toContain('tutorialResult.defenderRolls.map');
+    expect(client).toContain('ties favor the defender');
+    expect(client).not.toContain('sourceTerritoryId');
+    expect(client).not.toContain('targetTerritoryId');
+    expect(client).toContain(
+      'body: JSON.stringify({ idempotencyKey: commandKey(scope) })',
+    );
+  });
+
+  it('finishes the first-session sequence with the guarded full-city unlock', () => {
+    expect(client).toContain("nextStep?.id === 'unlock-full-city'");
+    expect(client).toContain('Unlock the full city');
+    expect(client).toContain('Unlock full city');
+    expect(client).toContain("busyAction === 'unlock-full-city'");
+    expect(client).toContain('persistent Canton City Board');
+  });
+
   it('renders the complete nine-step projection rather than hard-coding progress', () => {
     expect(client).toContain('onboarding.steps.map');
     expect(client).toContain('onboarding.completedCount');
     expect(client).toContain('onboarding.totalSteps');
     expect(client).toContain('onboarding?.nextStep');
+  });
+
+  it('hands authenticated players into the private City Board without exposing it publicly', () => {
+    expect(client).toContain('href="/grid/preview"');
+    expect(client).toContain('Open City Board');
+    expect(client).toContain('View your City Board');
+    expect(publicGrid).not.toContain('href="/grid/preview"');
   });
 });

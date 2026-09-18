@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Building2,
   Coins,
   Crosshair,
+  Loader2,
   MapPinned,
   Radio,
   ShieldCheck,
@@ -13,12 +14,15 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
+import type { GridDevelopmentBranch } from '@/lib/grid/core/economy-types';
 import type { GridWorldProjection } from '@/lib/grid/server/world-projection';
 import type { GridProgressionSnapshot, GridStatDefinition } from '@/lib/grid/core/progression-types';
 
 interface GridWorldResponse {
   projection: GridWorldProjection;
   runtimeEnabled: boolean;
+  economyWriteEnabled: boolean;
+  contestWriteEnabled: boolean;
   runtimeWarning: string | null;
 }
 
@@ -28,6 +32,100 @@ interface GridProgressionResponse {
   lifetime: GridProgressionSnapshot | null;
   statCatalog: GridStatDefinition[];
   warning: string | null;
+}
+
+interface GridTerritoryClaimResponse {
+  success: boolean;
+  claim?: {
+    territorySlug: string;
+    claimMode: 'starter' | 'adjacent';
+    claimedAt: string;
+    creditsSpent: number;
+    commandPointsSpent: number;
+    credits: number;
+    influence: number;
+    commandPoints: number;
+  };
+  error?: string;
+}
+
+interface GridPropertyActionResponse {
+  success: boolean;
+  property?: {
+    propertySlug: string;
+    creditsSpent: number;
+    commandPointsSpent: number;
+    credits: number;
+    influence: number;
+    commandPoints: number;
+    developmentBranch?: GridDevelopmentBranch;
+    developmentLevel?: number;
+    skylineFormed?: boolean;
+  };
+  error?: string;
+}
+
+interface GridContestLaunchResponse {
+  success: boolean;
+  contest?: {
+    outcome: 'contest-started' | 'captured-by-auto-retreat';
+    contestId?: string;
+    sourceTerritorySlug: string;
+    targetTerritorySlug: string;
+    attackerCommittedInfluence?: number;
+    defenderCommittedInfluence?: number;
+    status?: string;
+    startedAt?: string;
+    capturedAt?: string;
+  };
+  error?: string;
+}
+
+interface GridContestRoundResponse {
+  success: boolean;
+  contest?: {
+    contestId: string;
+    roundNumber: number;
+    status: string;
+    attackerRolls: number[];
+    defenderRolls: number[];
+    attackerRemainingInfluence: number;
+    defenderRemainingInfluence: number;
+    territoryCaptured: boolean;
+  };
+  error?: string;
+}
+
+interface GridIncomeCollectResponse {
+  success: boolean;
+  income?: {
+    credits: number;
+    influence: number;
+    commandPoints: number;
+    resourcesSettledAt: string;
+  };
+  error?: string;
+}
+
+function humanizeWait(milliseconds: number): string {
+  if (milliseconds <= 0) return 'ready now';
+  const seconds = Math.ceil(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return minutes > 0 ? `${minutes}m ${remainder}s` : `${remainder}s`;
+}
+
+function commandKey(scope: string): string {
+  const storageKey = 'grid:world-command:' + scope;
+  const existing = window.sessionStorage.getItem(storageKey);
+  if (existing) return existing;
+  const key = 'grid-world:' + scope + ':' + crypto.randomUUID();
+  window.sessionStorage.setItem(storageKey, key);
+  return key;
+}
+
+function clearCommandKey(scope: string): void {
+  window.sessionStorage.removeItem('grid:world-command:' + scope);
 }
 
 interface Bounds {
@@ -151,30 +249,43 @@ export default function GridWorldClient({
 }) {
   const [projection, setProjection] = useState(initialProjection);
   const [runtimeEnabled, setRuntimeEnabled] = useState(false);
+  const [economyWriteEnabled, setEconomyWriteEnabled] = useState(false);
+  const [contestWriteEnabled, setContestWriteEnabled] = useState(false);
   const [runtimeWarning, setRuntimeWarning] = useState<string | null>(null);
   const [progression, setProgression] = useState<GridProgressionSnapshot | null>(null);
   const [progressionCatalogCount, setProgressionCatalogCount] = useState(0);
   const [progressionWarning, setProgressionWarning] = useState<string | null>(null);
+  const [busyClaim, setBusyClaim] = useState<string | null>(null);
+  const [busyPropertyAction, setBusyPropertyAction] = useState<string | null>(null);
+  const [busyContestAction, setBusyContestAction] = useState<string | null>(null);
+  const [busyIncome, setBusyIncome] = useState(false);
+  const [clockMs, setClockMs] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  const loadWorld = useCallback(async () => {
+    const response = await fetch('/api/grid/world', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Grid world feed unavailable');
+    const data = (await response.json()) as GridWorldResponse;
+    setProjection(data.projection);
+    setRuntimeEnabled(data.runtimeEnabled);
+    setEconomyWriteEnabled(data.economyWriteEnabled);
+    setContestWriteEnabled(data.contestWriteEnabled);
+    setRuntimeWarning(data.runtimeWarning);
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch('/api/grid/world', { cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Grid world feed unavailable');
-        return (await response.json()) as GridWorldResponse;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setProjection(data.projection);
-        setRuntimeEnabled(data.runtimeEnabled);
-        setRuntimeWarning(data.runtimeWarning);
-      })
-      .catch((error) => {
-        if (!cancelled) setRuntimeWarning(error instanceof Error ? error.message : 'Grid world feed unavailable');
-      });
-    return () => {
-      cancelled = true;
-    };
+    void loadWorld().catch((error) => {
+      setRuntimeWarning(
+        error instanceof Error ? error.message : 'Grid world feed unavailable',
+      );
+    });
+  }, [loadWorld]);
+
+  useEffect(() => {
+    setClockMs(Date.now());
+    const timer = window.setInterval(() => setClockMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -202,8 +313,273 @@ export default function GridWorldClient({
     };
   }, []);
 
+  const claimTerritory = async (territorySlug: string) => {
+    const scope = 'claim:' + territorySlug;
+    setBusyClaim(territorySlug);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch('/api/grid/territories/claim', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          territorySlug,
+          idempotencyKey: commandKey(scope),
+        }),
+      });
+      const payload = (await response.json()) as GridTerritoryClaimResponse;
+      if (!response.ok || !payload.success || !payload.claim) {
+        if (response.status === 404) {
+          throw new Error('City expansion is not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Territory claim failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice(
+        'Territory claimed. Spent ' +
+          payload.claim.creditsSpent +
+          ' Credits and ' +
+          payload.claim.commandPointsSpent +
+          ' Command.',
+      );
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Territory claim failed.',
+      );
+    } finally {
+      setBusyClaim(null);
+    }
+  };
+
+  const acquireProperty = async (propertySlug: string) => {
+    const scope = 'property-acquire:' + propertySlug;
+    setBusyPropertyAction(scope);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch('/api/grid/properties/acquire', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          propertySlug,
+          idempotencyKey: commandKey(scope),
+        }),
+      });
+      const payload = (await response.json()) as GridPropertyActionResponse;
+      if (!response.ok || !payload.success || !payload.property) {
+        if (response.status === 404) {
+          throw new Error('Property economy actions are not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Property acquisition failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice(
+        'Property acquired. Spent ' +
+          payload.property.creditsSpent +
+          ' Credits and ' +
+          payload.property.commandPointsSpent +
+          ' Command.',
+      );
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Property acquisition failed.',
+      );
+    } finally {
+      setBusyPropertyAction(null);
+    }
+  };
+
+  const developProperty = async (
+    propertySlug: string,
+    branch: GridDevelopmentBranch,
+  ) => {
+    const scope = 'property-develop:' + propertySlug + ':' + branch;
+    setBusyPropertyAction(scope);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch('/api/grid/properties/develop', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          propertySlug,
+          branch,
+          idempotencyKey: commandKey(scope),
+        }),
+      });
+      const payload = (await response.json()) as GridPropertyActionResponse;
+      if (!response.ok || !payload.success || !payload.property) {
+        if (response.status === 404) {
+          throw new Error('Property economy actions are not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Property development failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice(
+        'Property developed to level ' +
+          String(payload.property.developmentLevel ?? '?') +
+          (payload.property.skylineFormed ? ' — Skyline formed.' : '.'),
+      );
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Property development failed.',
+      );
+    } finally {
+      setBusyPropertyAction(null);
+    }
+  };
+
+  const collectIncome = async () => {
+    const scope = 'income-collect';
+    setBusyIncome(true);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch('/api/grid/income/collect', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ idempotencyKey: commandKey(scope) }),
+      });
+      const payload = (await response.json()) as GridIncomeCollectResponse;
+      if (!response.ok || !payload.success || !payload.income) {
+        if (response.status === 404) {
+          throw new Error('Grid economy writes are not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Income collection failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice('Production collected into your Grid wallet.');
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Income collection failed.',
+      );
+    } finally {
+      setBusyIncome(false);
+    }
+  };
+
+  const launchContest = async (
+    sourceTerritorySlug: string,
+    targetTerritorySlug: string,
+    attackerCommittedInfluence: number,
+  ) => {
+    const scope =
+      'contest-launch:' +
+      sourceTerritorySlug +
+      ':' +
+      targetTerritorySlug +
+      ':' +
+      attackerCommittedInfluence;
+    setBusyContestAction(scope);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch('/api/grid/contests/launch', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sourceTerritorySlug,
+          targetTerritorySlug,
+          attackerCommittedInfluence,
+          idempotencyKey: commandKey(scope),
+        }),
+      });
+      const payload = (await response.json()) as GridContestLaunchResponse;
+      if (!response.ok || !payload.success || !payload.contest) {
+        if (response.status === 404) {
+          throw new Error('Grid contests are not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Contest launch failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice(
+        payload.contest.outcome === 'captured-by-auto-retreat'
+          ? 'Target captured after the defender auto-retreated.'
+          : 'Contest started. Roll Signal Dice to resolve the next round.',
+      );
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Contest launch failed.',
+      );
+    } finally {
+      setBusyContestAction(null);
+    }
+  };
+
+  const resolveContestRound = async (
+    contestId: string,
+    nextRoundNumber: number,
+  ) => {
+    const scope = 'contest-round:' + contestId + ':' + nextRoundNumber;
+    setBusyContestAction(scope);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch(
+        '/api/grid/contests/' + contestId + '/round',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ idempotencyKey: commandKey(scope) }),
+        },
+      );
+      const payload = (await response.json()) as GridContestRoundResponse;
+      if (!response.ok || !payload.success || !payload.contest) {
+        if (response.status === 404) {
+          throw new Error('Grid contests are not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Contest round failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice(
+        'Signal Dice: ' +
+          payload.contest.attackerRolls.join(', ') +
+          ' vs ' +
+          payload.contest.defenderRolls.join(', ') +
+          '. Contest status: ' +
+          payload.contest.status +
+          '.',
+      );
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Contest round failed.',
+      );
+    } finally {
+      setBusyContestAction(null);
+    }
+  };
+
   const bounds = useMemo(() => getBounds(projection), [projection]);
   const wallet = projection.player.wallet;
+  const income = projection.player.income;
+  const incomeReady = Boolean(
+    income &&
+      (income.pendingCredits > 0 ||
+        income.pendingInfluence > 0 ||
+        (income.collectibleAt && clockMs >= Date.parse(income.collectibleAt))),
+  );
+  const incomeWaitMs =
+    income?.collectibleAt
+      ? Math.max(0, Date.parse(income.collectibleAt) - clockMs)
+      : 0;
   const surgeStatus = surgeStatusPresentation(projection.season.surgeTiming);
   const sourceLabel =
     projection.source === 'database'
@@ -255,6 +631,16 @@ export default function GridWorldClient({
             Runtime read warning: {runtimeWarning}. Showing the verified compiled Canton package instead.
           </div>
         ) : null}
+        {actionError ? (
+          <div className="mt-5 rounded-xl border border-rose-400/25 bg-rose-400/[.07] px-4 py-3 text-sm text-rose-100">
+            {actionError}
+          </div>
+        ) : null}
+        {actionNotice ? (
+          <div className="mt-5 rounded-xl border border-emerald-400/25 bg-emerald-400/[.07] px-4 py-3 text-sm text-emerald-100">
+            {actionNotice}
+          </div>
+        ) : null}
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard label="TERRITORIES" value={projection.counts.territories} note={`${projection.counts.occupiedTerritories} occupied`} />
@@ -273,7 +659,7 @@ export default function GridWorldClient({
                   Canton Territory Layer
                 </div>
                 <div className="mt-1 font-mono text-[10px] text-stone-500">
-                  SOURCE-BACKED POLYGONS // READ-ONLY PROJECTION
+                  SOURCE-BACKED POLYGONS // SERVER-AUTHORITATIVE COMMANDS
                 </div>
               </div>
               <div className="flex flex-wrap gap-3 font-mono text-[9px] text-stone-400">
@@ -341,20 +727,73 @@ export default function GridWorldClient({
                 Player Economy
               </div>
               {wallet ? (
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  <div className="rounded-xl bg-white/[.04] p-3 text-center">
-                    <div className="font-display text-xl font-black">{wallet.credits}</div>
-                    <div className="mt-1 font-mono text-[9px] text-stone-500">CREDITS</div>
+                <>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="rounded-xl bg-white/[.04] p-3 text-center">
+                      <div className="font-display text-xl font-black">{wallet.credits}</div>
+                      <div className="mt-1 font-mono text-[9px] text-stone-500">CREDITS</div>
+                    </div>
+                    <div className="rounded-xl bg-white/[.04] p-3 text-center">
+                      <div className="font-display text-xl font-black">{wallet.influence}</div>
+                      <div className="mt-1 font-mono text-[9px] text-stone-500">INFLUENCE</div>
+                    </div>
+                    <div className="rounded-xl bg-white/[.04] p-3 text-center">
+                      <div className="font-display text-xl font-black">{wallet.commandPoints}</div>
+                      <div className="mt-1 font-mono text-[9px] text-stone-500">COMMAND</div>
+                    </div>
                   </div>
-                  <div className="rounded-xl bg-white/[.04] p-3 text-center">
-                    <div className="font-display text-xl font-black">{wallet.influence}</div>
-                    <div className="mt-1 font-mono text-[9px] text-stone-500">INFLUENCE</div>
-                  </div>
-                  <div className="rounded-xl bg-white/[.04] p-3 text-center">
-                    <div className="font-display text-xl font-black">{wallet.commandPoints}</div>
-                    <div className="mt-1 font-mono text-[9px] text-stone-500">COMMAND</div>
-                  </div>
-                </div>
+
+                  {income ? (
+                    <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[.035] p-3">
+                      <div className="font-mono text-[9px] font-black tracking-[.14em] text-stone-600">
+                        LIVE PRODUCTION
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded-lg bg-black/25 p-2.5">
+                          <div className="font-display text-lg font-black text-amber-100">
+                            +{income.pendingCredits}
+                          </div>
+                          <div className="mt-1 font-mono text-[8px] text-stone-500">
+                            CREDITS · {income.creditsPerHour}/HR
+                          </div>
+                        </div>
+                        <div className="rounded-lg bg-black/25 p-2.5">
+                          <div className="font-display text-lg font-black text-cyan-100">
+                            +{income.pendingInfluence}
+                          </div>
+                          <div className="mt-1 font-mono text-[8px] text-stone-500">
+                            INFLUENCE · {income.influencePerHour}/HR
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={
+                          !economyWriteEnabled ||
+                          !incomeReady ||
+                          busyIncome
+                        }
+                        onClick={() => void collectIncome()}
+                        className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-amber-300/25 bg-amber-300/[.08] px-3 py-2 font-display text-[11px] font-black uppercase tracking-[.08em] text-amber-100 transition hover:bg-amber-300/[.14] disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        {busyIncome ? (
+                          <Loader2
+                            size={13}
+                            className="animate-spin"
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        {!economyWriteEnabled
+                          ? 'Economy actions locked'
+                          : incomeReady
+                            ? 'Collect production'
+                            : income.collectibleAt
+                              ? `Ready in ${humanizeWait(incomeWaitMs)}`
+                              : 'No production available'}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
               ) : (
                 <p className="mt-3 text-sm leading-relaxed text-stone-400">
                   {projection.player.authenticated
@@ -408,42 +847,377 @@ export default function GridWorldClient({
                 Expansion
               </div>
               <p className="mt-3 text-sm leading-relaxed text-stone-400">
-                Starter territories are highlighted now. Once a player owns territory, valid expansion shifts to neutral zones touching their controlled network.
+                Neutral blocks touching your controlled network are valid expansion targets. Costs and adjacency are rechecked atomically on the server when you claim.
               </p>
               <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[.05] p-3 font-mono text-[10px] text-amber-100">
                 <Zap size={14} />
                 {projection.validClaimSlugs.length > 0
                   ? `${projection.validClaimSlugs.length} VALID CLAIM TARGETS`
-                  : 'NO ACTIVE CLAIM COMMANDS ON THIS SCREEN'}
+                  : 'NO VALID EXPANSION TARGETS'}
               </div>
+              {projection.validClaimSlugs.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {projection.territories
+                    .filter((territory) => territory.claimable)
+                    .map((territory) => {
+                      const affordable = Boolean(
+                        wallet &&
+                          wallet.credits >= territory.claimCost.credits &&
+                          wallet.commandPoints >= territory.claimCost.commandPoints,
+                      );
+                      return (
+                        <div
+                          key={territory.slug}
+                          className="rounded-xl border border-white/10 bg-white/[.025] p-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-xs font-black text-stone-200">
+                                {territory.name}
+                              </div>
+                              <div className="mt-1 font-mono text-[9px] text-stone-600">
+                                {territory.districtSlug.toUpperCase()}
+                              </div>
+                            </div>
+                            <div className="text-right font-mono text-[9px] text-amber-100">
+                              {territory.claimCost.credits} CR
+                              <br />
+                              {territory.claimCost.commandPoints} CP
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={
+                              !economyWriteEnabled ||
+                              !affordable ||
+                              busyClaim !== null
+                            }
+                            onClick={() => void claimTerritory(territory.slug)}
+                            className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-amber-300/25 bg-amber-300/[.08] px-3 py-2 font-display text-[11px] font-black uppercase tracking-[.08em] text-amber-100 transition hover:bg-amber-300/[.14] disabled:cursor-not-allowed disabled:opacity-35"
+                          >
+                            {busyClaim === territory.slug ? (
+                              <Loader2
+                                size={13}
+                                className="animate-spin"
+                                aria-hidden="true"
+                              />
+                            ) : null}
+                            {!economyWriteEnabled
+                              ? 'Expansion locked'
+                              : affordable
+                                ? 'Claim territory'
+                                : 'Resources required'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="rounded-3xl border border-fuchsia-300/20 bg-black/45 p-5">
+              <div className="flex items-center gap-2 font-display text-lg font-black uppercase">
+                <Crosshair size={18} className="text-fuchsia-300" />
+                Contests
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-stone-400">
+                Attack only occupied territory touching your network. Signal Dice,
+                defender policy, adjacency, ownership, and final capture remain
+                server-authoritative.
+              </p>
+
+              {projection.player.activeContests.length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  <div className="font-mono text-[9px] font-black tracking-[.14em] text-stone-600">
+                    ACTIVE CONTESTS
+                  </div>
+                  {projection.player.activeContests.map((contest) => {
+                    const nextRound = contest.roundNumber + 1;
+                    const roundScope =
+                      'contest-round:' + contest.contestId + ':' + nextRound;
+                    return (
+                      <div
+                        key={contest.contestId}
+                        className="rounded-xl border border-fuchsia-300/15 bg-fuchsia-300/[.035] p-3"
+                      >
+                        <div className="text-xs font-black text-stone-200">
+                          {contest.sourceTerritorySlug} →{' '}
+                          {contest.targetTerritorySlug}
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[9px] text-stone-500">
+                          <span>YOU: {contest.yourRemainingInfluence} INF</span>
+                          <span>
+                            OPPONENT: {contest.opponentRemainingInfluence} INF
+                          </span>
+                          <span>ROUND {contest.roundNumber}</span>
+                          <span>{contest.role.toUpperCase()}</span>
+                        </div>
+                        {contest.role === 'attacker' ? (
+                          <button
+                            type="button"
+                            disabled={
+                              !contestWriteEnabled ||
+                              busyContestAction !== null
+                            }
+                            onClick={() =>
+                              void resolveContestRound(
+                                contest.contestId,
+                                nextRound,
+                              )
+                            }
+                            className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-fuchsia-300/25 bg-fuchsia-300/[.08] px-3 py-2 font-display text-[11px] font-black uppercase tracking-[.08em] text-fuchsia-100 disabled:cursor-not-allowed disabled:opacity-35"
+                          >
+                            {busyContestAction === roundScope ? (
+                              <Loader2
+                                size={13}
+                                className="animate-spin"
+                                aria-hidden="true"
+                              />
+                            ) : null}
+                            {contestWriteEnabled
+                              ? 'Roll next round'
+                              : 'Contests locked'}
+                          </button>
+                        ) : (
+                          <div className="mt-3 rounded-lg border border-white/10 bg-white/[.02] px-3 py-2 font-mono text-[9px] text-stone-500">
+                            DEFENDER // ATTACKER ROLLS NEXT ROUND
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              {projection.territories.some((territory) => territory.attackable) ? (
+                <div className="mt-4 space-y-3">
+                  <div className="font-mono text-[9px] font-black tracking-[.14em] text-stone-600">
+                    ATTACKABLE TARGETS
+                  </div>
+                  {projection.territories
+                    .filter((territory) => territory.attackable)
+                    .map((territory) => (
+                      <div
+                        key={territory.slug}
+                        className="rounded-xl border border-white/10 bg-white/[.025] p-3"
+                      >
+                        <div className="text-xs font-black text-stone-200">
+                          {territory.name}
+                        </div>
+                        <div className="mt-1 font-mono text-[9px] text-stone-600">
+                          {territory.districtSlug.toUpperCase()}
+                        </div>
+                        {territory.attackSourceSlugs.map((sourceSlug) => (
+                          <div
+                            key={sourceSlug}
+                            className="mt-3 border-t border-white/[.06] pt-3"
+                          >
+                            <div className="font-mono text-[9px] text-stone-500">
+                              ATTACK FROM {sourceSlug.toUpperCase()}
+                            </div>
+                            <div className="mt-2 grid grid-cols-3 gap-2">
+                              {projection.player.attackCommitOptions.map(
+                                (option) => {
+                                  const scope =
+                                    'contest-launch:' +
+                                    sourceSlug +
+                                    ':' +
+                                    territory.slug +
+                                    ':' +
+                                    option.influence;
+                                  return (
+                                    <button
+                                      key={option.influence}
+                                      type="button"
+                                      disabled={
+                                        !contestWriteEnabled ||
+                                        !option.affordable ||
+                                        busyContestAction !== null
+                                      }
+                                      onClick={() =>
+                                        void launchContest(
+                                          sourceSlug,
+                                          territory.slug,
+                                          option.influence,
+                                        )
+                                      }
+                                      className="rounded-lg border border-fuchsia-300/20 bg-fuchsia-300/[.055] px-2 py-2 text-center disabled:cursor-not-allowed disabled:opacity-35"
+                                    >
+                                      {busyContestAction === scope ? (
+                                        <Loader2
+                                          size={12}
+                                          className="mx-auto animate-spin"
+                                          aria-hidden="true"
+                                        />
+                                      ) : (
+                                        <>
+                                          <span className="block font-display text-[11px] font-black text-fuchsia-100">
+                                            {option.influence} INF
+                                          </span>
+                                          <span className="mt-1 block font-mono text-[8px] text-stone-500">
+                                            {option.dice} DIE
+                                            {option.dice === 1 ? '' : 'S'}
+                                          </span>
+                                        </>
+                                      )}
+                                    </button>
+                                  );
+                                },
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                </div>
+              ) : projection.player.activeContests.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-white/10 bg-white/[.02] px-3 py-3 text-xs text-stone-500">
+                  No adjacent occupied territory is currently attackable.
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-black/45 p-5">
               <div className="flex items-center gap-2 font-display text-lg font-black uppercase">
                 <Building2 size={18} className="text-cyan-300" />
-                Property Layer
+                Property Actions
               </div>
-              <div className="mt-3 space-y-2">
-                {projection.properties.slice(0, 8).map((property) => (
-                  <div key={property.slug} className="flex items-center justify-between gap-3 border-b border-white/[.06] py-2 text-xs">
-                    <span className="truncate text-stone-300">{property.name}</span>
-                    <span className="font-mono text-[9px] text-stone-500">
-                      {property.developmentLevel > 0
-                        ? `${property.developmentBranch?.toUpperCase()} L${property.developmentLevel}`
-                        : property.ownership.toUpperCase()}
-                    </span>
+              <p className="mt-3 text-sm leading-relaxed text-stone-400">
+                Property actions appear only inside territory you control.
+                Acquisition and every upgrade are revalidated atomically on the server.
+              </p>
+              <div className="mt-4 space-y-3">
+                {projection.properties
+                  .filter(
+                    (property) =>
+                      property.acquirable || property.ownership === 'you',
+                  )
+                  .map((property) => (
+                    <div
+                      key={property.slug}
+                      className="rounded-xl border border-white/10 bg-white/[.025] p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-black text-stone-200">
+                            {property.name}
+                          </div>
+                          <div className="mt-1 font-mono text-[9px] text-stone-600">
+                            {property.territorySlug.toUpperCase()}
+                          </div>
+                        </div>
+                        <div className="font-mono text-[9px] text-cyan-100">
+                          {property.developmentLevel > 0
+                            ? `${property.developmentBranch?.toUpperCase()} L${property.developmentLevel}`
+                            : property.ownership === 'you'
+                              ? 'OWNED'
+                              : 'AVAILABLE'}
+                        </div>
+                      </div>
+
+                      {property.acquirable ? (
+                        <>
+                          <div className="mt-3 font-mono text-[9px] text-stone-500">
+                            ACQUIRE · {property.acquisitionCost.credits} CR ·{' '}
+                            {property.acquisitionCost.commandPoints} CP
+                          </div>
+                          <button
+                            type="button"
+                            disabled={
+                              !economyWriteEnabled ||
+                              !property.affordableToAcquire ||
+                              busyPropertyAction !== null
+                            }
+                            onClick={() => void acquireProperty(property.slug)}
+                            className="mt-2 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-300/[.08] px-3 py-2 font-display text-[11px] font-black uppercase tracking-[.08em] text-cyan-100 transition hover:bg-cyan-300/[.14] disabled:cursor-not-allowed disabled:opacity-35"
+                          >
+                            {busyPropertyAction ===
+                            'property-acquire:' + property.slug ? (
+                              <Loader2
+                                size={13}
+                                className="animate-spin"
+                                aria-hidden="true"
+                              />
+                            ) : null}
+                            {!economyWriteEnabled
+                              ? 'Property actions locked'
+                              : property.affordableToAcquire
+                                ? 'Acquire property'
+                                : 'Resources required'}
+                          </button>
+                        </>
+                      ) : null}
+
+                      {property.ownership === 'you' ? (
+                        property.developmentOptions.length > 0 ? (
+                          <div className="mt-3 grid gap-2">
+                            {property.developmentOptions.map((option) => {
+                              const actionKey =
+                                'property-develop:' +
+                                property.slug +
+                                ':' +
+                                option.branch;
+                              return (
+                                <button
+                                  key={option.branch}
+                                  type="button"
+                                  disabled={
+                                    !economyWriteEnabled ||
+                                    !option.affordable ||
+                                    busyPropertyAction !== null
+                                  }
+                                  onClick={() =>
+                                    void developProperty(
+                                      property.slug,
+                                      option.branch,
+                                    )
+                                  }
+                                  className="rounded-lg border border-cyan-300/20 bg-cyan-300/[.055] p-2.5 text-left disabled:cursor-not-allowed disabled:opacity-35"
+                                >
+                                  <span className="font-display text-[11px] font-black uppercase text-cyan-100">
+                                    {option.branch} · Level {option.level}
+                                  </span>
+                                  <span className="mt-1 block font-mono text-[9px] text-stone-500">
+                                    {option.cost.credits} CR ·{' '}
+                                    {option.cost.commandPoints} CP
+                                  </span>
+                                  {busyPropertyAction === actionKey ? (
+                                    <Loader2
+                                      size={12}
+                                      className="mt-2 animate-spin"
+                                      aria-hidden="true"
+                                    />
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="mt-3 rounded-lg border border-white/10 bg-white/[.02] px-3 py-2 font-mono text-[9px] text-stone-500">
+                            NO FURTHER UPGRADE AVAILABLE
+                          </div>
+                        )
+                      ) : null}
+                    </div>
+                  ))}
+                {projection.properties.every(
+                  (property) =>
+                    !property.acquirable && property.ownership !== 'you',
+                ) ? (
+                  <div className="rounded-xl border border-white/10 bg-white/[.02] px-3 py-3 text-xs text-stone-500">
+                    Control territory containing a property to unlock acquisition and development here.
                   </div>
-                ))}
+                ) : null}
               </div>
             </div>
 
             <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/[.04] p-5">
               <div className="flex items-center gap-2 font-display text-lg font-black uppercase">
                 <ShieldCheck size={18} className="text-emerald-300" />
-                Read-Only Safety
+                Server Authority
               </div>
               <p className="mt-3 text-xs leading-relaxed text-stone-400">
-                This screen can read world state only. Claims, purchases, upgrades, and future contests remain server-authoritative commands with their own guarded transaction paths.
+                The board can request guarded actions, but identity, season, database IDs, costs, adjacency, ownership, and final legality are resolved on the server.
               </p>
             </div>
           </aside>

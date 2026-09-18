@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { cantonFoundingSeasonPackage } from '@/lib/grid/cities/canton/founding-season';
-import { isGridWorldReadEnabled } from '@/lib/grid/server/feature-flags';
+import {
+  isGridContestWriteEnabled,
+  isGridEconomyWriteEnabled,
+  isGridWorldReadEnabled,
+} from '@/lib/grid/server/feature-flags';
 import { buildGridNpcStrongholdWorldProjection } from '@/lib/grid/server/npc-stronghold-world';
 import { readSupabaseGridWorldRuntime } from '@/lib/grid/server/supabase-world-projection';
 import { buildGridWorldProjection } from '@/lib/grid/server/world-projection';
@@ -15,6 +19,8 @@ export async function GET(request: Request) {
   const session = await resolveAuthenticatedSession(request);
   const viewerPlayerId = session.player?.id ?? null;
   const runtimeEnabled = isGridWorldReadEnabled();
+  const economyWriteEnabled = isGridEconomyWriteEnabled();
+  const contestWriteEnabled = isGridContestWriteEnabled();
 
   let runtime = null;
   let runtimeWarning: string | null = null;
@@ -34,6 +40,7 @@ export async function GET(request: Request) {
     viewerPlayerId,
     runtime,
     now: new Date().toISOString(),
+    generatedAt: new Date().toISOString(),
   });
   const strongholds = buildGridNpcStrongholdWorldProjection(
     cantonFoundingSeasonPackage,
@@ -44,6 +51,8 @@ export async function GET(request: Request) {
     projection,
     strongholds,
     runtimeEnabled,
+    economyWriteEnabled,
+    contestWriteEnabled,
     runtimeWarning,
   });
 
