@@ -100,4 +100,5 @@ export interface GridResolveScrimmageDuelCommand {
   defenderPlayerId: string;
   attackerRolls: number[];
   defenderRolls: number[];
+  now: string;
 }

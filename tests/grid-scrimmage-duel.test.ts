@@ -74,6 +74,7 @@ describe('GRID scrimmage Signal Duel', () => {
         defenderPlayerId: 'bravo',
         attackerRolls: [6, 6, 6],
         defenderRolls: [1, 1],
+        now: NOW,
       },
       cantonFoundingSeasonContest,
     );
@@ -107,6 +108,7 @@ describe('GRID scrimmage Signal Duel', () => {
         defenderPlayerId: 'bravo',
         attackerRolls: [6, 6, 6],
         defenderRolls: [1, 1],
+        now: NOW,
       },
       cantonFoundingSeasonContest,
     );
@@ -117,6 +119,7 @@ describe('GRID scrimmage Signal Duel', () => {
         defenderPlayerId: 'alpha',
         attackerRolls: [6, 6, 6],
         defenderRolls: [1, 1],
+        now: NOW,
       },
       cantonFoundingSeasonContest,
     );
@@ -139,6 +142,7 @@ describe('GRID scrimmage Signal Duel', () => {
         defenderPlayerId: 'bravo',
         attackerRolls: [6, 1, 1],
         defenderRolls: [5, 2],
+        now: NOW,
       },
       cantonFoundingSeasonContest,
     );
@@ -177,6 +181,7 @@ describe('GRID scrimmage Signal Duel', () => {
         defenderPlayerId: 'bravo',
         attackerRolls: [6, 6, 6],
         defenderRolls: [1],
+        now: NOW,
       },
       cantonFoundingSeasonContest,
     );
@@ -186,6 +191,8 @@ describe('GRID scrimmage Signal Duel', () => {
       eliminated: true,
     });
     expect(eliminated.match?.winnerPlayerId).toBe('alpha');
+    expect(eliminated.status).toBe('completed');
+    expect(eliminated.endedAt).toBe(NOW);
 
     expect(() =>
       resolveGridScrimmageDuel(
@@ -195,10 +202,11 @@ describe('GRID scrimmage Signal Duel', () => {
           defenderPlayerId: 'bravo',
           attackerRolls: [6, 6, 6],
           defenderRolls: [],
+          now: NOW,
         },
         cantonFoundingSeasonContest,
       ),
-    ).toThrow('eliminated players cannot duel');
+    ).toThrow('Grid scrimmage duel requires an active match');
   });
 
   it('rejects self-duels and players outside the private session', () => {
@@ -212,6 +220,7 @@ describe('GRID scrimmage Signal Duel', () => {
           defenderPlayerId: 'alpha',
           attackerRolls: [6],
           defenderRolls: [1],
+          now: NOW,
         },
         cantonFoundingSeasonContest,
       ),
@@ -225,6 +234,7 @@ describe('GRID scrimmage Signal Duel', () => {
           defenderPlayerId: 'outsider',
           attackerRolls: [6],
           defenderRolls: [1],
+          now: NOW,
         },
         cantonFoundingSeasonContest,
       ),

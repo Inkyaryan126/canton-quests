@@ -932,6 +932,17 @@ export default function ScrimmageClient() {
                     The room is closed. All Signal Influence in this session stays
                     here. Permanent Grid progression remains untouched.
                   </p>
+                  {scrimmage.status === 'completed' &&
+                  scrimmage.match?.winnerPlayerId ? (
+                    <div className="mx-auto mt-5 max-w-sm rounded-2xl border border-amber-300/25 bg-amber-300/[.06] px-4 py-3">
+                      <div className="font-mono text-[9px] font-black tracking-[.18em] text-amber-300">
+                        SCRIMMAGE WINNER
+                      </div>
+                      <div className="mt-1 font-display text-2xl font-black uppercase text-amber-100">
+                        {playerLabel(scrimmage.match.winnerPlayerId)}
+                      </div>
+                    </div>
+                  ) : null}
                   <button
                     type="button"
                     onClick={clearSession}

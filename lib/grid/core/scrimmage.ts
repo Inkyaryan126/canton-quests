@@ -339,6 +339,7 @@ export function resolveGridScrimmageDuel(
     throw new Error('Grid scrimmage duel requires an active match');
   }
 
+  const resolvedAt = requireTimestamp(command.now, 'now');
   const attackerPlayerId = requireNonEmpty(
     command.attackerPlayerId,
     'attackerPlayerId',
@@ -416,6 +417,8 @@ export function resolveGridScrimmageDuel(
   };
 
   return updateState(state, {
+    status: winnerPlayerId ? 'completed' : state.status,
+    endedAt: winnerPlayerId ? resolvedAt : state.endedAt,
     match: {
       ...state.match,
       roundNumber,

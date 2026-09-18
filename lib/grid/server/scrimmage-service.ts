@@ -27,6 +27,7 @@ export type GridScrimmageDiceRoller = (dieSides: number) => number;
 export interface GridScrimmageDuelSessionCommand {
   attackerPlayerId: string;
   defenderPlayerId: string;
+  now: string;
 }
 
 export type GridScrimmageServiceErrorCode =
@@ -237,6 +238,7 @@ export async function resolveGridScrimmageDuelSession(
         defenderPlayerId: command.defenderPlayerId,
         attackerRolls,
         defenderRolls,
+        now: command.now,
       },
       config,
     ),

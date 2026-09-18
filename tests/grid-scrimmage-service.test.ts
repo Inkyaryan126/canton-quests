@@ -205,6 +205,7 @@ describe('GRID scrimmage server service', () => {
       {
         attackerPlayerId: 'host-1',
         defenderPlayerId: 'guest-1',
+        now: '2026-09-16T10:03:00.000Z',
       },
       cantonFoundingSeasonContest,
       () => rolls.shift() ?? 1,
@@ -217,6 +218,48 @@ describe('GRID scrimmage server service', () => {
     });
     expect(resolved.match?.combatants[1].remainingInfluence).toBe(80);
     expect(resolved.progressionScope).toBe('session-only');
+  });
+
+  it('atomically completes the room when a duel leaves one player standing', async () => {
+    const port = new MemoryScrimmagePort();
+    await createGridScrimmageSession(port, createCommand);
+    await joinGridScrimmageSession(port, {
+      playerId: 'guest-1',
+      inviteCode: 'CREW-26',
+      now: '2026-09-16T10:01:00.000Z',
+    });
+    await setGridScrimmageSessionReady(port, 'scrim-1', {
+      playerId: 'host-1',
+      ready: true,
+    });
+    await setGridScrimmageSessionReady(port, 'scrim-1', {
+      playerId: 'guest-1',
+      ready: true,
+    });
+    const active = await startGridScrimmageSession(port, 'scrim-1', {
+      playerId: 'host-1',
+      now: '2026-09-16T10:02:00.000Z',
+    });
+    if (!active.match) throw new Error('expected active match');
+    active.match.combatants[1].remainingInfluence = 10;
+    port.byId.set('scrim-1', structuredClone(active));
+
+    const rolls = [6, 6, 6, 1];
+    const resolved = await resolveGridScrimmageDuelSession(
+      port,
+      'scrim-1',
+      {
+        attackerPlayerId: 'host-1',
+        defenderPlayerId: 'guest-1',
+        now: '2026-09-16T10:03:00.000Z',
+      },
+      cantonFoundingSeasonContest,
+      () => rolls.shift() ?? 1,
+    );
+
+    expect(resolved.status).toBe('completed');
+    expect(resolved.endedAt).toBe('2026-09-16T10:03:00.000Z');
+    expect(resolved.match?.winnerPlayerId).toBe('host-1');
   });
 
   it('only returns session state to players already in the private lobby', async () => {
