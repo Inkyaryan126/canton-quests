@@ -2,12 +2,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../../supabase';
 import type { GridContractInstance } from '../core/contract-types';
 import type {
-  GridContractProgressPort,
   GridContractScope,
   GridContractCommitInput,
   GridContractCommitResult,
   GridContractStoredInstance,
 } from './contract-port';
+import type { GridContractPersistencePort } from './contract-persistence-port';
 
 interface ContractInstanceRow {
   contract_id: string;
@@ -46,7 +46,7 @@ function mapStored(row: ContractInstanceRow): GridContractStoredInstance {
 
 export function createSupabaseGridContractPersistence(
   client: SupabaseClient | null = supabaseAdmin,
-): GridContractProgressPort {
+): GridContractPersistencePort {
   if (!client) {
     throw new Error('Grid contract persistence requires Supabase service-role configuration');
   }
