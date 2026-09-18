@@ -120,6 +120,7 @@ export interface GridAllianceUpkeepPersistenceResult {
 
 export interface GridAlliancePersistencePort {
   getAllianceById(allianceId: string): Promise<GridAllianceState | null>;
+  listActiveAlliances(seasonId: string): Promise<GridAllianceState[]>;
   getMembershipHistory(
     seasonId: string,
     playerId: string,

@@ -86,6 +86,11 @@ export async function createGridAlliance(
   const name = requireText(command.name, 'name');
   const now = requireTimestamp(command.now, 'now');
 
+  const leaderInfluence = await port.getPlayerInfluence(seasonId, leaderPlayerId);
+  if (leaderInfluence === null) {
+    throw new Error('Grid Alliance player season state was not found');
+  }
+
   const membershipHistory = await port.getMembershipHistory(
     seasonId,
     leaderPlayerId,
@@ -129,6 +134,10 @@ export async function joinGridAlliance(
     await port.getAllianceById(allianceId),
     seasonId,
   );
+  const playerInfluence = await port.getPlayerInfluence(seasonId, playerId);
+  if (playerInfluence === null) {
+    throw new Error('Grid Alliance player season state was not found');
+  }
 
   const [membershipHistory, targetActiveMemberCount] = await Promise.all([
     port.getMembershipHistory(seasonId, playerId),

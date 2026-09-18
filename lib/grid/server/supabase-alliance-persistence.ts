@@ -90,6 +90,22 @@ export function createSupabaseGridAlliancePersistencePort(
       return data ? allianceFromRow(data as AllianceRow) : null;
     },
 
+    async listActiveAlliances(seasonId) {
+      const { data, error } = await client
+        .from('grid_alliances')
+        .select(
+          'id,season_id,slug,name,leader_player_id,status,influence_pool,revision,created_at,updated_at,disbanded_at',
+        )
+        .eq('season_id', seasonId)
+        .eq('status', 'active')
+        .order('name', { ascending: true })
+        .order('id', { ascending: true });
+      if (error) {
+        throw new Error(`Failed to list Grid Alliances: ${error.message}`);
+      }
+      return ((data ?? []) as AllianceRow[]).map(allianceFromRow);
+    },
+
     async getMembershipHistory(seasonId, playerId) {
       const { data, error } = await client
         .from('grid_alliance_memberships')

@@ -29,6 +29,7 @@ const membership = {
 function port(overrides: Partial<GridAlliancePersistencePort> = {}): GridAlliancePersistencePort {
   return {
     getAllianceById: vi.fn().mockResolvedValue(alliance),
+    listActiveAlliances: vi.fn().mockResolvedValue([]),
     getMembershipHistory: vi.fn().mockResolvedValue([membership]),
     countActiveMembers: vi.fn().mockResolvedValue(2),
     createAllianceWithLeader: vi.fn(),

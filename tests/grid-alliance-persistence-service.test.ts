@@ -38,6 +38,7 @@ const alliance: GridAllianceState = {
 function port(overrides: Partial<GridAlliancePersistencePort> = {}): GridAlliancePersistencePort {
   return {
     getAllianceById: vi.fn().mockResolvedValue(alliance),
+    listActiveAlliances: vi.fn().mockResolvedValue([]),
     getMembershipHistory: vi.fn().mockResolvedValue([]),
     countActiveMembers: vi.fn().mockResolvedValue(1),
     createAllianceWithLeader: vi.fn().mockResolvedValue({ alliance, membership: {
@@ -90,6 +91,20 @@ describe('GRID Alliance persistence service', () => {
     expect(p.createAllianceWithLeader).toHaveBeenCalledWith(expect.objectContaining({
       slug: 'north-grid', name: 'North Grid', leaderPlayerId: 'leader-1',
     }));
+  });
+
+  it('requires a joined player-season state before create or join', async () => {
+    const p = port({ getPlayerInfluence: vi.fn().mockResolvedValue(null) });
+
+    await expect(createGridAlliance(p, {
+      allianceId: 'alliance-1', seasonId: 'season-1', leaderPlayerId: 'leader-1',
+      slug: 'north-grid', name: 'North Grid', now: alliance.createdAt,
+    }, rules)).rejects.toThrow('player season state was not found');
+
+    await expect(joinGridAlliance(p, {
+      allianceId: 'alliance-1', seasonId: 'season-1', playerId: 'player-2',
+      now: alliance.createdAt,
+    }, rules)).rejects.toThrow('player season state was not found');
   });
 
   it('denies a join during cooldown before persistence is called', async () => {

@@ -16,3 +16,12 @@ export function isGridContestWriteEnabled(
 ): boolean {
   return env.GRID_CONTEST_WRITE_ENABLED === '1';
 }
+
+
+export function isGridAllianceEnabled(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return (
+    env.GRID_FOUNDATION_ENABLED === '1' && env.GRID_ALLIANCE_ENABLED === '1'
+  );
+}

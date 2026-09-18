@@ -161,6 +161,7 @@ declare global {
     interface ProcessEnv {
       GRID_FOUNDATION_ENABLED?: string;
       GRID_WORLD_READ_ENABLED?: string;
+      GRID_ALLIANCE_ENABLED?: string;
     }
   }
 }

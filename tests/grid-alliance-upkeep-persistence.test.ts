@@ -47,6 +47,7 @@ function port(
 ): GridAlliancePersistencePort {
   return {
     getAllianceById: vi.fn().mockResolvedValue(alliance),
+    listActiveAlliances: vi.fn().mockResolvedValue([]),
     getMembershipHistory: vi.fn().mockResolvedValue([]),
     countActiveMembers: vi.fn().mockResolvedValue(members.length),
     createAllianceWithLeader: vi.fn(),
