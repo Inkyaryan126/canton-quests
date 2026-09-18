@@ -1,6 +1,6 @@
 import type { GridEconomyConfig } from './economy-types';
 import type { GridContestConfig } from './contest-types';
-import type { GridAllianceRules } from './alliance-types';
+import type { GridCityPowerConfig } from './city-power-types';
 
 export type GridCityPackageStatus = 'draft' | 'ready';
 
@@ -131,8 +131,8 @@ export interface GridCityPackage {
     economy?: GridEconomyConfig;
     /** Optional until a city/season explicitly opts into Signal Dice contests. */
     contest?: GridContestConfig;
-    /** Optional until a city/season explicitly opts into Alliance gameplay. */
-    alliance?: GridAllianceRules;
+    /** Optional until a city/season explicitly opts into live City Power scoring. */
+    cityPower?: GridCityPowerConfig;
   };
   districts: GridDistrictDefinition[];
   territories: GridTerritoryDefinition[];
@@ -161,7 +161,6 @@ declare global {
     interface ProcessEnv {
       GRID_FOUNDATION_ENABLED?: string;
       GRID_WORLD_READ_ENABLED?: string;
-      GRID_ALLIANCE_ENABLED?: string;
     }
   }
 }
