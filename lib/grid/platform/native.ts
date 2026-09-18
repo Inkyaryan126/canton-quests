@@ -6,6 +6,7 @@ import type {
   GridHapticsPort,
   GridLocationPort,
   GridNotificationsPort,
+  GridNetworkPort,
   GridPlatformAdapter,
   GridSecureStoragePort,
   GridSharePort,
@@ -23,6 +24,7 @@ export interface GridNativePlatformEnvironment {
   share?: GridSharePort;
   deepLinks?: GridDeepLinksPort;
   lifecycle?: GridAppLifecyclePort;
+  network?: GridNetworkPort;
 }
 
 export function createGridNativePlatformAdapter(
@@ -42,6 +44,7 @@ export function createGridNativePlatformAdapter(
   if (environment.share) capabilities.push('share');
   if (environment.deepLinks) capabilities.push('deep-links');
   if (environment.lifecycle) capabilities.push('app-lifecycle');
+  if (environment.network) capabilities.push('network-status');
 
   return {
     bridgeVersion: environment.bridgeVersion ?? GRID_PLATFORM_BRIDGE_VERSION,
@@ -55,5 +58,6 @@ export function createGridNativePlatformAdapter(
     share: environment.share,
     deepLinks: environment.deepLinks,
     lifecycle: environment.lifecycle,
+    network: environment.network,
   };
 }

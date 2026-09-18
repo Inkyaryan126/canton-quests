@@ -5,6 +5,7 @@ import type {
   GridHapticPattern,
   GridLocationPort,
   GridNotificationsPort,
+  GridNetworkPort,
   GridPermissionState,
   GridPlatformAdapter,
   GridSharePort,
@@ -48,6 +49,7 @@ export interface GridWebPlatformEnvironment {
   camera?: GridCameraPort;
   notifications?: GridNotificationsPort;
   lifecycle?: GridAppLifecyclePort;
+  network?: GridNetworkPort;
 }
 
 function permissionState(
@@ -151,6 +153,7 @@ export function createGridWebPlatformAdapter(
   if (share) capabilities.push('share');
   if (environment.currentUrl) capabilities.push('deep-links');
   if (environment.lifecycle) capabilities.push('app-lifecycle');
+  if (environment.network) capabilities.push('network-status');
 
   return {
     bridgeVersion: GRID_PLATFORM_BRIDGE_VERSION,
@@ -167,5 +170,6 @@ export function createGridWebPlatformAdapter(
       ? { getInitialUrl: async () => environment.currentUrl!() }
       : undefined,
     lifecycle: environment.lifecycle,
+    network: environment.network,
   };
 }

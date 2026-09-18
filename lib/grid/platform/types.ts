@@ -11,7 +11,8 @@ export type GridPlatformCapability =
   | 'secure-storage'
   | 'share'
   | 'deep-links'
-  | 'app-lifecycle';
+  | 'app-lifecycle'
+  | 'network-status';
 
 export interface GridPlatformLocation {
   latitude: number;
@@ -94,6 +95,22 @@ export interface GridAppLifecyclePort {
   subscribe(listener: (state: GridAppLifecycleState) => void): () => void;
 }
 
+export type GridNetworkInterface =
+  | 'wifi'
+  | 'cellular'
+  | 'ethernet'
+  | 'unknown';
+
+export interface GridNetworkStatus {
+  connected: boolean;
+  interface: GridNetworkInterface;
+}
+
+export interface GridNetworkPort {
+  getStatus(): Promise<GridNetworkStatus>;
+  subscribe(listener: (status: GridNetworkStatus) => void): () => void;
+}
+
 export interface GridPlatformAdapter {
   bridgeVersion: number;
   kind: GridPlatformKind;
@@ -106,4 +123,5 @@ export interface GridPlatformAdapter {
   share?: GridSharePort;
   deepLinks?: GridDeepLinksPort;
   lifecycle?: GridAppLifecyclePort;
+  network?: GridNetworkPort;
 }

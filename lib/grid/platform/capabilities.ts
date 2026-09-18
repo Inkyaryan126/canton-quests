@@ -20,7 +20,8 @@ type AdapterPortName =
   | 'secureStorage'
   | 'share'
   | 'deepLinks'
-  | 'lifecycle';
+  | 'lifecycle'
+  | 'network';
 
 const CAPABILITY_PORT: Record<GridPlatformCapability, AdapterPortName> = {
   'foreground-location': 'location',
@@ -32,6 +33,7 @@ const CAPABILITY_PORT: Record<GridPlatformCapability, AdapterPortName> = {
   share: 'share',
   'deep-links': 'deepLinks',
   'app-lifecycle': 'lifecycle',
+  'network-status': 'network',
 };
 const PORT_CAPABILITIES: Record<AdapterPortName, GridPlatformCapability[]> = {
   location: ['foreground-location', 'background-location'],
@@ -42,6 +44,7 @@ const PORT_CAPABILITIES: Record<AdapterPortName, GridPlatformCapability[]> = {
   share: ['share'],
   deepLinks: ['deep-links'],
   lifecycle: ['app-lifecycle'],
+  network: ['network-status'],
 };
 
 export function hasGridPlatformCapability(

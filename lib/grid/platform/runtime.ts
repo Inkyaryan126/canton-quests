@@ -10,6 +10,7 @@ import type {
   GridHapticsPort,
   GridLocationPort,
   GridNotificationsPort,
+  GridNetworkPort,
   GridPlatformAdapter,
   GridPlatformCapability,
   GridSecureStoragePort,
@@ -33,6 +34,7 @@ export interface GridPlatformRuntime {
   requireShare(): GridSharePort;
   requireDeepLinks(): GridDeepLinksPort;
   requireLifecycle(): GridAppLifecyclePort;
+  requireNetwork(): GridNetworkPort;
   subscribeResumes(listener: (event: GridAppResumeEvent) => void): Promise<() => void>;
 }
 
@@ -74,6 +76,7 @@ export function createGridPlatformRuntime(
     requireShare: () => requirePort(frozenAdapter.share, 'share'),
     requireDeepLinks: () => requirePort(frozenAdapter.deepLinks, 'deep-links'),
     requireLifecycle: () => requirePort(frozenAdapter.lifecycle, 'app-lifecycle'),
+    requireNetwork: () => requirePort(frozenAdapter.network, 'network-status'),
     subscribeResumes: async (listener) => {
       const lifecycle = requirePort(frozenAdapter.lifecycle, 'app-lifecycle');
       let previousState = await lifecycle.getState();

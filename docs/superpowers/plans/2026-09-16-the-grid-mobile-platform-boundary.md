@@ -19,6 +19,7 @@ Current capability surface:
 - secure storage
 - native/system sharing
 - deep-link entry
+- network connectivity status
 
 `GridPlatformAdapter` declares only capabilities actually supported by the host. `createGridPlatformRuntime` validates that declarations and ports agree before game code can consume them.
 
@@ -81,3 +82,5 @@ No native framework choice is required by the shared game engine. React Native, 
 `GRID Mobile 8` versions the platform bridge explicitly. Web/native adapters publish a bridge protocol version, native shells may report the version compiled into the installed binary, and incompatible old/new bridge versions are rejected before gameplay runtime initialization.
 
 `GRID Mobile 9` adds a support-safe diagnostics snapshot: bridge compatibility, platform kind, sorted capabilities, feature support, and lifecycle state only. It deliberately does not read or serialize location coordinates, push registration tokens, secure-storage contents, or deep-link URLs.
+
+`GRID Mobile 10` adds an optional platform-neutral network-status port. Native and web shells may expose normalized connectivity (`connected` plus interface kind), adapter validation keeps the capability and port in sync, and runtime consumers can require the port without branching on platform kind. Diagnostics continue to expose only whether the capability exists; they do not probe or serialize live network state.
