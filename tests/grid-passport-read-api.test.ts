@@ -25,7 +25,7 @@ describe('Grid Passport authenticated read API', () => {
     expect(route).toContain(
       'setAuthCookies(result, session.refreshedSession, session.player?.id)',
     );
-    expect(route).toContain("'Cache-Control', 'no-store, max-age=0'");
+    expect(route).toContain("'Cache-Control', 'private, no-store, max-age=0'");
     expect(route).toContain("dynamic = 'force-dynamic'");
   });
 
@@ -44,5 +44,10 @@ describe('Grid Passport authenticated read API', () => {
     expect(adapter).not.toContain('influence');
     expect(adapter).not.toContain('command_points');
     expect(adapter).not.toContain('city_power');
+  });
+
+  it('marks player-specific Passport responses private across cookie sessions', () => {
+    expect(route).toContain("result.headers.set('Cache-Control', 'private, no-store, max-age=0')");
+    expect(route).toContain("result.headers.set('Vary', 'Cookie')");
   });
 });

@@ -13,7 +13,8 @@ export async function GET(request: Request) {
   const session = await resolveAuthenticatedSession(request);
   const response = (body: unknown, init?: ResponseInit) => {
     const result = NextResponse.json(body, init);
-    result.headers.set('Cache-Control', 'no-store, max-age=0');
+    result.headers.set('Cache-Control', 'private, no-store, max-age=0');
+    result.headers.set('Vary', 'Cookie');
     setAuthCookies(result, session.refreshedSession, session.player?.id);
     return result;
   };
