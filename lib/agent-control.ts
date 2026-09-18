@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { isBoardroomBookkeepingPath } from './boardroom/commitGate';
 
 export interface AgentClaim {
   version: 1;
@@ -390,21 +391,25 @@ export function coordinationIssues(
   }
 
   for (const worktree of worktrees) {
-    if (worktree.dirtyPaths.length === 0) continue;
+    const laneDirtyPaths = worktree.dirtyPaths.filter(
+      (statusLine) => !isBoardroomBookkeepingPath(dirtyStatusPath(statusLine)),
+    );
+    if (laneDirtyPaths.length === 0) continue;
+
     const worktreeClaims = claimsByWorktree.get(canonicalPath(worktree.path)) ?? [];
     if (worktreeClaims.length === 0) {
       issues.push({
         code: 'DIRTY_UNCLAIMED',
-        message: `Dirty worktree has no live lane claim: ${worktree.branch} — ${worktree.path}`,
+        message: 'Dirty worktree has no live lane claim: ' + worktree.branch + ' — ' + worktree.path,
       });
       continue;
     }
 
-    for (const dirtyPath of worktree.dirtyPaths) {
+    for (const dirtyPath of laneDirtyPaths) {
       if (worktreeClaims.some((claim) => claimCoversDirtyPath(claim, dirtyPath))) continue;
       issues.push({
         code: 'DIRTY_OUTSIDE_CLAIM',
-        message: `Dirty path is outside every claim on ${worktree.branch}: ${dirtyStatusPath(dirtyPath)}`,
+        message: 'Dirty path is outside every claim on ' + worktree.branch + ': ' + dirtyStatusPath(dirtyPath),
       });
     }
   }

@@ -4,6 +4,11 @@ Grid Agent Control is the live coordination layer for manually launched AI codin
 
 Boardroom remains the durable task ledger, write-scope/commit authority for supervised runs, and handoff/history system. Git remains the durable source of truth for completed work. Grid Agent Control adds the missing short-lived ownership layer: who is working on which lane right now, in which worktree, and over which paths.
 
+### Boardroom bookkeeping ownership
+
+Generated Boardroom coordination artifacts under .boardroom/, boardroom/handoffs/, and boardroom/reports/ are globally Boardroom-owned bookkeeping. Control Tower excludes those known bookkeeping paths from DIRTY_UNCLAIMED and DIRTY_OUTSIDE_CLAIM lane-scope warnings. The exclusion is intentionally narrow: unrelated source or gameplay changes in the same worktree still trigger normal coordination warnings.
+
+
 ## Required preflight for hand-driven parallel agents
 
 Before editing code:
