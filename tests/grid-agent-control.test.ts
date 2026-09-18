@@ -104,6 +104,46 @@ describe('GRID agent control', () => {
     ]);
   });
 
+  it('treats Boardroom bookkeeping as coordination-owned without hiding real dirty work', () => {
+    const boardroom = { counts: {}, queued: [], blocked: [], rejected: [], autonomousRunActive: false };
+    const now = new Date().toISOString();
+    const reportOnly = {
+      path: '/tmp/report-only',
+      head: 'abc',
+      branch: 'report-only',
+      dirtyPaths: [' M boardroom/reports/MORNING_REPORT.md'],
+      lastCommitSubject: 'x',
+      lastCommitAt: now,
+      activeProcessCount: 0,
+    };
+
+    expect(coordinationIssues([], [reportOnly], boardroom)).toEqual([]);
+
+    const claim = {
+      version: 1 as const,
+      lane: 'alliance',
+      owner: 'stream',
+      goal: 'alliance work',
+      scope: ['lib/grid/server/alliance-persistence-service.ts'],
+      worktree: '/tmp/report-only',
+      branch: 'report-only',
+      claimedAt: now,
+      heartbeatAt: now,
+    };
+    expect(coordinationIssues([claim], [reportOnly], boardroom)).toEqual([]);
+
+    const reportPlusGameplay = {
+      ...reportOnly,
+      dirtyPaths: [
+        ' M boardroom/reports/MORNING_REPORT.md',
+        ' M lib/grid/server/unclaimed-gameplay.ts',
+      ],
+    };
+    expect(coordinationIssues([claim], [reportPlusGameplay], boardroom).map((issue) => issue.code)).toEqual([
+      'DIRTY_OUTSIDE_CLAIM',
+    ]);
+  });
+
   it('audits workspace hygiene and categorizes worktrees accurately', () => {
     const repo = tempRepo();
     fs.writeFileSync(path.join(repo, 'base.txt'), 'base\n');
