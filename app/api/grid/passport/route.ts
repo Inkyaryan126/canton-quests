@@ -10,6 +10,8 @@ export async function GET(request: Request) {
   const session = await resolveAuthenticatedSession(request);
   const respond = (body: unknown, init?: ResponseInit) => {
     const response = NextResponse.json(body, init);
+    response.headers.set('cache-control', 'private, no-store, max-age=0');
+    response.headers.set('vary', 'Cookie');
     setAuthCookies(response, session.refreshedSession, session.player?.id);
     return response;
   };

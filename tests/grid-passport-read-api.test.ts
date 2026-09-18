@@ -25,4 +25,12 @@ describe('Grid Passport read API contract', () => {
     expect(adapter).not.toContain('grid_game_events');
     expect(adapter).not.toMatch(/\.(insert|update|delete|upsert|rpc)\s*\(/);
   });
+  it('marks every Passport response private and non-cacheable across players', () => {
+    expect(route).toContain("response.headers.set('cache-control', 'private, no-store, max-age=0')");
+    expect(route).toContain("response.headers.set('vary', 'Cookie')");
+    expect(route.indexOf("response.headers.set('cache-control'")).toBeLessThan(
+      route.indexOf('setAuthCookies(response'),
+    );
+  });
+
 });
