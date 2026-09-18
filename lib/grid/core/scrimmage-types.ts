@@ -40,6 +40,7 @@ export interface GridScrimmageMatchState {
   startingInfluencePerPlayer: number;
   roundNumber: number;
   winnerPlayerId: string | null;
+  roundHistory: GridScrimmageRoundRecord[];
   combatants: GridScrimmageCombatantState[];
   lastRound: GridScrimmageRoundRecord | null;
 }

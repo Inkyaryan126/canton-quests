@@ -833,6 +833,41 @@ export default function ScrimmageClient() {
                     </div>
                   )}
 
+                  {scrimmage.match.roundHistory.length > 0 ? (
+                    <div className="mt-5 rounded-2xl border border-white/10 bg-black/35 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-mono text-[9px] font-black tracking-[.15em] text-stone-500">
+                          ROUND LOG
+                        </div>
+                        <div className="font-mono text-[9px] text-stone-600">
+                          {scrimmage.match.roundHistory.length} TOTAL
+                        </div>
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {scrimmage.match.roundHistory
+                          .slice(-6)
+                          .reverse()
+                          .map((round) => (
+                            <div
+                              key={round.roundNumber}
+                              className="grid gap-2 rounded-xl border border-white/[.06] bg-white/[.02] px-3 py-2.5 text-xs sm:grid-cols-[72px_1fr_auto]"
+                            >
+                              <span className="font-mono text-stone-600">
+                                ROUND {round.roundNumber}
+                              </span>
+                              <span className="text-stone-400">
+                                {playerLabel(round.attackerPlayerId)} →{' '}
+                                {playerLabel(round.defenderPlayerId)}
+                              </span>
+                              <span className="font-mono font-black uppercase text-cyan-200">
+                                {round.winner}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+
                   {ownCombatant?.eliminated ? (
                     <div className="mt-4 flex items-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/[.05] px-4 py-3 text-xs text-rose-100">
                       <Skull size={15} />

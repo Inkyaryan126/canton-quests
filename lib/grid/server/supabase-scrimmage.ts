@@ -41,6 +41,14 @@ function mapRow(row: GridScrimmageRow): GridScrimmageState {
       ? {
           ...row.match_state,
           winnerPlayerId: row.match_state.winnerPlayerId ?? null,
+          roundHistory: (row.match_state.roundHistory ??
+            (row.match_state.lastRound ? [row.match_state.lastRound] : [])).map(
+            (round) => ({
+              ...round,
+              attackerRolls: [...round.attackerRolls],
+              defenderRolls: [...round.defenderRolls],
+            }),
+          ),
           combatants: row.match_state.combatants.map((combatant) => ({
             ...combatant,
           })),
