@@ -90,6 +90,10 @@ export interface GridLeaveScrimmageCommand {
   playerId: string;
 }
 
+export interface GridResetScrimmageCommand {
+  playerId: string;
+}
+
 export interface GridEndScrimmageCommand {
   playerId: string;
   now: string;

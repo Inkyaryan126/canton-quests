@@ -5,6 +5,7 @@ import {
   createGridScrimmage,
   joinGridScrimmage,
   leaveGridScrimmage,
+  resetGridScrimmageForRematch,
   setGridScrimmageReady,
   startGridScrimmage,
 } from '../lib/grid/core/scrimmage';
@@ -286,6 +287,48 @@ describe('GRID scrimmage core', () => {
         now: '2026-09-16T10:10:00.000Z',
       }).status,
     ).toBe('cancelled');
+  });
+
+  it('lets only the host reopen a completed room for a clean rematch', () => {
+    let state = joinGridScrimmage(createLobby({
+      rules: {
+        minPlayers: 2,
+        maxPlayers: 4,
+        requireAllReady: false,
+      },
+    }), {
+      playerId: 'guest-1',
+      inviteCode: 'FIGHT-01',
+      now: NOW,
+    });
+    state = startGridScrimmage(state, {
+      playerId: 'host-1',
+      now: '2026-09-16T10:02:00.000Z',
+    });
+    const completed = completeGridScrimmage(state, {
+      playerId: 'host-1',
+      now: '2026-09-16T10:20:00.000Z',
+    });
+
+    expect(() =>
+      resetGridScrimmageForRematch(completed, {
+        playerId: 'guest-1',
+      }),
+    ).toThrow('Grid scrimmage action requires the session host');
+
+    const rematch = resetGridScrimmageForRematch(completed, {
+      playerId: 'host-1',
+    });
+
+    expect(rematch.status).toBe('lobby');
+    expect(rematch.match).toBeNull();
+    expect(rematch.startedAt).toBeNull();
+    expect(rematch.endedAt).toBeNull();
+    expect(rematch.revision).toBe(completed.revision + 1);
+    expect(rematch.participants.every((participant) => !participant.ready)).toBe(
+      true,
+    );
+    expect(rematch.inviteCode).toBe(completed.inviteCode);
   });
 
   it('rejects invalid player limits, timestamps, and unsafe invite codes', () => {

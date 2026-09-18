@@ -14,6 +14,7 @@ const joinRoute = route('join', 'route.ts');
 const readRoute = route('[sessionId]', 'route.ts');
 const readyRoute = route('[sessionId]', 'ready', 'route.ts');
 const startRoute = route('[sessionId]', 'start', 'route.ts');
+const rematchRoute = route('[sessionId]', 'rematch', 'route.ts');
 const duelRoute = route('[sessionId]', 'duel', 'route.ts');
 const leaveRoute = route('[sessionId]', 'leave', 'route.ts');
 const cancelRoute = route('[sessionId]', 'cancel', 'route.ts');
@@ -24,6 +25,7 @@ const writeRoutes = [
   joinRoute,
   readyRoute,
   startRoute,
+  rematchRoute,
   duelRoute,
   leaveRoute,
   cancelRoute,
@@ -70,6 +72,7 @@ describe('GRID scrimmage API contract', () => {
     expect(joinRoute).toContain('playerId: session.player.id');
     expect(readyRoute).toContain('playerId: session.player.id');
     expect(startRoute).toContain('playerId: session.player.id');
+    expect(rematchRoute).toContain('playerId: session.player.id');
     expect(duelRoute).toContain('attackerPlayerId: session.player.id');
     expect(leaveRoute).toContain('playerId: session.player.id');
     expect(cancelRoute).toContain('playerId: session.player.id');
@@ -124,6 +127,7 @@ describe('GRID scrimmage API contract', () => {
     expect(joinRoute).toContain('joinGridScrimmageSession');
     expect(readyRoute).toContain('setGridScrimmageSessionReady');
     expect(startRoute).toContain('startGridScrimmageSession');
+    expect(rematchRoute).toContain('resetGridScrimmageSessionForRematch');
     expect(duelRoute).toContain('resolveGridScrimmageDuelSession');
     expect(leaveRoute).toContain('leaveGridScrimmageSession');
     expect(cancelRoute).toContain('cancelGridScrimmageSession');
