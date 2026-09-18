@@ -106,3 +106,39 @@ export function classifyMilestone(
     warnings: staleClaims.length > 0 ? [...base.warnings, `${staleClaims.length} stale claim(s) matched`] : base.warnings,
   };
 }
+
+export function applyDependencyBlockers(
+  definitions: GridMilestoneDefinition[],
+  states: GridMilestoneState[],
+): GridMilestoneState[] {
+  const definitionsById = new Map(definitions.map((definition) => [definition.id, definition]));
+  let next = states.map((state) => ({ ...state, warnings: [...state.warnings] }));
+
+  for (let pass = 0; pass < definitions.length; pass += 1) {
+    const statesById = new Map(next.map((state) => [state.id, state]));
+    let changed = false;
+
+    next = next.map((state) => {
+      if (state.status !== 'PLANNED') return state;
+      const definition = definitionsById.get(state.id);
+      if (!definition) return state;
+
+      const blockedDependencies = definition.dependsOn
+        .map((id) => statesById.get(id))
+        .filter((dependency): dependency is GridMilestoneState => dependency?.status === 'BLOCKED');
+
+      if (blockedDependencies.length === 0) return state;
+      changed = true;
+      return {
+        ...state,
+        status: 'BLOCKED',
+        promotion: 'DEPLOYMENT_UNKNOWN',
+        detail: `Blocked by prerequisite: ${blockedDependencies.map((item) => item.title).join(', ')}`,
+      };
+    });
+
+    if (!changed) break;
+  }
+
+  return next;
+}

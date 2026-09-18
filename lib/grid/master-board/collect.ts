@@ -7,7 +7,7 @@ import {
   staleClaim,
 } from '../../agent-control';
 import type { AgentClaim, BoardroomTaskSummary, WorktreeState } from '../../agent-control';
-import { classifyMilestone } from './classify';
+import { applyDependencyBlockers, classifyMilestone } from './classify';
 import { GRID_MILESTONES } from './milestones';
 import type {
   GridBranchEvidence,
@@ -64,7 +64,12 @@ function isAncestor(cwd: string, commit: string, ref: string | null): boolean {
 }
 
 export function resolveIntegrationRef(cwd: string, explicitRef?: string): string | null {
-  if (explicitRef) return refExists(cwd, explicitRef) ? explicitRef : null;
+  if (explicitRef) {
+    if (!refExists(cwd, explicitRef)) {
+      throw new Error(`Integration ref does not exist: ${explicitRef}`);
+    }
+    return explicitRef;
+  }
   const candidates = localBranches(cwd).filter((branch) => /^grid-integration-\d{8}$/.test(branch)).sort();
   return candidates.at(-1) ?? null;
 }
@@ -153,13 +158,14 @@ export function collectGridMasterBoard(options: {
   const commitCache = new Map<string, GridCommitEvidence[]>();
   const allBranches = localBranches(cwd);
 
-  const milestones = GRID_MILESTONES.map((milestone) => classifyMilestone(
+  const classifiedMilestones = GRID_MILESTONES.map((milestone) => classifyMilestone(
     milestone,
     milestoneEvidence(
       cwd, milestone, integrationRef, localMainRef, originMainRef, commitCache,
       claims, worktrees, boardroom, allBranches,
     ),
   ));
+  const milestones = applyDependencyBlockers(GRID_MILESTONES, classifiedMilestones);
 
   return {
     version: 1,

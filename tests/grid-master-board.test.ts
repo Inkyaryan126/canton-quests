@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyMilestone } from '../lib/grid/master-board/classify';
+import { applyDependencyBlockers, classifyMilestone } from '../lib/grid/master-board/classify';
 import type {
   GridMilestoneDefinition,
   GridMilestoneEvidence,
@@ -104,6 +104,53 @@ describe('Grid Master Board classification', () => {
 
 import { GRID_MILESTONES } from '../lib/grid/master-board/milestones';
 
+describe('Grid Master Board dependency blocking', () => {
+  it('blocks a planned milestone when one of its declared prerequisites is blocked', () => {
+    const foundation: GridMilestoneDefinition = {
+      ...definition,
+      id: 'foundation',
+      title: 'Foundation',
+      dependsOn: [],
+    };
+    const dependent: GridMilestoneDefinition = {
+      ...definition,
+      id: 'dependent',
+      title: 'Dependent',
+      dependsOn: ['foundation'],
+    };
+    const foundationState = classifyMilestone(foundation, evidence({ blockers: ['schema unavailable'] }));
+    const dependentState = classifyMilestone(dependent, evidence());
+
+    const states = applyDependencyBlockers([foundation, dependent], [foundationState, dependentState]);
+    const result = states.find((item) => item.id === 'dependent');
+
+    expect(result?.status).toBe('BLOCKED');
+    expect(result?.detail).toContain('Foundation');
+  });
+
+  it('does not downgrade stronger implementation evidence because a prerequisite is blocked', () => {
+    const foundation: GridMilestoneDefinition = {
+      ...definition,
+      id: 'foundation',
+      title: 'Foundation',
+      dependsOn: [],
+    };
+    const dependent: GridMilestoneDefinition = {
+      ...definition,
+      id: 'dependent',
+      title: 'Dependent',
+      dependsOn: ['foundation'],
+    };
+    const foundationState = classifyMilestone(foundation, evidence({ blockers: ['schema unavailable'] }));
+    const dependentState = classifyMilestone(dependent, evidence({
+      activeClaims: [{ lane: 'dependent', owner: 'agent', branch: 'grid-dependent', stale: false }],
+    }));
+
+    const states = applyDependencyBlockers([foundation, dependent], [foundationState, dependentState]);
+    expect(states.find((item) => item.id === 'dependent')?.status).toBe('IN_PROGRESS');
+  });
+});
+
 describe('Grid Master Board milestone catalog', () => {
   it('keeps major completed and future Grid systems visible with stable unique ids', () => {
     const ids = GRID_MILESTONES.map((item) => item.id);
@@ -158,6 +205,13 @@ function makeCollectorRepo(): string {
 }
 
 describe('Grid Master Board runtime collection', () => {
+  it('rejects an explicitly requested integration ref that does not exist', () => {
+    const repo = makeCollectorRepo();
+    expect(() => resolveIntegrationRef(repo, 'grid-integration-does-not-exist')).toThrow(
+      /integration ref.*does not exist/i,
+    );
+  });
+
   it('selects the newest local integration branch when no override is supplied', () => {
     const repo = makeCollectorRepo();
     expect(resolveIntegrationRef(repo)).toBe('grid-integration-20260917');
@@ -211,5 +265,14 @@ describe('Grid Master Board completion evidence specificity', () => {
     expect(catalog.get('return-experience')?.integrationCommitSignals).toContain('return briefing');
     expect(catalog.get('takeover')?.integrationCommitSignals).not.toContain('takeover damage');
     expect(catalog.get('takeover')?.integrationCommitSignals).toContain('takeover persistence');
+  });
+
+  it('pins completion evidence to engineering checkpoints instead of generic status or docs copy', () => {
+    const catalog = new Map(GRID_MILESTONES.map((item) => [item.id, item]));
+    expect(catalog.get('city-compiler')?.integrationCommitSignals).toEqual(['GRID Compiler 9:']);
+    expect(catalog.get('economy-core')?.integrationCommitSignals).toEqual(['GRID Economy 8:']);
+    expect(catalog.get('alliances')?.integrationCommitSignals).toEqual(['GRID Alliance 1:']);
+    expect(catalog.get('chat')?.integrationCommitSignals).toEqual(['GRID Comms 6:']);
+    expect(catalog.get('mobile-platform')?.integrationCommitSignals).toEqual(['GRID Mobile 9:']);
   });
 });
