@@ -6,6 +6,7 @@ export * from './features';
 export * from './launch-intents';
 export * from './native';
 export * from './permissions';
+export * from './recovery';
 export * from './runtime';
 export * from './types';
 export * from './web';

@@ -87,3 +87,6 @@ No native framework choice is required by the shared game engine. React Native, 
 
 
 GRID Mobile 11 adds a shared reconnect signal that emits only when the client transitions from disconnected to connected, giving app shells one clean hook for refreshing authoritative world state after real-world dead zones.
+
+
+GRID Mobile 12 adds one coalesced recovery hook across app resume and network reconnect events, suppressing near-simultaneous duplicate refresh triggers while preserving the recovery reason.
