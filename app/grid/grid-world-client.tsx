@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Building2,
   Coins,
@@ -12,6 +12,10 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
+import {
+  GRID_REVISION_HIDDEN_POLL_MS,
+  normalizeGridRevisionPollMs,
+} from '@/lib/grid/client/world-revision-polling';
 import type { GridWorldProjection } from '@/lib/grid/server/world-projection';
 
 interface GridWorldResponse {
@@ -123,26 +127,94 @@ export default function GridWorldClient({
   const [runtimeEnabled, setRuntimeEnabled] = useState(false);
   const [runtimeWarning, setRuntimeWarning] = useState<string | null>(null);
 
+  const loadWorld = useCallback(async () => {
+    const response = await fetch('/api/grid/world', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Grid world feed unavailable');
+    const data = (await response.json()) as GridWorldResponse;
+    setProjection(data.projection);
+    setRuntimeEnabled(data.runtimeEnabled);
+    setRuntimeWarning(data.runtimeWarning);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/grid/world', { cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Grid world feed unavailable');
-        return (await response.json()) as GridWorldResponse;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setProjection(data.projection);
-        setRuntimeEnabled(data.runtimeEnabled);
-        setRuntimeWarning(data.runtimeWarning);
-      })
-      .catch((error) => {
-        if (!cancelled) setRuntimeWarning(error instanceof Error ? error.message : 'Grid world feed unavailable');
-      });
+    loadWorld().catch((error) => {
+      if (!cancelled) {
+        setRuntimeWarning(
+          error instanceof Error ? error.message : 'Grid world feed unavailable',
+        );
+      }
+    });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadWorld]);
+
+  useEffect(() => {
+    if (!runtimeEnabled || !projection.player.authenticated) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let revisionEtag: string | null = null;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void pollRevision();
+      }, delayMs);
+    };
+
+    const pollRevision = async () => {
+      if (cancelled) return;
+      if (document.visibilityState === 'hidden') {
+        schedule(GRID_REVISION_HIDDEN_POLL_MS);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/grid/world/revision', {
+          cache: 'no-store',
+          headers: revisionEtag ? { 'If-None-Match': revisionEtag } : undefined,
+        });
+        if (cancelled) return;
+        if (response.status === 401 || response.status === 404) return;
+
+        const pollAfterMs = normalizeGridRevisionPollMs(
+          response.headers.get('x-grid-poll-after-ms'),
+        );
+        if (response.status === 304) {
+          schedule(pollAfterMs);
+          return;
+        }
+        if (!response.ok) throw new Error('Grid world revision unavailable');
+
+        const nextEtag = response.headers.get('etag');
+        const needsWorldRefresh =
+          revisionEtag === null || nextEtag === null || nextEtag !== revisionEtag;
+        revisionEtag = nextEtag;
+
+        if (needsWorldRefresh) await loadWorld();
+        schedule(pollAfterMs);
+      } catch {
+        schedule(GRID_REVISION_HIDDEN_POLL_MS);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (timer) clearTimeout(timer);
+      void pollRevision();
+    };
+
+    void pollRevision();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadWorld, projection.player.authenticated, runtimeEnabled]);
 
   const bounds = useMemo(() => getBounds(projection), [projection]);
   const wallet = projection.player.wallet;
