@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cantonFoundingSeasonPackage } from '../lib/grid/cities/canton/founding-season';
+import { resolveTerritoryClaimCost } from '../lib/grid/core/resources';
 import { buildGridWorldProjection } from '../lib/grid/server/world-projection';
 
 describe('Grid player-visible world projection', () => {
@@ -51,6 +52,15 @@ describe('Grid player-visible world projection', () => {
     expect(projection.territories.find((territory) => territory.slug === starter)?.ownership).toBe('you');
     expect(projection.territories.find((territory) => territory.slug === rival)?.ownership).toBe('occupied');
     expect(projection.validClaimSlugs).toContain(adjacent);
+    const adjacentProjection = projection.territories.find(
+      (territory) => territory.slug === adjacent,
+    );
+    expect(adjacentProjection?.claimCost).toEqual(
+      resolveTerritoryClaimCost(
+        cantonFoundingSeasonPackage.seasonTemplate.economy!,
+        adjacent,
+      ),
+    );
     expect(JSON.stringify(projection)).not.toContain('rival-secret-id');
   });
 

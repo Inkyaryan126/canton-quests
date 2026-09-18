@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { cantonFoundingSeasonPackage } from '@/lib/grid/cities/canton/founding-season';
-import { isGridWorldReadEnabled } from '@/lib/grid/server/feature-flags';
+import {
+  isGridEconomyWriteEnabled,
+  isGridWorldReadEnabled,
+} from '@/lib/grid/server/feature-flags';
 import { readSupabaseGridWorldRuntime } from '@/lib/grid/server/supabase-world-projection';
 import { buildGridWorldProjection } from '@/lib/grid/server/world-projection';
 import {
@@ -14,6 +17,7 @@ export async function GET(request: Request) {
   const session = await resolveAuthenticatedSession(request);
   const viewerPlayerId = session.player?.id ?? null;
   const runtimeEnabled = isGridWorldReadEnabled();
+  const economyWriteEnabled = isGridEconomyWriteEnabled();
 
   let runtime = null;
   let runtimeWarning: string | null = null;
@@ -37,6 +41,7 @@ export async function GET(request: Request) {
   const response = NextResponse.json({
     projection,
     runtimeEnabled,
+    economyWriteEnabled,
     runtimeWarning,
   });
 

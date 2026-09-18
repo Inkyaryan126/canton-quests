@@ -1,4 +1,5 @@
 import type { GridDevelopmentBranch } from '../core/economy-types';
+import { resolveTerritoryClaimCost } from '../core/resources';
 import { computeSkylineComponents, matchSkylineRules } from '../core/skyline';
 import { projectTerritoryControl } from '../core/territory-control';
 import type { GridCityPackage } from '../core/types';
@@ -90,6 +91,7 @@ export interface GridWorldProjection {
     geometry?: GeoJSON.MultiPolygon;
     ownership: GridWorldOwnership;
     claimable: boolean;
+    claimCost: { credits: number; commandPoints: number };
     starterEligible: boolean;
     contested: boolean;
   }>;
@@ -193,6 +195,9 @@ export function buildGridWorldProjection(
       geometry: territory.geometry,
       ownership: ownershipFor(state?.ownerPlayerId, viewerPlayerId),
       claimable: validClaims.has(territory.slug),
+      claimCost: economy
+        ? resolveTerritoryClaimCost(economy, territory.slug)
+        : { credits: 0, commandPoints: 0 },
       starterEligible: starterSlugs.has(territory.slug),
       contested: contestedTargets.has(territory.slug),
     };

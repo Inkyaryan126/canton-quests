@@ -6,7 +6,7 @@ import { buildGridWorldProjection } from '@/lib/grid/server/world-projection';
 
 export const metadata: Metadata = {
   title: 'The Grid — First Look | Canton Quests',
-  description: 'Private read-only first look at The Grid in Canton, Ohio.',
+  description: 'Private authenticated Canton City Board for The Grid.',
   robots: { index: false, follow: false },
 };
 

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Building2,
   Coins,
   Crosshair,
+  Loader2,
   MapPinned,
   Radio,
   ShieldCheck,
@@ -17,7 +18,36 @@ import type { GridWorldProjection } from '@/lib/grid/server/world-projection';
 interface GridWorldResponse {
   projection: GridWorldProjection;
   runtimeEnabled: boolean;
+  economyWriteEnabled: boolean;
   runtimeWarning: string | null;
+}
+
+interface GridTerritoryClaimResponse {
+  success: boolean;
+  claim?: {
+    territorySlug: string;
+    claimMode: 'starter' | 'adjacent';
+    claimedAt: string;
+    creditsSpent: number;
+    commandPointsSpent: number;
+    credits: number;
+    influence: number;
+    commandPoints: number;
+  };
+  error?: string;
+}
+
+function commandKey(scope: string): string {
+  const storageKey = 'grid:world-command:' + scope;
+  const existing = window.sessionStorage.getItem(storageKey);
+  if (existing) return existing;
+  const key = 'grid-world:' + scope + ':' + crypto.randomUUID();
+  window.sessionStorage.setItem(storageKey, key);
+  return key;
+}
+
+function clearCommandKey(scope: string): void {
+  window.sessionStorage.removeItem('grid:world-command:' + scope);
 }
 
 interface Bounds {
@@ -121,28 +151,70 @@ export default function GridWorldClient({
 }) {
   const [projection, setProjection] = useState(initialProjection);
   const [runtimeEnabled, setRuntimeEnabled] = useState(false);
+  const [economyWriteEnabled, setEconomyWriteEnabled] = useState(false);
   const [runtimeWarning, setRuntimeWarning] = useState<string | null>(null);
+  const [busyClaim, setBusyClaim] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  const loadWorld = useCallback(async () => {
+    const response = await fetch('/api/grid/world', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Grid world feed unavailable');
+    const data = (await response.json()) as GridWorldResponse;
+    setProjection(data.projection);
+    setRuntimeEnabled(data.runtimeEnabled);
+    setEconomyWriteEnabled(data.economyWriteEnabled);
+    setRuntimeWarning(data.runtimeWarning);
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch('/api/grid/world', { cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Grid world feed unavailable');
-        return (await response.json()) as GridWorldResponse;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setProjection(data.projection);
-        setRuntimeEnabled(data.runtimeEnabled);
-        setRuntimeWarning(data.runtimeWarning);
-      })
-      .catch((error) => {
-        if (!cancelled) setRuntimeWarning(error instanceof Error ? error.message : 'Grid world feed unavailable');
+    void loadWorld().catch((error) => {
+      setRuntimeWarning(
+        error instanceof Error ? error.message : 'Grid world feed unavailable',
+      );
+    });
+  }, [loadWorld]);
+
+  const claimTerritory = async (territorySlug: string) => {
+    const scope = 'claim:' + territorySlug;
+    setBusyClaim(territorySlug);
+    setActionError(null);
+    setActionNotice(null);
+
+    try {
+      const response = await fetch('/api/grid/territories/claim', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          territorySlug,
+          idempotencyKey: commandKey(scope),
+        }),
       });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      const payload = (await response.json()) as GridTerritoryClaimResponse;
+      if (!response.ok || !payload.success || !payload.claim) {
+        if (response.status === 404) {
+          throw new Error('City expansion is not enabled yet.');
+        }
+        throw new Error(payload.error ?? 'Territory claim failed.');
+      }
+
+      clearCommandKey(scope);
+      setActionNotice(
+        'Territory claimed. Spent ' +
+          payload.claim.creditsSpent +
+          ' Credits and ' +
+          payload.claim.commandPointsSpent +
+          ' Command.',
+      );
+      await loadWorld();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Territory claim failed.',
+      );
+    } finally {
+      setBusyClaim(null);
+    }
+  };
 
   const bounds = useMemo(() => getBounds(projection), [projection]);
   const wallet = projection.player.wallet;
@@ -192,6 +264,16 @@ export default function GridWorldClient({
             Runtime read warning: {runtimeWarning}. Showing the verified compiled Canton package instead.
           </div>
         ) : null}
+        {actionError ? (
+          <div className="mt-5 rounded-xl border border-rose-400/25 bg-rose-400/[.07] px-4 py-3 text-sm text-rose-100">
+            {actionError}
+          </div>
+        ) : null}
+        {actionNotice ? (
+          <div className="mt-5 rounded-xl border border-emerald-400/25 bg-emerald-400/[.07] px-4 py-3 text-sm text-emerald-100">
+            {actionNotice}
+          </div>
+        ) : null}
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard label="TERRITORIES" value={projection.counts.territories} note={`${projection.counts.occupiedTerritories} occupied`} />
@@ -210,7 +292,7 @@ export default function GridWorldClient({
                   Canton Territory Layer
                 </div>
                 <div className="mt-1 font-mono text-[10px] text-stone-500">
-                  SOURCE-BACKED POLYGONS // READ-ONLY PROJECTION
+                  SOURCE-BACKED POLYGONS // SERVER-AUTHORITATIVE COMMANDS
                 </div>
               </div>
               <div className="flex flex-wrap gap-3 font-mono text-[9px] text-stone-400">
@@ -307,14 +389,72 @@ export default function GridWorldClient({
                 Expansion
               </div>
               <p className="mt-3 text-sm leading-relaxed text-stone-400">
-                Starter territories are highlighted now. Once a player owns territory, valid expansion shifts to neutral zones touching their controlled network.
+                Neutral blocks touching your controlled network are valid expansion targets. Costs and adjacency are rechecked atomically on the server when you claim.
               </p>
               <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[.05] p-3 font-mono text-[10px] text-amber-100">
                 <Zap size={14} />
                 {projection.validClaimSlugs.length > 0
                   ? `${projection.validClaimSlugs.length} VALID CLAIM TARGETS`
-                  : 'NO ACTIVE CLAIM COMMANDS ON THIS SCREEN'}
+                  : 'NO VALID EXPANSION TARGETS'}
               </div>
+              {projection.validClaimSlugs.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {projection.territories
+                    .filter((territory) => territory.claimable)
+                    .map((territory) => {
+                      const affordable = Boolean(
+                        wallet &&
+                          wallet.credits >= territory.claimCost.credits &&
+                          wallet.commandPoints >= territory.claimCost.commandPoints,
+                      );
+                      return (
+                        <div
+                          key={territory.slug}
+                          className="rounded-xl border border-white/10 bg-white/[.025] p-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-xs font-black text-stone-200">
+                                {territory.name}
+                              </div>
+                              <div className="mt-1 font-mono text-[9px] text-stone-600">
+                                {territory.districtSlug.toUpperCase()}
+                              </div>
+                            </div>
+                            <div className="text-right font-mono text-[9px] text-amber-100">
+                              {territory.claimCost.credits} CR
+                              <br />
+                              {territory.claimCost.commandPoints} CP
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={
+                              !economyWriteEnabled ||
+                              !affordable ||
+                              busyClaim !== null
+                            }
+                            onClick={() => void claimTerritory(territory.slug)}
+                            className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-amber-300/25 bg-amber-300/[.08] px-3 py-2 font-display text-[11px] font-black uppercase tracking-[.08em] text-amber-100 transition hover:bg-amber-300/[.14] disabled:cursor-not-allowed disabled:opacity-35"
+                          >
+                            {busyClaim === territory.slug ? (
+                              <Loader2
+                                size={13}
+                                className="animate-spin"
+                                aria-hidden="true"
+                              />
+                            ) : null}
+                            {!economyWriteEnabled
+                              ? 'Expansion locked'
+                              : affordable
+                                ? 'Claim territory'
+                                : 'Resources required'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-black/45 p-5">
@@ -339,10 +479,10 @@ export default function GridWorldClient({
             <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/[.04] p-5">
               <div className="flex items-center gap-2 font-display text-lg font-black uppercase">
                 <ShieldCheck size={18} className="text-emerald-300" />
-                Read-Only Safety
+                Server Authority
               </div>
               <p className="mt-3 text-xs leading-relaxed text-stone-400">
-                This screen can read world state only. Claims, purchases, upgrades, and future contests remain server-authoritative commands with their own guarded transaction paths.
+                The board can request guarded actions, but identity, season, database IDs, costs, adjacency, ownership, and final legality are resolved on the server.
               </p>
             </div>
           </aside>

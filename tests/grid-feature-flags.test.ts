@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isGridContestWriteEnabled,
+  isGridEconomyWriteEnabled,
   isGridFoundationEnabled,
   isGridWorldReadEnabled,
 } from '../lib/grid/server/feature-flags';
@@ -49,6 +50,20 @@ describe('Grid feature flags', () => {
         GRID_WORLD_READ_ENABLED: '0',
       } as NodeJS.ProcessEnv),
     ).toBe(false);
+  });
+
+  it('keeps economy mutations off unless explicitly activated', () => {
+    expect(
+      isGridEconomyWriteEnabled({
+        GRID_ECONOMY_WRITE_ENABLED: '1',
+      } as unknown as NodeJS.ProcessEnv),
+    ).toBe(true);
+    expect(
+      isGridEconomyWriteEnabled({
+        GRID_ECONOMY_WRITE_ENABLED: 'true',
+      } as unknown as NodeJS.ProcessEnv),
+    ).toBe(false);
+    expect(isGridEconomyWriteEnabled({} as NodeJS.ProcessEnv)).toBe(false);
   });
 
   it('keeps contest mutations off unless explicitly activated', () => {
