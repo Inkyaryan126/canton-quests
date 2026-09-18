@@ -81,4 +81,10 @@ describe('Grid return briefing player UI contract', () => {
     expect(client).toContain('cq-grid-return-strongholds-link');
     expect(publicGrid).not.toContain('href="/grid/strongholds"');
   });
+
+  it('surfaces offline defense doctrine from authenticated return tools only', () => {
+    expect(client).toContain('href="/grid/defense"');
+    expect(client).toContain('DEFENSE');
+    expect(publicGrid).not.toContain('href="/grid/defense"');
+  });
 });

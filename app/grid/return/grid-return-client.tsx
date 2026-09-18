@@ -221,6 +221,11 @@ export default function GridReturnClient() {
                   <span>STRONGHOLDS</span>
                   <ChevronRight size={15} aria-hidden="true" />
                 </Link>
+                <Link href="/grid/defense" className="cq-grid-return-strongholds-link">
+                  <Shield size={17} aria-hidden="true" />
+                  <span>DEFENSE</span>
+                  <ChevronRight size={15} aria-hidden="true" />
+                </Link>
                 <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[.05] px-5 py-4">
                   <div className="font-mono text-[10px] font-black tracking-[.18em] text-stone-500">
                     TIME AWAY
