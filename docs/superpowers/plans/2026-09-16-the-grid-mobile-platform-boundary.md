@@ -84,3 +84,6 @@ No native framework choice is required by the shared game engine. React Native, 
 `GRID Mobile 9` adds a support-safe diagnostics snapshot: bridge compatibility, platform kind, sorted capabilities, feature support, and lifecycle state only. It deliberately does not read or serialize location coordinates, push registration tokens, secure-storage contents, or deep-link URLs.
 
 `GRID Mobile 10` adds an optional platform-neutral network-status port. Native and web shells may expose normalized connectivity (`connected` plus interface kind), adapter validation keeps the capability and port in sync, and runtime consumers can require the port without branching on platform kind. Diagnostics continue to expose only whether the capability exists; they do not probe or serialize live network state.
+
+
+GRID Mobile 11 adds a shared reconnect signal that emits only when the client transitions from disconnected to connected, giving app shells one clean hook for refreshing authoritative world state after real-world dead zones.

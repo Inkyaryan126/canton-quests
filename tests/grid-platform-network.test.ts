@@ -59,3 +59,31 @@ describe('GRID platform network awareness', () => {
     ]);
   });
 });
+
+  it('emits reconnect events only when connectivity returns', async () => {
+    let listener: Parameters<GridNetworkPort['subscribe']>[0] = () => undefined;
+    const runtime = createGridPlatformRuntime(createGridNativePlatformAdapter({
+      kind: 'android',
+      network: {
+        getStatus: async () => ({ connected: true, interface: 'cellular' }),
+        subscribe: (next) => {
+          listener = next;
+          return () => undefined;
+        },
+      },
+    }));
+    const reconnects: Array<{ previousConnected: boolean; status: { connected: boolean; interface: string } }> = [];
+
+    const stop = await runtime.subscribeReconnects((event) => reconnects.push(event));
+    listener({ connected: true, interface: 'cellular' });
+    listener({ connected: false, interface: 'unknown' });
+    listener({ connected: false, interface: 'unknown' });
+    listener({ connected: true, interface: 'wifi' });
+    listener({ connected: true, interface: 'wifi' });
+
+    expect(reconnects).toEqual([{
+      previousConnected: false,
+      status: { connected: true, interface: 'wifi' },
+    }]);
+    stop();
+  });

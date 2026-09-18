@@ -11,6 +11,7 @@ import type {
   GridLocationPort,
   GridNotificationsPort,
   GridNetworkPort,
+  GridNetworkStatus,
   GridPlatformAdapter,
   GridPlatformCapability,
   GridSecureStoragePort,
@@ -20,6 +21,11 @@ import type {
 export interface GridAppResumeEvent {
   previousState: GridAppLifecycleState;
   state: 'active';
+}
+
+export interface GridReconnectEvent {
+  previousConnected: boolean;
+  status: GridNetworkStatus;
 }
 
 export interface GridPlatformRuntime {
@@ -36,6 +42,7 @@ export interface GridPlatformRuntime {
   requireLifecycle(): GridAppLifecyclePort;
   requireNetwork(): GridNetworkPort;
   subscribeResumes(listener: (event: GridAppResumeEvent) => void): Promise<() => void>;
+  subscribeReconnects(listener: (event: GridReconnectEvent) => void): Promise<() => void>;
 }
 
 function requirePort<T>(
@@ -85,6 +92,17 @@ export function createGridPlatformRuntime(
         previousState = state;
         if (state === 'active' && prior !== 'active') {
           listener({ previousState: prior, state: 'active' });
+        }
+      });
+    },
+    subscribeReconnects: async (listener) => {
+      const network = requirePort(frozenAdapter.network, 'network-status');
+      let previousStatus = await network.getStatus();
+      return network.subscribe((status) => {
+        const priorConnected = previousStatus.connected;
+        previousStatus = status;
+        if (status.connected && !priorConnected) {
+          listener({ previousConnected: priorConnected, status });
         }
       });
     },
