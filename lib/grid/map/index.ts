@@ -1,3 +1,4 @@
+export * from './motion';
 export * from './labels';
 export * from './effects';
 export * from './frame';
