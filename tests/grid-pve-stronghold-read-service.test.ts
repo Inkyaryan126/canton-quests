@@ -5,7 +5,6 @@ import type {
 } from '../lib/grid/server/pve-stronghold-read-port';
 import {
   getGridPveStrongholdContestForPlayer,
-  GridPveStrongholdReadError,
   listGridPveStrongholdContestsForPlayer,
 } from '../lib/grid/server/pve-stronghold-read-service';
 
@@ -94,7 +93,7 @@ describe('Grid PvE stronghold read service', () => {
     ]) {
       await expect(getGridPveStrongholdContestForPlayer(p, {
         contestId: 'contest-1', viewerPlayerId: 'player-1',
-      })).rejects.toMatchObject<GridPveStrongholdReadError>({
+      })).rejects.toMatchObject({
         code: 'NOT_FOUND',
         message: 'Grid PvE stronghold contest was not found',
       });
