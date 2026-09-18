@@ -25,6 +25,7 @@ describe('Supabase Grid PvE stronghold adapter', () => {
   it('calls only the dedicated PvE RPCs for state changes', () => {
     expect(source).toContain("client.rpc('grid_start_pve_stronghold_contest'");
     expect(source).toContain("client.rpc('grid_resolve_pve_stronghold_round'");
+    expect(source).toContain("client.rpc('grid_withdraw_pve_stronghold_contest'");
     expect(source).not.toContain("client.rpc('grid_start_contest'");
   });
 

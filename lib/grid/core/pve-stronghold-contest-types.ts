@@ -1,7 +1,11 @@
 import type { GridContestComparison } from './contest-types';
 import type { GridNpcStrongholdObjective, GridNpcStrongholdProjection } from './npc-stronghold-types';
 
-export type GridPveStrongholdContestStatus = 'active' | 'captured' | 'repelled';
+export type GridPveStrongholdContestStatus =
+  | 'active'
+  | 'captured'
+  | 'repelled'
+  | 'withdrawn';
 
 export interface GridPveStrongholdContestState {
   strongholdId: string;

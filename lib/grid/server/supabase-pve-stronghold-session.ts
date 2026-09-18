@@ -6,6 +6,7 @@ import type {
   GridPveStrongholdSessionPort,
   GridResolvePveStrongholdRoundResult,
   GridStartPveStrongholdSessionResult,
+  GridWithdrawPveStrongholdSessionResult,
 } from './pve-stronghold-session-port';
 
 export interface GridPveStrongholdResolverRequest {
@@ -170,6 +171,22 @@ export function createSupabaseGridPveStrongholdSessionPort(
         throw new Error(`Failed to resolve Grid PvE stronghold round: ${error.message}`);
       }
       return requireObject<GridResolvePveStrongholdRoundResult>(data, 'Grid PvE stronghold round');
+    },
+
+    async withdrawContest(command) {
+      const { data, error } = await client.rpc('grid_withdraw_pve_stronghold_contest', {
+        p_contest_id: command.contestId,
+        p_attacker_player_id: command.attackerPlayerId,
+        p_idempotency_key: command.idempotencyKey,
+        p_now: command.now,
+      });
+      if (error) {
+        throw new Error(`Failed to withdraw Grid PvE stronghold contest: ${error.message}`);
+      }
+      return requireObject<GridWithdrawPveStrongholdSessionResult>(
+        data,
+        'Grid PvE stronghold withdrawal',
+      );
     },
   };
 }

@@ -93,6 +93,16 @@ function port(): GridPveStrongholdSessionPort {
       territoryCaptured: false,
       eventId: 'event-round',
     }),
+    withdrawContest: vi.fn().mockResolvedValue({
+      contestId: 'contest-1',
+      seasonId: 'season-1',
+      cityId: 'city-1',
+      strongholdId: 'stronghold-1',
+      status: 'withdrawn',
+      attackerRefundedInfluence: 50,
+      endedAt: now,
+      eventId: 'event-withdraw',
+    }),
   };
 }
 

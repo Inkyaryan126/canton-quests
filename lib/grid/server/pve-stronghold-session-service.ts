@@ -6,6 +6,7 @@ import type {
   GridPveStrongholdSessionPort,
   GridResolvePveStrongholdRoundResult,
   GridStartPveStrongholdSessionResult,
+  GridWithdrawPveStrongholdSessionResult,
 } from './pve-stronghold-session-port';
 
 export interface GridLaunchPveStrongholdRequest {
@@ -18,6 +19,14 @@ export interface GridLaunchPveStrongholdRequest {
 }
 
 export interface GridResolvePveStrongholdSessionRoundRequest {
+  contestId: string;
+  attackerPlayerId: string;
+  idempotencyKey: string;
+  now: string;
+}
+
+
+export interface GridWithdrawPveStrongholdSessionRequest {
   contestId: string;
   attackerPlayerId: string;
   idempotencyKey: string;
@@ -149,6 +158,24 @@ export async function resolveGridPveStrongholdSessionRound(
     attackerPlayerId,
     attackerRolls: rollMany(roller, attackerDice, contestConfig.dieSides),
     garrisonRolls: rollMany(roller, garrisonDice, contestConfig.dieSides),
+    idempotencyKey: request.idempotencyKey,
+    now: request.now,
+  });
+}
+
+
+export async function withdrawGridPveStrongholdSession(
+  port: GridPveStrongholdSessionPort,
+  request: GridWithdrawPveStrongholdSessionRequest,
+): Promise<GridWithdrawPveStrongholdSessionResult> {
+  const contestId = requireNonBlank(request.contestId, 'contestId');
+  const attackerPlayerId = requireNonBlank(request.attackerPlayerId, 'attackerPlayerId');
+  requireNonBlank(request.idempotencyKey, 'a non-empty idempotency key');
+  requireTimestamp(request.now);
+
+  return port.withdrawContest({
+    contestId,
+    attackerPlayerId,
     idempotencyKey: request.idempotencyKey,
     now: request.now,
   });

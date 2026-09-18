@@ -85,6 +85,25 @@ export interface GridResolvePveStrongholdRoundResult {
   eventId: string;
 }
 
+
+export interface GridWithdrawPveStrongholdSessionCommand {
+  contestId: string;
+  attackerPlayerId: string;
+  idempotencyKey: string;
+  now: string;
+}
+
+export interface GridWithdrawPveStrongholdSessionResult {
+  contestId: string;
+  seasonId: string;
+  cityId: string;
+  strongholdId: string;
+  status: 'withdrawn';
+  attackerRefundedInfluence: number;
+  endedAt: string;
+  eventId: string;
+}
+
 export interface GridPveStrongholdSessionPort {
   getStartContext(
     request: GridPveStrongholdStartContextRequest,
@@ -96,4 +115,7 @@ export interface GridPveStrongholdSessionPort {
   resolveRound(
     command: GridResolvePveStrongholdRoundCommand,
   ): Promise<GridResolvePveStrongholdRoundResult>;
+  withdrawContest(
+    command: GridWithdrawPveStrongholdSessionCommand,
+  ): Promise<GridWithdrawPveStrongholdSessionResult>;
 }
