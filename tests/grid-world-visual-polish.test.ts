@@ -26,4 +26,11 @@ describe('Grid City Board visual polish contract', () => {
     expect(source).toContain('map-vignette');
     expect(source).toContain('ACTIVE FRONT');
   });
+
+  it('anchors the board in real Canton reference photography already used by Family District', () => {
+    expect(source).toContain('/canton-quests/quests/family/canton.png');
+    expect(source).toContain('/canton-quests/quests/family/palace.png');
+    expect(source).toContain('/canton-quests/quests/family/octo.png');
+    expect(source).toContain('REAL CITY // REAL PLACES // LIVE BOARD');
+  });
 });

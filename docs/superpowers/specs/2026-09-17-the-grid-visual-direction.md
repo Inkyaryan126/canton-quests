@@ -64,6 +64,13 @@ Show the asset as something the player can understand and care about:
 ### A. City key art
 One canonical 16:9 Canton Grid hero using recognizable downtown Canton, not a fictional metropolis and not a waterfront city.
 
+Initial approved real-Canton reference set already in the repo:
+- `public/canton-quests/quests/family/canton.png` — Canton sign / city identity
+- `public/canton-quests/quests/family/palace.png` — Palace / downtown core
+- `public/canton-quests/quests/family/octo.png` — Arts District street-art reference
+
+These are reference anchors, not a rule that all future Grid art must reuse the old Family District presentation style. New art should modernize them into the Grid visual language while preserving recognizable real places.
+
 Needed variants:
 - night / dormant Grid
 - awakened Grid

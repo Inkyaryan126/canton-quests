@@ -31,6 +31,24 @@ const WIDTH = 1000;
 const HEIGHT = 650;
 const PAD = 30;
 
+const cantonReferenceShots = [
+  {
+    src: '/canton-quests/quests/family/canton.png',
+    label: 'CANTON SIGN',
+    note: 'CITY IDENTITY',
+  },
+  {
+    src: '/canton-quests/quests/family/palace.png',
+    label: 'PALACE',
+    note: 'DOWNTOWN CORE',
+  },
+  {
+    src: '/canton-quests/quests/family/octo.png',
+    label: 'ARTS DISTRICT',
+    note: 'REAL STREET ART',
+  },
+] as const;
+
 function allCoordinates(geometry?: GeoJSON.MultiPolygon): [number, number][] {
   if (!geometry) return [];
   return geometry.coordinates.flatMap((polygon) =>
@@ -213,6 +231,35 @@ export default function GridWorldClient({
             Runtime read warning: {runtimeWarning}. Showing the verified compiled Canton package instead.
           </div>
         ) : null}
+
+        <section className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-black/40">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-white/10 px-5 py-4">
+            <div>
+              <div className="font-mono text-[9px] font-black tracking-[.2em] text-cyan-300">REAL CITY // REAL PLACES // LIVE BOARD</div>
+              <div className="mt-1 font-display text-xl font-black uppercase text-white">Canton is not a backdrop. It is the board.</div>
+            </div>
+            <div className="font-mono text-[9px] text-stone-600">FAMILY DISTRICT FIELD REFERENCES</div>
+          </div>
+          <div className="grid sm:grid-cols-3">
+            {cantonReferenceShots.map((shot, index) => (
+              <div
+                key={shot.src}
+                className={`group relative min-h-[170px] overflow-hidden ${index > 0 ? 'border-t border-white/10 sm:border-l sm:border-t-0' : ''}`}
+              >
+                <div
+                  className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                  style={{ backgroundImage: `url(${shot.src})` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-cyan-950/10" />
+                <div className="absolute inset-0 opacity-30 mix-blend-screen" style={{ background: 'linear-gradient(120deg, transparent 30%, rgba(34,211,238,.16) 52%, transparent 70%)' }} />
+                <div className="relative flex min-h-[170px] flex-col justify-end p-4">
+                  <div className="font-display text-xl font-black uppercase tracking-tight text-white drop-shadow-lg">{shot.label}</div>
+                  <div className="mt-1 font-mono text-[8px] font-black tracking-[.16em] text-cyan-200/80">{shot.note}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard label="TERRITORIES" value={projection.counts.territories} note={`${projection.counts.occupiedTerritories} occupied`} />
