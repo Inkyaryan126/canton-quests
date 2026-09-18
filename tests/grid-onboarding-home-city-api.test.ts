@@ -40,8 +40,9 @@ describe('Grid onboarding Home City API contract', () => {
     expect(adapter).toContain('updated_at: now');
   });
 
-  it('returns sanitized city slug rather than internal city id', () => {
-    expect(route).toContain('homeCity');
-    expect(route).not.toContain('cityId:');
+  it('uses internal city identity only between trusted server services and sanitizes the response', () => {
+    expect(route).toContain('cityId: homeCity.cityId');
+    expect(route).toContain('homeCity: { citySlug: homeCity.citySlug, confirmed: homeCity.confirmed }');
+    expect(route).not.toContain('return response({ success: true, homeCity });');
   });
 });

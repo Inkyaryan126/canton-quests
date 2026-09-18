@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { cantonFoundingSeasonPackage } from '@/lib/grid/cities/canton/founding-season';
 import { isGridOnboardingWriteEnabled } from '@/lib/grid/server/onboarding-feature-flags';
 import { confirmGridOnboardingHomeCity } from '@/lib/grid/server/onboarding-home-city-service';
+import { recordGridPassportHomeCity } from '@/lib/grid/server/passport-home-city-service';
+import { createSupabaseGridPassportPort } from '@/lib/grid/server/supabase-passport';
+import { createSupabaseGridEventLedgerPort } from '@/lib/grid/server/supabase-event-ledger';
 import { createSupabaseGridOnboardingHomeCityPort } from '@/lib/grid/server/supabase-onboarding-home-city';
 import {
   resolveAuthenticatedSession,
@@ -33,13 +36,28 @@ export async function POST(request: Request) {
   }
 
   try {
+    const now = new Date().toISOString();
     const homeCity = await confirmGridOnboardingHomeCity(
       createSupabaseGridOnboardingHomeCityPort(cantonFoundingSeasonPackage),
       session.player.id,
-      new Date().toISOString(),
+      now,
     );
 
-    return response({ success: true, homeCity });
+    await recordGridPassportHomeCity(
+      createSupabaseGridEventLedgerPort(),
+      createSupabaseGridPassportPort(),
+      {
+        playerId: session.player.id,
+        cityId: homeCity.cityId,
+        citySlug: homeCity.citySlug,
+        occurredAt: now,
+      },
+    );
+
+    return response({
+      success: true,
+      homeCity: { citySlug: homeCity.citySlug, confirmed: homeCity.confirmed },
+    });
   } catch (error) {
     const message =
       error instanceof Error
