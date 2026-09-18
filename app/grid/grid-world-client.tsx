@@ -122,6 +122,11 @@ export default function GridWorldClient({
   const [projection, setProjection] = useState(initialProjection);
   const [runtimeEnabled, setRuntimeEnabled] = useState(false);
   const [runtimeWarning, setRuntimeWarning] = useState<string | null>(null);
+  const [selectedTerritorySlug, setSelectedTerritorySlug] = useState<string | null>(() =>
+    initialProjection.territories.find((territory) => territory.starterEligible)?.slug
+      ?? initialProjection.territories[0]?.slug
+      ?? null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -146,6 +151,14 @@ export default function GridWorldClient({
 
   const bounds = useMemo(() => getBounds(projection), [projection]);
   const wallet = projection.player.wallet;
+  const selectedTerritory = useMemo(
+    () => projection.territories.find((territory) => territory.slug === selectedTerritorySlug) ?? null,
+    [projection.territories, selectedTerritorySlug],
+  );
+  const selectedProperties = useMemo(
+    () => projection.properties.filter((property) => property.territorySlug === selectedTerritorySlug),
+    [projection.properties, selectedTerritorySlug],
+  );
   const sourceLabel =
     projection.source === 'database'
       ? 'LIVE READ'
@@ -175,8 +188,16 @@ export default function GridWorldClient({
             <h1 className="mt-3 font-display text-5xl font-black uppercase tracking-tight sm:text-7xl">
               CITY BOARD
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-stone-400 sm:text-base">
-              Real Canton geography. Territory control, property development, and Skyline state are projected here without giving the browser any mutation authority.
+            <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-[10px] font-black tracking-[.14em]">
+              <span className="rounded-full border border-cyan-400/25 bg-cyan-400/[.08] px-3 py-1.5 text-cyan-200">PRESENT-DAY CANTON</span>
+              <span className="text-stone-600">→</span>
+              <span className="rounded-full border border-amber-300/25 bg-amber-300/[.08] px-3 py-1.5 text-amber-200">PLAYER-CREATED FUTURE</span>
+            </div>
+            <p className="mt-4 max-w-3xl font-display text-lg font-black uppercase tracking-[.04em] text-white sm:text-xl">
+              THE CITY EXISTS. NOW PLAYERS CHANGE IT.
+            </p>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-stone-400 sm:text-base">
+              The real city is the starting board. Territory control, property development, contests, and Skylines layer a player-built future over Canton without rewriting the city&apos;s past.
             </p>
           </div>
 
@@ -210,7 +231,7 @@ export default function GridWorldClient({
                   Canton Territory Layer
                 </div>
                 <div className="mt-1 font-mono text-[10px] text-stone-500">
-                  SOURCE-BACKED POLYGONS // READ-ONLY PROJECTION
+                  SOURCE-BACKED POLYGONS // CLICK A TERRITORY TO INSPECT
                 </div>
               </div>
               <div className="flex flex-wrap gap-3 font-mono text-[9px] text-stone-400">
@@ -221,23 +242,56 @@ export default function GridWorldClient({
               </div>
             </div>
 
-            <div className="relative aspect-[1000/650] min-h-[420px] w-full bg-[#060b10] p-2">
+            <div className="relative aspect-[1000/650] min-h-[420px] w-full overflow-hidden bg-[#060b10] p-2">
+              <div
+                className="map-vignette pointer-events-none absolute inset-0 z-10"
+                aria-hidden="true"
+                style={{
+                  boxShadow: 'inset 0 0 120px rgba(0,0,0,.92), inset 0 -80px 100px rgba(0,0,0,.55)',
+                  background: 'radial-gradient(circle at 50% 45%, rgba(34,211,238,.04), transparent 48%)',
+                }}
+              />
               <svg
                   viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
                   className="h-full w-full"
                   role="img"
                   aria-label="The Grid Canton territory map"
                 >
-                  <rect width={WIDTH} height={HEIGHT} className="fill-[#060b10]" />
+                  <defs>
+                    <filter id="territory-glow" x="-40%" y="-40%" width="180%" height="180%">
+                      <feGaussianBlur stdDeviation="6" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                    <linearGradient id="board-floor" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#07131b" />
+                      <stop offset="100%" stopColor="#030609" />
+                    </linearGradient>
+                  </defs>
+                  <rect width={WIDTH} height={HEIGHT} fill="url(#board-floor)" />
                   {projection.territories.map((territory) => (
                     <path
                       key={territory.slug}
+                      data-grid-territory={territory.slug}
                       d={geometryPath(territory.geometry, bounds)}
                       fillRule="evenodd"
-                      className={`${territoryClass(territory.ownership, territory.claimable, territory.starterEligible)} transition-opacity hover:opacity-80`}
-                      strokeWidth={territory.claimable ? 3 : 1.4}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Inspect ${territory.name}`}
+                      onClick={() => setSelectedTerritorySlug(territory.slug)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedTerritorySlug(territory.slug);
+                        }
+                      }}
+                      filter={selectedTerritorySlug === territory.slug || territory.contested ? 'url(#territory-glow)' : undefined}
+                      className={`${territoryClass(territory.ownership, territory.claimable, territory.starterEligible)} cursor-pointer transition-all duration-200 hover:opacity-90 ${selectedTerritorySlug === territory.slug ? 'opacity-100' : 'opacity-75'}`}
+                      strokeWidth={selectedTerritorySlug === territory.slug ? 4.5 : territory.claimable ? 3 : 1.4}
                     >
-                      <title>{territory.name} — {territory.ownership}{territory.claimable ? ' — valid expansion' : ''}</title>
+                      <title>{territory.name} — {territory.ownership}{territory.claimable ? ' — valid expansion' : ''}{territory.contested ? ' — active front' : ''}</title>
                     </path>
                   ))}
                 {projection.properties.map((property) => {
@@ -272,6 +326,40 @@ export default function GridWorldClient({
           </div>
 
           <aside className="space-y-5">
+            <div className="rounded-3xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/[.09] to-black/45 p-5 shadow-[0_0_45px_rgba(34,211,238,.06)]">
+              <div className="font-mono text-[9px] font-black tracking-[.18em] text-cyan-300">SELECTED TERRITORY</div>
+              {selectedTerritory ? (
+                <>
+                  <div className="mt-2 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-display text-2xl font-black uppercase leading-tight text-white">{selectedTerritory.name}</div>
+                      <div className="mt-1 font-mono text-[9px] uppercase tracking-[.12em] text-stone-500">{selectedTerritory.districtSlug}</div>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-black/30 px-2.5 py-1 font-mono text-[9px] text-stone-300">
+                      {selectedTerritory.ownership.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-white/[.07] bg-black/25 p-3">
+                      <div className="font-display text-xl font-black">{selectedProperties.length}</div>
+                      <div className="mt-1 font-mono text-[8px] tracking-[.12em] text-stone-500">PROPERTIES</div>
+                    </div>
+                    <div className="rounded-xl border border-white/[.07] bg-black/25 p-3">
+                      <div className="font-display text-xl font-black">{selectedTerritory.claimable ? 'OPEN' : selectedTerritory.starterEligible ? 'START' : '—'}</div>
+                      <div className="mt-1 font-mono text-[8px] tracking-[.12em] text-stone-500">EXPANSION</div>
+                    </div>
+                  </div>
+                  {selectedTerritory.contested ? (
+                    <div className="mt-3 flex items-center gap-2 rounded-xl border border-rose-400/25 bg-rose-400/[.08] px-3 py-2 font-mono text-[9px] font-black tracking-[.12em] text-rose-200">
+                      <Crosshair size={13} /> ACTIVE FRONT
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mt-3 text-sm text-stone-500">Select a territory on the city board.</p>
+              )}
+            </div>
+
             <div className="rounded-3xl border border-white/10 bg-black/45 p-5">
               <div className="flex items-center gap-2 font-display text-lg font-black uppercase">
                 <Coins size={18} className="text-amber-300" />
@@ -322,8 +410,11 @@ export default function GridWorldClient({
                 <Building2 size={18} className="text-cyan-300" />
                 Property Layer
               </div>
+              <div className="mt-1 font-mono text-[9px] text-stone-600">
+                {selectedTerritory ? `ASSETS IN ${selectedTerritory.name.toUpperCase()}` : 'CITY ASSETS'}
+              </div>
               <div className="mt-3 space-y-2">
-                {projection.properties.slice(0, 8).map((property) => (
+                {(selectedTerritory ? selectedProperties : projection.properties.slice(0, 8)).slice(0, 8).map((property) => (
                   <div key={property.slug} className="flex items-center justify-between gap-3 border-b border-white/[.06] py-2 text-xs">
                     <span className="truncate text-stone-300">{property.name}</span>
                     <span className="font-mono text-[9px] text-stone-500">
@@ -333,6 +424,11 @@ export default function GridWorldClient({
                     </span>
                   </div>
                 ))}
+                {selectedTerritory && selectedProperties.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-white/10 px-3 py-4 text-center text-xs text-stone-600">
+                    No named public/commercial properties in this territory yet.
+                  </div>
+                ) : null}
               </div>
             </div>
 
