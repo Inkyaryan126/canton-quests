@@ -42,6 +42,21 @@ describe('Supabase GRID Alliance persistence adapter', () => {
     }));
   });
 
+  it('derives upkeep network inputs from seasonal ownership and city adjacency', () => {
+    expect(source).toContain(".from('grid_season_territory_state')");
+    expect(source).toContain(".from('grid_territories')");
+    expect(source).toContain(".from('grid_territory_edges')");
+    expect(source).toContain('getActiveMemberPlayerIds');
+    expect(source).toContain('getAllianceNetworkInputs');
+  });
+
+  it('routes upkeep settlement through the trusted atomic RPC', () => {
+    expect(source).toContain("'grid_settle_alliance_upkeep'");
+    expect(source).toContain('p_expected_alliance_revision');
+    expect(source).toContain('p_disconnected_component_count');
+    expect(source).toContain('p_shortfall_influence');
+  });
+
   it('reads Alliance state and membership history only from dedicated tables', () => {
     expect(source).toContain(".from('grid_alliances')");
     expect(source).toContain(".from('grid_alliance_memberships')");
