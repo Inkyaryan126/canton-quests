@@ -240,6 +240,15 @@ function validateGridContestConfig(
   if (contest.tiesFavorDefender !== true) {
     errors.push('contest.tiesFavorDefender must be true');
   }
+
+  if (contest.takeoverDamage) {
+    for (const [key, value] of Object.entries(contest.takeoverDamage)) {
+      if (!Number.isInteger(value) || value < 0 || value > 10_000) {
+        errors.push(`contest.takeoverDamage.${key} must be an integer from 0..10000`);
+      }
+    }
+  }
+
   validateContestSide(contest.attacker, 'contest.attacker', errors);
   validateContestSide(contest.defender, 'contest.defender', errors);
 }

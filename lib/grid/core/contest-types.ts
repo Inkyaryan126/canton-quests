@@ -1,3 +1,5 @@
+import type { GridTakeoverDamagePolicy } from './takeover-damage';
+
 export type GridContestTactic = 'pressure' | 'flank' | 'fortify' | 'feint';
 
 export interface GridSignalDiceBand {
@@ -14,6 +16,8 @@ export interface GridContestConfig {
   dieSides: number;
   influenceLossPerComparison: number;
   tiesFavorDefender: true;
+  /** Optional per-season transfer/damage tuning for developed properties on capture. */
+  takeoverDamage?: GridTakeoverDamagePolicy;
   attacker: GridContestSideConfig;
   defender: GridContestSideConfig;
 }

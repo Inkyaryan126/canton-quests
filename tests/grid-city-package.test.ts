@@ -96,4 +96,32 @@ describe('validateGridCityPackage', () => {
     expect(result.errors).toContain('territory edge cannot connect a to itself');
     expect(result.errors).toContain('territory edge a -> missing references unknown territory');
   });
+
+  it('validates optional takeover damage tuning as basis points', () => {
+    const pkg = basePackage();
+    pkg.seasonTemplate.contest = {
+      dieSides: 6,
+      influenceLossPerComparison: 10,
+      tiesFavorDefender: true,
+      takeoverDamage: {
+        developmentRetentionBps: 10_001,
+        conditionDamageBps: 2_000,
+        conditionFloorBps: 4_000,
+      },
+      attacker: {
+        maxDice: 3,
+        bands: [{ minCommittedInfluence: 10, dice: 1 }],
+      },
+      defender: {
+        maxDice: 2,
+        bands: [{ minCommittedInfluence: 10, dice: 1 }],
+      },
+    };
+
+    const result = validateGridCityPackage(pkg);
+
+    expect(result.errors).toContain(
+      'contest.takeoverDamage.developmentRetentionBps must be an integer from 0..10000',
+    );
+  });
 });
