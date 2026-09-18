@@ -180,4 +180,31 @@ describe('Grid PvE stronghold contest core', () => {
       attackerRolls: [6], garrisonRolls: [1],
     }, contestConfig)).toThrow('cannot exceed initial Influence');
   });
+
+  it('ends a fight when positive remaining Influence falls below the Signal Dice threshold', () => {
+    const thresholdConfig: GridContestConfig = {
+      ...contestConfig,
+      influenceLossPerComparison: 10,
+      attacker: { maxDice: 1, bands: [{ minCommittedInfluence: 15, dice: 1 }] },
+      defender: { maxDice: 1, bands: [{ minCommittedInfluence: 15, dice: 1 }] },
+    };
+    const attackerState = startGridPveStrongholdContest({
+      stronghold: stronghold({ garrisonInfluence: 20 }), attackerCommittedInfluence: 20,
+    });
+    const repelled = resolveGridPveStrongholdRound({
+      state: attackerState, attackerRolls: [1], garrisonRolls: [6],
+    }, thresholdConfig);
+    expect(repelled.state.attackerRemainingInfluence).toBe(10);
+    expect(repelled.state.status).toBe('repelled');
+
+    const garrisonState = startGridPveStrongholdContest({
+      stronghold: stronghold({ garrisonInfluence: 20 }), attackerCommittedInfluence: 20,
+    });
+    const captured = resolveGridPveStrongholdRound({
+      state: garrisonState, attackerRolls: [6], garrisonRolls: [1],
+    }, thresholdConfig);
+    expect(captured.state.garrisonRemainingInfluence).toBe(10);
+    expect(captured.state.status).toBe('captured');
+  });
+
 });

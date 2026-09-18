@@ -1,4 +1,4 @@
-import { resolveSignalDiceRound } from './contest';
+import { resolveSignalDiceRound, signalDiceForCommit } from './contest';
 import type { GridContestConfig } from './contest-types';
 import type {
   GridPveStrongholdContestState,
@@ -58,15 +58,8 @@ function validateState(state: GridPveStrongholdContestState): void {
       throw new Error('Active PvE stronghold contests require both sides to have Influence');
     }
   } else if (state.status === 'captured') {
-    if (
-      state.garrisonRemainingInfluence !== 0 ||
-      state.attackerRemainingInfluence === 0
-    ) {
-      throw new Error('Captured PvE stronghold state is inconsistent');
-    }
-  } else if (state.status === 'repelled') {
-    if (state.attackerRemainingInfluence !== 0) {
-      throw new Error('Repelled PvE stronghold state requires zero attacker Influence');
+    if (state.attackerRemainingInfluence === 0) {
+      throw new Error('Captured PvE stronghold state requires surviving attacker Influence');
     }
   }
 }
@@ -111,6 +104,16 @@ export function resolveGridPveStrongholdRound(
   if (input.state.status !== 'active') {
     throw new Error('PvE stronghold contest is already resolved');
   }
+  if (
+    signalDiceForCommit(input.state.attackerRemainingInfluence, contestConfig.attacker) <= 0
+  ) {
+    throw new Error('PvE stronghold attacker cannot continue');
+  }
+  if (
+    signalDiceForCommit(input.state.garrisonRemainingInfluence, contestConfig.defender) <= 0
+  ) {
+    throw new Error('PvE stronghold garrison cannot continue');
+  }
 
   const resolved = resolveSignalDiceRound(
     {
@@ -124,9 +127,15 @@ export function resolveGridPveStrongholdRound(
 
   const attackerRemainingInfluence = resolved.attackerRemainingInfluence;
   const garrisonRemainingInfluence = resolved.defenderRemainingInfluence;
-  const status = attackerRemainingInfluence === 0
+  const attackerCanContinue =
+    attackerRemainingInfluence > 0 &&
+    signalDiceForCommit(attackerRemainingInfluence, contestConfig.attacker) > 0;
+  const garrisonCanContinue =
+    garrisonRemainingInfluence > 0 &&
+    signalDiceForCommit(garrisonRemainingInfluence, contestConfig.defender) > 0;
+  const status = !attackerCanContinue
     ? 'repelled'
-    : garrisonRemainingInfluence === 0
+    : !garrisonCanContinue
       ? 'captured'
       : 'active';
 
