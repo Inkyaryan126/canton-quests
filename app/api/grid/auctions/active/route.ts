@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { cantonFoundingSeasonPackage } from '@/lib/grid/cities/canton/founding-season';
-import { isGridAuctionReadEnabled } from '@/lib/grid/server/auction-feature-flags';
+import {
+  isGridAuctionReadEnabled,
+  isGridAuctionWriteEnabled,
+} from '@/lib/grid/server/auction-feature-flags';
 import { listGridActiveAuctions } from '@/lib/grid/server/auction-read-service';
+import { settleExpiredGridAuctions } from '@/lib/grid/server/auction-settlement-sweep-service';
+import { createSupabaseGridAuctionSettlementSweepPort } from '@/lib/grid/server/supabase-auction-settlement-sweep';
+import { createSupabaseGridAuctionCommandPort } from '@/lib/grid/server/supabase-auction';
 import {
   createSupabaseGridAuctionReadPort,
   resolveSupabaseGridAuctionSeasonId,
@@ -44,15 +50,34 @@ export async function GET(request: Request) {
         { status: 404 },
       );
     }
+    const now = new Date().toISOString();
+    let settlementWarning: string | null = null;
+
+    if (isGridAuctionWriteEnabled()) {
+      try {
+        const sweep = await settleExpiredGridAuctions(
+          createSupabaseGridAuctionSettlementSweepPort(),
+          createSupabaseGridAuctionCommandPort(),
+          { seasonId, now, limit: 25 },
+        );
+        if (sweep.failed > 0) {
+          settlementWarning =
+            `${sweep.failed} expired auction${sweep.failed === 1 ? '' : 's'} could not be settled yet.`;
+        }
+      } catch {
+        settlementWarning = 'Expired auction settlement is temporarily unavailable.';
+      }
+    }
+
     const auctions = await listGridActiveAuctions(
       createSupabaseGridAuctionReadPort(),
       {
         seasonId,
         viewerPlayerId: session.player.id,
-        now: new Date().toISOString(),
+        now,
       },
     );
-    return response({ success: true, auctions });
+    return response({ success: true, auctions, settlementWarning });
   } catch (error) {
     const message =
       error instanceof Error
