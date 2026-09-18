@@ -49,6 +49,16 @@ export type GridMapSelectionDetails =
   | GridMapTerritorySelection
   | GridMapPropertySelection;
 
+export function toggleGridMapSelection(
+  current: GridMapInteractionTarget | null,
+  next: GridMapInteractionTarget,
+): GridMapInteractionTarget | null {
+  if (current !== null && current.kind === next.kind && current.slug === next.slug) {
+    return null;
+  }
+  return next;
+}
+
 export function resolveGridMapSelection(
   packet: GridMapRenderPacket,
   target: GridMapInteractionTarget,
