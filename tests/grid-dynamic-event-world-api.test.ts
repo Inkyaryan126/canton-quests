@@ -10,6 +10,10 @@ const projector = fs.readFileSync(
   path.join(process.cwd(), 'lib/grid/server/dynamic-event-world.ts'),
   'utf8',
 );
+const client = fs.readFileSync(
+  path.join(process.cwd(), 'app/grid/grid-world-client.tsx'),
+  'utf8',
+);
 
 describe('Grid dynamic events world API', () => {
   it('reads active server-side event instances and exposes a player-safe projection', () => {
@@ -31,4 +35,13 @@ describe('Grid dynamic events world API', () => {
     expect(projector).not.toContain('modifiers: instance.modifiers');
     expect(projector).not.toContain('priority: instance.priority');
   });
+  it('renders live events and NPC strongholds from the world feed', () => {
+    expect(client).toContain('setDynamicEvents(data.dynamicEvents ?? [])');
+    expect(client).toContain('setStrongholds(data.strongholds ?? [])');
+    expect(client).toContain('Live Operations');
+    expect(client).toContain("event.target.entities.map((entity) => entity.name)");
+    expect(client).toContain('NPC STRONGHOLD');
+    expect(client).not.toContain('event.modifiers');
+  });
+
 });

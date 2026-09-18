@@ -20,10 +20,14 @@ import {
   normalizeGridRevisionPollMs,
 } from '@/lib/grid/client/world-revision-polling';
 import type { GridWorldProjection } from '@/lib/grid/server/world-projection';
+import type { GridDynamicEventWorldProjection } from '@/lib/grid/server/dynamic-event-world';
+import type { GridNpcStrongholdWorldProjection } from '@/lib/grid/server/npc-stronghold-world';
 import type { GridProgressionSnapshot, GridStatDefinition } from '@/lib/grid/core/progression-types';
 
 interface GridWorldResponse {
   projection: GridWorldProjection;
+  dynamicEvents: GridDynamicEventWorldProjection[];
+  strongholds: GridNpcStrongholdWorldProjection[];
   runtimeEnabled: boolean;
   economyWriteEnabled: boolean;
   contestWriteEnabled: boolean;
@@ -256,6 +260,8 @@ export default function GridWorldClient({
   const [economyWriteEnabled, setEconomyWriteEnabled] = useState(false);
   const [contestWriteEnabled, setContestWriteEnabled] = useState(false);
   const [runtimeWarning, setRuntimeWarning] = useState<string | null>(null);
+  const [dynamicEvents, setDynamicEvents] = useState<GridDynamicEventWorldProjection[]>([]);
+  const [strongholds, setStrongholds] = useState<GridNpcStrongholdWorldProjection[]>([]);
   const [progression, setProgression] = useState<GridProgressionSnapshot | null>(null);
   const [progressionCatalogCount, setProgressionCatalogCount] = useState(0);
   const [progressionWarning, setProgressionWarning] = useState<string | null>(null);
@@ -272,6 +278,8 @@ export default function GridWorldClient({
     if (!response.ok) throw new Error('Grid world feed unavailable');
     const data = (await response.json()) as GridWorldResponse;
     setProjection(data.projection);
+    setDynamicEvents(data.dynamicEvents ?? []);
+    setStrongholds(data.strongholds ?? []);
     setRuntimeEnabled(data.runtimeEnabled);
     setEconomyWriteEnabled(data.economyWriteEnabled);
     setContestWriteEnabled(data.contestWriteEnabled);
@@ -710,6 +718,72 @@ export default function GridWorldClient({
           <div className="mt-5 rounded-xl border border-emerald-400/25 bg-emerald-400/[.07] px-4 py-3 text-sm text-emerald-100">
             {actionNotice}
           </div>
+        ) : null}
+
+        {dynamicEvents.length > 0 || strongholds.length > 0 ? (
+          <section className="mt-6 rounded-3xl border border-cyan-400/15 bg-cyan-400/[.035] p-4 sm:p-5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 font-display text-lg font-black uppercase">
+                  <Radio size={17} className="text-cyan-300" />
+                  Live Operations
+                </div>
+                <div className="mt-1 font-mono text-[9px] tracking-[.14em] text-stone-500">
+                  ACTIVE CITY EFFECTS // NPC PRESSURE // SERVER VERIFIED
+                </div>
+              </div>
+              <div className="font-mono text-[9px] text-stone-500">
+                {dynamicEvents.length} EVENT{dynamicEvents.length === 1 ? '' : 'S'} // {strongholds.length} STRONGHOLD{strongholds.length === 1 ? '' : 'S'}
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {dynamicEvents.map((event) => (
+                <div
+                  key={event.instanceId}
+                  className="rounded-2xl border border-cyan-300/15 bg-black/35 p-4"
+                >
+                  <div className="font-mono text-[9px] font-black tracking-[.14em] text-cyan-300">
+                    DYNAMIC EVENT
+                  </div>
+                  <div className="mt-2 font-display text-lg font-black uppercase text-white">
+                    {event.kind.replaceAll('-', ' ')}
+                  </div>
+                  <div className="mt-2 text-xs text-stone-400">
+                    {event.target.entities.map((entity) => entity.name).join(' · ')}
+                  </div>
+                  <div className="mt-3 font-mono text-[9px] text-stone-500">
+                    {clockMs > 0
+                      ? humanizeWait(Date.parse(event.endsAt) - clockMs).toUpperCase() + ' REMAINING'
+                      : 'SYNCING EVENT CLOCK'}
+                  </div>
+                </div>
+              ))}
+
+              {strongholds.map((stronghold) => (
+                <div
+                  key={stronghold.strongholdId}
+                  className="rounded-2xl border border-fuchsia-300/15 bg-black/35 p-4"
+                >
+                  <div className="flex items-center gap-2 font-mono text-[9px] font-black tracking-[.14em] text-fuchsia-300">
+                    <ShieldCheck size={13} />
+                    NPC STRONGHOLD
+                  </div>
+                  <div className="mt-2 font-display text-lg font-black uppercase text-white">
+                    {stronghold.target.kind === 'pve-landmark'
+                      ? stronghold.target.landmark.name
+                      : stronghold.target.territoryName}
+                  </div>
+                  <div className="mt-2 text-xs text-stone-400">
+                    {stronghold.status.toUpperCase()} // {stronghold.factionId}
+                  </div>
+                  <div className="mt-3 font-mono text-[9px] text-stone-500">
+                    GARRISON {stronghold.garrisonInfluence} INFLUENCE
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         ) : null}
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
