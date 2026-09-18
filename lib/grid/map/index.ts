@@ -1,3 +1,4 @@
+export * from './frame';
 export * from './camera';
 export * from './layers';
 export * from './delta';
