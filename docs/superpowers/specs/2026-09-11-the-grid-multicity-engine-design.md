@@ -228,6 +228,18 @@ Zoom behavior:
 
 Virtual structures are stylized game assets, not attempts to represent legal ownership or literal changes to real buildings.
 
+### 5.1 Canonical World Time
+
+The normal playable world is the **present-day validated city package**. THE GRID does not begin from a sparse historical map and unlock the city year-by-year. Present streets, territories, public/commercial properties, landmarks, and roads are available according to normal gameplay rules from the start of a season.
+
+Historical metadata is retained as a narrative and provenance layer. It may power historical missions, vanished-place clues, archival overlays, or isolated limited-time **Echo** experiences, but it does not gate the normal economy or remove modern assets from the canonical board.
+
+The long-term visual/gameplay arc is:
+
+**real present-day city → player control → investment and development → Skylines / factions / contests → player-created future city**
+
+Any future mode that temporarily replaces the canonical present-day board with a historical ruleset requires an explicit product/architecture decision rather than silently deriving availability from historical dates.
+
 ---
 
 ## 6. Core Economy

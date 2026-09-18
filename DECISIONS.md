@@ -1,5 +1,15 @@
 # Canton Quests — Architecture & Product Decision Log (ADRs)
 
+### [ADR-057] 2026-09-17: Present-Day City Is the Canonical Playable World
+
+- **Status**: ACCEPTED.
+- **Decision**: THE GRID starts from the city as it exists in the present-day canonical City Package. Players do not unlock Canton chronologically from an older historical map into the modern city. Current streets, territories, public/commercial properties, landmarks, and validated road geometry form the playable board from the beginning. Historical metadata remains optional source-backed context for lore, quests, overlays, vanished-place references, and limited-time historical "Echo" experiences. **History is content, not the economy timeline.** Player investment, property development, Skylines, faction control, contests, and future virtual construction are what transform the city after launch.
+- **Reason**: A chronological rebuild would make early eras artificially sparse, remove too many strategically useful properties, force balance around incomplete historical inventories, and delay the strongest part of the game: competing over the recognizable city players actually live in. The present-day board gives every season enough territory/property density while still preserving local history as high-value narrative material.
+- **Alternatives Evaluated**: (1) Start from an early historical Canton map and unlock streets/properties by year — rejected because property density and source completeness vary heavily by era and would distort the strategy game. (2) Delete historical metadata entirely — rejected because source-backed history is valuable for missions, lore, seasonal overlays, and provenance.
+- **Consequences**: Runtime economy, ownership, contests, routing, onboarding, and map availability must never gate an asset solely by `builtYear`, `openedYear`, `activationYear`, `retiredYear`, `demolishedYear`, predecessor/successor lineage, or a generic historical era. Historical fields stay in the compiler/data model and continue to be validated. A future historical event may visually/narratively overlay a prior era (for example, an "Echo of 1925") but it may not silently replace the canonical present-day economy unless a future explicit ADR defines an isolated event mode. The player-facing long-term arc is **real present-day city → player control → investment/development → player-created future city**.
+
+---
+
 ### [ADR-056] 2026-09-12: GRID Foundation hardening — event idempotency and edge city-consistency
 
 - **Status**: ACCEPTED.
