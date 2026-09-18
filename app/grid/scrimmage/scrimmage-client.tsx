@@ -943,13 +943,33 @@ export default function ScrimmageClient() {
                       </div>
                     </div>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={clearSession}
-                    className="mt-5 rounded-xl bg-white px-5 py-3 font-display text-xs font-black uppercase text-black"
-                  >
-                    RETURN TO SCRIMMAGE MENU
-                  </button>
+                  <div className="mt-5 flex flex-wrap justify-center gap-3">
+                    {scrimmage.status === 'completed' &&
+                    viewer?.role === 'host' ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void runMutation(
+                            'rematch',
+                            undefined,
+                            'Rematch lobby open. Ready up.',
+                          )
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 font-display text-xs font-black uppercase text-black transition hover:bg-cyan-200 disabled:opacity-50"
+                      >
+                        <RefreshCw size={15} />
+                        RUN IT BACK
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={clearSession}
+                      className="rounded-xl bg-white px-5 py-3 font-display text-xs font-black uppercase text-black"
+                    >
+                      RETURN TO SCRIMMAGE MENU
+                    </button>
+                  </div>
                 </div>
               ) : null}
             </div>

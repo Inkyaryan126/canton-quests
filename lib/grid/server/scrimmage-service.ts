@@ -8,6 +8,7 @@ import {
   leaveGridScrimmage,
   normalizeGridScrimmageInviteCode,
   resolveGridScrimmageDuel,
+  resetGridScrimmageForRematch,
   setGridScrimmageReady,
   startGridScrimmage,
 } from '../core/scrimmage';
@@ -16,6 +17,7 @@ import type {
   GridEndScrimmageCommand,
   GridJoinScrimmageCommand,
   GridLeaveScrimmageCommand,
+  GridResetScrimmageCommand,
   GridScrimmageState,
   GridSetScrimmageReadyCommand,
   GridStartScrimmageCommand,
@@ -242,6 +244,19 @@ export async function resolveGridScrimmageDuelSession(
       },
       config,
     ),
+  );
+}
+
+export async function resetGridScrimmageSessionForRematch(
+  port: GridScrimmagePort,
+  sessionId: string,
+  command: GridResetScrimmageCommand,
+): Promise<GridScrimmageState> {
+  const current = await loadById(port, sessionId);
+  return persistMutation(
+    port,
+    current,
+    resetGridScrimmageForRematch(current, command),
   );
 }
 

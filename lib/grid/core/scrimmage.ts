@@ -6,6 +6,7 @@ import type {
   GridJoinScrimmageCommand,
   GridLeaveScrimmageCommand,
   GridResolveScrimmageDuelCommand,
+  GridResetScrimmageCommand,
   GridScrimmageCombatantState,
   GridScrimmageRoundRecord,
   GridScrimmageParticipant,
@@ -427,6 +428,29 @@ export function resolveGridScrimmageDuel(
       combatants,
       lastRound: roundRecord,
     },
+  });
+}
+
+export function resetGridScrimmageForRematch(
+  state: GridScrimmageState,
+  command: GridResetScrimmageCommand,
+): GridScrimmageState {
+  const playerId = requireNonEmpty(command.playerId, 'playerId');
+  requireHost(state, playerId);
+
+  if (state.status !== 'completed') {
+    throw new Error('Grid scrimmage rematch requires a completed session');
+  }
+
+  return updateState(state, {
+    status: 'lobby',
+    participants: state.participants.map((participant) => ({
+      ...participant,
+      ready: false,
+    })),
+    match: null,
+    startedAt: null,
+    endedAt: null,
   });
 }
 

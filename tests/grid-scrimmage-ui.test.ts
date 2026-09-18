@@ -95,6 +95,12 @@ describe('GRID player Scrimmage UI', () => {
     expect(clientSource).toContain('scrimmage.match?.winnerPlayerId');
   });
 
+  it('lets the host run the same private room back after completion', () => {
+    expect(clientSource).toContain("'rematch'");
+    expect(clientSource).toContain('RUN IT BACK');
+    expect(clientSource).toContain("viewer?.role === 'host'");
+  });
+
   it('uses private aliases instead of rendering raw database ids as names', () => {
     expect(clientSource).toContain("return 'YOU'");
     expect(clientSource).toContain("return 'HOST'");

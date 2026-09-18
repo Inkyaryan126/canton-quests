@@ -8,10 +8,12 @@ import type {
 } from '../lib/grid/server/scrimmage-port';
 import {
   cancelGridScrimmageSession,
+  completeGridScrimmageSession,
   createGridScrimmageSession,
   getGridScrimmageSessionForPlayer,
   joinGridScrimmageSession,
   resolveGridScrimmageDuelSession,
+  resetGridScrimmageSessionForRematch,
   setGridScrimmageSessionReady,
   startGridScrimmageSession,
 } from '../lib/grid/server/scrimmage-service';
@@ -260,6 +262,46 @@ describe('GRID scrimmage server service', () => {
     expect(resolved.status).toBe('completed');
     expect(resolved.endedAt).toBe('2026-09-16T10:03:00.000Z');
     expect(resolved.match?.winnerPlayerId).toBe('host-1');
+  });
+
+  it('persists a host-requested rematch as a fresh ready-up lobby', async () => {
+    const port = new MemoryScrimmagePort();
+    await createGridScrimmageSession(port, createCommand);
+    await joinGridScrimmageSession(port, {
+      playerId: 'guest-1',
+      inviteCode: 'CREW-26',
+      now: '2026-09-16T10:01:00.000Z',
+    });
+    await setGridScrimmageSessionReady(port, 'scrim-1', {
+      playerId: 'host-1',
+      ready: true,
+    });
+    await setGridScrimmageSessionReady(port, 'scrim-1', {
+      playerId: 'guest-1',
+      ready: true,
+    });
+    await startGridScrimmageSession(port, 'scrim-1', {
+      playerId: 'host-1',
+      now: '2026-09-16T10:02:00.000Z',
+    });
+    await completeGridScrimmageSession(port, 'scrim-1', {
+      playerId: 'host-1',
+      now: '2026-09-16T10:20:00.000Z',
+    });
+
+    const rematch = await resetGridScrimmageSessionForRematch(
+      port,
+      'scrim-1',
+      { playerId: 'host-1' },
+    );
+
+    expect(rematch.status).toBe('lobby');
+    expect(rematch.match).toBeNull();
+    expect(rematch.startedAt).toBeNull();
+    expect(rematch.endedAt).toBeNull();
+    expect(rematch.participants.every((participant) => !participant.ready)).toBe(
+      true,
+    );
   });
 
   it('only returns session state to players already in the private lobby', async () => {
