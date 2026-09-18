@@ -45,6 +45,8 @@ import {
   validateGridDynamicEventTemplate,
 } from '../lib/grid/core/dynamic-events';
 import { deriveSurgeTiming } from '../lib/grid/core/surge-timing';
+import type { GridDevelopmentBranch } from '../lib/grid/core/economy-types';
+import type { GridDynamicEventTemplate } from '../lib/grid/core/dynamic-event-types';
 
 import type { GridOnboardingHomeCityPort } from '../lib/grid/server/onboarding-home-city-port';
 import type { GridOnboardingSeasonPort } from '../lib/grid/server/onboarding-season-port';
@@ -71,16 +73,21 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
   const playerWallets = new Map<string, GridPlayerSeasonState>();
   const territoryOwners = new Map<string, string>(); // territorySlug -> playerId
   const propertyOwners = new Map<string, string>(); // propertySlug -> playerId
-  const propertyDevelopments = new Map<string, { branch: 'commerce' | 'civic' | 'fortress'; level: number }>();
+  const propertyDevelopments = new Map<string, { branch: GridDevelopmentBranch; level: number }>();
   const returnEvents: GridReturnActivityEvent[] = [];
 
   const balance = cantonFoundingSeasonPackage.seasonTemplate.balance;
-  const economy = cantonFoundingSeasonPackage.seasonTemplate.economy;
+  const economy = cantonFoundingSeasonPackage.seasonTemplate.economy!;
+  const contestConfig = cantonFoundingSeasonPackage.seasonTemplate.contest!;
 
   // Home City Port
   const homeCityPort: GridOnboardingHomeCityPort = {
     async isHomeCityConfirmed(playerId: string) {
       return homeCityConfirmations.has(playerId);
+    },
+    async confirmHomeCity(playerId: string) {
+      homeCityConfirmations.add(playerId);
+      return { cityId, citySlug: cityId, confirmed: true };
     },
   };
 
@@ -114,6 +121,7 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
         creditsAccrualRemainder: 0,
         influenceAccrualRemainder: 0,
         joined: true,
+        eventId: null,
       };
       playerWallets.set(input.playerId, initial);
       return initial;
@@ -124,15 +132,6 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
       wallet.resourcesSettledAt = input.now;
       return wallet;
     },
-    async claimTerritory() {
-      throw new Error('Unused directly in test harness');
-    },
-    async acquireProperty() {
-      throw new Error('Unused directly in test harness');
-    },
-    async developProperty() {
-      throw new Error('Unused directly in test harness');
-    },
   };
 
   // Starter Claim Port
@@ -141,7 +140,7 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
       const wallet = playerWallets.get(input.playerId);
       if (!wallet) throw new Error('Wallet not found');
 
-      const territory = cantonFoundingSeasonPackage.territories.find((t) => t.id === input.territoryId || t.slug === input.territoryId);
+      const territory = cantonFoundingSeasonPackage.territories.find((t) => t.slug === input.territoryId);
       if (!territory) throw new Error('Territory not found');
 
       if (territoryOwners.has(territory.slug)) {
@@ -166,7 +165,10 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
       });
 
       return {
-        territoryId: territory.id,
+        seasonId: input.seasonId,
+        cityId,
+        playerId: input.playerId,
+        territoryId: territory.slug,
         territorySlug: territory.slug,
         claimMode: 'starter',
         claimedAt: input.now,
@@ -195,7 +197,7 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
         credits: wallet?.credits ?? 0,
         commandPoints: wallet?.commandPoints ?? 0,
         territories: cantonFoundingSeasonPackage.territories.map((t) => ({
-          territoryId: t.id,
+          territoryId: t.slug,
           territorySlug: t.slug,
           occupied: territoryOwners.has(t.slug),
           ownerPlayerId: territoryOwners.get(t.slug) ?? null,
@@ -365,7 +367,6 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
   });
 
   it('Stage 7: resolves contest attacks, Signal Dice combat, and territory capture', () => {
-    const contestConfig = cantonFoundingSeasonPackage.seasonTemplate.contest;
     expect(contestConfig.attacker.maxDice).toBeGreaterThan(0);
     expect(contestConfig.defender.maxDice).toBeGreaterThan(0);
 
@@ -476,7 +477,18 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
           leadingBid: 0,
           settled: false,
         });
-        return { auctionId: id, status: 'scheduled' };
+        return {
+          auctionId: id,
+          seasonId: command.seasonId,
+          cityId,
+          propertyId: command.propertyId,
+          status: 'scheduled',
+          reserveCredits: command.reserveCredits,
+          minimumBidIncrementCredits: command.minimumBidIncrementCredits,
+          startsAt: command.startsAt,
+          endsAt: command.endsAt,
+          eventId: 'auction-scheduled-001',
+        };
       },
       async placeBid(command) {
         const auction = auctionStore.get(command.auctionId);
@@ -485,15 +497,20 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
         if (command.amountCredits < minRequired) {
           throw new Error(`Bid too low; required at least ${minRequired}`);
         }
+        const previousLeaderPlayerId = auction.leadingBidder;
+        const previousLeaderBid = auction.leadingBid;
         auction.leadingBidder = command.bidderPlayerId;
         auction.leadingBid = command.amountCredits;
         return {
           auctionId: auction.auctionId,
+          seasonId,
+          propertyId: 'canton-onesto',
           bidderPlayerId: command.bidderPlayerId,
           amountCredits: command.amountCredits,
-          recordedAt: command.now,
-          refundedPlayerId: null,
-          refundedCredits: null,
+          creditsAfter: 0,
+          previousLeaderPlayerId: previousLeaderPlayerId ?? undefined,
+          previousLeaderRefundedCredits: previousLeaderPlayerId ? previousLeaderBid : 0,
+          eventId: `bid-${command.idempotencyKey}`,
         };
       },
       async settleAuction(command) {
@@ -502,10 +519,14 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
         auction.settled = true;
         return {
           auctionId: auction.auctionId,
+          seasonId,
+          cityId,
           propertyId: 'canton-onesto',
-          winningBidderPlayerId: auction.leadingBidder,
-          clearingPriceCredits: auction.leadingBid,
+          sold: auction.leadingBidder !== null,
+          winnerPlayerId: auction.leadingBidder ?? undefined,
+          winningBidCredits: auction.leadingBidder ? auction.leadingBid : undefined,
           settledAt: command.now,
+          eventId: `settle-${command.idempotencyKey}`,
         };
       },
     };
@@ -560,8 +581,8 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
       idempotencyKey: 'settle-001',
       now: '2026-09-17T22:01:00.000Z',
     });
-    expect(settled.winningBidderPlayerId).toBe(playerBravo);
-    expect(settled.clearingPriceCredits).toBe(600);
+    expect(settled.winnerPlayerId).toBe(playerBravo);
+    expect(settled.winningBidCredits).toBe(600);
 
     // 6. Fixed-price market listing purchase
     const listingRules: GridFixedPriceListingRules = {
@@ -647,7 +668,7 @@ describe('The Grid: Player Journey Coexistence & Integration Layer', () => {
     expect(stronghold.garrisonInfluence).toBe(150);
 
     // 2. Dynamic event stack application
-    const eventTemplate = {
+    const eventTemplate: GridDynamicEventTemplate = {
       id: 'downtown-festival',
       kind: 'economic-boom',
       priority: 10,

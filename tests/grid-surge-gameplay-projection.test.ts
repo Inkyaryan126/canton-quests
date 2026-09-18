@@ -23,9 +23,10 @@ describe('Grid world Surge gameplay projection', () => {
       now: '2026-09-13T12:00:00.000Z',
       surgeConfig,
       runtime: {
+        seasonId: 'season-canton-founding-2026',
         seasonStatus: 'surge', startsAt: '2026-09-01T00:00:00.000Z',
         surgeStartsAt: '2026-09-12T00:00:00.000Z', endsAt: '2026-09-15T00:00:00.000Z',
-        territories: [], properties: [], player: null,
+        territories: [], properties: [], playerState: null,
       },
     });
 

@@ -21,11 +21,13 @@ import type {
 import {
   planGridFixedPricePurchase,
   openGridFixedPriceListing,
-  type GridFixedPriceListingRules,
-  type GridFixedPriceListingState,
-  type GridMarketAssetSnapshot,
-  type GridMarketBuyerSnapshot,
 } from '../lib/grid/core/market-listings';
+import type {
+  GridFixedPriceListingRules,
+  GridFixedPriceListingState,
+  GridMarketAssetSnapshot,
+  GridMarketBuyerSnapshot,
+} from '../lib/grid/core/market-listing-types';
 import { resolveGridContestRound } from '../lib/grid/server/contest-service';
 import type { GridContestRoundPort } from '../lib/grid/server/contest-port';
 import type { GridOnboardingHomeCityPort } from '../lib/grid/server/onboarding-home-city-port';
@@ -42,8 +44,8 @@ describe('The Grid: Security, Server Authority, Multi-Tenancy & Concurrency', ()
   const t0 = '2026-09-17T14:00:00.000Z';
 
   const balance = cantonFoundingSeasonPackage.seasonTemplate.balance;
-  const economy = cantonFoundingSeasonPackage.seasonTemplate.economy;
-  const contestConfig = cantonFoundingSeasonPackage.seasonTemplate.contest;
+  const economy = cantonFoundingSeasonPackage.seasonTemplate.economy!;
+  const contestConfig = cantonFoundingSeasonPackage.seasonTemplate.contest!;
 
   // --------------------------------------------------------------------------
   // 1. SERVER AUTHORITY & ANTI-TAMPERING
@@ -145,6 +147,7 @@ describe('The Grid: Security, Server Authority, Multi-Tenancy & Concurrency', ()
         creditsAccrualRemainder: 0,
         influenceAccrualRemainder: 0,
         joined: true,
+        eventId: null,
       };
 
       const claimPort: GridOnboardingStarterClaimPort = {
@@ -154,6 +157,9 @@ describe('The Grid: Security, Server Authority, Multi-Tenancy & Concurrency', ()
             throw new Error('Insufficient resources: claim rejected by server authority');
           }
           return {
+            seasonId: input.seasonId,
+            cityId,
+            playerId: input.playerId,
             territoryId: input.territoryId,
             territorySlug: 'census-block-391517001002029',
             claimMode: 'starter',
@@ -297,18 +303,17 @@ describe('The Grid: Security, Server Authority, Multi-Tenancy & Concurrency', ()
             creditsAccrualRemainder: 0,
             influenceAccrualRemainder: 0,
             joined: true,
+            eventId: null,
           };
           ledger.set(input.idempotencyKey, created);
           return created;
         },
         async settleResources() { throw new Error(); },
-        async claimTerritory() { throw new Error(); },
-        async acquireProperty() { throw new Error(); },
-        async developProperty() { throw new Error(); },
       };
 
       const homePort: GridOnboardingHomeCityPort = {
         async isHomeCityConfirmed() { return true; },
+        async confirmHomeCity() { return { cityId, citySlug: cityId, confirmed: true }; },
       };
 
       const seasonPort: GridOnboardingSeasonPort = {
@@ -335,16 +340,13 @@ describe('The Grid: Security, Server Authority, Multi-Tenancy & Concurrency', ()
     });
 
     it('rejects blank or whitespace-only idempotency keys', async () => {
-      const homePort: GridOnboardingHomeCityPort = { async isHomeCityConfirmed() { return true; } };
+      const homePort: GridOnboardingHomeCityPort = { async isHomeCityConfirmed() { return true; }, async confirmHomeCity() { return { cityId, citySlug: cityId, confirmed: true }; } };
       const seasonPort: GridOnboardingSeasonPort = {
         async getCurrentSeason() { return { seasonId, cityId, slug: 'f', name: 'F', status: 'active' }; },
       };
       const dummyEconomy: GridEconomyCommandPort = {
         async joinSeason() { throw new Error(); },
         async settleResources() { throw new Error(); },
-        async claimTerritory() { throw new Error(); },
-        async acquireProperty() { throw new Error(); },
-        async developProperty() { throw new Error(); },
       };
 
       await expect(
@@ -371,6 +373,9 @@ describe('The Grid: Security, Server Authority, Multi-Tenancy & Concurrency', ()
           }
           occupiedTerritories.add(input.territoryId);
           return {
+            seasonId: input.seasonId,
+            cityId,
+            playerId: input.playerId,
             territoryId: input.territoryId,
             territorySlug: 't-prime',
             claimMode: 'starter',
@@ -423,14 +428,18 @@ describe('The Grid: Security, Server Authority, Multi-Tenancy & Concurrency', ()
           if (command.amountCredits < required) {
             throw new Error(`Outbid rejected: current lead is ${leadingBid}, minimum required is ${required}`);
           }
+          const previousLeaderRefundedCredits = leadingBid;
           leadingBid = command.amountCredits;
           return {
             auctionId: command.auctionId,
+            seasonId,
+            propertyId: 'property-race',
             bidderPlayerId: command.bidderPlayerId,
             amountCredits: command.amountCredits,
-            recordedAt: command.now,
-            refundedPlayerId: 'prev-bidder',
-            refundedCredits: leadingBid,
+            creditsAfter: 0,
+            previousLeaderPlayerId: 'prev-bidder',
+            previousLeaderRefundedCredits,
+            eventId: `bid-${command.idempotencyKey}`,
           };
         },
         async settleAuction() { throw new Error(); },
@@ -623,6 +632,7 @@ describe('The Grid: Security, Server Authority, Multi-Tenancy & Concurrency', ()
             conditionBps: 10000,
           },
         ],
+        playerState: null,
       };
 
       const world = buildGridWorldProjection(packageWithUnsafeProperty as any, {
