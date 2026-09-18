@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Building2,
   Coins,
@@ -15,6 +15,7 @@ import {
   Zap,
 } from 'lucide-react';
 import type { GridDevelopmentBranch } from '@/lib/grid/core/economy-types';
+import { GridCityMap } from './grid-city-map';
 import {
   GRID_REVISION_HIDDEN_POLL_MS,
   normalizeGridRevisionPollMs,
@@ -136,17 +137,6 @@ function clearCommandKey(scope: string): void {
   window.sessionStorage.removeItem('grid:world-command:' + scope);
 }
 
-interface Bounds {
-  minLng: number;
-  maxLng: number;
-  minLat: number;
-  maxLat: number;
-}
-
-const WIDTH = 1000;
-const HEIGHT = 650;
-const PAD = 30;
-
 export function surgeStatusPresentation(
   timing: GridWorldProjection['season']['surgeTiming'],
 ): { label: string; detail: string } {
@@ -167,70 +157,6 @@ export function surgeStatusPresentation(
     : { label: 'SURGE UPCOMING', detail: `${remaining} UNTIL SURGE` };
 }
 
-function allCoordinates(geometry?: GeoJSON.MultiPolygon): [number, number][] {
-  if (!geometry) return [];
-  return geometry.coordinates.flatMap((polygon) =>
-    polygon.flatMap((ring) =>
-      ring.map((position) => [position[0], position[1]] as [number, number]),
-    ),
-  );
-}
-
-function getBounds(projection: GridWorldProjection): Bounds {
-  const coordinates = projection.territories.flatMap((territory) =>
-    allCoordinates(territory.geometry),
-  );
-  if (coordinates.length === 0) {
-    const { lng, lat } = projection.city.mapCenter;
-    return { minLng: lng - 0.01, maxLng: lng + 0.01, minLat: lat - 0.01, maxLat: lat + 0.01 };
-  }
-
-  return coordinates.reduce<Bounds>(
-    (bounds, [lng, lat]) => ({
-      minLng: Math.min(bounds.minLng, lng),
-      maxLng: Math.max(bounds.maxLng, lng),
-      minLat: Math.min(bounds.minLat, lat),
-      maxLat: Math.max(bounds.maxLat, lat),
-    }),
-    { minLng: Infinity, maxLng: -Infinity, minLat: Infinity, maxLat: -Infinity },
-  );
-}
-
-function projectPoint(lng: number, lat: number, bounds: Bounds): [number, number] {
-  const lngSpan = Math.max(bounds.maxLng - bounds.minLng, 0.000001);
-  const latSpan = Math.max(bounds.maxLat - bounds.minLat, 0.000001);
-  const x = PAD + ((lng - bounds.minLng) / lngSpan) * (WIDTH - PAD * 2);
-  const y = PAD + ((bounds.maxLat - lat) / latSpan) * (HEIGHT - PAD * 2);
-  return [x, y];
-}
-
-function geometryPath(geometry: GeoJSON.MultiPolygon | undefined, bounds: Bounds): string {
-  if (!geometry) return '';
-  return geometry.coordinates
-    .flatMap((polygon) =>
-      polygon.map((ring) =>
-        ring
-          .map(([lng, lat], index) => {
-            const [x, y] = projectPoint(lng, lat, bounds);
-            return `${index === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`;
-          })
-          .join(' ') + ' Z',
-      ),
-    )
-    .join(' ');
-}
-
-function territoryClass(
-  ownership: GridWorldProjection['territories'][number]['ownership'],
-  claimable: boolean,
-  starterEligible: boolean,
-): string {
-  if (ownership === 'you') return 'fill-cyan-400/35 stroke-cyan-200';
-  if (ownership === 'occupied') return 'fill-fuchsia-500/25 stroke-fuchsia-300/80';
-  if (claimable) return 'fill-amber-300/25 stroke-amber-200';
-  if (starterEligible) return 'fill-emerald-400/15 stroke-emerald-300/70';
-  return 'fill-white/[0.035] stroke-white/20';
-}
 
 function StatCard({
   label,
@@ -645,7 +571,6 @@ export default function GridWorldClient({
     }
   };
 
-  const bounds = useMemo(() => getBounds(projection), [projection]);
   const wallet = projection.player.wallet;
   const income = projection.player.income;
   const incomeReady = Boolean(
@@ -814,53 +739,8 @@ export default function GridWorldClient({
               </div>
             </div>
 
-            <div className="relative aspect-[1000/650] min-h-[420px] w-full bg-[#060b10] p-2">
-              <svg
-                  viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-                  className="h-full w-full"
-                  role="img"
-                  aria-label="The Grid Canton territory map"
-                >
-                  <rect width={WIDTH} height={HEIGHT} className="fill-[#060b10]" />
-                  {projection.territories.map((territory) => (
-                    <path
-                      key={territory.slug}
-                      d={geometryPath(territory.geometry, bounds)}
-                      fillRule="evenodd"
-                      className={`${territoryClass(territory.ownership, territory.claimable, territory.starterEligible)} transition-opacity hover:opacity-80`}
-                      strokeWidth={territory.claimable ? 3 : 1.4}
-                    >
-                      <title>{territory.name} — {territory.ownership}{territory.claimable ? ' — valid expansion' : ''}</title>
-                    </path>
-                  ))}
-                {projection.properties.map((property) => {
-                    if (!property.point) return null;
-                    const [x, y] = projectPoint(property.point.lng, property.point.lat, bounds);
-                    return (
-                      <circle
-                        key={property.slug}
-                        cx={x}
-                        cy={y}
-                        r={property.developmentLevel > 0 ? 7 : 4.5}
-                        className={
-                          property.ownership === 'you'
-                            ? 'fill-cyan-200 stroke-black'
-                            : property.ownership === 'occupied'
-                              ? 'fill-fuchsia-300 stroke-black'
-                                : 'fill-amber-200/80 stroke-black'
-                        }
-                        strokeWidth={2}
-                      >
-                        <title>
-                          {property.name}
-                          {property.developmentLevel > 0
-                            ? ` — ${property.developmentBranch} L${property.developmentLevel}`
-                            : ''}
-                        </title>
-                      </circle>
-                    );
-                  })}
-              </svg>
+            <div className="w-full p-2">
+              <GridCityMap projection={projection} />
             </div>
           </div>
 
