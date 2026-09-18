@@ -106,4 +106,38 @@ describe('Grid Master Board rendering and CLI', () => {
     expect(err.join('\n')).toContain(jsonPath);
     expect(out.join('')).toContain('THE GRID — MASTER BOARD');
   });
+
+  it('supports --deep and --hygiene flags in CLI', () => {
+    const repo = makeRepo();
+    const out: string[] = [];
+    const err: string[] = [];
+
+    const exitCode = runGridMasterBoardCli(['--json', '--deep', '--hygiene', '--integration-ref', 'main'], {
+      cwd: repo,
+      stdout: (value) => out.push(value),
+      stderr: (value) => err.push(value),
+    });
+
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(out.join('')) as GridMasterBoard;
+    expect(parsed.health.deepScan).toBe(true);
+    expect(parsed.health.hygiene).toBeDefined();
+    expect(parsed.hygiene).toBeDefined();
+    expect(parsed.health.hygiene?.totalWorktrees).toBeGreaterThanOrEqual(1);
+  });
+
+  it('supports --watch mode with single-run / --once', () => {
+    const repo = makeRepo();
+    const out: string[] = [];
+    const err: string[] = [];
+
+    const exitCode = runGridMasterBoardCli(['--watch', '--once', '--integration-ref', 'main'], {
+      cwd: repo,
+      stdout: (value) => out.push(value),
+      stderr: (value) => err.push(value),
+    });
+
+    expect(exitCode).toBe(0);
+    expect(out.join('')).toContain('THE GRID — MASTER BOARD');
+  });
 });

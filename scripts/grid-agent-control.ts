@@ -1,15 +1,18 @@
 import { execFileSync } from 'node:child_process';
 import {
+  auditWorkspaceHygiene,
   boardroomSummary,
   coordinationIssues,
   createClaim,
   heartbeatClaim,
   listWorktreeStates,
+  pruneSafeWorktrees,
   readClaims,
   releaseClaim,
   repoRoot,
   staleClaim,
 } from '../lib/agent-control';
+import { runGridMasterBoardCli } from '../lib/grid/master-board/cli';
 
 function flag(args: string[], name: string): string | undefined {
   const index = args.indexOf(`--${name}`);
@@ -31,13 +34,14 @@ function formatAge(iso: string): string {
   return `${hours}h${minutes % 60}m`;
 }
 
-function status(): void {
+function status(args: string[] = []): void {
+  const deep = args.includes('--deep');
   const claims = readClaims();
-  const worktrees = listWorktreeStates();
+  const worktrees = listWorktreeStates(process.cwd(), { deep, fast: !deep });
   const boardroom = boardroomSummary();
   const claimByWorktree = new Map(claims.map((claim) => [claim.worktree, claim]));
 
-  console.log('# GRID AGENT CONTROL TOWER');
+  console.log(`# GRID AGENT CONTROL TOWER${deep ? ' [DEEP SCAN]' : ''}`);
   console.log(`Boardroom autonomous run: ${boardroom.autonomousRunActive ? 'ACTIVE — hand-driven agents must not edit the main repo' : 'inactive'}`);
   console.log(`Live lane claims: ${claims.length}`);
   if (claims.length === 0) console.log('  (none)');
@@ -77,6 +81,9 @@ function status(): void {
   if (boardroom.blocked.length > 0) {
     console.log(`  blocked=${boardroom.blocked.length} (use Boardroom task show/handoffs for details)`);
   }
+  if (boardroom.rejected && boardroom.rejected.length > 0) {
+    console.log(`  rejected=${boardroom.rejected.length}`);
+  }
 
   const issues = coordinationIssues(claims, worktrees, boardroom);
   console.log('\nCoordination warnings:');
@@ -97,6 +104,7 @@ function check(): void {
   for (const issue of issues) console.error(`  ${issue.code}: ${issue.message}`);
   process.exit(1);
 }
+
 function claim(args: string[]): void {
   const lane = flag(args, 'lane');
   const owner = flag(args, 'owner');
@@ -130,14 +138,78 @@ function release(args: string[]): void {
   console.log(`RELEASED ${released.lane} (${released.owner})`);
 }
 
+function hygiene(args: string[]): void {
+  const asJson = args.includes('--json');
+  const report = auditWorkspaceHygiene(process.cwd(), { integrationRef: flag(args, 'integration-ref') });
+  if (asJson) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+  console.log('# GRID WORKSPACE HYGIENE REPORT');
+  console.log(`Generated: ${report.generatedAt}`);
+  console.log(`Integration ref: ${report.integrationRef ?? 'UNKNOWN'}`);
+  console.log(`Total worktrees: ${report.totalWorktrees}`);
+  console.log('\nWorktree category counts:');
+  for (const [category, count] of Object.entries(report.counts)) {
+    console.log(`  ${category}: ${count}`);
+  }
+  console.log('\nWorktrees:');
+  for (const item of report.items) {
+    const flagStr = item.safeToPrune ? 'SAFE_TO_PRUNE' : item.category;
+    console.log(`  [${flagStr}] ${item.branch} @ ${item.head.slice(0, 8)}`);
+    console.log(`    path: ${item.path}`);
+    if (item.refusalReason) console.log(`    reason: ${item.refusalReason}`);
+  }
+}
+
+function prune(args: string[]): void {
+  const execute = args.includes('--execute');
+  const integrationRef = flag(args, 'integration-ref');
+  const result = pruneSafeWorktrees(process.cwd(), { execute, integrationRef });
+  if (!execute) {
+    console.log('# GRID WORKSPACE PRUNE (DRY RUN)');
+    console.log('Run with --execute to remove safe worktrees.');
+    console.log(`Safe to prune: ${result.pruned.length} worktree(s)`);
+    for (const p of result.pruned) {
+      console.log(`  WOULD PRUNE: ${p.path} (${p.branch} @ ${p.head.slice(0, 8)})`);
+    }
+    console.log(`\nRetained: ${result.refused.length} worktree(s)`);
+    for (const r of result.refused) {
+      console.log(`  RETAINED: ${r.path} (${r.branch}) — ${r.reason}`);
+    }
+    console.log(`\nBranches preserved: ${result.branchesPreserved.length} branch(es) (branches are never deleted)`);
+    return;
+  }
+  console.log('# GRID WORKSPACE PRUNE EXECUTION');
+  console.log(`Pruned ${result.pruned.length} worktree(s):`);
+  for (const p of result.pruned) {
+    console.log(`  PRUNED: ${p.path} (${p.branch} @ ${p.head.slice(0, 8)})`);
+  }
+  if (result.refused.length > 0) {
+    console.log(`\nRetained ${result.refused.length} worktree(s):`);
+    for (const r of result.refused) {
+      console.log(`  RETAINED: ${r.path} (${r.branch}) — ${r.reason}`);
+    }
+  }
+  console.log(`\nBranches preserved: ${result.branchesPreserved.length} branch(es) (branches are never deleted)`);
+}
+
+function watch(args: string[]): void {
+  const code = runGridMasterBoardCli(['--watch', ...args]);
+  if (code !== 0) process.exit(code);
+}
+
 function main(): void {
   const [command = 'status', ...args] = process.argv.slice(2);
-  if (command === 'status') return status();
+  if (command === 'status') return status(args);
   if (command === 'check') return check();
   if (command === 'claim') return claim(args);
   if (command === 'heartbeat') return heartbeat(args);
   if (command === 'release') return release(args);
-  console.error('Usage: grid:agents <status|check|claim|heartbeat|release> [options]');
+  if (command === 'hygiene') return hygiene(args);
+  if (command === 'prune') return prune(args);
+  if (command === 'watch') return watch(args);
+  console.error('Usage: grid:agents <status|check|claim|heartbeat|release|hygiene|prune|watch> [options]');
   process.exit(2);
 }
 

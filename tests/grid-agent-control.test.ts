@@ -4,11 +4,16 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  auditWorkspaceHygiene,
+  batchCommitHeaders,
+  canonicalPath,
   claimScopesOverlap,
   coordinationIssues,
   createClaim,
   dirtyStatusPath,
   heartbeatClaim,
+  listWorktreeStates,
+  pruneSafeWorktrees,
   readClaims,
   releaseClaim,
   scopesOverlap,
@@ -20,6 +25,8 @@ function tempRepo(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grid-agent-control-'));
   tempDirs.push(dir);
   execFileSync('git', ['init', '-q'], { cwd: dir });
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
+  execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: dir });
   return dir;
 }
 
@@ -75,7 +82,7 @@ describe('GRID agent control', () => {
   });
 
   it('blocks preflight for unclaimed worktrees and dirty files outside a declared claim', () => {
-    const boardroom = { counts: {}, queued: [], blocked: [], autonomousRunActive: false };
+    const boardroom = { counts: {}, queued: [], blocked: [], rejected: [], autonomousRunActive: false };
     const worktree = {
       path: '/tmp/grid-x', head: 'abc', branch: 'grid-x',
       dirtyPaths: ['?? lib/grid/owned.ts', '?? lib/grid/wandered.ts'],
@@ -95,5 +102,140 @@ describe('GRID agent control', () => {
     expect(coordinationIssues([claim], [worktree], boardroom).map((issue) => issue.code)).toEqual([
       'DIRTY_OUTSIDE_CLAIM',
     ]);
+  });
+
+  it('audits workspace hygiene and categorizes worktrees accurately', () => {
+    const repo = tempRepo();
+    fs.writeFileSync(path.join(repo, 'base.txt'), 'base\n');
+    execFileSync('git', ['add', '.'], { cwd: repo });
+    execFileSync('git', ['commit', '-m', 'base commit'], { cwd: repo });
+    execFileSync('git', ['branch', '-M', 'main'], { cwd: repo });
+
+    // 1. Safe worktree: clean, merged into main, unclaimed
+    const wtSafe = path.join(os.tmpdir(), `grid-wt-safe-${Math.random().toString(36).slice(2)}`);
+    tempDirs.push(wtSafe);
+    execFileSync('git', ['worktree', 'add', '-b', 'wt-safe-branch', wtSafe, 'main'], { cwd: repo });
+
+    // 2. Dirty worktree: uncommitted file
+    const wtDirty = path.join(os.tmpdir(), `grid-wt-dirty-${Math.random().toString(36).slice(2)}`);
+    tempDirs.push(wtDirty);
+    execFileSync('git', ['worktree', 'add', '-b', 'wt-dirty-branch', wtDirty, 'main'], { cwd: repo });
+    fs.writeFileSync(path.join(wtDirty, 'dirty.txt'), 'dirty content\n');
+
+    // 3. Unmerged worktree: has a commit not in main
+    const wtUnmerged = path.join(os.tmpdir(), `grid-wt-unmerged-${Math.random().toString(36).slice(2)}`);
+    tempDirs.push(wtUnmerged);
+    execFileSync('git', ['worktree', 'add', '-b', 'wt-unmerged-branch', wtUnmerged, 'main'], { cwd: repo });
+    fs.writeFileSync(path.join(wtUnmerged, 'unmerged.txt'), 'unmerged content\n');
+    execFileSync('git', ['add', '.'], { cwd: wtUnmerged });
+    execFileSync('git', ['commit', '-m', 'feature commit on side branch'], { cwd: wtUnmerged });
+
+    // 4. Claimed worktree: active claim
+    const wtClaimed = path.join(os.tmpdir(), `grid-wt-claimed-${Math.random().toString(36).slice(2)}`);
+    tempDirs.push(wtClaimed);
+    execFileSync('git', ['worktree', 'add', '-b', 'wt-claimed-branch', wtClaimed, 'main'], { cwd: repo });
+    createClaim({
+      lane: 'claimed-lane',
+      owner: 'agent-1',
+      goal: 'work on claimed',
+      scope: ['claimed.txt'],
+      worktree: wtClaimed,
+      branch: 'wt-claimed-branch',
+    }, repo);
+
+    const report = auditWorkspaceHygiene(repo);
+    expect(report.totalWorktrees).toBe(5); // primary + 4 worktrees
+    expect(report.counts.SAFE_TO_PRUNE).toBe(1);
+    expect(report.counts.DIRTY_DORMANT).toBe(1);
+    expect(report.counts.UNMERGED_DORMANT).toBe(1);
+    expect(report.counts.ACTIVE_CLAIMED).toBe(1);
+    expect(report.counts.CURRENT_OR_PRIMARY).toBe(1);
+
+    const itemSafe = report.items.find((i) => canonicalPath(i.path) === canonicalPath(wtSafe));
+    expect(itemSafe?.category).toBe('SAFE_TO_PRUNE');
+    expect(itemSafe?.safeToPrune).toBe(true);
+
+    const itemDirty = report.items.find((i) => canonicalPath(i.path) === canonicalPath(wtDirty));
+    expect(itemDirty?.category).toBe('DIRTY_DORMANT');
+    expect(itemDirty?.safeToPrune).toBe(false);
+    expect(itemDirty?.refusalReason).toMatch(/uncommitted change/i);
+
+    const itemUnmerged = report.items.find((i) => canonicalPath(i.path) === canonicalPath(wtUnmerged));
+    expect(itemUnmerged?.category).toBe('UNMERGED_DORMANT');
+    expect(itemUnmerged?.safeToPrune).toBe(false);
+    expect(itemUnmerged?.refusalReason).toMatch(/not merged/i);
+
+    const itemClaimed = report.items.find((i) => canonicalPath(i.path) === canonicalPath(wtClaimed));
+    expect(itemClaimed?.category).toBe('ACTIVE_CLAIMED');
+    expect(itemClaimed?.safeToPrune).toBe(false);
+    expect(itemClaimed?.refusalReason).toMatch(/active claim/i);
+  });
+
+  it('prunes safe worktrees only on execute, refuses unsafe ones, and preserves git branches', () => {
+    const repo = tempRepo();
+    fs.writeFileSync(path.join(repo, 'base.txt'), 'base\n');
+    execFileSync('git', ['add', '.'], { cwd: repo });
+    execFileSync('git', ['commit', '-m', 'base commit'], { cwd: repo });
+    execFileSync('git', ['branch', '-M', 'main'], { cwd: repo });
+
+    const wtSafe = path.join(os.tmpdir(), `grid-wt-safe-${Math.random().toString(36).slice(2)}`);
+    tempDirs.push(wtSafe);
+    execFileSync('git', ['worktree', 'add', '-b', 'wt-safe-branch', wtSafe, 'main'], { cwd: repo });
+    const wtSafeCanonical = canonicalPath(wtSafe);
+
+    const wtDirty = path.join(os.tmpdir(), `grid-wt-dirty-${Math.random().toString(36).slice(2)}`);
+    tempDirs.push(wtDirty);
+    execFileSync('git', ['worktree', 'add', '-b', 'wt-dirty-branch', wtDirty, 'main'], { cwd: repo });
+    fs.writeFileSync(path.join(wtDirty, 'dirty.txt'), 'dirty content\n');
+
+    const wtUnmerged = path.join(os.tmpdir(), `grid-wt-unmerged-${Math.random().toString(36).slice(2)}`);
+    tempDirs.push(wtUnmerged);
+    execFileSync('git', ['worktree', 'add', '-b', 'wt-unmerged-branch', wtUnmerged, 'main'], { cwd: repo });
+    fs.writeFileSync(path.join(wtUnmerged, 'unmerged.txt'), 'unmerged\n');
+    execFileSync('git', ['add', '.'], { cwd: wtUnmerged });
+    execFileSync('git', ['commit', '-m', 'unmerged commit'], { cwd: wtUnmerged });
+
+    // Dry-run
+    const dryRun = pruneSafeWorktrees(repo, { dryRun: true });
+    expect(dryRun.executed).toBe(false);
+    expect(dryRun.dryRun).toBe(true);
+    expect(dryRun.pruned.map((p) => canonicalPath(p.path))).toContain(wtSafeCanonical);
+    expect(dryRun.refused.map((r) => canonicalPath(r.path))).toContain(canonicalPath(wtDirty));
+    expect(dryRun.refused.map((r) => canonicalPath(r.path))).toContain(canonicalPath(wtUnmerged));
+    expect(fs.existsSync(wtSafeCanonical)).toBe(true);
+
+    // Execution
+    const execResult = pruneSafeWorktrees(repo, { execute: true });
+    expect(execResult.executed).toBe(true);
+    expect(execResult.pruned.map((p) => canonicalPath(p.path))).toContain(wtSafeCanonical);
+    expect(execResult.branchesPreserved).toContain('wt-safe-branch');
+    expect(fs.existsSync(wtSafeCanonical)).toBe(false);
+
+    // Git branch is preserved
+    const branchCheck = execFileSync('git', ['rev-parse', '--verify', 'wt-safe-branch'], { cwd: repo, encoding: 'utf8' }).trim();
+    expect(branchCheck).toBeTruthy();
+
+    // Dirty and unmerged worktrees are preserved untouched
+    expect(fs.existsSync(wtDirty)).toBe(true);
+    expect(fs.existsSync(wtUnmerged)).toBe(true);
+  });
+
+  it('batches commit headers efficiently', () => {
+    const repo = tempRepo();
+    fs.writeFileSync(path.join(repo, 'f1.txt'), 'f1\n');
+    execFileSync('git', ['add', '.'], { cwd: repo });
+    execFileSync('git', ['commit', '-m', 'first commit'], { cwd: repo });
+    const c1 = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+
+    fs.writeFileSync(path.join(repo, 'f2.txt'), 'f2\n');
+    execFileSync('git', ['add', '.'], { cwd: repo });
+    execFileSync('git', ['commit', '-m', 'second commit'], { cwd: repo });
+    const c2 = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+
+    const headers = batchCommitHeaders([c1, c2], repo);
+    expect(headers.get(c1)?.subject).toBe('first commit');
+    expect(headers.get(c2)?.subject).toBe('second commit');
+    expect(headers.get(c1)?.date).toBeTruthy();
+    expect(headers.get(c2)?.date).toBeTruthy();
   });
 });

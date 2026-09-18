@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { applyDependencyBlockers, classifyMilestone } from '../lib/grid/master-board/classify';
+import { applyDependencyBlockers, classifyMilestone, promoteSafeNextWork } from '../lib/grid/master-board/classify';
 import type {
   GridMilestoneDefinition,
   GridMilestoneEvidence,
+  GridMilestoneState,
 } from '../lib/grid/master-board/types';
 
 const definition: GridMilestoneDefinition = {
@@ -21,6 +22,7 @@ function evidence(overrides: Partial<GridMilestoneEvidence> = {}): GridMilestone
     branches: [],
     integrationMatches: [],
     blockers: [],
+    rejected: [],
     warnings: [],
     contradictions: [],
     ...overrides,
@@ -59,7 +61,7 @@ describe('Grid Master Board classification', () => {
       branches: [{ branch: 'grid-road-network-20260915', clean: false, completionCommit: 'abc123', completionSubject: 'GRID Roads 13: derive stable named road corridors', mergedIntoIntegration: false, onLocalMain: false, onOriginMain: false }],
     }));
 
-    expect(result.status).toBe('UNKNOWN');
+    expect(result.status).toBe('DIRTY_DORMANT');
     expect(result.warnings.join(' ')).toMatch(/dirty/i);
   });
 
@@ -99,6 +101,76 @@ describe('Grid Master Board classification', () => {
 
     expect(result.status).toBe('INTEGRATED');
     expect(result.promotion).toBe('ORIGIN_MAIN');
+  });
+
+  it('classifies milestone with rejected boardroom evidence as REJECTED', () => {
+    const result = classifyMilestone(definition, evidence({
+      rejected: ['Task rejected: scope out of date'],
+    }));
+    expect(result.status).toBe('REJECTED');
+    expect(result.detail).toContain('Task rejected: scope out of date');
+  });
+});
+
+describe('Grid Master Board safe next work promotion', () => {
+  it('promotes planned milestones with all integrated dependencies to SAFE_NEXT_WORK', () => {
+    const foundation: GridMilestoneDefinition = {
+      ...definition,
+      id: 'foundation',
+      title: 'Foundation',
+      dependsOn: [],
+    };
+    const dependent: GridMilestoneDefinition = {
+      ...definition,
+      id: 'dependent',
+      title: 'Dependent',
+      dependsOn: ['foundation'],
+    };
+    const foundationState: GridMilestoneState = {
+      id: 'foundation',
+      title: 'Foundation',
+      phase: 'world',
+      status: 'INTEGRATED',
+      promotion: 'GRID_INTEGRATION',
+      detail: 'Integrated',
+      warnings: [],
+    };
+    const dependentState = classifyMilestone(dependent, evidence());
+    expect(dependentState.status).toBe('PLANNED');
+
+    const promoted = promoteSafeNextWork([foundation, dependent], [foundationState, dependentState]);
+    const depResult = promoted.find((item) => item.id === 'dependent');
+    expect(depResult?.status).toBe('SAFE_NEXT_WORK');
+    expect(depResult?.detail).toMatch(/all prerequisites integrated/i);
+  });
+
+  it('does not promote planned milestones to SAFE_NEXT_WORK when dependencies are not integrated', () => {
+    const foundation: GridMilestoneDefinition = {
+      ...definition,
+      id: 'foundation',
+      title: 'Foundation',
+      dependsOn: [],
+    };
+    const dependent: GridMilestoneDefinition = {
+      ...definition,
+      id: 'dependent',
+      title: 'Dependent',
+      dependsOn: ['foundation'],
+    };
+    const foundationState: GridMilestoneState = {
+      id: 'foundation',
+      title: 'Foundation',
+      phase: 'world',
+      status: 'IN_PROGRESS',
+      promotion: 'SIDE_BRANCH_ONLY',
+      detail: 'In progress',
+      warnings: [],
+    };
+    const dependentState = classifyMilestone(dependent, evidence());
+
+    const promoted = promoteSafeNextWork([foundation, dependent], [foundationState, dependentState]);
+    const depResult = promoted.find((item) => item.id === 'dependent');
+    expect(depResult?.status).toBe('PLANNED');
   });
 });
 
@@ -253,8 +325,27 @@ describe('Grid Master Board runtime collection', () => {
     expect(byId.get('anti-cheat')?.status).toBe('READY_TO_INTEGRATE');
     expect(byId.get('launch-readiness')?.status).toBe('READY_TO_INTEGRATE');
     expect(byId.get('market')?.status).toBe('READY_TO_INTEGRATE');
-    expect(byId.get('auctions')?.status).toBe('READY_TO_INTEGRATE');
+    expect(board.health.safeNextWorkCount).toBeGreaterThan(0);
+    expect(byId.get('city-compiler')?.status).toBe('SAFE_NEXT_WORK');
     expect(byId.get('production-activation')?.status).toBe('BLOCKED');
+  });
+
+  it('supports deep scan with full workspace hygiene report', () => {
+    const repo = makeCollectorRepo();
+    const deepBoard = collectGridMasterBoard({ cwd: repo, deep: true });
+    expect(deepBoard.health.deepScan).toBe(true);
+    expect(deepBoard.health.hygiene).toBeDefined();
+    expect(deepBoard.hygiene).toBeDefined();
+    expect(deepBoard.health.hygiene?.totalWorktrees).toBeGreaterThanOrEqual(1);
+  });
+
+  it('runs fast collection on multi-branch repository in under 2 seconds', () => {
+    const repo = makeCollectorRepo();
+    const start = Date.now();
+    const board = collectGridMasterBoard({ cwd: repo });
+    const duration = Date.now() - start;
+    expect(board.version).toBe(1);
+    expect(duration).toBeLessThan(2000);
   });
 });
 

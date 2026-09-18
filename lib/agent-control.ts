@@ -33,6 +33,30 @@ export function repoRoot(cwd = process.cwd()): string {
 }
 
 export function gitCommonDir(cwd = process.cwd()): string {
+  try {
+    const gitPath = path.join(cwd, '.git');
+    if (fs.existsSync(gitPath)) {
+      const stat = fs.statSync(gitPath);
+      if (stat.isDirectory()) {
+        return path.resolve(gitPath);
+      }
+      if (stat.isFile()) {
+        const content = fs.readFileSync(gitPath, 'utf8').trim();
+        const match = content.match(/^gitdir:\s*(.+)$/m);
+        if (match) {
+          const gitDir = path.resolve(cwd, match[1]);
+          const commondirFile = path.join(gitDir, 'commondir');
+          if (fs.existsSync(commondirFile)) {
+            const relCommon = fs.readFileSync(commondirFile, 'utf8').trim();
+            return path.resolve(gitDir, relCommon);
+          }
+          return gitDir;
+        }
+      }
+    }
+  } catch {
+    // fallback to git rev-parse if fs access fails
+  }
   const raw = runGit(['rev-parse', '--git-common-dir'], cwd);
   return path.resolve(cwd, raw);
 }
@@ -173,28 +197,124 @@ function worktreeAliases(worktreePath: string): string[] {
   return [...aliases];
 }
 
-export function listWorktreeStates(cwd = process.cwd()): WorktreeState[] {
+export interface ListWorktreeOptions {
+  fast?: boolean;
+  deep?: boolean;
+  targetWorktrees?: string[];
+}
+
+export function batchCommitHeaders(
+  commits: string[],
+  cwd = process.cwd(),
+): Map<string, { date: string; subject: string }> {
+  const result = new Map<string, { date: string; subject: string }>();
+  const unique = [...new Set(commits.filter((c) => c && c !== '(detached)' && !c.includes(' ') && !c.startsWith('(')))];
+  if (unique.length === 0) return result;
+
+  try {
+    const raw = runGit(['log', '--no-walk', '--format=%H%x09%cI%x09%s', ...unique], cwd);
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue;
+      const [hash, date, ...rest] = line.split('\t');
+      if (hash) {
+        result.set(hash, { date: date || '', subject: rest.join('\t') || '' });
+      }
+    }
+  } catch {
+    for (const hash of unique) {
+      try {
+        const raw = runGit(['log', '-1', '--format=%cI%x09%s', hash], cwd);
+        const [date, ...rest] = raw.split('\t');
+        result.set(hash, { date: date || '', subject: rest.join('\t') || '' });
+      } catch {}
+    }
+  }
+  return result;
+}
+
+export function isAncestor(commit: string, ref: string | null, cwd = process.cwd()): boolean {
+  if (!ref || !commit) return false;
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', commit, ref], { cwd, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function canonicalPath(p: string): string {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
+export function listWorktreeStates(
+  cwd = process.cwd(),
+  options: ListWorktreeOptions = {},
+): WorktreeState[] {
   const raw = runGit(['worktree', 'list', '--porcelain'], cwd);
+  const entries = parseWorktrees(raw);
   const processes = processCommands();
-  return parseWorktrees(raw).map((entry) => {
-    const dirtyPaths = runGit(['status', '--short'], entry.path)
-      .split('\n')
-      .filter((line) => line.trim().length > 0);
-    const lastCommitSubject = runGit(['log', '-1', '--pretty=%s'], entry.path);
-    const lastCommitAt = runGit(['log', '-1', '--format=%cI'], entry.path);
+
+  const heads = entries.map((entry) => entry.head).filter(Boolean);
+  const headers = batchCommitHeaders(heads, cwd);
+
+  const claims = readClaims(cwd);
+  const claimedPaths = new Set(claims.map((c) => canonicalPath(c.worktree)));
+  const currentWorktreePath = canonicalPath(cwd);
+  const targetSet = options.targetWorktrees
+    ? new Set(options.targetWorktrees.map((p) => canonicalPath(p)))
+    : null;
+
+  const isDeep = options.deep === true;
+  const isFast = options.fast === true || (!isDeep && options.fast !== false);
+
+  return entries.map((entry) => {
+    const resolvedPath = canonicalPath(entry.path);
     const aliases = worktreeAliases(entry.path);
     const activeProcessCount = processes.filter((command) => aliases.some((alias) => command.includes(alias))).length;
-    return { ...entry, dirtyPaths, lastCommitSubject, lastCommitAt, activeProcessCount };
+
+    let dirtyPaths: string[] = [];
+    const shouldCheckStatus =
+      isDeep ||
+      (!isFast) ||
+      (targetSet !== null && targetSet.has(resolvedPath)) ||
+      claimedPaths.has(resolvedPath) ||
+      resolvedPath === currentWorktreePath ||
+      activeProcessCount > 0;
+
+    if (shouldCheckStatus && fs.existsSync(entry.path)) {
+      try {
+        dirtyPaths = runGit(['status', '--short'], entry.path)
+          .split('\n')
+          .filter((line) => line.trim().length > 0);
+      } catch {
+        dirtyPaths = [];
+      }
+    }
+
+    const header = headers.get(entry.head) ?? { date: '', subject: '' };
+    return {
+      ...entry,
+      dirtyPaths,
+      lastCommitSubject: header.subject,
+      lastCommitAt: header.date,
+      activeProcessCount,
+    };
   });
 }
+
 export interface BoardroomTaskSummary {
   counts: Record<string, number>;
   queued: Array<{ taskId: string; title: string; priority: string; status: string }>;
-  blocked: Array<{ taskId: string; title: string; priority: string; status: string }>;
+  blocked: Array<{ taskId: string; title: string; priority: string; status: string; reason?: string }>;
+  rejected: Array<{ taskId: string; title: string; priority: string; status: string; reason?: string }>;
   autonomousRunActive: boolean;
 }
 
-function primaryWorktree(cwd = process.cwd()): string {
+export function primaryWorktree(cwd = process.cwd()): string {
   const raw = runGit(['worktree', 'list', '--porcelain'], cwd);
   const first = parseWorktrees(raw)[0];
   return first?.path ?? repoRoot(cwd);
@@ -222,18 +342,27 @@ export function boardroomSummary(cwd = process.cwd()): BoardroomTaskSummary {
     title: String(task.title ?? ''),
     priority: String(task.priority ?? ''),
     status: String(task.status ?? ''),
+    reason: typeof task.reason === 'string'
+      ? task.reason
+      : typeof task.notes === 'string'
+        ? task.notes
+        : Array.isArray(task.blockers)
+          ? task.blockers.join(', ')
+          : undefined,
   });
   const queued = tasks
     .filter((task) => ['QUEUED', 'READY', 'SCOUTING', 'ACTIVE', 'VERIFYING', 'CHECKPOINTED', 'HANDOFF'].includes(String(task.status)))
     .map(compact);
   const blocked = tasks.filter((task) => String(task.status) === 'BLOCKED').map(compact);
-  return { counts, queued, blocked, autonomousRunActive: fs.existsSync(activeMarker) };
+  const rejected = tasks.filter((task) => String(task.status) === 'REJECTED').map(compact);
+  return { counts, queued, blocked, rejected, autonomousRunActive: fs.existsSync(activeMarker) };
 }
 
 export function staleClaim(claim: AgentClaim, staleMinutes = 360): boolean {
   const age = Date.now() - new Date(claim.heartbeatAt).getTime();
   return !Number.isFinite(age) || age > staleMinutes * 60_000;
 }
+
 export interface CoordinationIssue {
   code: 'BOARDROOM_ACTIVE' | 'DIRTY_UNCLAIMED' | 'DIRTY_OUTSIDE_CLAIM' | 'STALE_CLAIM';
   message: string;
@@ -254,14 +383,15 @@ export function coordinationIssues(
 
   const claimsByWorktree = new Map<string, AgentClaim[]>();
   for (const claim of claims) {
-    const list = claimsByWorktree.get(claim.worktree) ?? [];
+    const key = canonicalPath(claim.worktree);
+    const list = claimsByWorktree.get(key) ?? [];
     list.push(claim);
-    claimsByWorktree.set(claim.worktree, list);
+    claimsByWorktree.set(key, list);
   }
 
   for (const worktree of worktrees) {
     if (worktree.dirtyPaths.length === 0) continue;
-    const worktreeClaims = claimsByWorktree.get(worktree.path) ?? [];
+    const worktreeClaims = claimsByWorktree.get(canonicalPath(worktree.path)) ?? [];
     if (worktreeClaims.length === 0) {
       issues.push({
         code: 'DIRTY_UNCLAIMED',
@@ -290,6 +420,7 @@ export function coordinationIssues(
 
   return issues;
 }
+
 export function dirtyStatusPath(statusLine: string): string {
   const stripped = statusLine.replace(/^[ MADRCU?!]{1,2}\s+/, '').trim();
   const arrow = stripped.lastIndexOf(' -> ');
@@ -299,4 +430,203 @@ export function dirtyStatusPath(statusLine: string): string {
 function claimCoversDirtyPath(claim: AgentClaim, statusLine: string): boolean {
   const filePath = dirtyStatusPath(statusLine);
   return claim.scope.some((scope) => scopesOverlap(scope, filePath));
+}
+
+export type WorktreeHygieneCategory =
+  | 'ACTIVE_CLAIMED'
+  | 'ACTIVE_PROCESS'
+  | 'DIRTY_DORMANT'
+  | 'UNMERGED_DORMANT'
+  | 'CURRENT_OR_PRIMARY'
+  | 'SAFE_TO_PRUNE';
+
+export interface WorktreeHygieneItem {
+  path: string;
+  branch: string;
+  head: string;
+  category: WorktreeHygieneCategory;
+  dirtyCount: number;
+  activeProcessCount: number;
+  claimedByLane?: string;
+  claimedByOwner?: string;
+  mergedIntoIntegration: boolean;
+  safeToPrune: boolean;
+  refusalReason?: string;
+}
+
+export interface WorkspaceHygieneReport {
+  generatedAt: string;
+  integrationRef: string | null;
+  totalWorktrees: number;
+  counts: Record<WorktreeHygieneCategory, number>;
+  items: WorktreeHygieneItem[];
+}
+
+export interface PruneResult {
+  executed: boolean;
+  dryRun: boolean;
+  pruned: Array<{ path: string; branch: string; head: string }>;
+  refused: Array<{ path: string; branch: string; reason: string }>;
+  branchesPreserved: string[];
+}
+
+export function resolveIntegrationBranch(cwd = process.cwd(), explicitRef?: string): string | null {
+  if (explicitRef) {
+    try {
+      runGit(['rev-parse', '--verify', '--quiet', explicitRef], cwd);
+      return explicitRef;
+    } catch {
+      return null;
+    }
+  }
+  const raw = runGit(['for-each-ref', '--format=%(refname:short)', 'refs/heads'], cwd);
+  const candidates = raw
+    .split('\n')
+    .map((s) => s.trim())
+    .filter((b) => /^grid-integration-\d{8}$/.test(b))
+    .sort();
+  if (candidates.length > 0) return candidates[candidates.length - 1];
+  try {
+    runGit(['rev-parse', '--verify', '--quiet', 'main'], cwd);
+    return 'main';
+  } catch {
+    return null;
+  }
+}
+
+export function auditWorkspaceHygiene(
+  cwd = process.cwd(),
+  options: { integrationRef?: string } = {},
+): WorkspaceHygieneReport {
+  const integrationRef = resolveIntegrationBranch(cwd, options.integrationRef);
+  const claims = readClaims(cwd);
+  const claimsByWorktree = new Map(claims.map((c) => [canonicalPath(c.worktree), c]));
+  const primaryRoot = canonicalPath(primaryWorktree(cwd));
+  const currentRoot = canonicalPath(repoRoot(cwd));
+
+  const worktrees = listWorktreeStates(cwd, { deep: true });
+  const counts: Record<WorktreeHygieneCategory, number> = {
+    ACTIVE_CLAIMED: 0,
+    ACTIVE_PROCESS: 0,
+    DIRTY_DORMANT: 0,
+    UNMERGED_DORMANT: 0,
+    CURRENT_OR_PRIMARY: 0,
+    SAFE_TO_PRUNE: 0,
+  };
+
+  const items: WorktreeHygieneItem[] = worktrees.map((wt) => {
+    const resolved = canonicalPath(wt.path);
+    const claim = claimsByWorktree.get(resolved);
+    const dirtyCount = wt.dirtyPaths.length;
+    const activeProcessCount = wt.activeProcessCount;
+    const isPrimaryOrCurrent = resolved === primaryRoot || resolved === currentRoot;
+    const mergedIntoIntegration = isAncestor(wt.head, integrationRef, cwd);
+
+    let category: WorktreeHygieneCategory;
+    let refusalReason: string | undefined;
+    let safeToPrune = false;
+
+    if (isPrimaryOrCurrent) {
+      category = 'CURRENT_OR_PRIMARY';
+      refusalReason = 'Current working directory or primary repository working tree';
+    } else if (claim) {
+      category = 'ACTIVE_CLAIMED';
+      refusalReason = `Worktree has active claim: lane="${claim.lane}" owner="${claim.owner}"`;
+    } else if (activeProcessCount > 0) {
+      category = 'ACTIVE_PROCESS';
+      refusalReason = `Worktree has ${activeProcessCount} active process(es) running`;
+    } else if (dirtyCount > 0) {
+      category = 'DIRTY_DORMANT';
+      refusalReason = `Worktree has ${dirtyCount} uncommitted change(s); dirty work must never be deleted`;
+    } else if (!mergedIntoIntegration) {
+      category = 'UNMERGED_DORMANT';
+      refusalReason = `HEAD commit (${wt.head.slice(0, 8)}) on ${wt.branch} is not merged into ${integrationRef ?? 'integration'}; unmerged work must never be deleted`;
+    } else {
+      category = 'SAFE_TO_PRUNE';
+      safeToPrune = true;
+    }
+
+    counts[category] = (counts[category] ?? 0) + 1;
+
+    return {
+      path: wt.path,
+      branch: wt.branch,
+      head: wt.head,
+      category,
+      dirtyCount,
+      activeProcessCount,
+      claimedByLane: claim?.lane,
+      claimedByOwner: claim?.owner,
+      mergedIntoIntegration,
+      safeToPrune,
+      refusalReason,
+    };
+  });
+
+  return {
+    generatedAt: new Date().toISOString(),
+    integrationRef,
+    totalWorktrees: worktrees.length,
+    counts,
+    items,
+  };
+}
+
+export function pruneSafeWorktrees(
+  cwd = process.cwd(),
+  options: { execute?: boolean; dryRun?: boolean; integrationRef?: string } = {},
+): PruneResult {
+  const audit = auditWorkspaceHygiene(cwd, options);
+  const shouldExecute = options.execute === true && options.dryRun !== true;
+  const pruned: Array<{ path: string; branch: string; head: string }> = [];
+  const refused: Array<{ path: string; branch: string; reason: string }> = [];
+  const branchesPreserved: string[] = [];
+
+  for (const item of audit.items) {
+    if (!item.safeToPrune) {
+      refused.push({
+        path: item.path,
+        branch: item.branch,
+        reason: item.refusalReason ?? 'Not safe to prune',
+      });
+      continue;
+    }
+
+    // Double-check safety invariants immediately before executing
+    if (shouldExecute) {
+      if (fs.existsSync(item.path)) {
+        const dirtyCheck = runGit(['status', '--short'], item.path).trim();
+        if (dirtyCheck.length > 0) {
+          refused.push({
+            path: item.path,
+            branch: item.branch,
+            reason: 'Worktree became dirty immediately before removal; refused',
+          });
+          continue;
+        }
+      }
+      try {
+        runGit(['worktree', 'remove', item.path], cwd);
+        pruned.push({ path: item.path, branch: item.branch, head: item.head });
+        branchesPreserved.push(item.branch);
+      } catch (err) {
+        refused.push({
+          path: item.path,
+          branch: item.branch,
+          reason: err instanceof Error ? err.message : String(err),
+        });
+      }
+    } else {
+      pruned.push({ path: item.path, branch: item.branch, head: item.head });
+      branchesPreserved.push(item.branch);
+    }
+  }
+
+  return {
+    executed: shouldExecute,
+    dryRun: !shouldExecute,
+    pruned,
+    refused,
+    branchesPreserved,
+  };
 }

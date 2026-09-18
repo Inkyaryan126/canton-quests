@@ -16,9 +16,18 @@ Before editing code:
 6. Heartbeat the claim periodically during long sessions.
 7. Release the claim after the work is committed or intentionally abandoned.
 
-Example:
+## Everyday Operator Commands
 
 ```bash
+# Everyday Status & Preflight
+npm run grid:agents -- status          # Fast (<1s) multi-agent worktree and claim status
+npm run grid:agents -- status --deep   # Exhaustive status check across all dormant worktrees
+npm run grid:agents -- check           # Preflight gate (must exit 0 before starting new work)
+npm run grid:board                     # Master Board: 6-state development status across Git & Boardroom
+npm run grid:board -- --deep           # Master Board with exhaustive historical branch scan & hygiene
+npm run grid:watch                     # Live auto-refreshing operator dashboard (3s interval)
+
+# Lane Claims & Traffic Control
 npm run grid:agents -- claim \
   --lane road-network \
   --owner chatgpt-stream-3 \
@@ -29,6 +38,12 @@ npm run grid:agents -- claim \
 
 npm run grid:agents -- heartbeat --lane road-network
 npm run grid:agents -- release --lane road-network
+
+# Workspace Hygiene & Guarded Safe Cleanup
+npm run grid:agents -- hygiene         # Audit worktree hygiene categories & safety status
+npm run grid:agents -- hygiene --json  # Machine-readable hygiene report
+npm run grid:agents -- prune           # Dry-run audit of safe-to-prune worktrees
+npm run grid:agents -- prune --execute # Remove ONLY clean, merged, unclaimed, idle worktrees
 ```
 
 ## What `status` reports
@@ -39,7 +54,36 @@ npm run grid:agents -- release --lane road-network
 - dirty or active worktrees with no claim;
 - stale claims;
 - whether a Boardroom autonomous run is active;
-- Boardroom runtime task counts, active/queued/checkpointed work, and blocked task count.
+- Boardroom runtime task counts, active/queued/checkpointed work, rejected tasks, and blocked task count.
+
+By default, `status` is optimized for high concurrency and returns rapidly by checking status only on active, claimed, current, and process-bearing worktrees. Pass `--deep` to force status checks on all dormant worktrees.
+
+## Workspace Hygiene & Guarded Safe Cleanup
+
+As multi-agent parallel development creates isolated temporary worktrees (often 80+ worktrees), `grid:agents` provides strict tools to inspect and safely reclaim disk space without risk of data loss.
+
+### Hygiene Categories
+
+Every worktree is audited and assigned to one of six mutually exclusive categories:
+- `ACTIVE_CLAIMED`: Owned by an active, non-stale Control Tower claim.
+- `ACTIVE_PROCESS`: Background dev server or test process is currently running.
+- `DIRTY_DORMANT`: Contains uncommitted changes without an active claim.
+- `UNMERGED_DORMANT`: Clean, but HEAD commit is not merged into the active integration branch or main.
+- `CURRENT_OR_PRIMARY`: Current working directory or primary repository working tree.
+- `SAFE_TO_PRUNE`: Fully clean, fully merged, unclaimed, no processes, not primary/current.
+
+### Zero Data Loss Invariants for Pruning
+
+`npm run grid:agents -- prune` enforces strict safety invariants:
+1. **Dry-Run by Default**: `prune` prints exactly what would be removed and why other worktrees are retained. Deletion requires `--execute`.
+2. **Strict Refusal**:
+   - Refuses dirty worktrees (`uncommitted changes; dirty work must never be deleted`).
+   - Refuses unmerged worktrees (`HEAD commit not merged into integration; unmerged work must never be deleted`).
+   - Refuses claimed worktrees (`active claim`).
+   - Refuses active process worktrees (`active processes running`).
+   - Refuses primary repo root or current working tree.
+3. **Never Deletes Git Branches**: `prune` only removes the worktree directory via `git worktree remove`. Local and remote branches are always preserved in Git history.
+4. **Pre-Removal Double-Check**: Even with `--execute`, immediately before removal each candidate is re-verified to guarantee no changes were made since the audit.
 
 ## Storage model
 
