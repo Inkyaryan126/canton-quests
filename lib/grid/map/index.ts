@@ -1,3 +1,4 @@
+export * from './theme';
 export * from './motion';
 export * from './labels';
 export * from './effects';
