@@ -1,4 +1,9 @@
-import type { GridAllianceMembership } from '../core/alliance-types';
+import type {
+  GridAllianceAdjacencyEdge,
+  GridAllianceMembership,
+  GridAllianceTerritoryOwnership,
+  GridAllianceUpkeepBreakdown,
+} from '../core/alliance-types';
 
 export type GridAllianceStatus = 'active' | 'disbanded';
 
@@ -72,6 +77,47 @@ export interface GridAllianceInfluenceContributionPersistenceResult {
   replayed: boolean;
 }
 
+
+export interface GridAllianceNetworkPersistenceInputs {
+  territoryOwnership: GridAllianceTerritoryOwnership[];
+  adjacencyEdges: GridAllianceAdjacencyEdge[];
+}
+
+export interface GridAllianceUpkeepPersistenceCommand {
+  allianceId: string;
+  seasonId: string;
+  expectedAllianceRevision: number;
+  expectedPoolInfluence: number;
+  ticks: number;
+  activeMemberCount: number;
+  disconnectedComponentCount: number;
+  perTickInfluence: number;
+  totalInfluence: number;
+  paidInfluence: number;
+  poolInfluenceAfter: number;
+  shortfallInfluence: number;
+  fullyPaid: boolean;
+  breakdown: GridAllianceUpkeepBreakdown;
+  idempotencyKey: string;
+  now: string;
+}
+
+export interface GridAllianceUpkeepPersistenceResult {
+  ticks: number;
+  activeMemberCount: number;
+  disconnectedComponentCount: number;
+  perTickInfluence: number;
+  totalInfluence: number;
+  paidInfluence: number;
+  poolInfluenceAfter: number;
+  shortfallInfluence: number;
+  fullyPaid: boolean;
+  breakdown: GridAllianceUpkeepBreakdown;
+  allianceRevision: number;
+  eventId: string;
+  replayed: boolean;
+}
+
 export interface GridAlliancePersistencePort {
   getAllianceById(allianceId: string): Promise<GridAllianceState | null>;
   getMembershipHistory(
@@ -98,4 +144,17 @@ export interface GridAlliancePersistencePort {
   applyInfluenceContribution(
     command: GridAllianceInfluenceContributionPersistenceCommand,
   ): Promise<GridAllianceInfluenceContributionPersistenceResult | null>;
+  getActiveMemberPlayerIds(allianceId: string): Promise<string[]>;
+  getAllianceNetworkInputs(
+    seasonId: string,
+    memberPlayerIds: string[],
+  ): Promise<GridAllianceNetworkPersistenceInputs>;
+  getUpkeepSettlementReplay(
+    seasonId: string,
+    allianceId: string,
+    idempotencyKey: string,
+  ): Promise<GridAllianceUpkeepPersistenceResult | null>;
+  applyUpkeepSettlement(
+    command: GridAllianceUpkeepPersistenceCommand,
+  ): Promise<GridAllianceUpkeepPersistenceResult | null>;
 }

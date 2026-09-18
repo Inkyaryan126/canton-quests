@@ -4,6 +4,7 @@ import type { GridAllianceMembership } from '../core/alliance-types';
 import type {
   GridAllianceInfluenceContributionPersistenceResult,
   GridAlliancePersistencePort,
+  GridAllianceUpkeepPersistenceResult,
   GridAllianceState,
   GridCreateAlliancePersistenceResult,
 } from './alliance-persistence-port';
@@ -231,6 +232,161 @@ export function createSupabaseGridAlliancePersistencePort(
       return requireObject<GridAllianceInfluenceContributionPersistenceResult>(
         data,
         'Grid Alliance Influence contribution',
+      );
+    },
+
+    async getActiveMemberPlayerIds(allianceId) {
+      const { data, error } = await client
+        .from('grid_alliance_memberships')
+        .select('player_id')
+        .eq('alliance_id', allianceId)
+        .is('left_at', null)
+        .order('player_id', { ascending: true });
+      if (error) {
+        throw new Error(`Failed to read Grid Alliance active members: ${error.message}`);
+      }
+      return ((data ?? []) as Array<{ player_id: string }>).map(
+        (row) => row.player_id,
+      );
+    },
+
+    async getAllianceNetworkInputs(seasonId, memberPlayerIds) {
+      if (memberPlayerIds.length === 0) {
+        return { territoryOwnership: [], adjacencyEdges: [] };
+      }
+
+      const { data: seasonData, error: seasonError } = await client
+        .from('grid_seasons')
+        .select('city_id')
+        .eq('id', seasonId)
+        .maybeSingle();
+      if (seasonError) {
+        throw new Error(`Failed to read Grid Alliance season city: ${seasonError.message}`);
+      }
+      if (!seasonData) {
+        throw new Error('Grid Alliance season was not found');
+      }
+      const cityId = (seasonData as { city_id: string }).city_id;
+
+      const { data: ownershipData, error: ownershipError } = await client
+        .from('grid_season_territory_state')
+        .select('territory_id,owner_player_id')
+        .eq('season_id', seasonId)
+        .in('owner_player_id', memberPlayerIds);
+      if (ownershipError) {
+        throw new Error(`Failed to read Grid Alliance territory ownership: ${ownershipError.message}`);
+      }
+      const ownershipRows = (ownershipData ?? []) as Array<{
+        territory_id: string;
+        owner_player_id: string;
+      }>;
+      if (ownershipRows.length === 0) {
+        return { territoryOwnership: [], adjacencyEdges: [] };
+      }
+
+      const territoryIds = [...new Set(ownershipRows.map((row) => row.territory_id))];
+      const { data: territoryData, error: territoryError } = await client
+        .from('grid_territories')
+        .select('id,slug')
+        .eq('city_id', cityId)
+        .in('id', territoryIds);
+      if (territoryError) {
+        throw new Error(`Failed to read Grid Alliance territory slugs: ${territoryError.message}`);
+      }
+      const slugById = new Map(
+        ((territoryData ?? []) as Array<{ id: string; slug: string }>).map((row) => [
+          row.id,
+          row.slug,
+        ]),
+      );
+      const territoryOwnership = ownershipRows
+        .map((row) => ({
+          territorySlug: slugById.get(row.territory_id) ?? '',
+          ownerPlayerId: row.owner_player_id,
+        }))
+        .filter((row) => row.territorySlug.length > 0)
+        .sort((left, right) => left.territorySlug.localeCompare(right.territorySlug));
+
+      const { data: edgeData, error: edgeError } = await client
+        .from('grid_territory_edges')
+        .select('territory_a_id,territory_b_id')
+        .eq('city_id', cityId);
+      if (edgeError) {
+        throw new Error(`Failed to read Grid Alliance territory adjacency: ${edgeError.message}`);
+      }
+      const controlledIds = new Set(ownershipRows.map((row) => row.territory_id));
+      const adjacencyEdges = ((edgeData ?? []) as Array<{
+        territory_a_id: string;
+        territory_b_id: string;
+      }>)
+        .filter(
+          (row) =>
+            controlledIds.has(row.territory_a_id) &&
+            controlledIds.has(row.territory_b_id),
+        )
+        .map((row) => ({
+          fromTerritorySlug: slugById.get(row.territory_a_id) ?? '',
+          toTerritorySlug: slugById.get(row.territory_b_id) ?? '',
+        }))
+        .filter(
+          (row) =>
+            row.fromTerritorySlug.length > 0 && row.toTerritorySlug.length > 0,
+        )
+        .sort((left, right) =>
+          `${left.fromTerritorySlug}:${left.toTerritorySlug}`.localeCompare(
+            `${right.fromTerritorySlug}:${right.toTerritorySlug}`,
+          ),
+        );
+
+      return { territoryOwnership, adjacencyEdges };
+    },
+
+    async getUpkeepSettlementReplay(seasonId, allianceId, idempotencyKey) {
+      const { data, error } = await client
+        .from('grid_game_events')
+        .select('id,payload')
+        .eq('season_id', seasonId)
+        .eq('entity_id', allianceId)
+        .eq('event_type', 'alliance_upkeep_settlement')
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+      if (error) {
+        throw new Error(`Failed to replay Grid Alliance upkeep: ${error.message}`);
+      }
+      if (!data) return null;
+      const event = data as { id: string; payload: unknown };
+      const payload = requireObject<
+        Omit<GridAllianceUpkeepPersistenceResult, 'eventId' | 'replayed'>
+      >(event.payload, 'Grid Alliance upkeep replay');
+      return { ...payload, eventId: event.id, replayed: true };
+    },
+
+    async applyUpkeepSettlement(command) {
+      const { data, error } = await client.rpc('grid_settle_alliance_upkeep', {
+        p_alliance_id: command.allianceId,
+        p_season_id: command.seasonId,
+        p_expected_alliance_revision: command.expectedAllianceRevision,
+        p_expected_pool_influence: command.expectedPoolInfluence,
+        p_ticks: command.ticks,
+        p_active_member_count: command.activeMemberCount,
+        p_disconnected_component_count: command.disconnectedComponentCount,
+        p_per_tick_influence: command.perTickInfluence,
+        p_total_influence: command.totalInfluence,
+        p_paid_influence: command.paidInfluence,
+        p_pool_influence_after: command.poolInfluenceAfter,
+        p_shortfall_influence: command.shortfallInfluence,
+        p_fully_paid: command.fullyPaid,
+        p_breakdown: command.breakdown,
+        p_idempotency_key: command.idempotencyKey,
+        p_now: command.now,
+      });
+      if (error) {
+        throw new Error(`Failed to settle Grid Alliance upkeep: ${error.message}`);
+      }
+      if (data === null) return null;
+      return requireObject<GridAllianceUpkeepPersistenceResult>(
+        data,
+        'Grid Alliance upkeep settlement',
       );
     },
   };

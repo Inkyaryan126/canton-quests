@@ -28,3 +28,7 @@ The next lane adds a server port/service consuming the existing Alliance core fo
 
 ## Atomic pooled Influence contribution
 Alliance 3 moves personal Influence into the bounded Alliance pool without exposing a client-side transfer primitive. The server evaluates the existing pure-core contribution decision first, then an optimistic service-role RPC locks the Alliance and player-season rows and applies only that exact decision if both expected states still match. Every successful transfer records an idempotent `grid_game_events` entry. Retries replay the original event; stale state fails closed instead of silently recalculating a different transfer. Credits and Command Points are never touched.
+
+
+## Coordination upkeep persistence
+Upkeep is settled against a server-read snapshot of active membership and seasonal territory connectivity. The service projects network fragmentation through the verified pure core, calculates exact upkeep, and passes that decision to a locked optimistic RPC. Membership changes advance Alliance revision, so concurrent join/leave or pool changes fail closed. Territory ownership observed after the snapshot applies to the next settlement tick rather than retroactively changing the current calculation. Every settlement uses a caller-supplied idempotency key so schedulers can safely retry a tick without charging it twice. Shortfall is recorded as an event outcome and never becomes negative pooled Influence or debt.

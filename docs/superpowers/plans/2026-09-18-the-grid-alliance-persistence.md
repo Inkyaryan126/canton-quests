@@ -23,3 +23,11 @@
 - Apply the exact decision through a locked optimistic RPC.
 - Record/replay successful transfers through the game-event idempotency ledger.
 - Never mutate Credits or Command Points.
+
+
+## Task 5 — coordination upkeep settlement
+- Derive active members from persisted membership state.
+- Project network fragmentation from live seasonal territory ownership and city adjacency.
+- Calculate upkeep with the deterministic Alliance core.
+- Persist the exact pool settlement through an optimistic idempotent RPC.
+- Record paid Influence and shortfall without creating debt or touching personal Credits/Command Points.

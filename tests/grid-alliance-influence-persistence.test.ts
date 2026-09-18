@@ -45,6 +45,13 @@ function port(overrides: Partial<GridAlliancePersistencePort> = {}): GridAllianc
       eventId: 'event-1',
       replayed: false,
     }),
+    getActiveMemberPlayerIds: vi.fn().mockResolvedValue([]),
+    getAllianceNetworkInputs: vi.fn().mockResolvedValue({
+      territoryOwnership: [],
+      adjacencyEdges: [],
+    }),
+    getUpkeepSettlementReplay: vi.fn().mockResolvedValue(null),
+    applyUpkeepSettlement: vi.fn(),
     ...overrides,
   };
 }

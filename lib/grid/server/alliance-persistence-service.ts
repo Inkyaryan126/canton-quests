@@ -2,6 +2,8 @@ import {
   contributeGridAllianceInfluence,
   evaluateGridAllianceJoin,
   leaveGridAlliance as closeGridAllianceMembership,
+  projectGridAllianceNetwork,
+  settleGridAllianceUpkeep,
   validateGridAllianceRules,
 } from '../core/alliance';
 import type {
@@ -12,6 +14,7 @@ import type {
 import type {
   GridAlliancePersistencePort,
   GridAllianceState,
+  GridAllianceUpkeepPersistenceResult,
   GridAllianceInfluenceContributionPersistenceResult,
   GridCreateAlliancePersistenceResult,
 } from './alliance-persistence-port';
@@ -309,4 +312,89 @@ export async function contributePersistentGridAllianceInfluence(
   }
 
   return { ...persisted, persisted: true };
+}
+
+export interface GridSettleAllianceUpkeepCommand {
+  allianceId: string;
+  seasonId: string;
+  ticks: number;
+  idempotencyKey: string;
+  now: string;
+}
+
+export async function settlePersistentGridAllianceUpkeep(
+  port: GridAlliancePersistencePort,
+  command: GridSettleAllianceUpkeepCommand,
+  rules: GridAllianceRules,
+): Promise<GridAllianceUpkeepPersistenceResult> {
+  validateGridAllianceRules(rules);
+  const allianceId = requireText(command.allianceId, 'allianceId');
+  const seasonId = requireText(command.seasonId, 'seasonId');
+  const idempotencyKey = requireText(command.idempotencyKey, 'idempotencyKey');
+  const now = requireTimestamp(command.now, 'now');
+
+  if (!Number.isSafeInteger(command.ticks) || command.ticks <= 0) {
+    throw new Error('Grid Alliance upkeep ticks must be a positive safe integer');
+  }
+
+  const replay = await port.getUpkeepSettlementReplay(
+    seasonId,
+    allianceId,
+    idempotencyKey,
+  );
+  if (replay) return replay;
+
+  const alliance = requireActiveAlliance(
+    await port.getAllianceById(allianceId),
+    seasonId,
+  );
+  const memberPlayerIds = await port.getActiveMemberPlayerIds(allianceId);
+  if (memberPlayerIds.length === 0) {
+    throw new Error('Grid Alliance upkeep requires at least one active member');
+  }
+  if (memberPlayerIds.length > rules.maxMembers) {
+    throw new Error('Grid Alliance active member count exceeds configured maximum');
+  }
+
+  const networkInputs = await port.getAllianceNetworkInputs(
+    seasonId,
+    memberPlayerIds,
+  );
+  const network = projectGridAllianceNetwork(
+    memberPlayerIds,
+    networkInputs.territoryOwnership,
+    networkInputs.adjacencyEdges,
+  );
+  const settlement = settleGridAllianceUpkeep(
+    {
+      activeMemberCount: memberPlayerIds.length,
+      disconnectedComponentCount: network.disconnectedComponentCount,
+      ticks: command.ticks,
+      poolInfluence: alliance.influencePool,
+    },
+    rules,
+  );
+
+  const persisted = await port.applyUpkeepSettlement({
+    allianceId,
+    seasonId,
+    expectedAllianceRevision: alliance.revision,
+    expectedPoolInfluence: alliance.influencePool,
+    ticks: settlement.upkeep.ticks,
+    activeMemberCount: memberPlayerIds.length,
+    disconnectedComponentCount: network.disconnectedComponentCount,
+    perTickInfluence: settlement.upkeep.perTickInfluence,
+    totalInfluence: settlement.upkeep.totalInfluence,
+    paidInfluence: settlement.paidInfluence,
+    poolInfluenceAfter: settlement.poolInfluenceAfter,
+    shortfallInfluence: settlement.shortfallInfluence,
+    fullyPaid: settlement.fullyPaid,
+    breakdown: settlement.upkeep.breakdown,
+    idempotencyKey,
+    now,
+  });
+  if (!persisted) {
+    throw new Error('Grid Alliance upkeep changed; reload before retrying');
+  }
+  return persisted;
 }
