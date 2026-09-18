@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
+  Castle,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -213,6 +214,11 @@ export default function GridReturnClient() {
                 <Link href="/grid/passport" className="cq-grid-return-passport-link">
                   <Stamp size={17} aria-hidden="true" />
                   <span>GRID PASSPORT</span>
+                  <ChevronRight size={15} aria-hidden="true" />
+                </Link>
+                <Link href="/grid/strongholds" className="cq-grid-return-strongholds-link">
+                  <Castle size={17} aria-hidden="true" />
+                  <span>STRONGHOLDS</span>
                   <ChevronRight size={15} aria-hidden="true" />
                 </Link>
                 <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[.05] px-5 py-4">

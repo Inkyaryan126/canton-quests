@@ -74,4 +74,11 @@ describe('Grid return briefing player UI contract', () => {
     expect(client).toContain('Re-enter City Board');
     expect(publicGrid).not.toContain('href="/grid/preview"');
   });
+
+  it('surfaces the private Strongholds battle screen from the authenticated return tools only', () => {
+    expect(client).toContain('href="/grid/strongholds"');
+    expect(client).toContain('STRONGHOLDS');
+    expect(client).toContain('cq-grid-return-strongholds-link');
+    expect(publicGrid).not.toContain('href="/grid/strongholds"');
+  });
 });
