@@ -15,6 +15,8 @@ describe('Grid map renderer frame', () => {
     expect(frame.scene.zoomBand).toBe('city');
     expect(frame.packet.zoomBand).toBe('city');
     expect(frame.layers.length).toBeGreaterThan(0);
+    expect(frame.labels.length).toBeGreaterThan(0);
+    expect(frame.labels.every((label) => label.kind === 'district')).toBe(true);
     expect(frame.layers.map((layer) => layer.order))
       .toEqual([...frame.layers.map((layer) => layer.order)].sort((a, b) => a - b));
     expect(frame.delta).toBeNull();

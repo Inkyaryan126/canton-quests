@@ -15,6 +15,10 @@ import {
   buildGridMapLayerManifest,
   type GridMapLayerDescriptor,
 } from './layers';
+import {
+  buildGridMapLabelPlan,
+  type GridMapLabel,
+} from './labels';
 import type { GridMapInteractionTarget, GridMapRenderPacket } from './render-packet';
 import { buildGridMapRenderPacket } from './render-packet';
 import {
@@ -32,6 +36,7 @@ export interface GridMapFrame {
   scene: GridMapScene;
   packet: GridMapRenderPacket;
   layers: GridMapLayerDescriptor[];
+  labels: GridMapLabel[];
   delta: GridMapRenderDelta | null;
   effects: GridMapEffectCue[];
 }
@@ -50,12 +55,14 @@ export function buildGridMapFrame(
   const scene = buildGridMapScene(projection, options);
   const packet = buildGridMapRenderPacket(scene);
   const layers = buildGridMapLayerManifest(packet);
+  const labels = buildGridMapLabelPlan(packet);
 
   return {
     version: 1,
     scene,
     packet,
     layers,
+    labels,
     delta: previousPacket
       ? diffGridMapRenderPackets(previousPacket, packet)
       : null,
