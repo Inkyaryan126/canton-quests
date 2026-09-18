@@ -90,6 +90,11 @@ describe('GRID player Scrimmage UI', () => {
     expect(clientSource).toContain('.slice(-6)');
   });
 
+  it('shows the winner on the completed-session screen after automatic finalization', () => {
+    expect(clientSource).toContain('SCRIMMAGE WINNER');
+    expect(clientSource).toContain('scrimmage.match?.winnerPlayerId');
+  });
+
   it('uses private aliases instead of rendering raw database ids as names', () => {
     expect(clientSource).toContain("return 'YOU'");
     expect(clientSource).toContain("return 'HOST'");

@@ -56,6 +56,7 @@ export async function POST(
       {
         attackerPlayerId: session.player.id,
         defenderPlayerId,
+        now: new Date().toISOString(),
       },
       cantonFoundingSeasonContest,
       (dieSides) => randomInt(1, dieSides + 1),

@@ -89,6 +89,7 @@ describe('GRID scrimmage API contract', () => {
       createRoute,
       joinRoute,
       startRoute,
+      duelRoute,
       cancelRoute,
       completeRoute,
     ]) {
