@@ -4,7 +4,12 @@ import { readGridPassport } from '../lib/grid/server/passport-read-service';
 import type { GridPassportReadPort } from '../lib/grid/server/passport-read-port';
 
 function portWith(value: Awaited<ReturnType<GridPassportReadPort['readCache']>>): GridPassportReadPort {
-  return { readCache: vi.fn(async () => value) };
+  return {
+    readCache: vi.fn(async () => value),
+    readCities: vi.fn(async (citySlugs) => citySlugs.map((slug: string) => ({
+      slug, name: slug === 'canton-oh' ? 'Canton' : slug, regionCode: 'OH', countryCode: 'US',
+    }))),
+  };
 }
 
 describe('Grid Passport private read service', () => {
@@ -12,6 +17,7 @@ describe('Grid Passport private read service', () => {
     await expect(readGridPassport(portWith(null), 'player-1')).resolves.toEqual({
       cacheState: 'missing',
       passport: null,
+      cities: [],
     });
   });
 
@@ -29,7 +35,11 @@ describe('Grid Passport private read service', () => {
         portWith({ passport, globalReputation: 50 }),
         'player-1',
       ),
-    ).resolves.toEqual({ cacheState: 'ready', passport });
+    ).resolves.toEqual({
+      cacheState: 'ready',
+      passport,
+      cities: [{ slug: 'canton-oh', name: 'Canton', regionCode: 'OH', countryCode: 'US' }],
+    });
   });
 
   it('fails the cache closed when shape or authoritative reputation disagrees', async () => {
@@ -38,7 +48,7 @@ describe('Grid Passport private read service', () => {
         portWith({ passport: {}, globalReputation: 0 }),
         'player-1',
       ),
-    ).resolves.toEqual({ cacheState: 'invalid', passport: null });
+    ).resolves.toEqual({ cacheState: 'invalid', passport: null, cities: [] });
 
     const passport = { ...emptyGridPassport(), nationalReputation: 10 };
     await expect(
@@ -46,7 +56,7 @@ describe('Grid Passport private read service', () => {
         portWith({ passport, globalReputation: 11 }),
         'player-1',
       ),
-    ).resolves.toEqual({ cacheState: 'invalid', passport: null });
+    ).resolves.toEqual({ cacheState: 'invalid', passport: null, cities: [] });
   });
 
   it('rejects blank player identity before persistence access', async () => {

@@ -39,6 +39,8 @@ describe('Grid Passport authenticated read API', () => {
     expect(adapter).toContain(".from('grid_player_profiles')");
     expect(adapter).toContain(".select('passport,global_reputation')");
     expect(adapter).toContain(".eq('player_id', playerId)");
+    expect(adapter).toContain(".from('grid_cities')");
+    expect(adapter).toContain(".select('slug,name,region_code,country_code')");
     expect(adapter).not.toContain('grid_player_season_state');
     expect(adapter).not.toContain('credits');
     expect(adapter).not.toContain('influence');

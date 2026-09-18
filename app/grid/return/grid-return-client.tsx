@@ -14,6 +14,7 @@ import {
   Radio,
   Shield,
   Sparkles,
+  Stamp,
   Swords,
   TrendingUp,
   Zap,
@@ -208,12 +209,19 @@ export default function GridReturnClient() {
             </div>
 
             {summary ? (
-              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[.05] px-5 py-4">
-                <div className="font-mono text-[10px] font-black tracking-[.18em] text-stone-500">
-                  TIME AWAY
-                </div>
-                <div className="mt-2 font-display text-3xl font-black text-cyan-100">
-                  {humanizeMinutes(summary.timeAwayMinutes)}
+              <div className="cq-grid-return-tools">
+                <Link href="/grid/passport" className="cq-grid-return-passport-link">
+                  <Stamp size={17} aria-hidden="true" />
+                  <span>GRID PASSPORT</span>
+                  <ChevronRight size={15} aria-hidden="true" />
+                </Link>
+                <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[.05] px-5 py-4">
+                  <div className="font-mono text-[10px] font-black tracking-[.18em] text-stone-500">
+                    TIME AWAY
+                  </div>
+                  <div className="mt-2 font-display text-3xl font-black text-cyan-100">
+                    {humanizeMinutes(summary.timeAwayMinutes)}
+                  </div>
                 </div>
               </div>
             ) : null}

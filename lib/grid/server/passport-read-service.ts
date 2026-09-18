@@ -1,11 +1,12 @@
 import type { GridPassportProjection } from '../core/passport-types';
-import type { GridPassportReadPort } from './passport-read-port';
+import type { GridPassportCityLabel, GridPassportReadPort } from './passport-read-port';
 
 export type GridPassportCacheState = 'missing' | 'ready' | 'invalid';
 
 export interface GridPassportReadResult {
   cacheState: GridPassportCacheState;
   passport: GridPassportProjection | null;
+  cities: GridPassportCityLabel[];
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -48,7 +49,7 @@ export async function readGridPassport(
 
   const row = await port.readCache(normalizedPlayerId);
   if (!row) {
-    return { cacheState: 'missing', passport: null };
+    return { cacheState: 'missing', passport: null, cities: [] };
   }
 
   if (
@@ -57,8 +58,37 @@ export async function readGridPassport(
     !isProjection(row.passport) ||
     row.passport.nationalReputation !== row.globalReputation
   ) {
-    return { cacheState: 'invalid', passport: null };
+    return { cacheState: 'invalid', passport: null, cities: [] };
   }
 
-  return { cacheState: 'ready', passport: row.passport };
+  const requestedSlugs = [...new Set(row.passport.citiesEntered.map((slug) => slug.trim()))]
+    .filter(Boolean);
+  const cityRows = requestedSlugs.length > 0
+    ? await port.readCities(requestedSlugs)
+    : [];
+  const requested = new Set(requestedSlugs);
+  const seen = new Set<string>();
+  const cities = cityRows.map((city) => {
+    const normalized = {
+      slug: city.slug.trim(),
+      name: city.name.trim(),
+      regionCode: city.regionCode.trim(),
+      countryCode: city.countryCode.trim(),
+    };
+    if (
+      !normalized.slug || !normalized.name || !normalized.regionCode || !normalized.countryCode ||
+      !requested.has(normalized.slug) || seen.has(normalized.slug)
+    ) {
+      throw new Error('Grid Passport city directory returned inconsistent labels');
+    }
+    seen.add(normalized.slug);
+    return normalized;
+  });
+  const order = new Map(requestedSlugs.map((slug, index) => [slug, index]));
+  cities.sort((left, right) =>
+    (order.get(left.slug) ?? Number.MAX_SAFE_INTEGER) -
+    (order.get(right.slug) ?? Number.MAX_SAFE_INTEGER),
+  );
+
+  return { cacheState: 'ready', passport: row.passport, cities };
 }

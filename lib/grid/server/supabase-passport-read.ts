@@ -37,5 +37,24 @@ export function createSupabaseGridPassportReadPort(
         globalReputation: Number(row.global_reputation),
       };
     },
+
+    async readCities(citySlugs) {
+      if (citySlugs.length === 0) return [];
+      const result = await client
+        .from('grid_cities')
+        .select('slug,name,region_code,country_code')
+        .in('slug', [...citySlugs]);
+      if (result.error) {
+        throw new Error('Failed to read Grid Passport city directory: ' + result.error.message);
+      }
+      return ((result.data ?? []) as Array<{
+        slug: string; name: string; region_code: string; country_code: string;
+      }>).map((row) => ({
+        slug: row.slug,
+        name: row.name,
+        regionCode: row.region_code,
+        countryCode: row.country_code,
+      }));
+    },
   };
 }
