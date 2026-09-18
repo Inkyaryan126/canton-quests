@@ -423,6 +423,16 @@ export default function GridOnboardingClient() {
     );
   };
 
+  const unlockFullCity = () => {
+    const scope = 'unlock-full-city';
+    void postAction(
+      scope,
+      '/api/grid/onboarding/unlock',
+      { idempotencyKey: commandKey(scope) },
+      scope,
+    );
+  };
+
   const runTutorialContest = async () => {
     const scope = 'tutorial-contest';
     setBusyAction(scope);
@@ -1014,6 +1024,34 @@ export default function GridOnboardingClient() {
                         <Zap size={17} aria-hidden="true" />
                       )}
                       Roll practice dice
+                    </button>
+                  </>
+                ) : nextStep?.id === 'unlock-full-city' ? (
+                  <>
+                    <h2 className="mt-4 font-display text-4xl font-black uppercase">
+                      Unlock the full city
+                    </h2>
+                    <p className="mt-3 max-w-xl text-sm leading-relaxed text-stone-400">
+                      You have claimed, built, earned, and completed the safe
+                      contest tutorial. Finish onboarding to unlock the
+                      persistent Canton City Board as your primary game surface.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={busyAction !== null}
+                      onClick={unlockFullCity}
+                      className="mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cyan-300/35 bg-cyan-300 px-5 py-3 font-display text-sm font-black uppercase tracking-[.08em] text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {busyAction === 'unlock-full-city' ? (
+                        <Loader2
+                          size={17}
+                          className="animate-spin"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <MapPinned size={17} aria-hidden="true" />
+                      )}
+                      Unlock full city
                     </button>
                   </>
                 ) : (

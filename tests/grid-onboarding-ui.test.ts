@@ -43,6 +43,7 @@ describe('Grid onboarding player UI contract', () => {
     expect(client).toContain("'/api/grid/onboarding/properties/develop'");
     expect(client).toContain("'/api/grid/onboarding/income/collect'");
     expect(client).toContain("'/api/grid/onboarding/tutorial-contest'");
+    expect(client).toContain("'/api/grid/onboarding/unlock'");
     expect(client).not.toContain('/api/grid/contests');
     expect(client).not.toContain('/api/grid/properties');
   });
@@ -114,6 +115,14 @@ describe('Grid onboarding player UI contract', () => {
     expect(client).toContain(
       'body: JSON.stringify({ idempotencyKey: commandKey(scope) })',
     );
+  });
+
+  it('finishes the first-session sequence with the guarded full-city unlock', () => {
+    expect(client).toContain("nextStep?.id === 'unlock-full-city'");
+    expect(client).toContain('Unlock the full city');
+    expect(client).toContain('Unlock full city');
+    expect(client).toContain("busyAction === 'unlock-full-city'");
+    expect(client).toContain('persistent Canton City Board');
   });
 
   it('renders the complete nine-step projection rather than hard-coding progress', () => {
