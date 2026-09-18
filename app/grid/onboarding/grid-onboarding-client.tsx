@@ -60,6 +60,51 @@ interface StarterResponse {
   error?: string;
 }
 
+type DevelopmentBranch =
+  | 'commerce'
+  | 'influence'
+  | 'fortress'
+  | 'intel'
+  | 'prestige';
+
+interface PropertyDevelopmentOption {
+  branch: DevelopmentBranch;
+  level: number;
+  cost: { credits: number; commandPoints: number };
+  affordable: boolean;
+}
+
+interface PropertyOption {
+  slug: string;
+  name: string;
+  territorySlug: string;
+  owned: boolean;
+  developmentBranch: DevelopmentBranch | null;
+  developmentLevel: number;
+  acquisitionCost: { credits: number; commandPoints: number };
+  affordableToAcquire: boolean;
+  developmentOptions: PropertyDevelopmentOption[];
+}
+
+interface PropertyProjection {
+  state:
+    | 'season-unavailable'
+    | 'join-required'
+    | 'claim-required'
+    | 'acquire-property'
+    | 'develop-property'
+    | 'upgrade-complete'
+    | 'no-buildable-property';
+  wallet: { credits: number; influence: number; commandPoints: number } | null;
+  options: PropertyOption[];
+}
+
+interface PropertyResponse {
+  success: boolean;
+  properties?: PropertyProjection;
+  error?: string;
+}
+
 function commandKey(scope: string): string {
   const storageKey = 'grid:onboarding:' + scope + ':idempotency';
   const existing = window.sessionStorage.getItem(storageKey);
@@ -121,6 +166,7 @@ export default function GridOnboardingClient() {
   const [onboarding, setOnboarding] =
     useState<OnboardingProjection | null>(null);
   const [starters, setStarters] = useState<StarterProjection | null>(null);
+  const [properties, setProperties] = useState<PropertyProjection | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -131,22 +177,30 @@ export default function GridOnboardingClient() {
     setLoading(true);
     setError(null);
     try {
-      const [statusResponse, starterResponse] = await Promise.all([
-        fetch('/api/grid/onboarding/status', { cache: 'no-store' }),
-        fetch('/api/grid/onboarding/starter-territories', {
-          cache: 'no-store',
-        }),
-      ]);
+      const [statusResponse, starterResponse, propertyResponse] =
+        await Promise.all([
+          fetch('/api/grid/onboarding/status', { cache: 'no-store' }),
+          fetch('/api/grid/onboarding/starter-territories', {
+            cache: 'no-store',
+          }),
+          fetch('/api/grid/onboarding/properties', { cache: 'no-store' }),
+        ]);
 
-      if (statusResponse.status === 401 || starterResponse.status === 401) {
+      if (
+        statusResponse.status === 401 ||
+        starterResponse.status === 401 ||
+        propertyResponse.status === 401
+      ) {
         setAuthRequired(true);
         setOnboarding(null);
         setStarters(null);
+        setProperties(null);
         return;
       }
 
       const status = await readJson<OnboardingResponse>(statusResponse);
       const starter = await readJson<StarterResponse>(starterResponse);
+      const property = await readJson<PropertyResponse>(propertyResponse);
       if (!statusResponse.ok || !status.success || !status.onboarding) {
         throw new Error(status.error ?? 'Grid onboarding is unavailable.');
       }
@@ -159,10 +213,20 @@ export default function GridOnboardingClient() {
           starter.error ?? 'Starter territory feed is unavailable.',
         );
       }
+      if (
+        !propertyResponse.ok ||
+        !property.success ||
+        !property.properties
+      ) {
+        throw new Error(
+          property.error ?? 'Onboarding property feed is unavailable.',
+        );
+      }
 
       setAuthRequired(false);
       setOnboarding(status.onboarding);
       setStarters(starter.starterTerritories);
+      setProperties(property.properties);
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : 'Grid onboarding unavailable.',
@@ -241,6 +305,36 @@ export default function GridOnboardingClient() {
       '/api/grid/onboarding/starter-territories/claim',
       {
         territoryId,
+        idempotencyKey: commandKey(scope),
+      },
+      scope,
+    );
+  };
+
+  const acquireProperty = (propertySlug: string) => {
+    const scope = 'property-acquire:' + propertySlug;
+    void postAction(
+      scope,
+      '/api/grid/onboarding/properties/acquire',
+      {
+        propertySlug,
+        idempotencyKey: commandKey(scope),
+      },
+      scope,
+    );
+  };
+
+  const developProperty = (
+    propertySlug: string,
+    branch: DevelopmentBranch,
+  ) => {
+    const scope = 'property-develop:' + propertySlug + ':' + branch;
+    void postAction(
+      scope,
+      '/api/grid/onboarding/properties/develop',
+      {
+        propertySlug,
+        branch,
         idempotencyKey: commandKey(scope),
       },
       scope,
@@ -513,6 +607,135 @@ export default function GridOnboardingClient() {
                         No neutral starter territory is currently available.
                       </p>
                     ) : null}
+                  </>
+                ) : nextStep?.id === 'complete-first-upgrade' && properties ? (
+                  <>
+                    <h2 className="mt-4 font-display text-4xl font-black uppercase">
+                      {properties.state === 'develop-property'
+                        ? 'Upgrade your first property'
+                        : 'Acquire your first property'}
+                    </h2>
+                    <p className="mt-3 max-w-xl text-sm leading-relaxed text-stone-400">
+                      Your starter block is build-ready. Property ownership and
+                      development now use the same guarded economy commands as
+                      the full city.
+                    </p>
+
+                    {properties.state === 'acquire-property' ? (
+                      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                        {properties.options
+                          .filter((property) => !property.owned)
+                          .map((property) => {
+                            const scope = 'property-acquire:' + property.slug;
+                            return (
+                              <article
+                                key={property.slug}
+                                className="rounded-2xl border border-white/10 bg-black/35 p-4"
+                              >
+                                <div className="font-display text-lg font-black uppercase">
+                                  {property.name}
+                                </div>
+                                <div className="mt-1 font-mono text-[9px] text-stone-600">
+                                  {property.territorySlug.toUpperCase()}
+                                </div>
+                                <div className="mt-4 flex gap-2 font-mono text-[10px]">
+                                  <span className="rounded-full border border-amber-300/20 px-2.5 py-1 text-amber-100">
+                                    {property.acquisitionCost.credits} CR
+                                  </span>
+                                  <span className="rounded-full border border-cyan-300/20 px-2.5 py-1 text-cyan-100">
+                                    {property.acquisitionCost.commandPoints} CP
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={
+                                    !property.affordableToAcquire ||
+                                    busyAction !== null
+                                  }
+                                  onClick={() => acquireProperty(property.slug)}
+                                  className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-cyan-300/25 bg-cyan-300/[.08] px-3 py-2 font-display text-xs font-black uppercase tracking-[.08em] text-cyan-100 transition hover:bg-cyan-300/[.14] disabled:cursor-not-allowed disabled:opacity-35"
+                                >
+                                  {busyAction === scope ? (
+                                    <Loader2
+                                      size={14}
+                                      className="animate-spin"
+                                      aria-hidden="true"
+                                    />
+                                  ) : null}
+                                  {property.affordableToAcquire
+                                    ? 'Acquire property'
+                                    : 'Resources required'}
+                                </button>
+                              </article>
+                            );
+                          })}
+                      </div>
+                    ) : properties.state === 'develop-property' ? (
+                      <div className="mt-6 space-y-3">
+                        {properties.options
+                          .filter((property) => property.owned)
+                          .map((property) => (
+                            <article
+                              key={property.slug}
+                              className="rounded-2xl border border-white/10 bg-black/35 p-4"
+                            >
+                              <div className="font-display text-lg font-black uppercase">
+                                {property.name}
+                              </div>
+                              <p className="mt-2 text-xs leading-relaxed text-stone-500">
+                                Choose what this building specializes in. The
+                                first upgrade permanently establishes its branch.
+                              </p>
+                              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                                {property.developmentOptions.map((option) => {
+                                  const scope =
+                                    'property-develop:' +
+                                    property.slug +
+                                    ':' +
+                                    option.branch;
+                                  return (
+                                    <button
+                                      key={option.branch}
+                                      type="button"
+                                      disabled={
+                                        !option.affordable ||
+                                        busyAction !== null
+                                      }
+                                      onClick={() =>
+                                        developProperty(
+                                          property.slug,
+                                          option.branch,
+                                        )
+                                      }
+                                      className="rounded-xl border border-cyan-300/20 bg-cyan-300/[.06] p-3 text-left disabled:cursor-not-allowed disabled:opacity-35"
+                                    >
+                                      <span className="font-display text-sm font-black uppercase text-cyan-100">
+                                        {option.branch}
+                                      </span>
+                                      <span className="mt-1 block font-mono text-[9px] text-stone-500">
+                                        LEVEL {option.level} · {option.cost.credits} CR · {option.cost.commandPoints} CP
+                                      </span>
+                                      {busyAction === scope ? (
+                                        <Loader2
+                                          size={13}
+                                          className="mt-2 animate-spin"
+                                          aria-hidden="true"
+                                        />
+                                      ) : null}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </article>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="mt-6 rounded-xl border border-amber-300/20 bg-amber-300/[.05] px-4 py-3 text-xs leading-relaxed text-amber-100">
+                        No buildable onboarding property is available in your
+                        controlled starter block yet. The City Board remains
+                        readable while the server state is reconciled.
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>

@@ -23,11 +23,12 @@ describe('Grid onboarding player UI contract', () => {
     expect(publicGrid).not.toContain('href="/grid/onboarding"');
   });
 
-  it('reads onboarding progress and starter availability from existing APIs', () => {
+  it('reads onboarding, starter, and property state from guarded APIs', () => {
     expect(client).toContain("fetch('/api/grid/onboarding/status'");
     expect(client).toContain(
       "fetch('/api/grid/onboarding/starter-territories'",
     );
+    expect(client).toContain("fetch('/api/grid/onboarding/properties'");
     expect(client).toContain("cache: 'no-store'");
   });
 
@@ -37,6 +38,8 @@ describe('Grid onboarding player UI contract', () => {
     expect(client).toContain(
       "'/api/grid/onboarding/starter-territories/claim'",
     );
+    expect(client).toContain("'/api/grid/onboarding/properties/acquire'");
+    expect(client).toContain("'/api/grid/onboarding/properties/develop'");
     expect(client).not.toContain('/api/grid/contests');
     expect(client).not.toContain('/api/grid/properties');
   });
@@ -71,6 +74,17 @@ describe('Grid onboarding player UI contract', () => {
     expect(client).toContain('{territory.cost.commandPoints} CP');
     expect(client).toContain('!territory.affordable');
     expect(client).toContain("'Resources required'");
+  });
+
+  it('renders the first property acquisition and five development branches from server costs', () => {
+    expect(client).toContain("nextStep?.id === 'complete-first-upgrade'");
+    expect(client).toContain('{property.acquisitionCost.credits} CR');
+    expect(client).toContain('{property.acquisitionCost.commandPoints} CP');
+    expect(client).toContain('property.developmentOptions.map');
+    expect(client).toContain('option.cost.credits');
+    expect(client).toContain('option.cost.commandPoints');
+    expect(client).toContain('!property.affordableToAcquire');
+    expect(client).toContain('!option.affordable');
   });
 
   it('renders the complete nine-step projection rather than hard-coding progress', () => {

@@ -26,12 +26,12 @@ export const cantonFoundingSeasonEconomy: GridEconomyConfig = {
   neutralClaims: {
     defaultCost: cost(900, 2),
     starterTerritorySlugs: [
-      'census-block-391517001002029',
-      'census-block-391517001002040',
-      'census-block-391517001002041',
-      'census-block-391517001002048',
-      'census-block-391517001002028',
+      'census-block-391517001002024',
+      'census-block-391517001002027',
+      'census-block-391517001002012',
+      'census-block-391517001002020',
       'census-block-391517001002042',
+      'census-block-391517001002030',
     ],
   },
   income: {

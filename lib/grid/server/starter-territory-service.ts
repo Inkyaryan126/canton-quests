@@ -70,6 +70,11 @@ export async function readGridStarterTerritories(
   }
 
   const configured = new Set(economy.neutralClaims.starterTerritorySlugs);
+  const buildableConfigured = new Set(
+    pkg.properties
+      .map((property) => property.territorySlug)
+      .filter((territorySlug) => configured.has(territorySlug)),
+  );
   const runtimeBySlug = new Map(
     context.territories.map((territory) => [
       territory.territorySlug,
@@ -78,7 +83,7 @@ export async function readGridStarterTerritories(
   );
 
   const options = pkg.territories.flatMap((territory) => {
-    if (!configured.has(territory.slug)) return [];
+    if (!buildableConfigured.has(territory.slug)) return [];
     const runtime = runtimeBySlug.get(territory.slug);
     if (!runtime || runtime.occupied) return [];
 
@@ -96,8 +101,7 @@ export async function readGridStarterTerritories(
     }];
   }).sort((a, b) => a.slug.localeCompare(b.slug));
 
-  const unavailableCount = economy.neutralClaims.starterTerritorySlugs.length -
-    options.length;
+  const unavailableCount = buildableConfigured.size - options.length;
 
   return {
     state: options.length > 0 ? 'choose-starter' : 'no-starters-available',

@@ -13,8 +13,18 @@ function portWith(
 const starterSlugs =
   cantonFoundingSeasonPackage.seasonTemplate.economy!.neutralClaims
     .starterTerritorySlugs;
+const buildableStarterSlugs = starterSlugs.filter((slug) =>
+  cantonFoundingSeasonPackage.properties.some(
+    (property) => property.territorySlug === slug,
+  ),
+);
 
 describe('Grid starter territory selection', () => {
+  it('configures every Founding Season starter with at least one buildable property', () => {
+    expect(starterSlugs).toHaveLength(6);
+    expect(buildableStarterSlugs).toEqual(starterSlugs);
+  });
+
   it('blocks choices when the season is not playable', async () => {
     const result = await readGridStarterTerritories(
       portWith({
@@ -68,15 +78,17 @@ describe('Grid starter territory selection', () => {
     expect(result.options).toEqual([]);
   });
 
-  it('returns only neutral configured starters with exact configured costs', async () => {
+  it('returns only neutral configured build-ready starters with exact configured costs', async () => {
     const economy = cantonFoundingSeasonPackage.seasonTemplate.economy!;
     const territories = starterSlugs.map((slug, index) => ({
       territoryId: `territory-${index + 1}`,
       territorySlug: slug,
-      occupied: index === 0,
+      occupied: false,
     }));
-    const sampleAvailable = starterSlugs[1];
+    const sampleAvailable = buildableStarterSlugs[0];
+    expect(sampleAvailable).toBeDefined();
     const expectedCost = resolveTerritoryClaimCost(economy, sampleAvailable);
+    const sampleIndex = starterSlugs.indexOf(sampleAvailable);
 
     const result = await readGridStarterTerritories(
       portWith({
@@ -92,14 +104,19 @@ describe('Grid starter territory selection', () => {
     );
 
     expect(result.state).toBe('choose-starter');
-    expect(result.availableCount).toBe(starterSlugs.length - 1);
-    expect(result.unavailableCount).toBe(1);
-    expect(result.options.some((option) => option.slug === starterSlugs[0]))
-      .toBe(false);
+    expect(result.availableCount).toBe(buildableStarterSlugs.length);
+    expect(result.unavailableCount).toBe(0);
+    expect(
+      result.options.every((option) =>
+        cantonFoundingSeasonPackage.properties.some(
+          (property) => property.territorySlug === option.slug,
+        ),
+      ),
+    ).toBe(true);
 
     const sample = result.options.find((option) => option.slug === sampleAvailable);
     expect(sample).toMatchObject({
-      territoryId: 'territory-2',
+      territoryId: `territory-${sampleIndex + 1}`,
       slug: sampleAvailable,
       cost: expectedCost,
       affordable: true,
@@ -126,7 +143,7 @@ describe('Grid starter territory selection', () => {
       'player-1',
     );
 
-    expect(result.options).toHaveLength(starterSlugs.length);
+    expect(result.options).toHaveLength(buildableStarterSlugs.length);
     expect(result.options.every((option) => !option.affordable)).toBe(true);
   });
 
@@ -150,6 +167,6 @@ describe('Grid starter territory selection', () => {
 
     expect(result.state).toBe('no-starters-available');
     expect(result.availableCount).toBe(0);
-    expect(result.unavailableCount).toBe(starterSlugs.length);
+    expect(result.unavailableCount).toBe(buildableStarterSlugs.length);
   });
 });
