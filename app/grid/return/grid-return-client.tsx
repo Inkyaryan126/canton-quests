@@ -18,6 +18,7 @@ import {
   Stamp,
   Swords,
   TrendingUp,
+  Users,
   Zap,
 } from 'lucide-react';
 
@@ -224,6 +225,11 @@ export default function GridReturnClient() {
                 <Link href="/grid/defense" className="cq-grid-return-strongholds-link">
                   <Shield size={17} aria-hidden="true" />
                   <span>DEFENSE</span>
+                  <ChevronRight size={15} aria-hidden="true" />
+                </Link>
+                <Link href="/grid/alliances" className="cq-grid-return-strongholds-link">
+                  <Users size={17} aria-hidden="true" />
+                  <span>ALLIANCES</span>
                   <ChevronRight size={15} aria-hidden="true" />
                 </Link>
                 <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[.05] px-5 py-4">

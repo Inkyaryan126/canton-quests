@@ -87,4 +87,10 @@ describe('Grid return briefing player UI contract', () => {
     expect(client).toContain('DEFENSE');
     expect(publicGrid).not.toContain('href="/grid/defense"');
   });
+
+  it('surfaces Alliance controls from authenticated return tools only', () => {
+    expect(client).toContain('href="/grid/alliances"');
+    expect(client).toContain('ALLIANCES');
+    expect(publicGrid).not.toContain('href="/grid/alliances"');
+  });
 });
