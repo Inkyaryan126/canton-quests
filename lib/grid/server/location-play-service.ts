@@ -121,6 +121,31 @@ export async function claimVerifiedGridLocationEnhancement(
 
   const scope = await configPort.resolveRule(citySlug, seasonSlug, ruleId);
   if (!scope) throw new Error('Grid location play rule not found');
+
+  // A response can be lost after the database commits. Reconcile a retry
+  // before checking the short-lived proof so an expired token cannot turn a
+  // durable idempotent claim into a false failure.
+  const existing = await grantPort.findByIdempotencyKey(
+    scope.seasonId,
+    playerId,
+    idempotencyKey,
+  );
+  if (existing) {
+    if (existing.ruleId.trim() !== scope.rule.id.trim()) {
+      throw new Error(
+        'Grid location enhancement idempotency key belongs to another rule',
+      );
+    }
+    return claimGridLocationEnhancement(grantPort, {
+      seasonId: scope.seasonId,
+      playerId,
+      rule: scope.rule,
+      attestation: null,
+      idempotencyKey,
+      now: input.now,
+    });
+  }
+
   ensureSeasonCanPlay(scope, nowMs);
 
   const attestation = verifyGridLocationAttestationToken({
