@@ -36,4 +36,3 @@ The only process started is the child local Next dev server. It is terminated in
 ## Evaluation contract
 
 `evaluateGridBrowserRuntimeReport` returns `VERIFIED` only when every required case is present and has a successful status, expected final path/heading, zero console/page errors, and zero Next overlay elements. It returns `SKIPPED` only when a prerequisite was unavailable, and `FAILED` for actual runtime/page evidence failures.
-
