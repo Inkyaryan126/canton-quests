@@ -40,6 +40,18 @@ describe('Grid release gate', () => {
     });
   });
 
+  it('runs only the build step with production NODE_ENV', () => {
+    const result = plan();
+
+    expect(result.steps.slice(0, -1).every((step: { env?: Record<string, string> }) => !step.env)).toBe(
+      true,
+    );
+    expect(result.steps.at(-1)).toMatchObject({
+      id: 'build',
+      env: { NODE_ENV: 'production' },
+    });
+  });
+
   it('checks playable-loop evidence before integration and build checks', () => {
     const result = plan();
     const ids = result.steps.map((step: { id: string }) => step.id);

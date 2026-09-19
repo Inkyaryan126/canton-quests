@@ -5,6 +5,9 @@ interface CommandStep {
   label: string;
   kind: 'command';
   command: string;
+  env?: {
+    NODE_ENV: 'production';
+  };
 }
 
 interface DiagnosticStep {
@@ -76,18 +79,19 @@ function releaseGateSteps(skipBuild: boolean): ReleaseGateStep[] {
       label: 'Production Next.js build',
       kind: 'command',
       command: 'npm run build',
+      env: { NODE_ENV: 'production' },
     });
   }
 
   return steps;
 }
 
-function runCommand(command: string): void {
+function runCommand(command: string, env: NodeJS.ProcessEnv = process.env): void {
   const result = spawnSync(command, {
     cwd: process.cwd(),
     shell: true,
     stdio: 'inherit',
-    env: process.env,
+    env,
   });
   if (result.status !== 0) {
     throw new Error('Command failed (' + String(result.status ?? 'unknown') + '): ' + command);
@@ -197,7 +201,7 @@ async function main(): Promise<void> {
     } else if (step.kind === 'playable-loop') {
       await runPlayableLoopCheck();
     } else {
-      runCommand(step.command);
+      runCommand(step.command, step.env ? { ...process.env, ...step.env } : process.env);
     }
   }
 
