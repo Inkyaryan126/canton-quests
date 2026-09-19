@@ -36,6 +36,7 @@ export default function GridBuilderClient() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
+  const [healthStarting, setHealthStarting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -60,7 +61,7 @@ export default function GridBuilderClient() {
     let timeout: number | undefined;
     const poll = async () => {
       await load();
-      if (!cancelled) timeout = window.setTimeout(() => void poll(), 30000);
+      if (!cancelled) timeout = window.setTimeout(() => void poll(), 10000);
     };
     void poll();
     return () => {
@@ -88,6 +89,25 @@ export default function GridBuilderClient() {
       setError(reason instanceof Error ? reason.message : 'Unable to start the crew.');
     } finally {
       setStarting(false);
+    }
+  }, [load]);
+
+  const refreshHealth = useCallback(async () => {
+    setHealthStarting(true);
+    setError('');
+    try {
+      const response = await fetch('/api/admin/grid-builder/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'refresh-health' }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Unable to check the crew.');
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to check the crew.');
+    } finally {
+      setHealthStarting(false);
     }
   }, [load]);
 
@@ -125,6 +145,7 @@ export default function GridBuilderClient() {
   }
 
   const runWorking = snapshot.run.status === 'working';
+  const healthWorking = snapshot.crewHealthRun.status === 'working';
   const buttonDisabled = starting || runWorking || !snapshot.controls.canStartCycle;
 
   return (
@@ -179,7 +200,13 @@ export default function GridBuilderClient() {
             <span className="cq-builder-eyebrow">CREW HEALTH</span>
             <h2>Three builders. One command chain.</h2>
           </div>
-          <p>Empire Panel prefers your newest local NVM toolchain instead of stale system-wide copies.</p>
+          <div className="cq-builder-health-actions">
+            <p>Empire Panel checks your newest local NVM copies of Codex, Claude, and Gemini instead of stale system-wide binaries.</p>
+            <button className="cq-builder-text-button" disabled={healthStarting || healthWorking} onClick={() => void refreshHealth()}>
+              {healthStarting || healthWorking ? 'CHECKING CREW…' : 'CHECK CREW NOW'}
+            </button>
+            <span className={`cq-builder-health-run is-${snapshot.crewHealthRun.status}`}>{snapshot.crewHealthRun.message}</span>
+          </div>
         </div>
         <div className="cq-builder-health-grid">
           {snapshot.crewHealth.map((agent) => (
@@ -196,7 +223,7 @@ export default function GridBuilderClient() {
               </div>
               <div className="cq-builder-health-version">
                 <span>Version</span>
-                <b>{agent.version ?? 'Not found'}</b>
+                <b>{agent.version ?? (agent.status === 'installed' ? 'Check required' : 'Not found')}</b>
               </div>
               <p>{agent.detail}</p>
               <footer>{agent.checkedAt ? `Live checked ${ageLabel(agent.checkedAt)}` : 'Awaiting live model check'}</footer>

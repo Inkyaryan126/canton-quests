@@ -4,11 +4,13 @@ import {
   formatGridBuilderCliFailureDetail,
   resolvePreferredCliBinary,
   writeGridBuilderCliHealthCache,
+  writeGridBuilderCliHealthRunState,
   type GridBuilderCliHealthCache,
   type GridBuilderCliName,
 } from '../lib/grid/ops/grid-builder-os';
 
 const PROBE_TIMEOUT_MS = 30_000;
+const VERSION_TIMEOUT_MS = 15_000;
 const HEALTH_PROMPT = 'Respond exactly HEALTHY and nothing else. Do not use tools.';
 
 interface ProbeResult {
@@ -40,7 +42,7 @@ function versionFor(binary: string, name: GridBuilderCliName): Promise<string | 
   return new Promise((resolve) => {
     const child = spawn(binary, ['--version'], { stdio: ['ignore', 'pipe', 'ignore'] });
     let stdout = '';
-    const timer = setTimeout(() => child.kill('SIGKILL'), 5_000);
+    const timer = setTimeout(() => child.kill('SIGKILL'), name === 'gemini' ? VERSION_TIMEOUT_MS : 5_000);
     child.stdout?.on('data', (chunk) => { stdout += String(chunk); });
     child.once('error', () => { clearTimeout(timer); resolve(null); });
     child.once('exit', (code) => {
@@ -60,7 +62,7 @@ function probeArgs(name: GridBuilderCliName, cwd: string): string[] {
   if (name === 'claude') {
     return ['-p', '--permission-mode', 'manual', '--output-format', 'text', HEALTH_PROMPT];
   }
-  return ['--mode', 'plan', '--output-format', 'text', '--print-timeout', '30s', `--print=${HEALTH_PROMPT}`];
+  return ['--skip-trust', '--approval-mode', 'plan', '--output-format', 'text', '--prompt', HEALTH_PROMPT];
 }
 
 async function probe(name: GridBuilderCliName, cwd: string): Promise<ProbeResult> {
@@ -129,9 +131,19 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const cwd = path.resolve(value(args, '--cwd') ?? process.cwd());
   const json = args.includes('--json');
+  const runId = value(args, '--run-id') ?? 'manual';
+  const startedAt = new Date().toISOString();
+  writeGridBuilderCliHealthRunState({
+    version: 1,
+    runId,
+    status: 'working',
+    pid: process.pid,
+    startedAt,
+    message: 'Checking Codex, Claude, and Gemini.',
+  }, cwd);
   const results: ProbeResult[] = [];
 
-  for (const name of ['codex', 'claude', 'agy'] as const) {
+  for (const name of ['codex', 'claude', 'gemini'] as const) {
     const result = await probe(name, cwd);
     results.push(result);
     if (!json) {
@@ -150,11 +162,38 @@ async function main(): Promise<void> {
     }])),
   };
   writeGridBuilderCliHealthCache(cache, cwd);
+  writeGridBuilderCliHealthRunState({
+    version: 1,
+    runId,
+    status: 'finished',
+    pid: process.pid,
+    startedAt,
+    endedAt: checkedAt,
+    message: results.every((result) => result.status === 'ready')
+      ? 'Codex, Claude, and Gemini are ready.'
+      : 'Crew health finished. One or more CLIs need attention.',
+  }, cwd);
 
   if (json) process.stdout.write(`${JSON.stringify({ checkedAt, results }, null, 2)}\n`);
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  const args = process.argv.slice(2);
+  const cwd = path.resolve(value(args, '--cwd') ?? process.cwd());
+  const runId = value(args, '--run-id') ?? 'manual';
+  const message = error instanceof Error ? error.message : String(error);
+  try {
+    writeGridBuilderCliHealthRunState({
+      version: 1,
+      runId,
+      status: 'needs_attention',
+      pid: process.pid,
+      endedAt: new Date().toISOString(),
+      message: 'Crew health could not finish. Check the local CLI setup and run it again.',
+    }, cwd);
+  } catch {
+    // If coordination storage is unavailable, stderr is the only safe fallback.
+  }
+  process.stderr.write(`${message}\n`);
   process.exitCode = 1;
 });

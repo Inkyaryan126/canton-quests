@@ -19,12 +19,12 @@ import { collectPlayableLoopScore } from './playable-loop-score';
 import { recommendGridProductWork } from './product-director';
 
 export type GridBuilderRunStatus = 'idle' | 'working' | 'finished' | 'needs_attention';
+export type GridBuilderHealthRunStatus = 'idle' | 'working' | 'finished' | 'needs_attention';
 export type GridBuilderWorkerState = 'working' | 'checkpoint' | 'needs_attention';
-export type GridBuilderCliName = 'codex' | 'claude' | 'agy';
+export type GridBuilderCliName = 'codex' | 'claude' | 'gemini';
 export type GridBuilderCliHealthStatus = 'ready' | 'installed' | 'needs_attention' | 'unavailable';
 
 function gridBuilderCliLabel(name: GridBuilderCliName): string {
-  if (name === 'agy') return 'Antigravity';
   return name[0].toUpperCase() + name.slice(1);
 }
 
@@ -70,6 +70,16 @@ export interface GridBuilderCliHealthCache {
   }>>;
 }
 
+export interface GridBuilderHealthRunState {
+  version: 1;
+  runId: string;
+  status: GridBuilderHealthRunStatus;
+  pid?: number;
+  startedAt?: string;
+  endedAt?: string;
+  message: string;
+}
+
 export interface GridBuilderRunState {
   version: 1;
   runId: string;
@@ -108,6 +118,7 @@ export interface GridBuilderOsSnapshot {
     nextRepair: string | null;
   };
   crewHealth: GridBuilderCliHealth[];
+  crewHealthRun: GridBuilderHealthRunState;
   workers: GridBuilderWorker[];
   recommendations: Array<{
     id: string;
@@ -139,6 +150,10 @@ export function gridBuilderLogFile(cwd = process.cwd()): string {
 
 export function gridBuilderCliHealthFile(cwd = process.cwd()): string {
   return path.join(gridBuilderStateDir(cwd), 'cli-health.json');
+}
+
+export function gridBuilderCliHealthStateFile(cwd = process.cwd()): string {
+  return path.join(gridBuilderStateDir(cwd), 'cli-health-state.json');
 }
 
 function nodeVersionParts(value: string): number[] {
@@ -175,8 +190,6 @@ export function resolvePreferredCliBinary(
   const candidates: string[] = [];
   if (override) candidates.push(override);
 
-  if (name === 'agy') candidates.push(path.join(homeDir, '.local', 'bin', 'agy'));
-
   const nvmVersions = path.join(homeDir, '.nvm', 'versions', 'node');
   try {
     for (const version of fs.readdirSync(nvmVersions).sort(compareNodeVersionsDesc)) {
@@ -194,23 +207,6 @@ export function resolvePreferredCliBinary(
     if (executable(candidate)) return candidate;
   }
   return null;
-}
-
-function cliVersion(name: GridBuilderCliName, binary: string): string | null {
-  try {
-    const output = execFileSync(binary, ['--version'], {
-      encoding: 'utf8',
-      timeout: 5_000,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-    if (!output) return null;
-    const firstLine = output.split('\n').find(Boolean)?.trim() ?? null;
-    if (!firstLine) return null;
-    if (name === 'codex') return firstLine.replace(/^codex-cli\s+/i, '');
-    return firstLine;
-  } catch {
-    return null;
-  }
 }
 
 export function readGridBuilderCliHealthCache(cwd = process.cwd()): GridBuilderCliHealthCache | null {
@@ -238,7 +234,7 @@ export function collectGridBuilderCliHealth(cwd = process.cwd()): GridBuilderCli
   const definitions: Array<{ name: GridBuilderCliName; label: string; role: string }> = [
     { name: 'codex', label: 'Codex', role: 'Lead Builder' },
     { name: 'claude', label: 'Claude', role: 'Backup Engineer' },
-    { name: 'agy', label: 'Antigravity', role: 'Fast Builder' },
+    { name: 'gemini', label: 'Gemini', role: 'Fast Builder' },
   ];
 
   return definitions.map((definition) => {
@@ -253,26 +249,59 @@ export function collectGridBuilderCliHealth(cwd = process.cwd()): GridBuilderCli
       };
     }
 
-    const version = cliVersion(definition.name, binary);
     const cached = cache?.entries[definition.name];
     if (cached) {
       return {
         ...definition,
         status: cached.status,
-        version: cached.version ?? version,
+        version: cached.version ?? null,
         detail: cached.detail,
-        checkedAt: cache?.checkedAt ?? null,
+        checkedAt: cache.checkedAt,
       };
     }
 
     return {
       ...definition,
       status: 'installed' as const,
-      version,
-      detail: 'Installed. Live model health has not been checked yet.',
+      version: null,
+      detail: 'Installed. Run CHECK CREW NOW for live model health and version.',
       checkedAt: null,
     };
   });
+}
+
+export function writeGridBuilderCliHealthRunState(
+  state: GridBuilderHealthRunState,
+  cwd = process.cwd(),
+): void {
+  fs.mkdirSync(gridBuilderStateDir(cwd), { recursive: true });
+  fs.writeFileSync(gridBuilderCliHealthStateFile(cwd), `${JSON.stringify(state, null, 2)}\n`);
+}
+
+export function readGridBuilderCliHealthRunState(cwd = process.cwd()): GridBuilderHealthRunState {
+  const filename = gridBuilderCliHealthStateFile(cwd);
+  if (!fs.existsSync(filename)) {
+    return { version: 1, runId: 'none', status: 'idle', message: 'Crew health has not been checked yet.' };
+  }
+  try {
+    const state = JSON.parse(fs.readFileSync(filename, 'utf8')) as GridBuilderHealthRunState;
+    if (state.status === 'working' && !processAlive(state.pid)) {
+      return {
+        ...state,
+        status: 'needs_attention',
+        endedAt: state.endedAt ?? new Date().toISOString(),
+        message: 'The last crew-health check stopped unexpectedly. Run it again.',
+      };
+    }
+    return state;
+  } catch {
+    return {
+      version: 1,
+      runId: 'unknown',
+      status: 'needs_attention',
+      message: 'Builder OS could not read the last crew-health check.',
+    };
+  }
 }
 
 export function writeGridBuilderRunState(state: GridBuilderRunState, cwd = process.cwd()): void {
@@ -342,7 +371,7 @@ export function humanizeBuilderOwner(owner: string): string {
   const value = owner.toLowerCase();
   if (value.includes('codex') || value.includes('astra')) return 'Lead Builder';
   if (value.includes('claude')) return 'Engineer';
-  if (value.includes('agy') || value.includes('antigravity')) return 'Fast Builder';
+  if (value.includes('gemini') || value.includes('agy') || value.includes('antigravity')) return 'Fast Builder';
   return 'Builder';
 }
 
@@ -444,6 +473,8 @@ export function collectGridBuilderOsSnapshot(options: {
       };
     });
   const run = readGridBuilderRunState(cwd);
+  const crewHealthRun = readGridBuilderCliHealthRunState(cwd);
+  const crewHealth = collectGridBuilderCliHealth(cwd);
   const guard = evaluateBuilderStartGuard({
     hostname: options.hostname ?? 'localhost',
     nodeEnv: options.nodeEnv ?? process.env.NODE_ENV,
@@ -452,6 +483,10 @@ export function collectGridBuilderOsSnapshot(options: {
   });
   const needsYou = issues.map((issue) => issue.message);
   if (run.status === 'needs_attention') needsYou.push(run.message);
+  if (crewHealthRun.status === 'needs_attention') needsYou.push(crewHealthRun.message);
+  for (const agent of crewHealth.filter((item) => item.status === 'needs_attention' || item.status === 'unavailable')) {
+    needsYou.push(`${agent.label}: ${agent.detail}`);
+  }
   for (const worker of workers.filter((item) => item.state === 'needs_attention')) {
     needsYou.push(`${worker.role} has not checked in recently: ${worker.task}`);
   }
@@ -465,7 +500,8 @@ export function collectGridBuilderOsSnapshot(options: {
       brokenLink: playable.highestValueBrokenLink?.title ?? null,
       nextRepair: playable.highestValueBrokenLink?.recommendation ?? null,
     },
-    crewHealth: collectGridBuilderCliHealth(cwd),
+    crewHealth,
+    crewHealthRun,
     workers,
     recommendations: director.recommendations.map((item) => ({
       id: item.id,

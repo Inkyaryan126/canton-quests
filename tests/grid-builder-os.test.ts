@@ -10,11 +10,13 @@ import {
   formatGridBuilderCliFailureDetail,
   humanizeBuilderOwner,
   isLocalBuilderHostname,
+  readGridBuilderCliHealthRunState,
   readGridBuilderRunState,
   resolveGridBuilderIntegrationRef,
   resolvePreferredCliBinary,
   summarizeMilestoneProgress,
   writeGridBuilderCliHealthCache,
+  writeGridBuilderCliHealthRunState,
   writeGridBuilderRunState,
 } from '../lib/grid/ops/grid-builder-os';
 
@@ -65,7 +67,7 @@ describe('Grid Builder OS helpers', () => {
 
   it('maps credit, quota, and payment failures to an account action', () => {
     expect(formatGridBuilderCliFailureDetail(
-      'agy',
+      'gemini',
       '',
       'resource-exhausted: quota exceeded; payment required',
       1,
@@ -74,9 +76,9 @@ describe('Grid Builder OS helpers', () => {
 
   it('uses a safe worker-specific fallback without leaking raw failure text', () => {
     const rawFailure = 'token=sk-secret /Users/inky/project/request-id-123 raw payload {"secret":"value"}';
-    const detail = formatGridBuilderCliFailureDetail('agy', rawFailure, '', 7);
+    const detail = formatGridBuilderCliFailureDetail('gemini', rawFailure, '', 7);
 
-    expect(detail).toBe('Antigravity health probe failed (exit code 7). Check the CLI and rerun crew health.');
+    expect(detail).toBe('Gemini health probe failed (exit code 7). Check the CLI and rerun crew health.');
     expect(detail).not.toContain(rawFailure);
     expect(detail).not.toContain('/Users/');
     expect(detail).not.toContain('sk-secret');
@@ -89,6 +91,8 @@ describe('Grid Builder OS helpers', () => {
     expect(builderClientSource).toContain('aria-label="Build the Grid"');
     expect(builderClientSource).toContain("'/api/admin/grid-builder/status'");
     expect(builderClientSource).toContain("'/api/admin/grid-builder/action'");
+    expect(builderClientSource).toContain("action: 'refresh-health'");
+    expect(builderClientSource).toContain('Codex, Claude, and Gemini');
     expect(builderClientSource).toContain('cq-builder-ledger-section');
     expect(builderStylesSource).toContain('.cq-builder-command-center');
     expect(builderStylesSource).toContain('.cq-builder-ledger-section');
@@ -111,6 +115,7 @@ describe('Grid Builder OS helpers', () => {
   it('turns owner and worker evidence into plain-language states', () => {
     expect(humanizeBuilderOwner('codex-map')).toBe('Lead Builder');
     expect(humanizeBuilderOwner('claude-qa')).toBe('Engineer');
+    expect(humanizeBuilderOwner('gemini-ui')).toBe('Fast Builder');
     expect(humanizeBuilderOwner('agy-ui')).toBe('Fast Builder');
     expect(deriveBuilderWorkerState({ stale: false, activeProcesses: 1, dirtyFiles: 0 })).toBe('working');
     expect(deriveBuilderWorkerState({ stale: false, activeProcesses: 0, dirtyFiles: 0 })).toBe('checkpoint');
@@ -154,6 +159,23 @@ describe('Grid Builder OS helpers', () => {
     });
   });
 
+  it('stores crew-health run state in git-common coordination storage', () => {
+    const cwd = makeRepo();
+    writeGridBuilderCliHealthRunState({
+      version: 1,
+      runId: 'health123',
+      status: 'finished',
+      startedAt: '2026-09-19T11:00:00.000Z',
+      endedAt: '2026-09-19T11:00:03.000Z',
+      message: 'Codex, Claude, and Gemini are ready.',
+    }, cwd);
+    expect(readGridBuilderCliHealthRunState(cwd)).toMatchObject({
+      runId: 'health123',
+      status: 'finished',
+      message: 'Codex, Claude, and Gemini are ready.',
+    });
+  });
+
   it('prefers the newest NVM CLI over a stale PATH copy', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'grid-builder-home-'));
     tempDirs.push(home);
@@ -161,14 +183,14 @@ describe('Grid Builder OS helpers', () => {
     const newBin = path.join(home, '.nvm', 'versions', 'node', 'v24.19.0', 'bin');
     fs.mkdirSync(oldBin, { recursive: true });
     fs.mkdirSync(newBin, { recursive: true });
-    const stale = path.join(oldBin, 'codex');
-    const preferred = path.join(newBin, 'codex');
+    const stale = path.join(oldBin, 'gemini');
+    const preferred = path.join(newBin, 'gemini');
     fs.writeFileSync(stale, '#!/bin/sh\necho stale\n');
     fs.writeFileSync(preferred, '#!/bin/sh\necho preferred\n');
     fs.chmodSync(stale, 0o755);
     fs.chmodSync(preferred, 0o755);
 
-    expect(resolvePreferredCliBinary('codex', {
+    expect(resolvePreferredCliBinary('gemini', {
       homeDir: home,
       pathEnv: oldBin,
       env: { NODE_ENV: 'test' },
@@ -183,7 +205,7 @@ describe('Grid Builder OS helpers', () => {
       entries: {
         codex: { status: 'ready', version: '0.154.0', detail: 'Live model probe passed.' },
         claude: { status: 'ready', version: '2.1.240', detail: 'Live model probe passed.' },
-        agy: { status: 'ready', version: '1.2.7', detail: 'Live model probe passed.' },
+        gemini: { status: 'ready', version: '0.57.0', detail: 'Live model probe passed.' },
       },
     }, cwd);
 

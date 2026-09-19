@@ -86,7 +86,7 @@ function supervisorPrompt(): string {
     '- Keep up to three useful development lanes active when safe.',
     '- Use Product Director recommendations as the shortlist, but derive exact file scope before claiming. Never invent filler work.',
     '- Every new worker gets an isolated worktree, explicit Control Tower claim, exact scope, and clear acceptance criteria.',
-    '- Prefer the installed Claude and Antigravity/Agy CLIs as worker agents when their specialization fits. Use Codex only where higher-level architecture or difficult integration is justified.',
+    '- Prefer the installed Claude and Gemini CLIs as worker agents when their specialization fits. Use Codex where higher-level architecture or difficult integration is justified.',
     '- If a worker CLI is unavailable, stalled, or errors, record that and route to a healthy fallback instead of retrying the same failure repeatedly.',
     '- Stop this cycle after existing ready work is harvested and safe replacement work is assigned or after a real blocker requires Dustin.',
     '',
@@ -197,9 +197,9 @@ async function main(): Promise<void> {
   const prompt = supervisorPrompt();
   const codexBinary = resolvePreferredCliBinary('codex');
   const claudeBinary = resolvePreferredCliBinary('claude');
-  const agyBinary = resolvePreferredCliBinary('agy');
+  const geminiBinary = resolvePreferredCliBinary('gemini');
   const pathPrefix = Array.from(new Set(
-    [codexBinary, claudeBinary, agyBinary]
+    [codexBinary, claudeBinary, geminiBinary]
       .filter((binary): binary is string => Boolean(binary))
       .map((binary) => path.dirname(binary)),
   )).join(path.delimiter);
