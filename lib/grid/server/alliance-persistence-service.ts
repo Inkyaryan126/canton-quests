@@ -11,6 +11,8 @@ import type {
   GridAllianceMembership,
   GridAllianceRules,
 } from '../core/alliance-types';
+import { projectGridDominanceHeat } from '../core/dominance-heat';
+import type { GridDominanceHeatConfig } from '../core/dominance-heat-types';
 import type {
   GridAllianceDisbandPersistenceResult,
   GridAlliancePersistencePort,
@@ -336,6 +338,7 @@ export async function settlePersistentGridAllianceUpkeep(
   port: GridAlliancePersistencePort,
   command: GridSettleAllianceUpkeepCommand,
   rules: GridAllianceRules,
+  dominanceHeatConfig: GridDominanceHeatConfig,
 ): Promise<GridAllianceUpkeepPersistenceResult> {
   validateGridAllianceRules(rules);
   const allianceId = requireText(command.allianceId, 'allianceId');
@@ -375,12 +378,26 @@ export async function settlePersistentGridAllianceUpkeep(
     networkInputs.territoryOwnership,
     networkInputs.adjacencyEdges,
   );
+  const dominanceHeatProjection = projectGridDominanceHeat(
+    {
+      actorId: allianceId,
+      actorKind: 'alliance',
+      controlledTerritories: network.controlledTerritorySlugs.length,
+      eligibleTerritories: networkInputs.eligibleTerritoryCount,
+    },
+    dominanceHeatConfig,
+  );
   const settlement = settleGridAllianceUpkeep(
     {
       activeMemberCount: memberPlayerIds.length,
       disconnectedComponentCount: network.disconnectedComponentCount,
       ticks: command.ticks,
       poolInfluence: alliance.influencePool,
+      dominanceHeat: {
+        bandId: dominanceHeatProjection.bandId,
+        upkeepSurchargeBps:
+          dominanceHeatProjection.effects.upkeepSurchargeBps,
+      },
     },
     rules,
   );

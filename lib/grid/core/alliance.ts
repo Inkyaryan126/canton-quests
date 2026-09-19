@@ -14,6 +14,8 @@ import type {
   GridAllianceUpkeepSettlementInput,
 } from './alliance-types';
 
+const BASIS_POINTS = 10_000;
+
 function requireNonEmpty(value: string, label: string): string {
   const normalized = value.trim();
   if (!normalized) {
@@ -56,6 +58,20 @@ function checkedAdd(left: number, right: number, label: string): number {
     throw new Error(`${label} exceeds safe integer range`);
   }
   return result;
+}
+
+function checkedMulDivFloor(
+  value: number,
+  multiplier: number,
+  divisor: number,
+  label: string,
+): number {
+  const result =
+    (BigInt(value) * BigInt(multiplier)) / BigInt(divisor);
+  if (result > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(`${label} exceeds safe integer range`);
+  }
+  return Number(result);
 }
 
 export function validateGridAllianceRules(rules: GridAllianceRules): void {
@@ -285,6 +301,16 @@ export function calculateGridAllianceUpkeep(
     'disconnectedComponentCount',
   );
   requirePositiveSafeInteger(input.ticks, 'ticks');
+  requireNonNegativeSafeInteger(
+    input.dominanceHeat.upkeepSurchargeBps,
+    'dominanceHeat.upkeepSurchargeBps',
+  );
+  const dominanceHeatBandId = input.dominanceHeat.bandId?.trim() || null;
+  if (input.dominanceHeat.upkeepSurchargeBps > 0 && dominanceHeatBandId === null) {
+    throw new Error(
+      'dominanceHeat.bandId is required when upkeep surcharge is active',
+    );
+  }
 
   const memberInfluencePerTick = checkedMultiply(
     input.activeMemberCount,
@@ -321,6 +347,17 @@ export function calculateGridAllianceUpkeep(
     largeAllianceSurchargeInfluencePerTick,
     'perTickInfluence',
   );
+  const dominanceHeatSurchargeInfluencePerTick = checkedMulDivFloor(
+    perTickInfluence,
+    input.dominanceHeat.upkeepSurchargeBps,
+    BASIS_POINTS,
+    'dominanceHeatSurchargeInfluencePerTick',
+  );
+  perTickInfluence = checkedAdd(
+    perTickInfluence,
+    dominanceHeatSurchargeInfluencePerTick,
+    'perTickInfluence',
+  );
   const totalInfluence = checkedMultiply(
     perTickInfluence,
     input.ticks,
@@ -336,6 +373,10 @@ export function calculateGridAllianceUpkeep(
       memberInfluencePerTick,
       disconnectedInfluencePerTick,
       largeAllianceSurchargeInfluencePerTick,
+      dominanceHeatBandId,
+      dominanceHeatUpkeepSurchargeBps:
+        input.dominanceHeat.upkeepSurchargeBps,
+      dominanceHeatSurchargeInfluencePerTick,
     },
   };
 }

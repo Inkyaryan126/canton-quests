@@ -67,6 +67,19 @@ function requireObject<T>(data: unknown, label: string): T {
   return data as T;
 }
 
+function requireExactCount(
+  result: { count: number | null; error: { message: string } | null },
+  label: string,
+): number {
+  if (result.error) {
+    throw new Error(`Failed to read Grid Alliance ${label}: ${result.error.message}`);
+  }
+  if (!Number.isSafeInteger(result.count) || (result.count ?? -1) < 0) {
+    throw new Error(`Grid Alliance ${label} returned an invalid count`);
+  }
+  return result.count!;
+}
+
 export function createSupabaseGridAlliancePersistencePort(
   client: SupabaseClient | null = supabaseAdmin,
 ): GridAlliancePersistencePort {
@@ -269,7 +282,7 @@ export function createSupabaseGridAlliancePersistencePort(
 
     async getAllianceNetworkInputs(seasonId, memberPlayerIds) {
       if (memberPlayerIds.length === 0) {
-        return { territoryOwnership: [], adjacencyEdges: [] };
+        return { eligibleTerritoryCount: 0, territoryOwnership: [], adjacencyEdges: [] };
       }
 
       const { data: seasonData, error: seasonError } = await client
@@ -285,20 +298,36 @@ export function createSupabaseGridAlliancePersistencePort(
       }
       const cityId = (seasonData as { city_id: string }).city_id;
 
-      const { data: ownershipData, error: ownershipError } = await client
-        .from('grid_season_territory_state')
-        .select('territory_id,owner_player_id')
-        .eq('season_id', seasonId)
-        .in('owner_player_id', memberPlayerIds);
-      if (ownershipError) {
-        throw new Error(`Failed to read Grid Alliance territory ownership: ${ownershipError.message}`);
+      const [ownershipResult, eligibleTerritoryResult] = await Promise.all([
+        client
+          .from('grid_season_territory_state')
+          .select('territory_id,owner_player_id')
+          .eq('season_id', seasonId)
+          .in('owner_player_id', memberPlayerIds),
+        client
+          .from('grid_territories')
+          .select('id', { count: 'exact', head: true })
+          .eq('city_id', cityId),
+      ]);
+      if (ownershipResult.error) {
+        throw new Error(
+          `Failed to read Grid Alliance territory ownership: ${ownershipResult.error.message}`,
+        );
       }
-      const ownershipRows = (ownershipData ?? []) as Array<{
+      const eligibleTerritoryCount = requireExactCount(
+        eligibleTerritoryResult,
+        'eligible territories',
+      );
+      const ownershipRows = (ownershipResult.data ?? []) as Array<{
         territory_id: string;
         owner_player_id: string;
       }>;
       if (ownershipRows.length === 0) {
-        return { territoryOwnership: [], adjacencyEdges: [] };
+        return {
+          eligibleTerritoryCount,
+          territoryOwnership: [],
+          adjacencyEdges: [],
+        };
       }
 
       const territoryIds = [...new Set(ownershipRows.map((row) => row.territory_id))];
@@ -355,7 +384,7 @@ export function createSupabaseGridAlliancePersistencePort(
           ),
         );
 
-      return { territoryOwnership, adjacencyEdges };
+      return { eligibleTerritoryCount, territoryOwnership, adjacencyEdges };
     },
 
     async getUpkeepSettlementReplay(seasonId, allianceId, idempotencyKey) {

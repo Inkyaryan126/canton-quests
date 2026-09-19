@@ -38,6 +38,8 @@ function membership(
   };
 }
 
+const NO_DOMINANCE_HEAT = { bandId: null, upkeepSurchargeBps: 0 };
+
 describe('Grid Alliance membership', () => {
   it('allows a player with no active membership in this season to join', () => {
     expect(evaluateGridAllianceJoin({
@@ -219,6 +221,7 @@ describe('Grid Alliance coordination upkeep', () => {
       activeMemberCount: 8,
       disconnectedComponentCount: 2,
       ticks: 3,
+      dominanceHeat: NO_DOMINANCE_HEAT,
     }, RULES)).toEqual({
       ticks: 3,
       perTickInfluence: 35,
@@ -228,6 +231,9 @@ describe('Grid Alliance coordination upkeep', () => {
         memberInfluencePerTick: 16,
         disconnectedInfluencePerTick: 6,
         largeAllianceSurchargeInfluencePerTick: 8,
+        dominanceHeatBandId: null,
+        dominanceHeatUpkeepSurchargeBps: 0,
+        dominanceHeatSurchargeInfluencePerTick: 0,
       },
     });
   });
@@ -237,6 +243,7 @@ describe('Grid Alliance coordination upkeep', () => {
       activeMemberCount: 4,
       disconnectedComponentCount: 0,
       ticks: 1,
+      dominanceHeat: NO_DOMINANCE_HEAT,
     }, RULES)).toMatchObject({
       perTickInfluence: 13,
       totalInfluence: 13,
@@ -249,6 +256,7 @@ describe('Grid Alliance coordination upkeep', () => {
       activeMemberCount: 8,
       disconnectedComponentCount: 2,
       ticks: 3,
+      dominanceHeat: NO_DOMINANCE_HEAT,
     }, RULES)).toMatchObject({
       paidInfluence: 70,
       poolInfluenceAfter: 0,
@@ -261,6 +269,7 @@ describe('Grid Alliance coordination upkeep', () => {
       activeMemberCount: 8,
       disconnectedComponentCount: 2,
       ticks: 3,
+      dominanceHeat: NO_DOMINANCE_HEAT,
     }, RULES)).toMatchObject({
       paidInfluence: 105,
       poolInfluenceAfter: 95,
@@ -269,11 +278,43 @@ describe('Grid Alliance coordination upkeep', () => {
     });
   });
 
+  it('applies Dominance Heat surcharge after existing coordination costs using floor basis-point math', () => {
+    expect(calculateGridAllianceUpkeep({
+      activeMemberCount: 8,
+      disconnectedComponentCount: 2,
+      ticks: 3,
+      dominanceHeat: { bandId: 'hot', upkeepSurchargeBps: 800 },
+    }, RULES)).toEqual({
+      ticks: 3,
+      perTickInfluence: 37,
+      totalInfluence: 111,
+      breakdown: {
+        baseInfluencePerTick: 5,
+        memberInfluencePerTick: 16,
+        disconnectedInfluencePerTick: 6,
+        largeAllianceSurchargeInfluencePerTick: 8,
+        dominanceHeatBandId: 'hot',
+        dominanceHeatUpkeepSurchargeBps: 800,
+        dominanceHeatSurchargeInfluencePerTick: 2,
+      },
+    });
+  });
+
+  it('requires an auditable Heat band whenever a positive surcharge is supplied', () => {
+    expect(() => calculateGridAllianceUpkeep({
+      activeMemberCount: 4,
+      disconnectedComponentCount: 0,
+      ticks: 1,
+      dominanceHeat: { bandId: null, upkeepSurchargeBps: 800 },
+    }, RULES)).toThrow(/bandId/);
+  });
+
   it('rejects unsafe upkeep arithmetic instead of rounding it', () => {
     expect(() => calculateGridAllianceUpkeep({
       activeMemberCount: 8,
       disconnectedComponentCount: 2,
       ticks: Number.MAX_SAFE_INTEGER,
+      dominanceHeat: NO_DOMINANCE_HEAT,
     }, RULES)).toThrow(/safe integer/i);
   });
 });

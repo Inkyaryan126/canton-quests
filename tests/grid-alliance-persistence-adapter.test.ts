@@ -45,6 +45,8 @@ describe('Supabase GRID Alliance persistence adapter', () => {
   it('derives upkeep network inputs from seasonal ownership and city adjacency', () => {
     expect(source).toContain(".from('grid_season_territory_state')");
     expect(source).toContain(".from('grid_territories')");
+    expect(source).toContain("count: 'exact'");
+    expect(source).toContain('eligibleTerritoryCount');
     expect(source).toContain(".from('grid_territory_edges')");
     expect(source).toContain('getActiveMemberPlayerIds');
     expect(source).toContain('getAllianceNetworkInputs');
