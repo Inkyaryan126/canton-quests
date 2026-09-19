@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../../supabase';
+import { cantonDominanceHeatConfig } from '../cities/canton/dominance-heat';
+import { deriveGridNpcDominancePressure } from './npc-dominance-pressure';
 import type { GridNpcStrongholdRuntimeEvidencePort } from './npc-stronghold-runtime-port';
 
 interface GridNpcSeasonRuntimeRow {
@@ -15,6 +17,13 @@ function requireObject<T>(data: unknown, label: string): T {
     throw new Error(`${label} returned an invalid result`);
   }
   return data as T;
+}
+
+function requireExactCount(value: number | null, label: string): number {
+  if (!Number.isSafeInteger(value) || (value ?? -1) < 0) {
+    throw new Error(`Grid NPC runtime ${label} returned an invalid count`);
+  }
+  return value!;
 }
 
 function parseOptionalTimestamp(value: string | null, label: string): number | null {
@@ -40,6 +49,87 @@ export function isGridNpcSeasonActiveAt(
   if (startsAt !== null && nowMs < startsAt) return false;
   if (endsAt !== null && nowMs >= endsAt) return false;
   return true;
+}
+
+async function readCantonDominancePressureBps(
+  client: SupabaseClient,
+  cityId: string,
+  seasonId: string,
+): Promise<number> {
+  const [territoryResult, ownershipResult, allianceResult, membershipResult] =
+    await Promise.all([
+      client
+        .from('grid_territories')
+        .select('id', { count: 'exact', head: true })
+        .eq('city_id', cityId),
+      client
+        .from('grid_season_territory_state')
+        .select('owner_player_id')
+        .eq('season_id', seasonId)
+        .not('owner_player_id', 'is', null),
+      client
+        .from('grid_alliances')
+        .select('id')
+        .eq('season_id', seasonId)
+        .eq('status', 'active'),
+      client
+        .from('grid_alliance_memberships')
+        .select('alliance_id,player_id')
+        .eq('season_id', seasonId)
+        .is('left_at', null),
+    ]);
+
+  if (territoryResult.error) {
+    throw new Error(
+      `Failed to read Grid NPC Dominance eligible territories: ${territoryResult.error.message}`,
+    );
+  }
+  if (ownershipResult.error) {
+    throw new Error(
+      `Failed to read Grid NPC Dominance ownership: ${ownershipResult.error.message}`,
+    );
+  }
+  if (allianceResult.error) {
+    throw new Error(
+      `Failed to read Grid NPC Dominance alliances: ${allianceResult.error.message}`,
+    );
+  }
+  if (membershipResult.error) {
+    throw new Error(
+      `Failed to read Grid NPC Dominance memberships: ${membershipResult.error.message}`,
+    );
+  }
+
+  const activeAllianceIds = new Set(
+    ((allianceResult.data ?? []) as Array<{ id: string }>).map((row) => row.id),
+  );
+  const allianceMemberships = (
+    (membershipResult.data ?? []) as Array<{
+      alliance_id: string;
+      player_id: string;
+    }>
+  )
+    .filter((row) => activeAllianceIds.has(row.alliance_id))
+    .map((row) => ({
+      allianceId: row.alliance_id,
+      playerId: row.player_id,
+    }));
+
+  return deriveGridNpcDominancePressure(
+    {
+      eligibleTerritories: requireExactCount(
+        territoryResult.count,
+        'Dominance eligible territories',
+      ),
+      ownerPlayerIds: (
+        (ownershipResult.data ?? []) as Array<{
+          owner_player_id: string | null;
+        }>
+      ).flatMap((row) => (row.owner_player_id ? [row.owner_player_id] : [])),
+      allianceMemberships,
+    },
+    cantonDominanceHeatConfig,
+  ).pressureBps;
 }
 
 export function createSupabaseGridNpcStrongholdRuntimeEvidencePort(
@@ -141,6 +231,24 @@ export function createSupabaseGridNpcStrongholdRuntimeEvidencePort(
           throw new Error('Grid NPC faction runtime returned unexpected identity');
         }
         factionPressureBpsByFaction[row.faction_id] = row.pressure_bps;
+      }
+
+      const missingFactionIds = request.factionIds.filter(
+        (factionId) => factionPressureBpsByFaction[factionId] === undefined,
+      );
+      if (
+        seasonActive &&
+        city.slug === 'canton-oh' &&
+        missingFactionIds.length > 0
+      ) {
+        const dominancePressureBps = await readCantonDominancePressureBps(
+          client,
+          city.id,
+          season.id,
+        );
+        for (const factionId of missingFactionIds) {
+          factionPressureBpsByFaction[factionId] = dominancePressureBps;
+        }
       }
 
       return {
