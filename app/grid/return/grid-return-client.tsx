@@ -345,18 +345,18 @@ export default function GridReturnClient() {
             <section className="mt-5 flex flex-col gap-4 rounded-3xl border border-cyan-300/20 bg-cyan-300/[.045] p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="font-mono text-[10px] font-black tracking-[.18em] text-cyan-300">
-                  READY TO MOVE
+                  NEXT ACTION
                 </div>
                 <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-400">
-                  Your private recap is complete. Re-enter the Canton City
-                  Board with your current territory, property, and wallet state.
+                  Use the City Board to continue with your projected wallet and
+                  Command Points.
                 </p>
               </div>
               <Link
                 href="/grid/preview"
                 className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 font-display text-sm font-black uppercase tracking-[.08em] text-slate-950"
               >
-                Re-enter City Board
+                Open City Board
                 <ChevronRight size={17} aria-hidden="true" />
               </Link>
             </section>
