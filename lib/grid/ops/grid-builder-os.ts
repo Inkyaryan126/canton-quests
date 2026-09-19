@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import {
   boardroomSummary,
@@ -19,6 +20,28 @@ import { recommendGridProductWork } from './product-director';
 
 export type GridBuilderRunStatus = 'idle' | 'working' | 'finished' | 'needs_attention';
 export type GridBuilderWorkerState = 'working' | 'checkpoint' | 'needs_attention';
+export type GridBuilderCliName = 'codex' | 'claude' | 'agy';
+export type GridBuilderCliHealthStatus = 'ready' | 'installed' | 'needs_attention' | 'unavailable';
+
+export interface GridBuilderCliHealth {
+  name: GridBuilderCliName;
+  label: string;
+  role: string;
+  status: GridBuilderCliHealthStatus;
+  version: string | null;
+  detail: string;
+  checkedAt: string | null;
+}
+
+export interface GridBuilderCliHealthCache {
+  version: 1;
+  checkedAt: string;
+  entries: Partial<Record<GridBuilderCliName, {
+    status: 'ready' | 'needs_attention';
+    version?: string | null;
+    detail: string;
+  }>>;
+}
 
 export interface GridBuilderRunState {
   version: 1;
@@ -57,6 +80,7 @@ export interface GridBuilderOsSnapshot {
     brokenLink: string | null;
     nextRepair: string | null;
   };
+  crewHealth: GridBuilderCliHealth[];
   workers: GridBuilderWorker[];
   recommendations: Array<{
     id: string;
@@ -84,6 +108,144 @@ export function gridBuilderStateFile(cwd = process.cwd()): string {
 
 export function gridBuilderLogFile(cwd = process.cwd()): string {
   return path.join(gridBuilderStateDir(cwd), 'latest.log');
+}
+
+export function gridBuilderCliHealthFile(cwd = process.cwd()): string {
+  return path.join(gridBuilderStateDir(cwd), 'cli-health.json');
+}
+
+function nodeVersionParts(value: string): number[] {
+  const match = value.match(/^v?(\d+)\.(\d+)\.(\d+)/);
+  return match ? match.slice(1).map(Number) : [0, 0, 0];
+}
+
+function compareNodeVersionsDesc(a: string, b: string): number {
+  const av = nodeVersionParts(a);
+  const bv = nodeVersionParts(b);
+  for (let index = 0; index < 3; index += 1) {
+    if (av[index] !== bv[index]) return bv[index] - av[index];
+  }
+  return b.localeCompare(a);
+}
+
+function executable(filename: string): boolean {
+  try {
+    fs.accessSync(filename, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function resolvePreferredCliBinary(
+  name: GridBuilderCliName,
+  options: { homeDir?: string; pathEnv?: string; env?: NodeJS.ProcessEnv } = {},
+): string | null {
+  const env = options.env ?? process.env;
+  const homeDir = options.homeDir ?? os.homedir();
+  const pathEnv = options.pathEnv ?? env.PATH ?? '';
+  const override = env[`GRID_BUILDER_${name.toUpperCase()}_BIN`];
+  const candidates: string[] = [];
+  if (override) candidates.push(override);
+
+  if (name === 'agy') candidates.push(path.join(homeDir, '.local', 'bin', 'agy'));
+
+  const nvmVersions = path.join(homeDir, '.nvm', 'versions', 'node');
+  try {
+    for (const version of fs.readdirSync(nvmVersions).sort(compareNodeVersionsDesc)) {
+      candidates.push(path.join(nvmVersions, version, 'bin', name));
+    }
+  } catch {
+    // NVM is optional. PATH fallback below remains authoritative when absent.
+  }
+
+  for (const directory of pathEnv.split(path.delimiter).filter(Boolean)) {
+    candidates.push(path.join(directory, name));
+  }
+
+  for (const candidate of Array.from(new Set(candidates))) {
+    if (executable(candidate)) return candidate;
+  }
+  return null;
+}
+
+function cliVersion(name: GridBuilderCliName, binary: string): string | null {
+  try {
+    const output = execFileSync(binary, ['--version'], {
+      encoding: 'utf8',
+      timeout: 5_000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (!output) return null;
+    const firstLine = output.split('\n').find(Boolean)?.trim() ?? null;
+    if (!firstLine) return null;
+    if (name === 'codex') return firstLine.replace(/^codex-cli\s+/i, '');
+    return firstLine;
+  } catch {
+    return null;
+  }
+}
+
+export function readGridBuilderCliHealthCache(cwd = process.cwd()): GridBuilderCliHealthCache | null {
+  const filename = gridBuilderCliHealthFile(cwd);
+  if (!fs.existsSync(filename)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filename, 'utf8')) as GridBuilderCliHealthCache;
+    if (parsed.version !== 1 || !parsed.checkedAt || !parsed.entries) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function writeGridBuilderCliHealthCache(
+  cache: GridBuilderCliHealthCache,
+  cwd = process.cwd(),
+): void {
+  fs.mkdirSync(gridBuilderStateDir(cwd), { recursive: true });
+  fs.writeFileSync(gridBuilderCliHealthFile(cwd), `${JSON.stringify(cache, null, 2)}\n`);
+}
+
+export function collectGridBuilderCliHealth(cwd = process.cwd()): GridBuilderCliHealth[] {
+  const cache = readGridBuilderCliHealthCache(cwd);
+  const definitions: Array<{ name: GridBuilderCliName; label: string; role: string }> = [
+    { name: 'codex', label: 'Codex', role: 'Lead Builder' },
+    { name: 'claude', label: 'Claude', role: 'Backup Engineer' },
+    { name: 'agy', label: 'Antigravity', role: 'Fast Builder' },
+  ];
+
+  return definitions.map((definition) => {
+    const binary = resolvePreferredCliBinary(definition.name);
+    if (!binary) {
+      return {
+        ...definition,
+        status: 'unavailable' as const,
+        version: null,
+        detail: 'Not installed in the preferred local toolchain.',
+        checkedAt: null,
+      };
+    }
+
+    const version = cliVersion(definition.name, binary);
+    const cached = cache?.entries[definition.name];
+    if (cached) {
+      return {
+        ...definition,
+        status: cached.status,
+        version: cached.version ?? version,
+        detail: cached.detail,
+        checkedAt: cache?.checkedAt ?? null,
+      };
+    }
+
+    return {
+      ...definition,
+      status: 'installed' as const,
+      version,
+      detail: 'Installed. Live model health has not been checked yet.',
+      checkedAt: null,
+    };
+  });
 }
 
 export function writeGridBuilderRunState(state: GridBuilderRunState, cwd = process.cwd()): void {
@@ -153,7 +315,7 @@ export function humanizeBuilderOwner(owner: string): string {
   const value = owner.toLowerCase();
   if (value.includes('codex') || value.includes('astra')) return 'Lead Builder';
   if (value.includes('claude')) return 'Engineer';
-  if (value.includes('agy') || value.includes('gemini')) return 'Fast Builder';
+  if (value.includes('agy') || value.includes('antigravity')) return 'Fast Builder';
   return 'Builder';
 }
 
@@ -276,6 +438,7 @@ export function collectGridBuilderOsSnapshot(options: {
       brokenLink: playable.highestValueBrokenLink?.title ?? null,
       nextRepair: playable.highestValueBrokenLink?.recommendation ?? null,
     },
+    crewHealth: collectGridBuilderCliHealth(cwd),
     workers,
     recommendations: director.recommendations.map((item) => ({
       id: item.id,

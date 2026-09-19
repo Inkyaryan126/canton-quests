@@ -4,13 +4,16 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  collectGridBuilderCliHealth,
   deriveBuilderWorkerState,
   evaluateBuilderStartGuard,
   humanizeBuilderOwner,
   isLocalBuilderHostname,
   readGridBuilderRunState,
   resolveGridBuilderIntegrationRef,
+  resolvePreferredCliBinary,
   summarizeMilestoneProgress,
+  writeGridBuilderCliHealthCache,
   writeGridBuilderRunState,
 } from '../lib/grid/ops/grid-builder-os';
 
@@ -94,6 +97,44 @@ describe('Grid Builder OS helpers', () => {
       status: 'finished',
       message: 'done',
     });
+  });
+
+  it('prefers the newest NVM CLI over a stale PATH copy', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'grid-builder-home-'));
+    tempDirs.push(home);
+    const oldBin = path.join(home, 'old-bin');
+    const newBin = path.join(home, '.nvm', 'versions', 'node', 'v24.19.0', 'bin');
+    fs.mkdirSync(oldBin, { recursive: true });
+    fs.mkdirSync(newBin, { recursive: true });
+    const stale = path.join(oldBin, 'codex');
+    const preferred = path.join(newBin, 'codex');
+    fs.writeFileSync(stale, '#!/bin/sh\necho stale\n');
+    fs.writeFileSync(preferred, '#!/bin/sh\necho preferred\n');
+    fs.chmodSync(stale, 0o755);
+    fs.chmodSync(preferred, 0o755);
+
+    expect(resolvePreferredCliBinary('codex', {
+      homeDir: home,
+      pathEnv: oldBin,
+      env: {},
+    })).toBe(preferred);
+  });
+
+  it('surfaces cached live CLI health without exposing binary paths', () => {
+    const cwd = makeRepo();
+    writeGridBuilderCliHealthCache({
+      version: 1,
+      checkedAt: '2026-09-19T11:00:00.000Z',
+      entries: {
+        codex: { status: 'ready', version: '0.154.0', detail: 'Live model probe passed.' },
+        claude: { status: 'ready', version: '2.1.240', detail: 'Live model probe passed.' },
+        agy: { status: 'ready', version: '1.2.7', detail: 'Live model probe passed.' },
+      },
+    }, cwd);
+
+    const health = collectGridBuilderCliHealth(cwd);
+    expect(health.map((item) => item.status)).toEqual(['ready', 'ready', 'ready']);
+    expect(JSON.stringify(health)).not.toContain('/Users/');
   });
 
   it('prefers the canonical integration branch when present', () => {

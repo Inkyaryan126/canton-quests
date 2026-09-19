@@ -39,3 +39,14 @@ After the first checkpoint is stable:
 
 These are follow-ups, not prerequisites for the first safe visual control plane.
 
+
+
+## Checkpoint 2 — Empire visual and crew health
+
+- Apply the black-glass / champagne-gold Empire Panel theme while preserving the existing responsive layout.
+- Present the operator-facing title as THE GRID / EMPIRE PANEL and keep BUILD THE GRID as the primary action.
+- Add three truthful crew-health cards for Codex, Claude, and Antigravity.
+- Prefer the newest local NVM binaries over stale PATH copies.
+- Add a bounded live health script with read-only prompts and process-group timeout cleanup.
+- Route the Builder OS runner through preferred Codex and Claude binaries.
+- Verify desktop and 390px mobile layouts in a real Chrome session with zero framework overlays and zero console/page errors.
