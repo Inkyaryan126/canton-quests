@@ -102,6 +102,15 @@ export async function readGridVisitorEconomyReadiness(
   };
 }
 
+const ACTION_EVIDENCE_FACT: Record<
+  GridVisitorAction['type'],
+  GridVisitorEconomyEvidenceFact
+> = {
+  invest: 'localInvestmentCredits',
+  'acquire-property': 'ownedPropertyCount',
+  deploy: 'deploymentsUsed',
+};
+
 export async function evaluateGridVisitorActionReadiness(
   port: GridVisitorEconomyEvidencePort,
   playerId: string,
@@ -109,23 +118,74 @@ export async function evaluateGridVisitorActionReadiness(
   policy: GridVisitorEconomyPolicy,
   action: GridVisitorAction,
 ): Promise<GridVisitorActionReadiness> {
-  const readiness = await readGridVisitorEconomyReadiness(
-    port,
-    playerId,
-    targetCitySlug,
-    policy,
+  const normalizedPlayerId = requireValue(playerId, 'playerId');
+  const normalizedTargetCitySlug = requireValue(targetCitySlug, 'targetCitySlug');
+  validateGridVisitorEconomyPolicy(policy);
+
+  const evidence = await port.readEvidence(
+    normalizedPlayerId,
+    normalizedTargetCitySlug,
   );
-  if (readiness.status === 'incomplete') {
+  if (evidence.targetCitySlug.trim() !== normalizedTargetCitySlug) {
+    throw new Error('Grid visitor economy evidence target city mismatch');
+  }
+  if (evidence.homeCitySlug !== null && !evidence.homeCitySlug.trim()) {
+    throw new Error('Grid visitor economy evidence Home City must be null or non-empty');
+  }
+
+  const normalizedHomeCitySlug = evidence.homeCitySlug?.trim() ?? null;
+  const isHomeCity = normalizedHomeCitySlug === normalizedTargetCitySlug;
+
+  // Home City actions are never visitor-restricted, so visitor-only counters
+  // must not become an availability dependency for those actions.
+  if (isHomeCity) {
+    const projection = projectGridVisitorEconomy(policy, {
+      targetCitySlug: normalizedTargetCitySlug,
+      homeCitySlug: normalizedHomeCitySlug,
+      localInvestmentCredits: 0,
+      ownedPropertyCount: 0,
+      deploymentsUsed: 0,
+      residencyPoints: 0,
+    });
+    return {
+      status: 'ready',
+      missingFacts: [],
+      decision: evaluateGridVisitorAction(projection, action),
+    };
+  }
+
+  const requiredFact = ACTION_EVIDENCE_FACT[action.type];
+  const requiredValue = evidence[requiredFact];
+  validateKnownFact(requiredValue, requiredFact);
+  if (requiredValue === null) {
     return {
       status: 'incomplete',
-      missingFacts: readiness.missingFacts,
+      missingFacts: [requiredFact],
       decision: null,
     };
   }
 
+  // Project with neutral placeholders only for counters the requested action
+  // cannot observe. The relevant counter remains authoritative and Core still
+  // owns the actual cap/limit decision.
+  const facts: GridVisitorEconomyFacts = {
+    targetCitySlug: normalizedTargetCitySlug,
+    homeCitySlug: normalizedHomeCitySlug,
+    localInvestmentCredits:
+      action.type === 'invest' ? requiredValue : 0,
+    ownedPropertyCount:
+      action.type === 'acquire-property' ? requiredValue : 0,
+    deploymentsUsed:
+      action.type === 'deploy' ? requiredValue : 0,
+    residencyPoints: 0,
+  };
+
   return {
     status: 'ready',
     missingFacts: [],
-    decision: evaluateGridVisitorAction(readiness.projection, action),
+    decision: evaluateGridVisitorAction(
+      projectGridVisitorEconomy(policy, facts),
+      action,
+    ),
   };
 }

@@ -28,10 +28,10 @@ GRID_MILESTONES.push(
   { id: 'admin-control', title: 'GM / Admin Control Center', phase: 'operations', dependsOn: ['onboarding'], lanePatterns: ['admin-control-center'], branchPatterns: ['grid-admin-control-center'], integrationCommitSignals: ['GRID Admin:'] },
   { id: 'launch-readiness', title: 'Launch QA & Simulation', phase: 'operations', dependsOn: ['onboarding'], lanePatterns: ['launch-readiness'], branchPatterns: ['grid-launch-readiness'], integrationCommitSignals: ['GRID Launch Readiness:'] },
   { id: 'passport', title: 'Grid Passport', phase: 'identity', dependsOn: ['progression'], lanePatterns: ['passport'], branchPatterns: ['grid-passport'], integrationCommitSignals: ['Grid Passport'] },
-  { id: 'location-play', title: 'Location-Enhanced Play', phase: 'world', dependsOn: ['map-world'], lanePatterns: ['location', 'gps'], branchPatterns: ['grid-location'], integrationCommitSignals: ['location bonus', 'GPS bonus'] },
+  { id: 'location-play', title: 'Location-Enhanced Play', phase: 'world', dependsOn: ['map-world'], lanePatterns: ['location', 'gps'], branchPatterns: ['grid-location'], integrationCommitSignals: ['GRID Location: add server-verified enhancement flow', 'Merge verified Location-Enhanced Play'] },
 );
 GRID_MILESTONES.push(
   { id: 'anti-cheat', title: 'Anti-Cheat & Fraud Controls', phase: 'operations', dependsOn: ['market', 'contest-system'], lanePatterns: ['anti-cheat', 'fraud'], branchPatterns: ['grid-anti-cheat', 'grid-fraud'], integrationCommitSignals: ['anti-cheat', 'fraud controls'] },
-  { id: 'season-archive', title: 'Season Conclusion & Archive', phase: 'season', dependsOn: ['surge', 'passport'], lanePatterns: ['season-archive', 'season-conclusion'], branchPatterns: ['grid-season-archive'], integrationCommitSignals: ['season archive', 'season conclusion'] },
-  { id: 'production-activation', title: 'Canton Production Activation', phase: 'launch', dependsOn: ['launch-readiness', 'season-archive'], lanePatterns: ['production-activation'], branchPatterns: ['grid-production'], integrationCommitSignals: ['Founding Season activation', 'production activation'] },
+  { id: 'season-archive', title: 'Season Conclusion & Archive', phase: 'season', dependsOn: ['surge', 'passport'], lanePatterns: ['season-archive', 'season-conclusion'], branchPatterns: ['grid-season-archive'], integrationCommitSignals: ['GRID Season: archive final standings and Passport history'] },
+  { id: 'production-activation', title: 'Canton Production Activation', phase: 'launch', dependsOn: ['launch-readiness', 'season-archive'], lanePatterns: ['production-activation'], branchPatterns: ['grid-production'], integrationCommitSignals: ['GRID Production: add activation preflight'] },
 );

@@ -52,11 +52,41 @@ describe('Grid visitor economy server readiness', () => {
     });
   });
 
-  it('returns no action decision while evidence is incomplete', async () => {
+  it('requires only the evidence that can affect the requested visitor action', async () => {
     await expect(evaluateGridVisitorActionReadiness(
-      port({ deploymentsUsed: null }),
+      port({ deploymentsUsed: null, residencyPoints: null }),
       'player-1', 'city-002', POLICY,
       { type: 'acquire-property' },
+    )).resolves.toEqual({
+      status: 'ready',
+      missingFacts: [],
+      decision: { allowed: true, reason: 'allowed' },
+    });
+
+    await expect(evaluateGridVisitorActionReadiness(
+      port({ localInvestmentCredits: null, deploymentsUsed: null, residencyPoints: null }),
+      'player-1', 'city-002', POLICY,
+      { type: 'invest', credits: 50 },
+    )).resolves.toEqual({
+      status: 'incomplete',
+      missingFacts: ['localInvestmentCredits'],
+      decision: null,
+    });
+
+    await expect(evaluateGridVisitorActionReadiness(
+      port({ ownedPropertyCount: null, residencyPoints: null }),
+      'player-1', 'city-002', POLICY,
+      { type: 'acquire-property' },
+    )).resolves.toEqual({
+      status: 'incomplete',
+      missingFacts: ['ownedPropertyCount'],
+      decision: null,
+    });
+
+    await expect(evaluateGridVisitorActionReadiness(
+      port({ deploymentsUsed: null, residencyPoints: null }),
+      'player-1', 'city-002', POLICY,
+      { type: 'deploy' },
     )).resolves.toEqual({
       status: 'incomplete',
       missingFacts: ['deploymentsUsed'],
@@ -64,7 +94,38 @@ describe('Grid visitor economy server readiness', () => {
     });
   });
 
-  it('delegates to Core only after evidence becomes ready', async () => {
+  it('does not require visitor-only counters for Home City actions', async () => {
+    await expect(evaluateGridVisitorActionReadiness(
+      port({
+        targetCitySlug: 'canton-oh',
+        homeCitySlug: 'canton-oh',
+        localInvestmentCredits: null,
+        ownedPropertyCount: null,
+        deploymentsUsed: null,
+        residencyPoints: null,
+      }),
+      'player-1', 'canton-oh', POLICY,
+      { type: 'deploy' },
+    )).resolves.toEqual({
+      status: 'ready',
+      missingFacts: [],
+      decision: { allowed: true, reason: 'allowed' },
+    });
+  });
+
+  it('does not let unrelated invalid counters block an otherwise decidable action', async () => {
+    await expect(evaluateGridVisitorActionReadiness(
+      port({ deploymentsUsed: -1, residencyPoints: -1 }),
+      'player-1', 'city-002', POLICY,
+      { type: 'acquire-property' },
+    )).resolves.toEqual({
+      status: 'ready',
+      missingFacts: [],
+      decision: { allowed: true, reason: 'allowed' },
+    });
+  });
+
+  it('delegates to Core once action-relevant evidence becomes ready', async () => {
     const result = await evaluateGridVisitorActionReadiness(
       port({ localInvestmentCredits: 950 }),
       'player-1', 'city-002', POLICY,

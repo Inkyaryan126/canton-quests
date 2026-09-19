@@ -1,3 +1,5 @@
+import type { GridTakeoverDamagePolicy } from './takeover-damage';
+
 export const GRID_DEVELOPMENT_BRANCHES = [
   'commerce',
   'influence',
@@ -74,6 +76,8 @@ export interface GridEconomyConfig {
     defaultCost: GridEconomyCost;
     costByPropertySlug?: Record<string, GridEconomyCost>;
   };
+  /** Explicit policy for transferring defeated-owner properties on territory capture. */
+  takeover?: GridTakeoverDamagePolicy;
   development: GridDevelopmentConfig;
   skyline: {
     rules: GridSkylineRule[];

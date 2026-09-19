@@ -366,4 +366,19 @@ describe('Grid Master Board completion evidence specificity', () => {
     expect(catalog.get('chat')?.integrationCommitSignals).toEqual(['GRID Comms 6:']);
     expect(catalog.get('mobile-platform')?.integrationCommitSignals).toEqual(['GRID Mobile 9:']);
   });
+
+
+  it('recognizes the exact completed Location, Season Archive, and Production Activation checkpoints', () => {
+    const catalog = new Map(GRID_MILESTONES.map((item) => [item.id, item]));
+    expect(catalog.get('location-play')?.integrationCommitSignals).toEqual([
+      'GRID Location: add server-verified enhancement flow',
+      'Merge verified Location-Enhanced Play',
+    ]);
+    expect(catalog.get('season-archive')?.integrationCommitSignals).toEqual([
+      'GRID Season: archive final standings and Passport history',
+    ]);
+    expect(catalog.get('production-activation')?.integrationCommitSignals).toEqual([
+      'GRID Production: add activation preflight',
+    ]);
+  });
 });
