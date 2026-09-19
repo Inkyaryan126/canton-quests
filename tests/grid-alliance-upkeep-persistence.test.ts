@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+import { cantonDominanceHeatConfig } from '../lib/grid/cities/canton/dominance-heat';
 import type { GridAllianceRules } from '../lib/grid/core/alliance-types';
 import type { GridAlliancePersistencePort } from '../lib/grid/server/alliance-persistence-port';
 import { settlePersistentGridAllianceUpkeep } from '../lib/grid/server/alliance-persistence-service';
@@ -15,6 +16,8 @@ const rules: GridAllianceRules = {
   largeAllianceThreshold: 3,
   largeAllianceSurchargeInfluencePerMemberPerTick: 4,
 };
+
+const NO_DOMINANCE_HEAT_CONFIG = { bands: [] };
 
 const alliance = {
   allianceId: 'alliance-1',
@@ -32,6 +35,7 @@ const alliance = {
 
 const members = ['leader-1', 'player-2', 'player-3', 'player-4'];
 const networkInputs = {
+  eligibleTerritoryCount: 100,
   territoryOwnership: [
     { territorySlug: 'alpha', ownerPlayerId: 'leader-1' },
     { territorySlug: 'bravo', ownerPlayerId: 'player-2' },
@@ -74,6 +78,9 @@ function port(
         memberInfluencePerTick: 8,
         disconnectedInfluencePerTick: 3,
         largeAllianceSurchargeInfluencePerTick: 4,
+        dominanceHeatBandId: null,
+        dominanceHeatUpkeepSurchargeBps: 0,
+        dominanceHeatSurchargeInfluencePerTick: 0,
       },
       allianceRevision: 9,
       eventId: 'event-upkeep-1',
@@ -98,6 +105,7 @@ describe('GRID Alliance persistent coordination upkeep', () => {
         now: '2026-09-18T04:10:00.000Z',
       },
       rules,
+      NO_DOMINANCE_HEAT_CONFIG,
     );
 
     expect(result).toMatchObject({
@@ -146,6 +154,9 @@ describe('GRID Alliance persistent coordination upkeep', () => {
           memberInfluencePerTick: 8,
           disconnectedInfluencePerTick: 3,
           largeAllianceSurchargeInfluencePerTick: 4,
+          dominanceHeatBandId: null,
+          dominanceHeatUpkeepSurchargeBps: 0,
+          dominanceHeatSurchargeInfluencePerTick: 0,
         },
         allianceRevision: 9,
         eventId: 'event-upkeep-2',
@@ -163,6 +174,7 @@ describe('GRID Alliance persistent coordination upkeep', () => {
         now: '2026-09-18T04:10:00.000Z',
       },
       rules,
+      NO_DOMINANCE_HEAT_CONFIG,
     );
 
     expect(result).toMatchObject({
@@ -174,7 +186,95 @@ describe('GRID Alliance persistent coordination upkeep', () => {
     });
   });
 
-  it('replays a recorded upkeep tick before reading mutable Alliance state', async () => {
+  it('derives the Alliance Heat band from authoritative territory share and persists its upkeep surcharge', async () => {
+    const hotNetworkInputs = {
+      ...networkInputs,
+      eligibleTerritoryCount: 6,
+    };
+    const p = port({
+      getAllianceNetworkInputs: vi.fn().mockResolvedValue(hotNetworkInputs),
+      applyUpkeepSettlement: vi.fn().mockImplementation(async (command) => ({
+        ticks: command.ticks,
+        activeMemberCount: command.activeMemberCount,
+        disconnectedComponentCount: command.disconnectedComponentCount,
+        perTickInfluence: command.perTickInfluence,
+        totalInfluence: command.totalInfluence,
+        paidInfluence: command.paidInfluence,
+        poolInfluenceAfter: command.poolInfluenceAfter,
+        shortfallInfluence: command.shortfallInfluence,
+        fullyPaid: command.fullyPaid,
+        breakdown: command.breakdown,
+        allianceRevision: 9,
+        eventId: 'event-upkeep-heat',
+        replayed: false,
+      })),
+    });
+
+    const result = await settlePersistentGridAllianceUpkeep(
+      p,
+      {
+        allianceId: 'alliance-1',
+        seasonId: 'season-1',
+        ticks: 2,
+        idempotencyKey: 'alliance:upkeep:season-1:tick-heat',
+        now: '2026-09-18T04:10:00.000Z',
+      },
+      rules,
+      cantonDominanceHeatConfig,
+    );
+
+    expect(result).toMatchObject({
+      perTickInfluence: 21,
+      totalInfluence: 42,
+      paidInfluence: 40,
+      poolInfluenceAfter: 0,
+      shortfallInfluence: 2,
+      fullyPaid: false,
+      breakdown: {
+        dominanceHeatBandId: 'hot',
+        dominanceHeatUpkeepSurchargeBps: 800,
+        dominanceHeatSurchargeInfluencePerTick: 1,
+      },
+    });
+    expect(p.applyUpkeepSettlement).toHaveBeenCalledWith(
+      expect.objectContaining({
+        perTickInfluence: 21,
+        totalInfluence: 42,
+        breakdown: expect.objectContaining({
+          dominanceHeatBandId: 'hot',
+          dominanceHeatUpkeepSurchargeBps: 800,
+          dominanceHeatSurchargeInfluencePerTick: 1,
+        }),
+      }),
+    );
+  });
+
+  it('fails closed when Heat is enabled without valid eligible-territory evidence', async () => {
+    const p = port({
+      getAllianceNetworkInputs: vi.fn().mockResolvedValue({
+        ...networkInputs,
+        eligibleTerritoryCount: 0,
+      }),
+    });
+
+    await expect(
+      settlePersistentGridAllianceUpkeep(
+        p,
+        {
+          allianceId: 'alliance-1',
+          seasonId: 'season-1',
+          ticks: 1,
+          idempotencyKey: 'alliance:upkeep:season-1:tick-invalid-heat',
+          now: '2026-09-18T04:10:00.000Z',
+        },
+        rules,
+        cantonDominanceHeatConfig,
+      ),
+    ).rejects.toThrow(/eligibleTerritories/);
+    expect(p.applyUpkeepSettlement).not.toHaveBeenCalled();
+  });
+
+  it('replays a legacy recorded upkeep tick before reading mutable Alliance state', async () => {
     const replay = {
       ticks: 1,
       activeMemberCount: 4,
@@ -207,6 +307,7 @@ describe('GRID Alliance persistent coordination upkeep', () => {
         now: '2026-09-18T04:10:00.000Z',
       },
       rules,
+      NO_DOMINANCE_HEAT_CONFIG,
     );
 
     expect(result).toMatchObject({ eventId: 'event-upkeep-replay', replayed: true });
@@ -228,6 +329,7 @@ describe('GRID Alliance persistent coordination upkeep', () => {
           now: '2026-09-18T04:10:00.000Z',
         },
         rules,
+        NO_DOMINANCE_HEAT_CONFIG,
       ),
     ).rejects.toThrow('changed; reload before retrying');
   });

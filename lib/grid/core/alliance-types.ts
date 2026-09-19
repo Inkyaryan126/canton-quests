@@ -55,10 +55,16 @@ export interface GridAllianceContributionDecision {
   constraints: GridAllianceContributionConstraint[];
 }
 
+export interface GridAllianceDominanceHeatUpkeep {
+  bandId: string | null;
+  upkeepSurchargeBps: number;
+}
+
 export interface GridAllianceUpkeepInput {
   activeMemberCount: number;
   disconnectedComponentCount: number;
   ticks: number;
+  dominanceHeat: GridAllianceDominanceHeatUpkeep;
 }
 
 export interface GridAllianceUpkeepBreakdown {
@@ -66,6 +72,10 @@ export interface GridAllianceUpkeepBreakdown {
   memberInfluencePerTick: number;
   disconnectedInfluencePerTick: number;
   largeAllianceSurchargeInfluencePerTick: number;
+  /** Optional only for replay compatibility with upkeep events written before Heat enforcement. */
+  dominanceHeatBandId?: string | null;
+  dominanceHeatUpkeepSurchargeBps?: number;
+  dominanceHeatSurchargeInfluencePerTick?: number;
 }
 
 export interface GridAllianceUpkeepProjection {

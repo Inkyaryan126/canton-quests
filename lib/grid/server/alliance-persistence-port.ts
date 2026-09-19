@@ -79,6 +79,7 @@ export interface GridAllianceInfluenceContributionPersistenceResult {
 
 
 export interface GridAllianceNetworkPersistenceInputs {
+  eligibleTerritoryCount: number;
   territoryOwnership: GridAllianceTerritoryOwnership[];
   adjacencyEdges: GridAllianceAdjacencyEdge[];
 }

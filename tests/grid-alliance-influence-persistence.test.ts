@@ -48,6 +48,7 @@ function port(overrides: Partial<GridAlliancePersistencePort> = {}): GridAllianc
     }),
     getActiveMemberPlayerIds: vi.fn().mockResolvedValue([]),
     getAllianceNetworkInputs: vi.fn().mockResolvedValue({
+      eligibleTerritoryCount: 0,
       territoryOwnership: [],
       adjacencyEdges: [],
     }),
