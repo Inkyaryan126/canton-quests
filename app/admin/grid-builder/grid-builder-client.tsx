@@ -24,6 +24,13 @@ function stateLabel(state: GridBuilderOsSnapshot['workers'][number]['state']): s
   return 'Needs attention';
 }
 
+function healthLabel(status: GridBuilderOsSnapshot['crewHealth'][number]['status']): string {
+  if (status === 'ready') return 'Ready';
+  if (status === 'installed') return 'Installed';
+  if (status === 'unavailable') return 'Unavailable';
+  return 'Needs attention';
+}
+
 export default function GridBuilderClient() {
   const [snapshot, setSnapshot] = useState<GridBuilderOsSnapshot | null>(null);
   const [loadState, setLoadState] = useState<LoadState>('loading');
@@ -92,7 +99,7 @@ export default function GridBuilderClient() {
     return (
       <main className="cq-builder-shell cq-builder-shell--center">
         <section className="cq-builder-lock">
-          <span className="cq-builder-kicker">THE GRID / BUILDER OS</span>
+          <span className="cq-builder-kicker">THE GRID / EMPIRE PANEL</span>
           <h1>Command access required</h1>
           <p>Unlock the Game Master area first, then return here.</p>
           <Link className="cq-builder-button cq-builder-button--secondary" href="/admin">Open Game Master</Link>
@@ -102,14 +109,14 @@ export default function GridBuilderClient() {
   }
 
   if (loadState === 'loading' && !snapshot) {
-    return <main className="cq-builder-shell cq-builder-shell--center"><p className="cq-builder-loading">Starting Builder OS…</p></main>;
+    return <main className="cq-builder-shell cq-builder-shell--center"><p className="cq-builder-loading">Opening the Empire Panel…</p></main>;
   }
 
   if (!snapshot) {
     return (
       <main className="cq-builder-shell cq-builder-shell--center">
         <section className="cq-builder-lock">
-          <h1>Builder OS is offline</h1>
+          <h1>Empire Panel is offline</h1>
           <p>{error || 'No build state is available yet.'}</p>
           <button className="cq-builder-button cq-builder-button--secondary" onClick={() => void load()}>Try again</button>
         </section>
@@ -124,9 +131,9 @@ export default function GridBuilderClient() {
     <main className="cq-builder-shell">
       <header className="cq-builder-topbar">
         <div>
-          <span className="cq-builder-kicker">THE GRID / BUILDER OS</span>
-          <h1>Build the city. Watch it happen.</h1>
-          <p>One screen controls the builders, shows what is finished, and tells you only when you are actually needed.</p>
+          <span className="cq-builder-kicker">THE GRID / EMPIRE PANEL</span>
+          <h1>Build the empire. Command the crew.</h1>
+          <p>One gold command panel controls the builders, shows what is proven, and interrupts you only when a real decision is needed.</p>
         </div>
         <div className="cq-builder-live">
           <span className={`cq-builder-live-dot ${runWorking ? 'is-working' : ''}`} />
@@ -164,6 +171,38 @@ export default function GridBuilderClient() {
             ? `Weakest link: ${snapshot.playableLoop.brokenLink}`
             : 'The full player loop has no detected broken link.'}</p>
         </aside>
+      </section>
+
+      <section className="cq-builder-health-section">
+        <div className="cq-builder-health-heading">
+          <div>
+            <span className="cq-builder-eyebrow">CREW HEALTH</span>
+            <h2>Three builders. One command chain.</h2>
+          </div>
+          <p>Empire Panel prefers your newest local NVM toolchain instead of stale system-wide copies.</p>
+        </div>
+        <div className="cq-builder-health-grid">
+          {snapshot.crewHealth.map((agent) => (
+            <article className={`cq-builder-health-card is-${agent.status}`} key={agent.name}>
+              <div className="cq-builder-health-topline">
+                <div>
+                  <strong>{agent.label}</strong>
+                  <span>{agent.role}</span>
+                </div>
+                <span className="cq-builder-health-status">
+                  <i />
+                  {healthLabel(agent.status)}
+                </span>
+              </div>
+              <div className="cq-builder-health-version">
+                <span>Version</span>
+                <b>{agent.version ?? 'Not found'}</b>
+              </div>
+              <p>{agent.detail}</p>
+              <footer>{agent.checkedAt ? `Live checked ${ageLabel(agent.checkedAt)}` : 'Awaiting live model check'}</footer>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="cq-builder-section">

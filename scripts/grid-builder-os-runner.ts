@@ -6,6 +6,7 @@ import {
   gridBuilderLogFile,
   readGridBuilderRunState,
   resolveGridBuilderIntegrationRef,
+  resolvePreferredCliBinary,
   writeGridBuilderRunState,
   type GridBuilderRunState,
 } from '../lib/grid/ops/grid-builder-os';
@@ -85,7 +86,7 @@ function supervisorPrompt(): string {
     '- Keep up to three useful development lanes active when safe.',
     '- Use Product Director recommendations as the shortlist, but derive exact file scope before claiming. Never invent filler work.',
     '- Every new worker gets an isolated worktree, explicit Control Tower claim, exact scope, and clear acceptance criteria.',
-    '- Prefer the installed Claude and Agy CLIs as worker agents when their specialization fits. Use Codex only where higher-level architecture or difficult integration is justified.',
+    '- Prefer the installed Claude and Gemini/Agy CLIs as worker agents when their specialization fits. Use Codex only where higher-level architecture or difficult integration is justified.',
     '- If a worker CLI is unavailable, stalled, or errors, record that and route to a healthy fallback instead of retrying the same failure repeatedly.',
     '- Stop this cycle after existing ready work is harvested and safe replacement work is assigned or after a real blocker requires Dustin.',
     '',
@@ -108,13 +109,19 @@ function runLead(params: {
   input?: string;
   lead: 'codex' | 'claude';
   runState: GridBuilderRunState;
+  pathPrefix?: string;
 }): Promise<AgentResult> {
   return new Promise((resolve) => {
     const logFd = fs.openSync(gridBuilderLogFile(params.cwd), 'a');
     let settled = false;
     const child = spawn(params.command, params.args, {
       cwd: params.cwd,
-      env: { ...process.env },
+      env: {
+        ...process.env,
+        PATH: params.pathPrefix
+          ? [params.pathPrefix, process.env.PATH ?? ''].filter(Boolean).join(path.delimiter)
+          : process.env.PATH,
+      },
       stdio: ['pipe', logFd, logFd],
     });
 
@@ -188,14 +195,25 @@ async function main(): Promise<void> {
   const supervisorPath = prepareSupervisorWorktree(cwd, runId);
   appendLog(cwd, `Created isolated supervisor worktree ${supervisorPath}`);
   const prompt = supervisorPrompt();
-  let result = await runLead({
-    cwd: supervisorPath,
-    command: 'codex',
-    args: ['exec', '-C', supervisorPath, '-s', 'workspace-write', '--add-dir', '/private/tmp', '--color', 'never', '-'],
-    input: prompt,
-    lead: 'codex',
-    runState: state,
-  });
+  const codexBinary = resolvePreferredCliBinary('codex');
+  const claudeBinary = resolvePreferredCliBinary('claude');
+  const pathPrefix = path.dirname(codexBinary ?? claudeBinary ?? process.execPath);
+  let result: AgentResult;
+
+  if (!codexBinary) {
+    result = { code: null, signal: null, error: 'Preferred Codex CLI is not installed.', timedOut: false };
+  } else {
+    appendLog(cwd, `Using preferred Codex toolchain from ${path.dirname(codexBinary)}`);
+    result = await runLead({
+      cwd: supervisorPath,
+      command: codexBinary,
+      args: ['exec', '-C', supervisorPath, '-s', 'workspace-write', '--add-dir', '/private/tmp', '--color', 'never', '-'],
+      input: prompt,
+      lead: 'codex',
+      runState: state,
+      pathPrefix,
+    });
+  }
 
   if (result.code !== 0) {
     appendLog(cwd, `Codex lead unavailable or failed (code=${result.code ?? 'none'}${result.error ? `, ${result.error}` : ''}). Falling back to Claude.`);
@@ -205,13 +223,19 @@ async function main(): Promise<void> {
       message: 'Lead Builder was unavailable, so the backup lead is taking over.',
     };
     writeGridBuilderRunState(state, cwd);
-    result = await runLead({
-      cwd: supervisorPath,
-      command: 'claude',
-      args: ['-p', '--permission-mode', 'acceptEdits', '--output-format', 'text', prompt],
-      lead: 'claude',
-      runState: state,
-    });
+    if (!claudeBinary) {
+      result = { code: null, signal: null, error: 'Preferred Claude CLI is not installed.', timedOut: false };
+    } else {
+      appendLog(cwd, `Using preferred Claude toolchain from ${path.dirname(claudeBinary)}`);
+      result = await runLead({
+        cwd: supervisorPath,
+        command: claudeBinary,
+        args: ['-p', '--permission-mode', 'acceptEdits', '--output-format', 'text', prompt],
+        lead: 'claude',
+        runState: state,
+        pathPrefix,
+      });
+    }
   }
 
   const cleanup = cleanupSupervisorWorktree(cwd, supervisorPath);

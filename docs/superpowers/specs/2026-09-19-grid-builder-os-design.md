@@ -104,3 +104,16 @@ A stale `working` record whose PID is no longer alive is converted to `needs_att
 
 The initial implementation uses a bounded lead-process timeout and command failure as health signals. A later iteration can add explicit lightweight health probes and per-worker visual logs without changing the local-only security model.
 
+
+
+## Empire Panel crew health and preferred toolchain
+
+The visual control plane presents the product name **THE GRID / EMPIRE PANEL** while retaining Builder OS as the underlying orchestration system.
+
+Crew health is evidence-based. A cached live probe records the last successful or failed model-level check for Codex, Claude, and Gemini. The status API exposes only the builder name, role, version, status, detail, and check time; it never exposes the local executable path.
+
+CLI resolution intentionally prefers the newest executable under the operator's local NVM installation before falling back to PATH. This prevents automation shells from silently using stale system-wide copies when the interactive Terminal has a newer working CLI.
+
+The one-shot runner uses the same preferred resolver for its Codex lead and Claude fallback and prepends that preferred binary directory to the supervisor PATH. Gemini health can fail without blocking a build cycle; the supervisor must route around an unhealthy worker instead of repeatedly retrying it.
+
+A health probe is bounded. Each live model check runs with non-destructive/read-only permissions and a hard timeout. On Unix, the probe owns a process group so timeout cleanup terminates wrapper and descendant processes together.
