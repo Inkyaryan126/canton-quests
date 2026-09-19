@@ -330,6 +330,22 @@ describe('Grid Master Board runtime collection', () => {
     expect(byId.get('production-activation')?.status).toBe('BLOCKED');
   });
 
+  it('recognizes the canonical archive integration subject even when the original side-branch commit is not an ancestor', () => {
+    const repo = makeCollectorRepo();
+    git(repo, 'checkout', 'grid-integration-20260917');
+    commitFile(
+      repo,
+      'season-archive.txt',
+      'archive integrated\n',
+      'GRID player loop: integrate archive power and offline defense',
+    );
+
+    const board = collectGridMasterBoard({ cwd: repo, integrationRef: 'grid-integration-20260917' });
+    const archive = board.milestones.find((item) => item.id === 'season-archive');
+    expect(archive?.status).toBe('INTEGRATED');
+    expect(archive?.evidenceSubject).toBe('GRID player loop: integrate archive power and offline defense');
+  });
+
   it('supports deep scan with full workspace hygiene report', () => {
     const repo = makeCollectorRepo();
     const deepBoard = collectGridMasterBoard({ cwd: repo, deep: true });
@@ -376,6 +392,7 @@ describe('Grid Master Board completion evidence specificity', () => {
     ]);
     expect(catalog.get('season-archive')?.integrationCommitSignals).toEqual([
       'GRID Season: archive final standings and Passport history',
+      'GRID player loop: integrate archive power and offline defense',
     ]);
     expect(catalog.get('production-activation')?.integrationCommitSignals).toEqual([
       'GRID Production: add activation preflight',
