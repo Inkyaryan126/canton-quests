@@ -17,6 +17,7 @@ describe('Grid release gate', () => {
     expect(result.steps.map((step: { id: string }) => step.id)).toEqual([
       'coordination',
       'diagnostics',
+      'playable-loop',
       'integration-tests',
       'typecheck',
       'lint',
@@ -37,5 +38,13 @@ describe('Grid release gate', () => {
       id: 'build',
       command: 'npm run build',
     });
+  });
+
+  it('checks playable-loop evidence before integration and build checks', () => {
+    const result = plan();
+    const ids = result.steps.map((step: { id: string }) => step.id);
+
+    expect(ids.indexOf('playable-loop')).toBeLessThan(ids.indexOf('integration-tests'));
+    expect(ids.indexOf('playable-loop')).toBeLessThan(ids.indexOf('build'));
   });
 });
