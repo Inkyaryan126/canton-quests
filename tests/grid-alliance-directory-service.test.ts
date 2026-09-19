@@ -31,6 +31,7 @@ function port(): GridAlliancePersistencePort {
     applyInfluenceContribution: vi.fn(), getActiveMemberPlayerIds: vi.fn(),
     getAllianceNetworkInputs: vi.fn(), getUpkeepSettlementReplay: vi.fn(),
     applyUpkeepSettlement: vi.fn(),
+    getDisbandReplay: vi.fn(), disbandAlliance: vi.fn(),
   };
 }
 

@@ -14,9 +14,9 @@ const routes = [root, join, leave, contribute];
 
 describe('GRID Alliance player API', () => {
   it('requires both foundation and Alliance feature flags', () => {
-    expect(isGridAllianceEnabled({ GRID_FOUNDATION_ENABLED: '1', GRID_ALLIANCE_ENABLED: '1' } as NodeJS.ProcessEnv)).toBe(true);
-    expect(isGridAllianceEnabled({ GRID_FOUNDATION_ENABLED: '1', GRID_ALLIANCE_ENABLED: '0' } as NodeJS.ProcessEnv)).toBe(false);
-    expect(isGridAllianceEnabled({ GRID_FOUNDATION_ENABLED: '0', GRID_ALLIANCE_ENABLED: '1' } as NodeJS.ProcessEnv)).toBe(false);
+    expect(isGridAllianceEnabled({ GRID_FOUNDATION_ENABLED: '1', GRID_ALLIANCE_ENABLED: '1' } as unknown as NodeJS.ProcessEnv)).toBe(true);
+    expect(isGridAllianceEnabled({ GRID_FOUNDATION_ENABLED: '1', GRID_ALLIANCE_ENABLED: '0' } as unknown as NodeJS.ProcessEnv)).toBe(false);
+    expect(isGridAllianceEnabled({ GRID_FOUNDATION_ENABLED: '0', GRID_ALLIANCE_ENABLED: '1' } as unknown as NodeJS.ProcessEnv)).toBe(false);
   });
 
   it('keeps every player route authenticated and feature gated', () => {
