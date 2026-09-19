@@ -31,6 +31,8 @@ export async function GET(request: Request) {
           progression.getSeasonPlayer(runtime.seasonId, playerId),
           progression.getLifetimePlayer(playerId),
         ]);
+      } else {
+        warning = 'Grid world runtime is not activated for this environment yet';
       }
     } catch (error) {
       warning =
