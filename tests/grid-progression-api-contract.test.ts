@@ -26,4 +26,16 @@ describe('Grid progression API safety contract', () => {
     expect(route).not.toContain('export async function POST');
     expect(route).toContain('buildPublicGridProgressionLeaderboard');
   });
+
+  it('surfaces a warning when the world runtime is not activated, instead of silently returning no progression', () => {
+    const route = source('app/api/grid/progression/route.ts');
+    const ifRuntimeBlock = route.slice(
+      route.indexOf('if (runtime) {'),
+      route.indexOf('} catch (error) {'),
+    );
+    expect(ifRuntimeBlock).toContain('} else {');
+    expect(ifRuntimeBlock).toContain(
+      "warning = 'Grid world runtime is not activated for this environment yet'",
+    );
+  });
 });
