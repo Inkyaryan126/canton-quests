@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowLeft, Building2, MapPinned, Radio, Swords } from 'lucide-react';
+import { ArrowLeft, Building2, ClipboardCheck, MapPinned, Radio, Swords } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'The Grid — Coming Soon | Canton Quests',
@@ -54,6 +54,12 @@ export default function GridPage() {
               <span>Pressure rivals, defend your network, and expand your influence.</span>
             </article>
           </div>
+
+          <Link href="/grid/contracts" className="cq-grid-coming__back">
+            <ClipboardCheck size={18} aria-hidden="true" />
+            <span><strong>CONTRACTS</strong><small>Review your private Grid assignments.</small></span>
+            <span aria-hidden="true">→</span>
+          </Link>
 
           <p className="cq-grid-coming__classified">
             CANTON IS ONLY THE BEGINNING.
