@@ -260,7 +260,19 @@ export function collectPlayableLoopScore(options: CollectPlayableLoopScoreOption
         'Canonical starter ownership',
       ),
     ]),
-    mapWorld: combineEvidence([milestone('map-world'), repoProbe(cwd, ['app/grid/grid-city-map.tsx', 'app/api/grid/world/route.ts'], 'World projection')]),
+    mapWorld: combineEvidence([
+      milestone('map-world'),
+      canonicalImplementedProbe(
+        cwd,
+        [
+          'app/grid/grid-city-map.tsx',
+          'app/api/grid/world/route.ts',
+          'tests/grid-city-map-ui.test.ts',
+          'tests/grid-world-api.test.ts',
+        ],
+        'Canonical world/map projection',
+      ),
+    ]),
     action: combineEvidence([milestone('contest-system'), milestone('takeover'), milestone('location-play')]),
     consequenceReward: combineEvidence([
       milestone('economy-core'),
