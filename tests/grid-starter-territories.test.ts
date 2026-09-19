@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { cantonFoundingSeasonPackage } from '../lib/grid/cities/canton/founding-season';
 import { resolveTerritoryClaimCost } from '../lib/grid/core/resources';
 import type { GridStarterTerritoryPort } from '../lib/grid/server/starter-territory-port';
-import { readGridStarterTerritories } from '../lib/grid/server/starter-territory-service';
+import {
+  isGridStarterTerritoryEligible,
+  readGridStarterTerritories,
+} from '../lib/grid/server/starter-territory-service';
 
 function portWith(
   context: Awaited<ReturnType<GridStarterTerritoryPort['getContext']>>,
@@ -168,5 +171,38 @@ describe('Grid starter territory selection', () => {
     expect(result.state).toBe('no-starters-available');
     expect(result.availableCount).toBe(0);
     expect(result.unavailableCount).toBe(buildableStarterSlugs.length);
+  });
+
+  it('validates a submitted territory against server-resolved starter choices', async () => {
+    const territories = starterSlugs.map((slug, index) => ({
+      territoryId: `territory-${index + 1}`,
+      territorySlug: slug,
+      occupied: true,
+    }));
+    const port = portWith({
+      seasonPlayable: true,
+      joined: true,
+      credits: 0,
+      commandPoints: 0,
+      ownsAnyTerritory: true,
+      territories,
+    });
+
+    await expect(
+      isGridStarterTerritoryEligible(
+        port,
+        cantonFoundingSeasonPackage,
+        'player-1',
+        'territory-1',
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      isGridStarterTerritoryEligible(
+        port,
+        cantonFoundingSeasonPackage,
+        'player-1',
+        'not-a-starter',
+      ),
+    ).resolves.toBe(false);
   });
 });
