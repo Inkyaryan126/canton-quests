@@ -2,7 +2,11 @@ import type { AgentClaim } from '../../agent-control';
 import { scopesOverlap } from '../../agent-control';
 import { GRID_MILESTONES } from '../master-board/milestones';
 import { prioritizeGridMasterBoard, type GridPriorityRecommendation } from '../master-board/prioritize';
-import type { GridMasterBoard, GridMilestoneStatus } from '../master-board/types';
+import type {
+  GridMasterBoard,
+  GridMilestoneStatus,
+  GridPromotionStatus,
+} from '../master-board/types';
 import type { PlayableLoopScore, PlayableLoopStageId } from './playable-loop-score';
 
 export type ProductDirectorActionType = 'IMPLEMENT' | 'INTEGRATE' | 'VERIFY' | 'INVESTIGATE';
@@ -27,18 +31,23 @@ export interface GridProductCandidate {
   claimPatterns?: string[];
 }
 
-export interface GridProductDirectorBoard extends Partial<GridMasterBoard> {
-  milestones: Array<{
-    id: string;
-    title: string;
-    phase?: string;
-    status: GridMilestoneStatus | string;
-    detail?: string;
-    owner?: string;
-    branch?: string;
-  }>;
-  candidates?: GridProductCandidate[];
+export interface GridProductDirectorMilestone {
+  id: string;
+  title: string;
+  phase?: string;
+  status: GridMilestoneStatus | string;
+  detail?: string;
+  owner?: string;
+  branch?: string;
+  promotion?: GridPromotionStatus;
+  warnings?: string[];
 }
+
+export type GridProductDirectorBoard =
+  Omit<Partial<GridMasterBoard>, 'milestones'> & {
+    milestones: GridProductDirectorMilestone[];
+    candidates?: GridProductCandidate[];
+  };
 
 export interface GridProductDirectorClaim {
   candidateId?: string;
@@ -81,9 +90,41 @@ const LOOP_STAGE_MILESTONES: Record<PlayableLoopStageId, string[]> = {
   returnExperience: ['return-experience'],
 };
 
+const MILESTONE_STATUSES = new Set<GridMilestoneStatus>([
+  'INTEGRATED',
+  'READY_TO_INTEGRATE',
+  'IN_PROGRESS',
+  'DIRTY_DORMANT',
+  'BLOCKED',
+  'REJECTED',
+  'SAFE_NEXT_WORK',
+  'PLANNED',
+  'UNKNOWN',
+]);
+
+const PROMOTION_STATUSES = new Set<GridPromotionStatus>([
+  'SIDE_BRANCH_ONLY',
+  'GRID_INTEGRATION',
+  'LOCAL_MAIN',
+  'ORIGIN_MAIN',
+  'DEPLOYMENT_UNKNOWN',
+]);
+
 function isMasterBoard(board: GridProductDirectorBoard): board is GridMasterBoard {
-  return Boolean(board.health && typeof board.health.generatedAt === 'string'
-    && board.milestones.every((item) => typeof item.phase === 'string' && typeof item.detail === 'string'));
+  return Boolean(
+    board.version === 1
+      && board.health
+      && typeof board.health.generatedAt === 'string'
+      && board.milestones.every(
+        (item) =>
+          typeof item.phase === 'string'
+          && MILESTONE_STATUSES.has(item.status as GridMilestoneStatus)
+          && PROMOTION_STATUSES.has(item.promotion as GridPromotionStatus)
+          && typeof item.detail === 'string'
+          && Array.isArray(item.warnings)
+          && item.warnings.every((warning) => typeof warning === 'string'),
+      ),
+  );
 }
 
 function specializationFor(phase: string | undefined, actionType: ProductDirectorActionType): ProductDirectorSpecialization {
