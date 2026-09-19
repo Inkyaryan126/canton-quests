@@ -13,7 +13,13 @@ interface DiagnosticStep {
   kind: 'diagnostics';
 }
 
-type ReleaseGateStep = CommandStep | DiagnosticStep;
+interface PlayableLoopStep {
+  id: string;
+  label: string;
+  kind: 'playable-loop';
+}
+
+type ReleaseGateStep = CommandStep | DiagnosticStep | PlayableLoopStep;
 
 function hasFlag(name: string): boolean {
   return process.argv.slice(2).includes(name);
@@ -31,6 +37,11 @@ function releaseGateSteps(skipBuild: boolean): ReleaseGateStep[] {
       id: 'diagnostics',
       label: 'Grid launch diagnostics',
       kind: 'diagnostics',
+    },
+    {
+      id: 'playable-loop',
+      label: 'Playable-loop evidence safety check',
+      kind: 'playable-loop',
     },
     {
       id: 'integration-tests',
@@ -123,6 +134,36 @@ async function runDiagnostics(): Promise<void> {
   }
 }
 
+async function runPlayableLoopCheck(): Promise<void> {
+  const { collectGridMasterBoard } = await import('../lib/grid/master-board/collect');
+  const { collectPlayableLoopScore } = await import('../lib/grid/ops/playable-loop-score');
+  const score = collectPlayableLoopScore({
+    cwd: process.cwd(),
+    board: collectGridMasterBoard({ cwd: process.cwd(), includeHygiene: true }),
+  });
+
+  console.log(
+    JSON.stringify(
+      {
+        score: score.score,
+        status: score.status,
+        integrationRef: score.integrationRef,
+        highestValueBrokenLink: score.highestValueBrokenLink,
+      },
+      null,
+      2,
+    ),
+  );
+
+  if (score.status === 'RED') {
+    throw new Error(
+      'Playable-loop evidence contains a RED stage: ' +
+        (score.highestValueBrokenLink?.title ?? 'unknown broken link') +
+        '.',
+    );
+  }
+}
+
 async function main(): Promise<void> {
   const skipBuild = hasFlag('--skip-build');
   const planOnly = hasFlag('--plan');
@@ -153,6 +194,8 @@ async function main(): Promise<void> {
     console.log('\n[' + String(index + 1) + '/' + String(steps.length) + '] ' + step.label);
     if (step.kind === 'diagnostics') {
       await runDiagnostics();
+    } else if (step.kind === 'playable-loop') {
+      await runPlayableLoopCheck();
     } else {
       runCommand(step.command);
     }
