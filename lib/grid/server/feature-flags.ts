@@ -17,6 +17,11 @@ export function isGridContestWriteEnabled(
   return env.GRID_CONTEST_WRITE_ENABLED === '1';
 }
 
+export function isGridEconomyWriteEnabled(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return env.GRID_ECONOMY_WRITE_ENABLED === '1';
+}
 
 export function isGridAllianceEnabled(
   env: NodeJS.ProcessEnv = process.env,

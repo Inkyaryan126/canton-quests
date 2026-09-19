@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isGridAllianceEnabled,
   isGridContestWriteEnabled,
   isGridEconomyWriteEnabled,
   isGridFoundationEnabled,
@@ -79,4 +80,17 @@ describe('Grid feature flags', () => {
     ).toBe(false);
     expect(isGridContestWriteEnabled({} as NodeJS.ProcessEnv)).toBe(false);
   });
+  it('keeps Alliance activation additive to economy and contest flags', () => {
+    const env = {
+      GRID_FOUNDATION_ENABLED: '1',
+      GRID_ALLIANCE_ENABLED: '1',
+      GRID_ECONOMY_WRITE_ENABLED: '1',
+      GRID_CONTEST_WRITE_ENABLED: '1',
+    } as unknown as NodeJS.ProcessEnv;
+
+    expect(isGridAllianceEnabled(env)).toBe(true);
+    expect(isGridEconomyWriteEnabled(env)).toBe(true);
+    expect(isGridContestWriteEnabled(env)).toBe(true);
+  });
+
 });
