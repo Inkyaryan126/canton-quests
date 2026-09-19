@@ -1,0 +1,93 @@
+import { describe, expect, it } from 'vitest';
+import {
+  PLAYABLE_LOOP_STAGES,
+  scorePlayableLoop,
+  type PlayableLoopStageEvidence,
+  type PlayableLoopStageId,
+} from '../lib/grid/ops/playable-loop-score';
+
+function evidence(status: PlayableLoopStageEvidence['status'] = 'GREEN'): PlayableLoopStageEvidence {
+  return {
+    status,
+    evidence: [`${status.toLowerCase()} evidence`],
+    source: 'master-board',
+  };
+}
+
+function allStages(status: PlayableLoopStageEvidence['status'] = 'GREEN') {
+  return Object.fromEntries(
+    PLAYABLE_LOOP_STAGES.map((stage) => [stage.id, evidence(status)]),
+  ) as Partial<Record<PlayableLoopStageId, PlayableLoopStageEvidence>>;
+}
+
+describe('Grid playable loop score', () => {
+  it('returns 100 with every stage green', () => {
+    const result = scorePlayableLoop({ stages: allStages() });
+
+    expect(result.score).toBe(100);
+    expect(result.status).toBe('GREEN');
+    expect(result.highestValueBrokenLink).toBeNull();
+    expect(result.stages.every((stage) => stage.contribution === stage.weight)).toBe(true);
+  });
+
+  it('penalizes an early hard break more than a late hard break', () => {
+    const early = allStages();
+    early.entry = evidence('RED');
+    const late = allStages();
+    late.returnExperience = evidence('RED');
+
+    const earlyResult = scorePlayableLoop({ stages: early });
+    const lateResult = scorePlayableLoop({ stages: late });
+
+    expect(earlyResult.score).toBeLessThan(lateResult.score);
+    expect(earlyResult.highestValueBrokenLink?.stageId).toBe('entry');
+  });
+
+  it('keeps a late-stage degradation visible without making the loop fail hard', () => {
+    const stages = allStages();
+    stages.progression = evidence('YELLOW');
+    stages.returnExperience = evidence('YELLOW');
+
+    const result = scorePlayableLoop({ stages });
+
+    expect(result.score).toBe(95);
+    expect(result.status).toBe('YELLOW');
+    expect(result.highestValueBrokenLink?.stageId).toBe('progression');
+  });
+
+  it('uses fixed weights and deterministic tie-breaking', () => {
+    const stages = allStages();
+    stages.identity = evidence('RED');
+    stages.seasonJoin = evidence('RED');
+
+    const first = scorePlayableLoop({ stages });
+    const second = scorePlayableLoop({ stages });
+
+    expect(PLAYABLE_LOOP_STAGES.reduce((total, stage) => total + stage.weight, 0)).toBe(100);
+    expect(first).toEqual(second);
+    expect(first.highestValueBrokenLink?.stageId).toBe('identity');
+  });
+
+  it('reports missing evidence as yellow and names it as the broken link', () => {
+    const stages = allStages();
+    delete stages.action;
+
+    const result = scorePlayableLoop({ stages });
+    const action = result.stages.find((stage) => stage.id === 'action');
+
+    expect(action?.status).toBe('YELLOW');
+    expect(action?.contribution).toBe(8);
+    expect(action?.verification).toBe('missing evidence');
+    expect(result.highestValueBrokenLink?.stageId).toBe('action');
+  });
+
+  it('labels implementation evidence as not browser/runtime verified unless stated', () => {
+    const stages = allStages();
+    stages.entry = { ...evidence(), runtimeVerified: true };
+
+    const result = scorePlayableLoop({ stages });
+
+    expect(result.stages.find((stage) => stage.id === 'entry')?.verification).toBe('browser/runtime verified');
+    expect(result.stages.find((stage) => stage.id === 'identity')?.verification).toBe('browser/runtime not yet verified');
+  });
+});
