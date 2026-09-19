@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   boardroomSummary,
   coordinationIssues,
+  coordinationRoot,
   listWorktreeStates,
   readClaims,
   resolveIntegrationBranch,
@@ -328,83 +329,119 @@ export function getReleaseGatePlan(options: { skipBuild?: boolean } = {}): Relea
   };
 }
 
+function readCommitBoundVerificationEvidence(input: {
+  filename: string;
+  id: string;
+  name: string;
+  expectedKind: string;
+  integrationCommit: string | null;
+  missingDetail: string;
+}): VerificationEvidenceItem {
+  if (!fs.existsSync(input.filename)) {
+    return {
+      id: input.id,
+      name: input.name,
+      status: 'MISSING',
+      detail: input.missingDetail,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(input.filename, 'utf8')) as {
+      version?: unknown;
+      kind?: unknown;
+      status?: unknown;
+      summary?: unknown;
+      recordedAt?: unknown;
+      integrationCommit?: unknown;
+    };
+
+    if (parsed.version !== 1 || parsed.kind !== input.expectedKind) {
+      return {
+        id: input.id,
+        name: input.name,
+        status: 'FAILED',
+        detail: 'Verification evidence record has an invalid schema or kind.',
+        source: 'evidence-file',
+      };
+    }
+
+    if (
+      !input.integrationCommit ||
+      typeof parsed.integrationCommit !== 'string' ||
+      parsed.integrationCommit !== input.integrationCommit
+    ) {
+      const recordedCommit = typeof parsed.integrationCommit === 'string'
+        ? parsed.integrationCommit.slice(0, 12)
+        : 'unknown';
+      const currentCommit = input.integrationCommit?.slice(0, 12) ?? 'unresolved';
+      return {
+        id: input.id,
+        name: input.name,
+        status: 'MISSING',
+        detail: `Evidence is stale for the current candidate commit (recorded ${recordedCommit}; current ${currentCommit}). Re-run this verification on the current canonical commit.`,
+        recordedAt: typeof parsed.recordedAt === 'string' ? parsed.recordedAt : undefined,
+        source: 'evidence-file',
+      };
+    }
+
+    return {
+      id: input.id,
+      name: input.name,
+      status: parsed.status === 'PASS' ? 'VERIFIED' : 'FAILED',
+      detail: typeof parsed.summary === 'string'
+        ? parsed.summary
+        : 'Recorded verification report.',
+      recordedAt: typeof parsed.recordedAt === 'string' ? parsed.recordedAt : undefined,
+      source: 'evidence-file',
+      metadata: {
+        integrationCommit: parsed.integrationCommit,
+      },
+    };
+  } catch {
+    return {
+      id: input.id,
+      name: input.name,
+      status: 'FAILED',
+      detail: 'Verification evidence record is corrupted or unreadable.',
+      source: 'evidence-file',
+    };
+  }
+}
+
 export function collectDefaultVerificationEvidence(context: {
   cwd: string;
   integrationRef: string | null;
   integrationCommit: string | null;
   env: Record<string, string | undefined>;
 }): VerificationEvidenceItem[] {
-  const items: VerificationEvidenceItem[] = [];
-
-  // 1. Browser Runtime Journey Verification
+  const evidenceDir = path.join(coordinationRoot(context.cwd), 'evidence');
   const browserModule = path.resolve(context.cwd, 'lib/grid/ops/browser-runtime-verification.ts');
-  const browserEvidenceFile = path.resolve(context.cwd, '.git/grid-agent-control/evidence/browser-runtime.json');
-  if (fs.existsSync(browserEvidenceFile)) {
-    try {
-      const parsed = JSON.parse(fs.readFileSync(browserEvidenceFile, 'utf8'));
-      items.push({
-        id: 'browser-runtime',
-        name: 'Browser Runtime Verification',
-        status: parsed.status === 'PASS' ? 'VERIFIED' : 'FAILED',
-        detail: parsed.summary ?? 'Recorded browser runtime verification report.',
-        recordedAt: parsed.recordedAt,
-        source: 'evidence-file',
-      });
-    } catch {
-      items.push({
-        id: 'browser-runtime',
-        name: 'Browser Runtime Verification',
-        status: 'FAILED',
-        detail: 'Corrupted browser runtime verification record.',
-        source: 'evidence-file',
-      });
-    }
-  } else {
-    items.push({
+  const migrationModule = path.resolve(context.cwd, 'lib/grid/ops/migration-safety.ts');
+
+  const items: VerificationEvidenceItem[] = [
+    readCommitBoundVerificationEvidence({
+      filename: path.join(evidenceDir, 'browser-runtime.json'),
       id: 'browser-runtime',
       name: 'Browser Runtime Verification',
-      status: 'MISSING',
-      detail: fs.existsSync(browserModule)
-        ? 'Browser verification harness is present on disk but no canonical runtime execution evidence has been recorded.'
+      expectedKind: 'browser-runtime',
+      integrationCommit: context.integrationCommit,
+      missingDetail: fs.existsSync(browserModule)
+        ? 'Browser verification harness is present but no current-commit runtime evidence has been recorded.'
         : 'No canonical browser runtime verification evidence found. Local-only browser journey verification not yet integrated.',
-    });
-  }
-
-  // 2. Database Migration Safety Gate
-  const migrationModule = path.resolve(context.cwd, 'lib/grid/ops/migration-safety.ts');
-  const migrationEvidenceFile = path.resolve(context.cwd, '.git/grid-agent-control/evidence/migration-safety.json');
-  if (fs.existsSync(migrationEvidenceFile)) {
-    try {
-      const parsed = JSON.parse(fs.readFileSync(migrationEvidenceFile, 'utf8'));
-      items.push({
-        id: 'migration-safety',
-        name: 'Database Migration Safety Gate',
-        status: parsed.status === 'PASS' ? 'VERIFIED' : 'FAILED',
-        detail: parsed.summary ?? 'Recorded database migration safety gate report.',
-        recordedAt: parsed.recordedAt,
-        source: 'evidence-file',
-      });
-    } catch {
-      items.push({
-        id: 'migration-safety',
-        name: 'Database Migration Safety Gate',
-        status: 'FAILED',
-        detail: 'Corrupted database migration safety record.',
-        source: 'evidence-file',
-      });
-    }
-  } else {
-    items.push({
+    }),
+    readCommitBoundVerificationEvidence({
+      filename: path.join(evidenceDir, 'migration-safety.json'),
       id: 'migration-safety',
       name: 'Database Migration Safety Gate',
-      status: 'MISSING',
-      detail: fs.existsSync(migrationModule)
-        ? 'Migration safety harness is present on disk but no canonical execution evidence has been recorded.'
+      expectedKind: 'migration-safety',
+      integrationCommit: context.integrationCommit,
+      missingDetail: fs.existsSync(migrationModule)
+        ? 'Migration safety harness is present but no current-commit safety evidence has been recorded.'
         : 'No canonical migration safety evidence found. Supabase schema migration safety analysis not yet integrated.',
-    });
-  }
+    }),
+  ];
 
-  // 3. Full Release Gate Verification
   items.push({
     id: 'release-gate',
     name: 'Full Grid Release Gate',
