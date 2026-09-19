@@ -23,6 +23,33 @@ export type GridBuilderWorkerState = 'working' | 'checkpoint' | 'needs_attention
 export type GridBuilderCliName = 'codex' | 'claude' | 'agy';
 export type GridBuilderCliHealthStatus = 'ready' | 'installed' | 'needs_attention' | 'unavailable';
 
+function gridBuilderCliLabel(name: GridBuilderCliName): string {
+  if (name === 'agy') return 'Antigravity';
+  return name[0].toUpperCase() + name.slice(1);
+}
+
+export function formatGridBuilderCliFailureDetail(
+  name: GridBuilderCliName,
+  stdout: string,
+  stderr: string,
+  exitCode: number | null,
+): string {
+  const output = `${stdout}\n${stderr}`.toLowerCase();
+  if (
+    name === 'claude'
+    && /(failed to authenticate|oauth session expired|auth(?:entication)? (?:failure|failed|.*expired))/i.test(output)
+  ) {
+    return 'Claude sign-in expired. Run claude auth login in Terminal.';
+  }
+  if (name === 'codex' && /requires a newer version|newer version of codex/i.test(output)) {
+    return 'Codex CLI needs an upgrade. Upgrade Codex CLI, then rerun crew health.';
+  }
+  if (/(credit|quota|payment|resource[- ]exhausted|usage limit|rate limit)/i.test(output)) {
+    return 'Account credits or quota are unavailable. Check account billing or quota, then rerun crew health.';
+  }
+  return `${gridBuilderCliLabel(name)} health probe failed (exit code ${String(exitCode)}). Check the CLI and rerun crew health.`;
+}
+
 export interface GridBuilderCliHealth {
   name: GridBuilderCliName;
   label: string;
@@ -456,4 +483,3 @@ export function collectGridBuilderOsSnapshot(options: {
     },
   };
 }
-

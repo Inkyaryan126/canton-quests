@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import {
+  formatGridBuilderCliFailureDetail,
   resolvePreferredCliBinary,
   writeGridBuilderCliHealthCache,
   type GridBuilderCliHealthCache,
@@ -114,8 +115,12 @@ async function probe(name: GridBuilderCliName, cwd: string): Promise<ProbeResult
         finish({ name, status: 'ready', version, detail: 'Live model probe passed.' });
         return;
       }
-      const detail = stderr.trim().split('\n').find(Boolean) ?? `Exited with code ${String(code)}.`;
-      finish({ name, status: 'needs_attention', version, detail: detail.slice(0, 220) });
+      finish({
+        name,
+        status: 'needs_attention',
+        version,
+        detail: formatGridBuilderCliFailureDetail(name, stdout, stderr, code),
+      });
     });
   });
 }
