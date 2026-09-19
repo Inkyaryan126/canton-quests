@@ -8,7 +8,10 @@ import {
   verifyGridLocationEnhancementPresence,
 } from '../lib/grid/server/location-play-service';
 import type { GridLocationPlayConfigPort } from '../lib/grid/server/location-play-config-port';
-import type { GridLocationEnhancementPort } from '../lib/grid/server/location-enhancement-port';
+import type {
+  GridLocationEnhancementGrantRecord,
+  GridLocationEnhancementPort,
+} from '../lib/grid/server/location-enhancement-port';
 import { verifyGridLocationAttestationToken } from '../lib/grid/server/location-attestation-token';
 
 const secret = 'location-test-secret-that-is-more-than-thirty-two-bytes';
@@ -41,9 +44,11 @@ function configPort(): GridLocationPlayConfigPort {
   };
 }
 
-function grantPort(): GridLocationEnhancementPort {
+function grantPort(
+  existingGrant?: GridLocationEnhancementGrantRecord,
+): GridLocationEnhancementPort {
   return {
-    findByIdempotencyKey: async () => null,
+    findByIdempotencyKey: async () => existingGrant ?? null,
     countRuleClaims: async () => 0,
     insertGrantAtomic: async (input) => ({
       duplicate: false,
@@ -190,5 +195,50 @@ describe('Grid location play proof and claim flow', () => {
       },
       { secret },
     )).rejects.toThrow(/different player/);
+  });
+
+  it('reconciles a persisted duplicate after the short-lived proof expires', async () => {
+    const verified = await verifyGridLocationEnhancementPresence(
+      configPort(),
+      {
+        citySlug: 'canton-oh',
+        seasonSlug: 'founding-season',
+        ruleId: 'plaza-intel',
+        playerId: 'player-1',
+        measurement: {
+          latitude: 40.7989,
+          longitude: -81.3748,
+          accuracyMeters: 10,
+        },
+        now,
+      },
+      { secret, verificationIdFactory: () => 'verify-retry' },
+    );
+    if (verified.status !== 'verified') throw new Error('expected verified');
+
+    const existingGrant = {
+      id: 'grant-retry',
+      seasonId: 'season-1',
+      playerId: 'player-1',
+      ruleId: 'plaza-intel',
+      verificationId: 'verify-retry',
+      benefit: { kind: 'scouting-intel' as const, intelId: 'plaza-intel-cache' },
+      idempotencyKey: 'location-retry-1',
+      claimedAt: now,
+    };
+
+    const result = await claimVerifiedGridLocationEnhancement(
+      configPort(), grantPort(existingGrant),
+      {
+        citySlug: 'canton-oh', seasonSlug: 'founding-season', ruleId: 'plaza-intel', playerId: 'player-1',
+        attestationToken: verified.token, idempotencyKey: 'location-retry-1', now: '2026-09-19T02:16:00.000Z',
+      },
+      { secret },
+    );
+
+    expect(result.status).toBe('granted');
+    if (result.status !== 'granted') throw new Error('expected duplicate grant');
+    expect(result.duplicate).toBe(true);
+    expect(result.grant).toEqual(existingGrant);
   });
 });
