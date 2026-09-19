@@ -79,6 +79,8 @@ function port(
       eventId: 'event-upkeep-1',
       replayed: false,
     }),
+    getDisbandReplay: vi.fn().mockResolvedValue(null),
+    disbandAlliance: vi.fn(),
     ...overrides,
   };
 }

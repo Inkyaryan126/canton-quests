@@ -32,3 +32,7 @@ Alliance 3 moves personal Influence into the bounded Alliance pool without expos
 
 ## Coordination upkeep persistence
 Upkeep is settled against a server-read snapshot of active membership and seasonal territory connectivity. The service projects network fragmentation through the verified pure core, calculates exact upkeep, and passes that decision to a locked optimistic RPC. Membership changes advance Alliance revision, so concurrent join/leave or pool changes fail closed. Territory ownership observed after the snapshot applies to the next settlement tick rather than retroactively changing the current calculation. Every settlement uses a caller-supplied idempotency key so schedulers can safely retry a tick without charging it twice. Shortfall is recorded as an event outcome and never becomes negative pooled Influence or debt.
+
+
+## Leader disband lifecycle
+A leader who wants to exit may disband the Alliance. The command uses the same configured leave cooldown for every active member and closes all memberships in the same database transaction that marks the Alliance disbanded. Existing pooled Influence remains on the disbanded Alliance record and is not refunded, transferred, or converted, preventing disband/recreate resource laundering. The command is idempotent through the game-event ledger and checks both Alliance revision and pooled Influence before applying.

@@ -53,6 +53,8 @@ function port(overrides: Partial<GridAlliancePersistencePort> = {}): GridAllianc
     }),
     getUpkeepSettlementReplay: vi.fn().mockResolvedValue(null),
     applyUpkeepSettlement: vi.fn(),
+    getDisbandReplay: vi.fn().mockResolvedValue(null),
+    disbandAlliance: vi.fn(),
     ...overrides,
   };
 }

@@ -31,3 +31,10 @@
 - Calculate upkeep with the deterministic Alliance core.
 - Persist the exact pool settlement through an optimistic idempotent RPC.
 - Record paid Influence and shortfall without creating debt or touching personal Credits/Command Points.
+
+
+## Task 6 — leader disband lifecycle
+- Let only the current leader disband an active Alliance.
+- Close every active membership atomically with the normal leave cooldown.
+- Keep pooled Influence on the disbanded Alliance row; never refund it to personal balances.
+- Record an idempotent `alliance_disbanded` event and fail closed on concurrent revision/pool changes.

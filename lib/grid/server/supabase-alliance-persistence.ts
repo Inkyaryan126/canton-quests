@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../../supabase';
 import type { GridAllianceMembership } from '../core/alliance-types';
 import type {
+  GridAllianceDisbandPersistenceResult,
   GridAllianceInfluenceContributionPersistenceResult,
   GridAlliancePersistencePort,
   GridAllianceUpkeepPersistenceResult,
@@ -403,6 +404,48 @@ export function createSupabaseGridAlliancePersistencePort(
       return requireObject<GridAllianceUpkeepPersistenceResult>(
         data,
         'Grid Alliance upkeep settlement',
+      );
+    },
+
+    async getDisbandReplay(seasonId, allianceId, playerId, idempotencyKey) {
+      const { data, error } = await client
+        .from('grid_game_events')
+        .select('id,payload')
+        .eq('season_id', seasonId)
+        .eq('actor_player_id', playerId)
+        .eq('entity_id', allianceId)
+        .eq('event_type', 'alliance_disbanded')
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+      if (error) {
+        throw new Error(`Failed to replay Grid Alliance disband: ${error.message}`);
+      }
+      if (!data) return null;
+      const event = data as { id: string; payload: unknown };
+      const payload = requireObject<
+        Omit<GridAllianceDisbandPersistenceResult, 'eventId' | 'replayed'>
+      >(event.payload, 'Grid Alliance disband replay');
+      return { ...payload, eventId: event.id, replayed: true };
+    },
+
+    async disbandAlliance(command) {
+      const { data, error } = await client.rpc('grid_disband_alliance', {
+        p_alliance_id: command.allianceId,
+        p_season_id: command.seasonId,
+        p_leader_player_id: command.leaderPlayerId,
+        p_expected_alliance_revision: command.expectedAllianceRevision,
+        p_expected_influence_pool: command.expectedInfluencePool,
+        p_disbanded_at: command.disbandedAt,
+        p_cooldown_until: command.cooldownUntil,
+        p_idempotency_key: command.idempotencyKey,
+      });
+      if (error) {
+        throw new Error(`Failed to disband Grid Alliance: ${error.message}`);
+      }
+      if (data === null) return null;
+      return requireObject<GridAllianceDisbandPersistenceResult>(
+        data,
+        'Grid Alliance disband',
       );
     },
   };

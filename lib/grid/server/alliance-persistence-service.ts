@@ -12,6 +12,7 @@ import type {
   GridAllianceRules,
 } from '../core/alliance-types';
 import type {
+  GridAllianceDisbandPersistenceResult,
   GridAlliancePersistencePort,
   GridAllianceState,
   GridAllianceUpkeepPersistenceResult,
@@ -404,6 +405,75 @@ export async function settlePersistentGridAllianceUpkeep(
   });
   if (!persisted) {
     throw new Error('Grid Alliance upkeep changed; reload before retrying');
+  }
+  return persisted;
+}
+
+export interface GridDisbandAllianceCommand {
+  allianceId: string;
+  seasonId: string;
+  playerId: string;
+  idempotencyKey: string;
+  now: string;
+}
+
+export async function disbandGridAlliance(
+  port: GridAlliancePersistencePort,
+  command: GridDisbandAllianceCommand,
+  rules: GridAllianceRules,
+): Promise<GridAllianceDisbandPersistenceResult> {
+  validateGridAllianceRules(rules);
+  const allianceId = requireText(command.allianceId, 'allianceId');
+  const seasonId = requireText(command.seasonId, 'seasonId');
+  const playerId = requireText(command.playerId, 'playerId');
+  const idempotencyKey = requireText(command.idempotencyKey, 'idempotencyKey');
+  const now = requireTimestamp(command.now, 'now');
+
+  const replay = await port.getDisbandReplay(
+    seasonId,
+    allianceId,
+    playerId,
+    idempotencyKey,
+  );
+  if (replay) return replay;
+
+  const alliance = requireActiveAlliance(
+    await port.getAllianceById(allianceId),
+    seasonId,
+  );
+  if (alliance.leaderPlayerId !== playerId) {
+    throw new Error('Grid Alliance disband requires the Alliance leader');
+  }
+
+  const history = await port.getMembershipHistory(seasonId, playerId);
+  const activeLeaderMembership = history.find(
+    (membership) =>
+      membership.allianceId === allianceId &&
+      membership.playerId === playerId &&
+      membership.seasonId === seasonId &&
+      membership.leftAt === null,
+  );
+  if (!activeLeaderMembership) {
+    throw new Error('Grid Alliance leader membership was not found');
+  }
+
+  const closedLeaderMembership = closeGridAllianceMembership(
+    activeLeaderMembership,
+    now,
+    rules,
+  );
+  const persisted = await port.disbandAlliance({
+    allianceId,
+    seasonId,
+    leaderPlayerId: playerId,
+    expectedAllianceRevision: alliance.revision,
+    expectedInfluencePool: alliance.influencePool,
+    disbandedAt: closedLeaderMembership.leftAt!,
+    cooldownUntil: closedLeaderMembership.cooldownUntil!,
+    idempotencyKey,
+  });
+  if (!persisted) {
+    throw new Error('Grid Alliance disband changed; reload before retrying');
   }
   return persisted;
 }

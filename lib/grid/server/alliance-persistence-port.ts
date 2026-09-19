@@ -118,6 +118,30 @@ export interface GridAllianceUpkeepPersistenceResult {
   replayed: boolean;
 }
 
+
+export interface GridAllianceDisbandPersistenceCommand {
+  allianceId: string;
+  seasonId: string;
+  leaderPlayerId: string;
+  expectedAllianceRevision: number;
+  expectedInfluencePool: number;
+  disbandedAt: string;
+  cooldownUntil: string;
+  idempotencyKey: string;
+}
+
+export interface GridAllianceDisbandPersistenceResult {
+  allianceId: string;
+  status: 'disbanded';
+  disbandedAt: string;
+  cooldownUntil: string;
+  closedMembershipCount: number;
+  influencePoolLocked: number;
+  allianceRevision: number;
+  eventId: string;
+  replayed: boolean;
+}
+
 export interface GridAlliancePersistencePort {
   getAllianceById(allianceId: string): Promise<GridAllianceState | null>;
   listActiveAlliances(seasonId: string): Promise<GridAllianceState[]>;
@@ -158,4 +182,13 @@ export interface GridAlliancePersistencePort {
   applyUpkeepSettlement(
     command: GridAllianceUpkeepPersistenceCommand,
   ): Promise<GridAllianceUpkeepPersistenceResult | null>;
+  getDisbandReplay(
+    seasonId: string,
+    allianceId: string,
+    playerId: string,
+    idempotencyKey: string,
+  ): Promise<GridAllianceDisbandPersistenceResult | null>;
+  disbandAlliance(
+    command: GridAllianceDisbandPersistenceCommand,
+  ): Promise<GridAllianceDisbandPersistenceResult | null>;
 }
