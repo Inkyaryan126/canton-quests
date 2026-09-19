@@ -74,6 +74,11 @@ function validEconomy(): GridEconomyConfig {
       defaultCost: cost(100, 1),
       costByPropertySlug: { p1: cost(125, 1) },
     },
+    takeover: {
+      developmentRetentionBps: 10_000,
+      conditionDamageBps: 0,
+      conditionFloorBps: 0,
+    },
     development: {
       commerce: { levels: [level({ creditsPerHour: 2 })] },
       influence: { levels: [level({ influencePerHour: 2 })] },
@@ -121,6 +126,30 @@ describe('Grid economy configuration contract', () => {
     expect(result.errors).toContain('economy.neutralClaims.defaultCost.credits must be a non-negative integer');
     expect(result.errors).toContain('economy.income.territories.defaultRate.influencePerHour must be a non-negative integer');
     expect(result.errors).toContain('economy.development.commerce.levels[0].bonuses.defenseBps must be a non-negative integer');
+  });
+
+
+  it('validates takeover policy basis points without imposing hidden defaults', () => {
+    const pkg = packageWithGeography();
+    const economy = validEconomy();
+    economy.takeover = {
+      developmentRetentionBps: 10_001,
+      conditionDamageBps: -1,
+      conditionFloorBps: 3.5,
+    };
+    pkg.seasonTemplate.economy = economy;
+
+    const result = validateGridCityPackage(pkg);
+
+    expect(result.errors).toContain(
+      'economy.takeover.developmentRetentionBps must be an integer from 0..10000 basis points',
+    );
+    expect(result.errors).toContain(
+      'economy.takeover.conditionDamageBps must be an integer from 0..10000 basis points',
+    );
+    expect(result.errors).toContain(
+      'economy.takeover.conditionFloorBps must be an integer from 0..10000 basis points',
+    );
   });
 
   it('validates configured territory and property slug references against the package', () => {
