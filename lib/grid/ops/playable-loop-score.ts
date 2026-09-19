@@ -194,6 +194,21 @@ function repoProbe(cwd: string, relativePaths: string[], label: string): Playabl
   };
 }
 
+function canonicalImplementedProbe(
+  cwd: string,
+  relativePaths: string[],
+  label: string,
+): PlayableLoopStageEvidence {
+  const present = relativePaths.filter((relativePath) => fs.existsSync(path.join(cwd, relativePath)));
+  return {
+    status: present.length === relativePaths.length ? 'GREEN' : 'RED',
+    evidence: present.length === relativePaths.length
+      ? [`${label} implemented/integrated: ${present.join(', ')}`]
+      : [`${label} missing ${relativePaths.filter((relativePath) => !present.includes(relativePath)).join(', ')}`],
+    source: 'repo-probe',
+  };
+}
+
 export function collectPlayableLoopScore(options: CollectPlayableLoopScoreOptions): PlayableLoopScore {
   const cwd = options.cwd ?? process.cwd();
   const board = options.board;
@@ -201,11 +216,50 @@ export function collectPlayableLoopScore(options: CollectPlayableLoopScoreOption
   const stages: Partial<Record<PlayableLoopStageId, PlayableLoopStageEvidence>> = {
     entry: combineEvidence([
       options.runtimeEvidence?.entry,
-      repoProbe(cwd, ['app/grid/play/route.ts'], 'Grid player entry route'),
+      canonicalImplementedProbe(
+        cwd,
+        ['app/grid/play/route.ts', 'tests/grid-player-entry.test.ts'],
+        'Canonical Grid player entry',
+      ),
     ]),
-    identity: combineEvidence([milestone('onboarding'), repoProbe(cwd, ['app/grid/onboarding/page.tsx', 'app/api/grid/onboarding/home-city/route.ts'], 'Home City onboarding')]),
-    seasonJoin: milestone('onboarding'),
-    starterTerritory: combineEvidence([milestone('onboarding'), repoProbe(cwd, ['app/api/grid/onboarding/starter-territories/route.ts', 'app/api/grid/onboarding/starter-territories/claim/route.ts'], 'Starter territory flow')]),
+    identity: combineEvidence([
+      milestone('onboarding'),
+      canonicalImplementedProbe(
+        cwd,
+        [
+          'app/grid/onboarding/page.tsx',
+          'app/api/grid/onboarding/home-city/route.ts',
+          'lib/grid/server/onboarding-home-city-service.ts',
+          'tests/grid-onboarding-home-city.test.ts',
+        ],
+        'Canonical Home City onboarding',
+      ),
+    ]),
+    seasonJoin: combineEvidence([
+      milestone('onboarding'),
+      canonicalImplementedProbe(
+        cwd,
+        [
+          'app/api/grid/onboarding/join/route.ts',
+          'lib/grid/server/onboarding-join-service.ts',
+          'tests/grid-onboarding-join.test.ts',
+        ],
+        'Canonical season join',
+      ),
+    ]),
+    starterTerritory: combineEvidence([
+      milestone('onboarding'),
+      canonicalImplementedProbe(
+        cwd,
+        [
+          'app/api/grid/onboarding/starter-territories/route.ts',
+          'app/api/grid/onboarding/starter-territories/claim/route.ts',
+          'lib/grid/server/onboarding-starter-claim-service.ts',
+          'tests/grid-onboarding-starter-claim.test.ts',
+        ],
+        'Canonical starter ownership',
+      ),
+    ]),
     mapWorld: combineEvidence([milestone('map-world'), repoProbe(cwd, ['app/grid/grid-city-map.tsx', 'app/api/grid/world/route.ts'], 'World projection')]),
     action: combineEvidence([milestone('contest-system'), milestone('takeover'), milestone('location-play')]),
     consequenceReward: combineEvidence([milestone('economy-core'), milestone('takeover'), repoProbe(cwd, ['app/api/grid/income/collect/route.ts'], 'Persistent income consequence')]),

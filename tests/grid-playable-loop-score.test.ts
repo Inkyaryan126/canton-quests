@@ -132,4 +132,76 @@ describe('Grid playable loop score', () => {
     expect(result.stages.find((stage) => stage.id === 'entry')?.verification).toBe('browser/runtime verified');
     expect(result.stages.find((stage) => stage.id === 'identity')?.verification).toBe('browser/runtime not yet verified');
   });
+
+  it('recognizes canonical integrated entry and onboarding evidence without runtime verification', () => {
+    const board = {
+      version: 1,
+      health: {
+        generatedAt: '2026-09-19T06:00:00.000Z',
+        integrationRef: 'grid-canonical-integration-20260918',
+        integrationCommit: '514759bb',
+        localMainAvailable: false,
+        originMainAvailable: false,
+        boardroomAutonomousRunActive: false,
+        liveClaimCount: 0,
+        staleClaimCount: 0,
+        coordinationWarnings: [],
+      },
+      milestones: [],
+    } satisfies GridMasterBoard;
+
+    const result = collectPlayableLoopScore({ cwd: process.cwd(), board });
+    const stages = new Map(result.stages.map((stage) => [stage.id, stage]));
+
+    expect(stages.get('entry')).toMatchObject({
+      status: 'GREEN',
+      contribution: 16,
+      verification: 'browser/runtime not yet verified',
+    });
+    expect(stages.get('identity')).toMatchObject({
+      status: 'GREEN',
+      contribution: 14,
+      verification: 'browser/runtime not yet verified',
+    });
+    expect(stages.get('seasonJoin')).toMatchObject({
+      status: 'GREEN',
+      contribution: 12,
+      verification: 'browser/runtime not yet verified',
+    });
+    expect(stages.get('starterTerritory')).toMatchObject({
+      status: 'GREEN',
+      contribution: 12,
+      verification: 'browser/runtime not yet verified',
+    });
+  });
+
+  it('keeps absent canonical entry and onboarding evidence RED', () => {
+    const board = {
+      version: 1,
+      health: {
+        generatedAt: '2026-09-19T06:00:00.000Z',
+        integrationRef: null,
+        integrationCommit: null,
+        localMainAvailable: false,
+        originMainAvailable: false,
+        boardroomAutonomousRunActive: false,
+        liveClaimCount: 0,
+        staleClaimCount: 0,
+        coordinationWarnings: [],
+      },
+      milestones: [],
+    } satisfies GridMasterBoard;
+
+    const result = collectPlayableLoopScore({
+      cwd: '/private/tmp/grid-loop-evidence-calibration-absent',
+      board,
+    });
+    const stages = new Map(result.stages.map((stage) => [stage.id, stage]));
+
+    expect(stages.get('entry')?.status).toBe('RED');
+    expect(stages.get('identity')?.status).toBe('RED');
+    expect(stages.get('seasonJoin')?.status).toBe('RED');
+    expect(stages.get('starterTerritory')?.status).toBe('RED');
+    expect(stages.get('seasonJoin')?.verification).toBe('browser/runtime not yet verified');
+  });
 });
