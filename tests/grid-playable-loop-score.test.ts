@@ -204,4 +204,81 @@ describe('Grid playable loop score', () => {
     expect(stages.get('starterTerritory')?.status).toBe('RED');
     expect(stages.get('seasonJoin')?.verification).toBe('browser/runtime not yet verified');
   });
+
+  it('supersedes stale board evidence with canonical consequence, progression, and return probes', () => {
+    const board = {
+      version: 1,
+      health: {
+        generatedAt: '2026-09-19T06:00:00.000Z',
+        integrationRef: 'grid-canonical-integration-20260918',
+        integrationCommit: '245a185',
+        localMainAvailable: false,
+        originMainAvailable: false,
+        boardroomAutonomousRunActive: false,
+        liveClaimCount: 0,
+        staleClaimCount: 0,
+        coordinationWarnings: [],
+      },
+      milestones: [
+        {
+          id: 'economy-core',
+          title: 'Economy',
+          phase: 'world',
+          status: 'RED',
+          promotion: 'DEPLOYMENT_UNKNOWN',
+          detail: 'stale board evidence: reward settlement missing',
+          evidenceCommit: 'stale-board-commit',
+          warnings: [],
+        },
+        {
+          id: 'progression',
+          title: 'Progression',
+          phase: 'player',
+          status: 'RED',
+          promotion: 'DEPLOYMENT_UNKNOWN',
+          detail: 'stale board evidence: progression runtime missing',
+          evidenceCommit: 'stale-board-commit',
+          warnings: [],
+        },
+        {
+          id: 'return-experience',
+          title: 'Return Briefing',
+          phase: 'player',
+          status: 'RED',
+          promotion: 'DEPLOYMENT_UNKNOWN',
+          detail: 'stale board evidence: return runtime missing',
+          evidenceCommit: 'stale-board-commit',
+          warnings: [],
+        },
+      ],
+    } satisfies GridMasterBoard;
+
+    const result = collectPlayableLoopScore({ cwd: process.cwd(), board });
+    const stages = new Map(result.stages.map((stage) => [stage.id, stage]));
+
+    expect(stages.get('consequenceReward')).toMatchObject({
+      status: 'GREEN',
+      source: 'repo-probe',
+      contribution: 10,
+    });
+    expect(stages.get('progression')).toMatchObject({
+      status: 'GREEN',
+      source: 'repo-probe',
+      contribution: 5,
+    });
+    expect(stages.get('returnExperience')).toMatchObject({
+      status: 'GREEN',
+      source: 'repo-probe',
+      contribution: 5,
+    });
+    expect(stages.get('consequenceReward')?.evidence.join(' ')).toContain(
+      'Canonical contract reward settlement implemented/integrated',
+    );
+    expect(stages.get('progression')?.evidence.join(' ')).toContain(
+      'Canonical progression runtime implemented/integrated',
+    );
+    expect(stages.get('returnExperience')?.evidence.join(' ')).toContain(
+      'Canonical return runtime implemented/integrated',
+    );
+  });
 });

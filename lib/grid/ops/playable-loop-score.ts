@@ -262,9 +262,50 @@ export function collectPlayableLoopScore(options: CollectPlayableLoopScoreOption
     ]),
     mapWorld: combineEvidence([milestone('map-world'), repoProbe(cwd, ['app/grid/grid-city-map.tsx', 'app/api/grid/world/route.ts'], 'World projection')]),
     action: combineEvidence([milestone('contest-system'), milestone('takeover'), milestone('location-play')]),
-    consequenceReward: combineEvidence([milestone('economy-core'), milestone('takeover'), repoProbe(cwd, ['app/api/grid/income/collect/route.ts'], 'Persistent income consequence')]),
-    progression: combineEvidence([milestone('progression'), repoProbe(cwd, ['app/api/grid/progression/route.ts', 'app/grid/rankings/page.tsx'], 'Progression visibility')]),
-    returnExperience: combineEvidence([milestone('return-experience'), repoProbe(cwd, ['app/grid/return/page.tsx', 'app/api/grid/return-summary/route.ts'], 'Return briefing')]),
+    consequenceReward: combineEvidence([
+      milestone('economy-core'),
+      milestone('takeover'),
+      canonicalImplementedProbe(
+        cwd,
+        [
+          'app/api/admin/grid/contracts/rewards/settle/route.ts',
+          'lib/grid/server/contract-reward-settlement-service.ts',
+          'lib/grid/server/supabase-contract-reward-settlement.ts',
+          'tests/grid-contract-reward-settlement-api.test.ts',
+          'tests/grid-contract-reward-settlement-service.test.ts',
+        ],
+        'Canonical contract reward settlement',
+      ),
+    ]),
+    progression: combineEvidence([
+      milestone('progression'),
+      canonicalImplementedProbe(
+        cwd,
+        [
+          'app/api/grid/progression/route.ts',
+          'lib/grid/server/supabase-progression.ts',
+          'app/grid/rankings/page.tsx',
+          'tests/grid-progression-api-contract.test.ts',
+          'tests/grid-progression.test.ts',
+        ],
+        'Canonical progression runtime',
+      ),
+    ]),
+    returnExperience: combineEvidence([
+      milestone('return-experience'),
+      canonicalImplementedProbe(
+        cwd,
+        [
+          'app/grid/return/page.tsx',
+          'app/api/grid/return-summary/route.ts',
+          'lib/grid/server/return-summary-service.ts',
+          'lib/grid/server/supabase-return-summary.ts',
+          'tests/grid-return-summary-api.test.ts',
+          'tests/grid-return-summary.test.ts',
+        ],
+        'Canonical return runtime',
+      ),
+    ]),
   };
   return scorePlayableLoop({ stages, integrationRef: board.health.integrationRef });
 }
