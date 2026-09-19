@@ -1,5 +1,10 @@
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { collectGridMasterBoard } from '../lib/grid/master-board/collect';
 import {
   recommendGridProductWork,
   type GridProductCandidate,
@@ -184,5 +189,42 @@ describe('Grid product director', () => {
       'player UI/UX',
       'verification/ops',
     ].sort());
+  });
+});
+
+function git(cwd: string, ...args: string[]): string {
+  return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+}
+
+function commitFile(cwd: string, filename: string, content: string, message: string): string {
+  writeFileSync(path.join(cwd, filename), content);
+  git(cwd, 'add', filename);
+  git(cwd, 'commit', '-m', message);
+  return git(cwd, 'rev-parse', 'HEAD');
+}
+
+describe('Grid product director evidence integrity', () => {
+  it('does not recommend City Compiler as READY_TO_INTEGRATE when canonical history already integrated it', () => {
+    const repo = mkdtempSync(path.join(tmpdir(), 'grid-product-director-canonical-'));
+    git(repo, 'init', '-b', 'main');
+    git(repo, 'config', 'user.email', 'grid-board@test.local');
+    git(repo, 'config', 'user.name', 'Grid Board Test');
+    commitFile(repo, 'base.txt', 'base\n', 'base');
+
+    // A stale side branch matching city-compiler's branchPatterns that a broken
+    // resolver would otherwise fall back to.
+    git(repo, 'checkout', '-b', 'grid-city-power-live-20260918');
+    commitFile(repo, 'city-power.txt', 'city power\n', 'GRID City Power: publish live seasonal ranking');
+    git(repo, 'checkout', 'main');
+
+    // The real, newer canonical integration branch with the completion commit.
+    git(repo, 'checkout', '-b', 'grid-canonical-integration-20260918');
+    commitFile(repo, 'compiler.txt', 'compiler\n', 'GRID Compiler 9: add CLI tooling and acceptance gate');
+    git(repo, 'checkout', 'main');
+
+    const masterBoard = collectGridMasterBoard({ cwd: repo });
+    const result = recommendGridProductWork({ masterBoard, claims: [], limit: 10 });
+
+    expect(result.recommendations.map((item) => item.id)).not.toContain('city-compiler');
   });
 });

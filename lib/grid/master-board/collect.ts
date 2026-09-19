@@ -44,6 +44,18 @@ function localBranches(cwd: string): string[] {
   return raw.split('\n').map((line) => line.trim()).filter(Boolean);
 }
 
+const CANONICAL_INTEGRATION_PATTERN = /^grid-canonical-integration-\d{8}$/;
+const LEGACY_INTEGRATION_PATTERN = /^grid-integration-\d{8}$/;
+
+// Canonical integration branches supersede the legacy naming convention; only fall
+// back to legacy candidates when no canonical branch exists, so evidence collection
+// never resolves to a stale integration ref while newer canonical history exists.
+function integrationCandidatesFrom(branches: string[]): string[] {
+  const canonical = branches.filter((branch) => CANONICAL_INTEGRATION_PATTERN.test(branch)).sort();
+  if (canonical.length > 0) return canonical;
+  return branches.filter((branch) => LEGACY_INTEGRATION_PATTERN.test(branch)).sort();
+}
+
 function commitsForRef(cwd: string, ref: string, cache: Map<string, GridCommitEvidence[]>): GridCommitEvidence[] {
   const cached = cache.get(ref);
   if (cached) return cached;
@@ -99,7 +111,6 @@ function loadRefs(cwd: string): RefInfo {
   const headCommits = new Map<string, string>();
   let localMainRef: string | null = null;
   let originMainRef: string | null = null;
-  const integrationCandidates: string[] = [];
 
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue;
@@ -116,9 +127,6 @@ function loadRefs(cwd: string): RefInfo {
       if (branch === 'main') {
         localMainRef = 'main';
       }
-      if (/^grid-integration-\d{8}$/.test(branch)) {
-        integrationCandidates.push(branch);
-      }
     } else if (refname === 'refs/remotes/origin/main') {
       originMainRef = 'origin/main';
       headCommits.set('origin/main', commit);
@@ -126,7 +134,7 @@ function loadRefs(cwd: string): RefInfo {
     }
   }
 
-  integrationCandidates.sort();
+  const integrationCandidates = integrationCandidatesFrom(allBranches);
 
   return {
     allBranches,
@@ -145,7 +153,7 @@ export function resolveIntegrationRef(cwd: string, explicitRef?: string): string
     }
     return explicitRef;
   }
-  const candidates = localBranches(cwd).filter((branch) => /^grid-integration-\d{8}$/.test(branch)).sort();
+  const candidates = integrationCandidatesFrom(localBranches(cwd));
   return candidates.at(-1) ?? null;
 }
 
