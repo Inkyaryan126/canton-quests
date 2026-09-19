@@ -2,7 +2,8 @@ import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { chromium, type Page } from 'playwright';
+import { coordinationRoot } from '../../agent-control';
 
 export type GridBrowserRuntimeStatus = 'PENDING' | 'VERIFIED' | 'FAILED' | 'SKIPPED';
 
@@ -20,6 +21,7 @@ export interface GridBrowserRuntimeCase {
   httpStatus: number | null;
   title: string | null;
   heading: string | null;
+  authState: string | null;
   consoleErrors: string[];
   pageErrors: string[];
   overlayCount: number;
@@ -38,6 +40,63 @@ export interface GridBrowserRuntimeReport {
   serverCleanup: { attempted: boolean; completed: boolean };
 }
 
+export interface GridBrowserRuntimeEvidenceRecord {
+  version: 1;
+  kind: 'browser-runtime';
+  status: 'PASS' | 'FAIL';
+  integrationRef: string | null;
+  integrationCommit: string;
+  recordedAt: string;
+  summary: string;
+  sourceStatus: Exclude<GridBrowserRuntimeStatus, 'PENDING'>;
+}
+
+export function buildGridBrowserRuntimeEvidenceRecord(
+  report: GridBrowserRuntimeReport,
+  identity: { integrationRef: string | null; integrationCommit: string },
+): GridBrowserRuntimeEvidenceRecord {
+  const passingCases = report.cases.filter((item) => !item.error && (item.httpStatus ?? 0) >= 200 && (item.httpStatus ?? 0) < 400).length;
+  const sourceStatus = report.status === 'PENDING'
+    ? evaluateGridBrowserRuntimeReport(report).status
+    : report.status;
+  return {
+    version: 1,
+    kind: 'browser-runtime',
+    status: sourceStatus === 'VERIFIED' ? 'PASS' : 'FAIL',
+    integrationRef: identity.integrationRef,
+    integrationCommit: identity.integrationCommit,
+    recordedAt: report.verifiedAt,
+    summary: sourceStatus === 'VERIFIED'
+      ? `Browser runtime VERIFIED: ${passingCases}/${report.cases.length} cases passed with clean browser evidence.`
+      : `Browser runtime ${sourceStatus}: verification did not produce a passing runtime proof.`,
+    sourceStatus,
+  };
+}
+
+export function writeGridBrowserRuntimeEvidence(
+  report: GridBrowserRuntimeReport,
+  cwd = process.cwd(),
+): GridBrowserRuntimeEvidenceRecord {
+  const integrationCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim();
+  const integrationRef = execFileSync('git', ['branch', '--show-current'], {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim() || null;
+  const record = buildGridBrowserRuntimeEvidenceRecord(report, { integrationRef, integrationCommit });
+  const evidenceDir = path.join(coordinationRoot(cwd), 'evidence');
+  fs.mkdirSync(evidenceDir, { recursive: true });
+  const target = path.join(evidenceDir, 'browser-runtime.json');
+  const temporary = `${target}.tmp-${process.pid}`;
+  fs.writeFileSync(temporary, `${JSON.stringify(record, null, 2)}\n`);
+  fs.renameSync(temporary, target);
+  return record;
+}
+
 export interface GridBrowserRuntimePageLocator {
   count(): Promise<number>;
   first(): { textContent(): Promise<string | null> };
@@ -47,6 +106,9 @@ export interface GridBrowserRuntimePage {
   url(): string;
   title(): Promise<string>;
   locator(selector: string): GridBrowserRuntimePageLocator;
+  goto?: Page['goto'];
+  on?: Page['on'];
+  waitForTimeout?: Page['waitForTimeout'];
 }
 
 export interface GridBrowserRuntimeTarget {
@@ -54,6 +116,7 @@ export interface GridBrowserRuntimeTarget {
   requestedPath: string;
   expectedPath: string;
   expectedHeading: string;
+  expectedAuthState?: string;
 }
 
 export interface GridBrowserRuntimeCollectionContext {
@@ -97,6 +160,7 @@ const REQUIRED_CASES: GridBrowserRuntimeTarget[] = [
     requestedPath: '/grid/contracts',
     expectedPath: '/grid/contracts',
     expectedHeading: 'CONTRACTS',
+    expectedAuthState: 'PLAYER AUTHENTICATION REQUIRED',
   },
 ];
 
@@ -108,6 +172,7 @@ export async function collectGridBrowserRuntimeEvidence(
   const finalUrl = page.url();
   const parsedUrl = new URL(finalUrl);
   const heading = (await page.locator('h1').first().textContent())?.trim() || null;
+  const authState = (await page.locator('h2').first().textContent())?.trim() || null;
   const overlayCount = await page
     .locator('[data-nextjs-dialog-overlay], [data-nextjs-toast]')
     .count();
@@ -121,6 +186,7 @@ export async function collectGridBrowserRuntimeEvidence(
     httpStatus: context.httpStatus,
     title: await page.title(),
     heading,
+    authState,
     consoleErrors: [...context.consoleErrors],
     pageErrors: [...context.pageErrors],
     overlayCount,
@@ -157,6 +223,9 @@ export function evaluateGridBrowserRuntimeReport(report: GridBrowserRuntimeRepor
     }
     if (!evidence.heading?.toUpperCase().includes(target.expectedHeading)) {
       reasons.push(`${target.name}: heading did not contain ${target.expectedHeading}`);
+    }
+    if (target.expectedAuthState && !evidence.authState?.toUpperCase().includes(target.expectedAuthState)) {
+      reasons.push(`${target.name}: signed-out auth state did not contain ${target.expectedAuthState}`);
     }
     if (evidence.consoleErrors.length > 0) {
       reasons.push(`${target.name}: browser console errors were captured`);
@@ -271,7 +340,7 @@ function localOnlyEnvironment(): NodeJS.ProcessEnv {
 }
 
 async function runBrowserCase(
-  page: GridBrowserRuntimePage & { goto?: (url: string, options: { waitUntil: 'domcontentloaded'; timeout: number }) => Promise<{ status(): number } | null>; on?: (event: string, listener: (...args: any[]) => void) => void; waitForTimeout?: (ms: number) => Promise<void> },
+  page: GridBrowserRuntimePage,
   origin: string,
   target: GridBrowserRuntimeTarget,
   viewport: GridBrowserRuntimeViewport,
@@ -309,6 +378,7 @@ async function runBrowserCase(
       httpStatus: null,
       title: null,
       heading: null,
+      authState: null,
       consoleErrors,
       pageErrors,
       overlayCount: 0,
@@ -395,7 +465,7 @@ export async function verifyGridBrowserRuntime(
   if (failure) {
     cases.push({
       name: 'harness', requestedPath: '', expectedPath: '', finalUrl: null, finalPath: null,
-      httpStatus: null, title: null, heading: null, consoleErrors: [], pageErrors: [], overlayCount: 0,
+      httpStatus: null, title: null, heading: null, authState: null, consoleErrors: [], pageErrors: [], overlayCount: 0,
       viewport, startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), error: `${failure.message}\n${logs}`,
     });
   }

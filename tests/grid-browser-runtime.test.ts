@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildGridBrowserRuntimeEvidenceRecord,
   collectGridBrowserRuntimeEvidence,
   evaluateGridBrowserRuntimeReport,
   stopGridRuntimeProcess,
@@ -34,6 +35,7 @@ function baseCase(overrides: Partial<GridBrowserRuntimeCase> = {}): GridBrowserR
     httpStatus: 200,
     title: 'The Grid — Coming Soon | Canton Quests',
     heading: 'THE GRID',
+    authState: null,
     consoleErrors: [],
     pageErrors: [],
     overlayCount: 0,
@@ -97,6 +99,7 @@ describe('Grid browser runtime verification', () => {
       finalPath: '/grid',
       httpStatus: 200,
       heading: 'THE GRID',
+      authState: null,
       consoleErrors: ['ignored info is not an error'],
       overlayCount: 0,
       viewport: { width: 390, height: 844 },
@@ -116,6 +119,7 @@ describe('Grid browser runtime verification', () => {
             finalUrl: 'http://127.0.0.1:43121/grid/contracts',
             finalPath: '/grid/contracts',
             heading: 'CONTRACTS MOVE THE CITY.',
+            authState: 'PLAYER AUTHENTICATION REQUIRED',
           }),
         ],
       }),
@@ -128,12 +132,57 @@ describe('Grid browser runtime verification', () => {
     ]);
   });
 
+  it('fails closed when the protected contracts shell loses its signed-out auth state', () => {
+    const result = evaluateGridBrowserRuntimeReport(
+      report({
+        cases: [
+          baseCase(),
+          baseCase({ name: 'grid-public-shell', requestedPath: '/grid' }),
+          baseCase({
+            name: 'grid-protected-contracts-shell',
+            requestedPath: '/grid/contracts',
+            expectedPath: '/grid/contracts',
+            finalUrl: 'http://127.0.0.1:43121/grid/contracts',
+            finalPath: '/grid/contracts',
+            heading: 'CONTRACTS MOVE THE CITY.',
+            authState: 'CONTRACT SIGNAL STAGED',
+          }),
+        ],
+      }),
+    );
+
+    expect(result.status).toBe('FAILED');
+    expect(result.reasons).toContain(
+      'grid-protected-contracts-shell: signed-out auth state did not contain PLAYER AUTHENTICATION REQUIRED',
+    );
+  });
+
   it('keeps unavailable browser prerequisites distinct from failed runtime evidence', () => {
     const result = evaluateGridBrowserRuntimeReport(
       report({ status: 'SKIPPED', cases: [], skippedReasons: ['No local browser executable found'] }),
     );
 
     expect(result).toEqual({ status: 'SKIPPED', reasons: ['No local browser executable found'] });
+  });
+
+  it('binds recorded browser evidence to the exact verified commit', () => {
+    const evidence = buildGridBrowserRuntimeEvidenceRecord(
+      { ...report(), status: 'VERIFIED' },
+      {
+        integrationRef: 'grid-canonical-integration-20260918',
+        integrationCommit: 'abc123def456',
+      },
+    );
+
+    expect(evidence).toMatchObject({
+      version: 1,
+      kind: 'browser-runtime',
+      status: 'PASS',
+      integrationRef: 'grid-canonical-integration-20260918',
+      integrationCommit: 'abc123def456',
+      sourceStatus: 'VERIFIED',
+    });
+    expect(evidence.summary).toMatch(/3\/3 cases passed/);
   });
 
   it('falls back to SIGKILL when a local server ignores SIGTERM', async () => {

@@ -1,11 +1,17 @@
-import { verifyGridBrowserRuntime } from '../lib/grid/ops/browser-runtime-verification';
+import {
+  verifyGridBrowserRuntime,
+  writeGridBrowserRuntimeEvidence,
+} from '../lib/grid/ops/browser-runtime-verification';
 
 async function main(): Promise<void> {
-  const json = process.argv.slice(2).includes('--json');
+  const args = process.argv.slice(2);
+  const json = args.includes('--json');
+  const shouldRecord = args.includes('--record');
   const report = await verifyGridBrowserRuntime({ cwd: process.cwd() });
+  const evidence = shouldRecord ? writeGridBrowserRuntimeEvidence(report, process.cwd()) : null;
 
   if (json) {
-    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(evidence ? { report, evidence } : report, null, 2)}\n`);
   } else {
     console.log('# GRID BROWSER RUNTIME VERIFICATION');
     console.log(`Status: ${report.status}`);
@@ -22,6 +28,7 @@ async function main(): Promise<void> {
     }
     for (const reason of report.skippedReasons) console.log(`Reason: ${reason}`);
     console.log(`Server cleanup: ${report.serverCleanup.completed ? 'complete' : 'incomplete'}`);
+    if (evidence) console.log(`Evidence recorded for commit: ${evidence.integrationCommit.slice(0, 12)}`);
   }
 
   if (report.status !== 'VERIFIED') process.exitCode = report.status === 'SKIPPED' ? 2 : 1;
