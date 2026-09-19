@@ -7,6 +7,7 @@ import {
   collectGridBuilderCliHealth,
   deriveBuilderWorkerState,
   evaluateBuilderStartGuard,
+  formatGridBuilderCliFailureDetail,
   humanizeBuilderOwner,
   isLocalBuilderHostname,
   readGridBuilderRunState,
@@ -42,6 +43,46 @@ afterEach(() => {
 });
 
 describe('Grid Builder OS helpers', () => {
+  it('maps Claude authentication failures to a safe sign-in action', () => {
+    for (const failure of ['Failed to authenticate', 'OAuth session expired', 'Claude auth failure']) {
+      expect(formatGridBuilderCliFailureDetail(
+        'claude',
+        '',
+        failure,
+        1,
+      )).toBe('Claude sign-in expired. Run claude auth login in Terminal.');
+    }
+  });
+
+  it('maps Codex version failures to an upgrade action', () => {
+    expect(formatGridBuilderCliFailureDetail(
+      'codex',
+      'requires a newer version of Codex CLI',
+      '',
+      1,
+    )).toBe('Codex CLI needs an upgrade. Upgrade Codex CLI, then rerun crew health.');
+  });
+
+  it('maps credit, quota, and payment failures to an account action', () => {
+    expect(formatGridBuilderCliFailureDetail(
+      'agy',
+      '',
+      'resource-exhausted: quota exceeded; payment required',
+      1,
+    )).toBe('Account credits or quota are unavailable. Check account billing or quota, then rerun crew health.');
+  });
+
+  it('uses a safe worker-specific fallback without leaking raw failure text', () => {
+    const rawFailure = 'token=sk-secret /Users/inky/project/request-id-123 raw payload {"secret":"value"}';
+    const detail = formatGridBuilderCliFailureDetail('agy', rawFailure, '', 7);
+
+    expect(detail).toBe('Antigravity health probe failed (exit code 7). Check the CLI and rerun crew health.');
+    expect(detail).not.toContain(rawFailure);
+    expect(detail).not.toContain('/Users/');
+    expect(detail).not.toContain('sk-secret');
+    expect(detail).not.toContain('request-id-123');
+  });
+
   it('keeps the Empire Panel command-center semantics visible without changing its live wiring', () => {
     expect(builderClientSource).toContain('cq-builder-command-center');
     expect(builderClientSource).toContain('THE GRID / EMPIRE PANEL');
