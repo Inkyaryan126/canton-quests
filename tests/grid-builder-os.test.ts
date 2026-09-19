@@ -1,0 +1,106 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  deriveBuilderWorkerState,
+  evaluateBuilderStartGuard,
+  humanizeBuilderOwner,
+  isLocalBuilderHostname,
+  readGridBuilderRunState,
+  resolveGridBuilderIntegrationRef,
+  summarizeMilestoneProgress,
+  writeGridBuilderRunState,
+} from '../lib/grid/ops/grid-builder-os';
+
+const tempDirs: string[] = [];
+
+function makeRepo(): string {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'grid-builder-os-'));
+  tempDirs.push(cwd);
+  execFileSync('git', ['init', '-q'], { cwd });
+  execFileSync('git', ['config', 'user.email', 'grid@example.test'], { cwd });
+  execFileSync('git', ['config', 'user.name', 'Grid Test'], { cwd });
+  fs.writeFileSync(path.join(cwd, 'README.md'), 'grid\n');
+  execFileSync('git', ['add', 'README.md'], { cwd });
+  execFileSync('git', ['commit', '-qm', 'initial'], { cwd });
+  return cwd;
+}
+
+afterEach(() => {
+  while (tempDirs.length) {
+    const dir = tempDirs.pop();
+    if (dir) fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+describe('Grid Builder OS helpers', () => {
+  it('counts only integrated milestones as completed progress', () => {
+    expect(summarizeMilestoneProgress([
+      'INTEGRATED',
+      'INTEGRATED',
+      'READY_TO_INTEGRATE',
+      'IN_PROGRESS',
+    ])).toEqual({
+      completed: 2,
+      readyToCombine: 1,
+      total: 4,
+      percent: 50,
+    });
+  });
+
+  it('turns owner and worker evidence into plain-language states', () => {
+    expect(humanizeBuilderOwner('codex-map')).toBe('Lead Builder');
+    expect(humanizeBuilderOwner('claude-qa')).toBe('Engineer');
+    expect(humanizeBuilderOwner('agy-ui')).toBe('Fast Builder');
+    expect(deriveBuilderWorkerState({ stale: false, activeProcesses: 1, dirtyFiles: 0 })).toBe('working');
+    expect(deriveBuilderWorkerState({ stale: false, activeProcesses: 0, dirtyFiles: 0 })).toBe('checkpoint');
+    expect(deriveBuilderWorkerState({ stale: true, activeProcesses: 0, dirtyFiles: 0 })).toBe('needs_attention');
+  });
+
+  it('allows agent starts only from a clean local development control plane', () => {
+    expect(isLocalBuilderHostname('localhost')).toBe(true);
+    expect(isLocalBuilderHostname('127.0.0.1')).toBe(true);
+    expect(isLocalBuilderHostname('example.com')).toBe(false);
+
+    const idle = { version: 1 as const, runId: 'none', status: 'idle' as const, message: 'ready' };
+    expect(evaluateBuilderStartGuard({
+      hostname: 'localhost',
+      nodeEnv: 'development',
+      issues: [],
+      run: idle,
+    }).canStart).toBe(true);
+
+    expect(evaluateBuilderStartGuard({
+      hostname: 'example.com',
+      nodeEnv: 'production',
+      issues: [{ code: 'STALE_CLAIM', message: 'stale' }],
+      run: { ...idle, status: 'working' },
+    }).reasons).toHaveLength(4);
+  });
+
+  it('stores runner state in git-common coordination storage', () => {
+    const cwd = makeRepo();
+    writeGridBuilderRunState({
+      version: 1,
+      runId: 'abc123',
+      status: 'finished',
+      message: 'done',
+      exitCode: 0,
+    }, cwd);
+    expect(readGridBuilderRunState(cwd)).toMatchObject({
+      runId: 'abc123',
+      status: 'finished',
+      message: 'done',
+    });
+  });
+
+  it('prefers the canonical integration branch when present', () => {
+    const cwd = makeRepo();
+    execFileSync('git', ['branch', 'grid-canonical-integration-20260918'], { cwd });
+    execFileSync('git', ['branch', 'grid-canonical-integration-20260919'], { cwd });
+    expect(resolveGridBuilderIntegrationRef(cwd)).toBe('grid-canonical-integration-20260919');
+  });
+});
+

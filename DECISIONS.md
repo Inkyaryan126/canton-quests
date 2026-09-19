@@ -1220,3 +1220,17 @@ Each entry follows the standard ADR structure:
 
 
 
+### [ADR-055] 2026-09-19: Grid Builder OS Is a Local Control Plane, Not a Production Promotion Surface
+
+- **Decision**:
+  1. The Grid Builder OS is a local development control plane that may observe canonical Grid progress, coordinate isolated agent worktrees, and drive existing verification/integration gates.
+  2. The visual `BUILD THE GRID` action is permitted only from an authenticated Game Master session running on localhost/127.0.0.1/::1 in a non-production environment.
+  3. Browser actions are strictly allowlisted. Builder OS never accepts arbitrary shell commands, branch names, prompts, paths, or executable input from the UI.
+  4. Builder OS composes the existing Control Tower, Master Board, Product Director, Playable Loop Score, Definition-of-Done Gate, and Merge Conveyor instead of inventing a parallel source of truth.
+  5. Builder OS may orchestrate local isolated development and guarded canonical integration, but it can never directly merge or push to `main` / `master`, deploy, or perform production database changes.
+  6. Production promotion remains an explicit release activity outside Builder OS.
+- **Reason**:
+  - Gives a nontechnical operator a one-click, visual way to keep The Grid moving while preserving the repository's multi-agent coordination rules and a hard boundary between autonomous development and production authority.
+- **Status**: **ACCEPTED**
+
+---
