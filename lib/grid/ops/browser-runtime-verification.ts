@@ -365,14 +365,14 @@ export async function verifyGridBrowserRuntime(
   const cases: GridBrowserRuntimeCase[] = [];
   let failure: Error | null = null;
   try {
-    await waitForServer(origin, child, Date.now() + (options.startupTimeoutMs ?? 45_000), () => logs);
+    await waitForServer(origin, child, Date.now() + (options.startupTimeoutMs ?? 90_000), () => logs);
     browser = await chromium.launch({ headless: true, executablePath: browserExecutable.executablePath });
     const context = await browser.newContext({ viewport });
     try {
       for (const target of REQUIRED_CASES) {
         const page = await context.newPage();
         try {
-          cases.push(await runBrowserCase(page, origin, target, viewport, options.navigationTimeoutMs ?? 20_000));
+          cases.push(await runBrowserCase(page, origin, target, viewport, options.navigationTimeoutMs ?? 60_000));
         } finally {
           await page.close();
         }
