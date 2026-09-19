@@ -1,16 +1,19 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  buildGridMapLabelPlan,
   buildGridMapRenderPacket,
   buildGridMapScene,
   resolveGridMapSelection,
+  toggleGridMapSelection,
 } from '@/lib/grid/map';
 import type {
   GridMapInteractionTarget,
   GridMapRenderPacket,
   GridMapSelectionDetails,
 } from '@/lib/grid/map';
+import type { GridDevelopmentBranch } from '@/lib/grid/core/economy-types';
 import type { GridWorldProjection } from '@/lib/grid/server/world-projection';
 
 // ── Coordinate helpers (projected SVG canvas) ─────────────────────────────────
@@ -121,7 +124,28 @@ const ZOOM_MODES = [
   { label: 'Property', zoom: 16 },
 ] as const;
 
+export function propertyMarkerRadii(developmentLevel: number): {
+  visual: number;
+  hit: number;
+} {
+  const visual = developmentLevel > 0 ? 7 : 4.5;
+  return { visual, hit: Math.max(10, visual * 2) };
+}
+
 // ── Selection detail panel ────────────────────────────────────────────────────
+
+interface GridCityMapProps {
+  projection: GridWorldProjection;
+  economyWriteEnabled?: boolean;
+  busyClaim?: string | null;
+  busyPropertyAction?: string | null;
+  onClaimTerritory?: (territorySlug: string) => void;
+  onAcquireProperty?: (propertySlug: string) => void;
+  onDevelopProperty?: (
+    propertySlug: string,
+    branch: GridDevelopmentBranch,
+  ) => void;
+}
 
 function SelectionDetail({ selection }: { selection: GridMapSelectionDetails }) {
   if (selection.kind === 'district') {
@@ -188,11 +212,15 @@ function SelectionDetail({ selection }: { selection: GridMapSelectionDetails }) 
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export interface GridCityMapProps {
-  projection: GridWorldProjection;
-}
-
-export function GridCityMap({ projection }: GridCityMapProps) {
+export function GridCityMap({
+  projection,
+  economyWriteEnabled = false,
+  busyClaim = null,
+  busyPropertyAction = null,
+  onClaimTerritory,
+  onAcquireProperty,
+  onDevelopProperty,
+}: GridCityMapProps) {
   const [zoom, setZoom] = useState(10);
   const [selectedTarget, setSelectedTarget] = useState<GridMapInteractionTarget | null>(null);
 
@@ -200,6 +228,7 @@ export function GridCityMap({ projection }: GridCityMapProps) {
     () => buildGridMapRenderPacket(buildGridMapScene(projection, { zoom })),
     [projection, zoom],
   );
+  const labels = useMemo(() => buildGridMapLabelPlan(packet), [packet]);
 
   const selection = useMemo<GridMapSelectionDetails | null>(
     () => (selectedTarget ? resolveGridMapSelection(packet, selectedTarget) : null),
@@ -221,9 +250,7 @@ export function GridCityMap({ projection }: GridCityMapProps) {
   }, [packet.interactionTargets]);
 
   function handleTarget(target: GridMapInteractionTarget) {
-    setSelectedTarget((prev) =>
-      prev?.slug === target.slug && prev.kind === target.kind ? null : target,
-    );
+    setSelectedTarget((prev) => toggleGridMapSelection(prev, target));
   }
 
   function handleKeyDown(
@@ -238,6 +265,26 @@ export function GridCityMap({ projection }: GridCityMapProps) {
 
   const isSelected = (kind: string, slug: string) =>
     selectedTarget?.slug === slug && selectedTarget.kind === kind;
+
+  useEffect(() => {
+    if (
+      selectedTarget &&
+      !targetMap.has(`${selectedTarget.kind}:${selectedTarget.slug}`)
+    ) {
+      setSelectedTarget(null);
+    }
+  }, [selectedTarget, targetMap]);
+
+  const selectedTerritory =
+    selection?.kind === 'territory'
+      ? projection.territories.find((row) => row.slug === selection.slug)
+      : null;
+  const selectedProperty =
+    selection?.kind === 'property'
+      ? projection.properties.find((row) => row.slug === selection.slug)
+      : null;
+
+  const clearSelection = () => setSelectedTarget(null);
 
   return (
     <div className="space-y-3">
@@ -294,8 +341,9 @@ export function GridCityMap({ projection }: GridCityMapProps) {
                   packet.zoomBand === 'city'
                     ? 'fill-white/[0.02] cursor-pointer'
                     : 'fill-transparent'
-                } ${selected ? 'opacity-100' : 'hover:opacity-80'} outline-none focus-visible:opacity-100`}
+                } ${selected ? 'opacity-100 stroke-cyan-200' : 'hover:opacity-80'} outline-none focus-visible:opacity-100`}
                 strokeWidth={0.8}
+                data-selected={selected ? 'true' : undefined}
                 tabIndex={packet.zoomBand === 'city' && target ? 0 : -1}
                 role={packet.zoomBand === 'city' && target ? 'button' : undefined}
                 aria-pressed={
@@ -319,7 +367,7 @@ export function GridCityMap({ projection }: GridCityMapProps) {
               >
                 {packet.zoomBand === 'city' && (
                   <title>
-                    {p.slug} district — {p.controlRole}
+                    {`${p.slug} district — ${p.controlRole}`}
                   </title>
                 )}
               </path>
@@ -336,8 +384,9 @@ export function GridCityMap({ projection }: GridCityMapProps) {
                 key={`territory-${p.slug}`}
                 d={geometryPath(feature.geometry, bounds)}
                 fillRule="evenodd"
-                className={`${territoryFillClass(p.fillRole)} ${territoryStrokeClass(p.borderRole)} cursor-pointer motion-safe:transition-opacity ${selected ? 'opacity-100' : 'hover:opacity-80'} outline-none focus-visible:opacity-100`}
-                strokeWidth={territoryStrokeWidth(p.borderRole)}
+                className={`${territoryFillClass(p.fillRole)} ${territoryStrokeClass(p.borderRole)} cursor-pointer motion-safe:transition-opacity ${selected ? 'opacity-100 stroke-white' : 'hover:opacity-80'} outline-none focus-visible:opacity-100`}
+                strokeWidth={selected ? territoryStrokeWidth(p.borderRole) + 2 : territoryStrokeWidth(p.borderRole)}
+                data-selected={selected ? 'true' : undefined}
                 tabIndex={target ? 0 : -1}
                 role={target ? 'button' : undefined}
                 aria-pressed={selected ? true : undefined}
@@ -346,11 +395,30 @@ export function GridCityMap({ projection }: GridCityMapProps) {
                 onKeyDown={(e) => target && handleKeyDown(e, target)}
               >
                 <title>
-                  {p.name} — {p.districtSlug}
-                  {p.claimable ? ' — valid expansion' : ''}
-                  {p.contested ? ' — contested' : ''}
+                  {`${p.name} — ${p.districtSlug}${p.claimable ? ' — valid expansion' : ''}${p.contested ? ' — contested' : ''}`}
                 </title>
               </path>
+            );
+          })}
+
+          {/* Labels remain visible at the current zoom band, while tooltips stay
+              available on each interactive shape for assistive technology. */}
+          {labels.map((label) => {
+            const [x, y] = projectPoint(label.anchor.lng, label.anchor.lat, bounds);
+            return (
+              <text
+                key={`label-${label.kind}-${label.slug}`}
+                x={x}
+                y={y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="rgba(230, 250, 255, 0.82)"
+                fontSize="10"
+                fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+                pointerEvents="none"
+              >
+                {label.text}
+              </text>
             );
           })}
 
@@ -366,43 +434,125 @@ export function GridCityMap({ projection }: GridCityMapProps) {
                 : null;
             if (!coords) return null;
             const [cx, cy] = projectPoint(coords[0], coords[1], bounds);
+            const radii = propertyMarkerRadii(p.developmentLevel);
             return (
-              <circle
-                key={`property-${p.slug}`}
-                cx={cx}
-                cy={cy}
-                r={p.developmentLevel > 0 ? 7 : 4.5}
-                className={`${propertyFillClass(p.ownership)} stroke-black cursor-pointer motion-safe:transition-opacity ${selected ? 'opacity-100' : 'hover:opacity-80'} outline-none focus-visible:opacity-100`}
-                strokeWidth={2}
-                tabIndex={target ? 0 : -1}
-                role={target ? 'button' : undefined}
-                aria-pressed={selected ? true : undefined}
-                aria-label={`${p.name} property — ${p.ownership}`}
-                onClick={() => target && handleTarget(target)}
-                onKeyDown={(e) => target && handleKeyDown(e, target)}
-              >
-                <title>
-                  {p.name}
-                  {p.developmentLevel > 0
-                    ? ` — ${p.developmentBranch} L${p.developmentLevel}`
-                    : ''}
-                </title>
-              </circle>
+              <g key={`property-${p.slug}`}>
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={radii.hit}
+                  fill="transparent"
+                  stroke="transparent"
+                  tabIndex={target ? 0 : -1}
+                  role={target ? 'button' : undefined}
+                  aria-pressed={selected ? true : undefined}
+                  aria-label={`${p.name} property — ${p.ownership}`}
+                  onClick={() => target && handleTarget(target)}
+                  onKeyDown={(e) => target && handleKeyDown(e, target)}
+                />
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={radii.visual}
+                  className={`${propertyFillClass(p.ownership)} stroke-black pointer-events-none motion-safe:transition-opacity ${selected ? 'opacity-100 stroke-white' : 'opacity-90'}`}
+                  strokeWidth={selected ? 3.5 : 2}
+                  data-selected={selected ? 'true' : undefined}
+                >
+                  <title>
+                    {`${p.name}${p.developmentLevel > 0
+                      ? ` — ${p.developmentBranch} L${p.developmentLevel}`
+                      : ''}`}
+                  </title>
+                </circle>
+              </g>
             );
           })}
         </svg>
       </div>
 
       {/* Selected item detail */}
-      {selection && (
+      {selection ? (
         <div
-          className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm"
+          className="rounded-xl border border-cyan-300/25 bg-cyan-300/[.06] px-4 py-3 text-sm"
           aria-live="polite"
           aria-atomic="true"
         >
           <SelectionDetail selection={selection} />
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[.08] pt-3">
+            {selectedTerritory?.claimable && onClaimTerritory ? (
+              <button
+                type="button"
+                disabled={!economyWriteEnabled || busyClaim !== null}
+                onClick={() => onClaimTerritory(selectedTerritory.slug)}
+                className="min-h-9 rounded-lg border border-amber-300/25 bg-amber-300/[.08] px-3 py-2 font-display text-[11px] font-black uppercase tracking-[.08em] text-amber-100 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {busyClaim === selectedTerritory.slug
+                  ? 'Claiming…'
+                  : !economyWriteEnabled
+                    ? 'Expansion locked'
+                    : `Claim · ${selectedTerritory.claimCost.credits} CR · ${selectedTerritory.claimCost.commandPoints} CP`}
+              </button>
+            ) : null}
+            {selectedProperty?.acquirable && onAcquireProperty ? (
+              <button
+                type="button"
+                disabled={!economyWriteEnabled || !selectedProperty.affordableToAcquire || busyPropertyAction !== null}
+                onClick={() => onAcquireProperty(selectedProperty.slug)}
+                className="min-h-9 rounded-lg border border-cyan-300/25 bg-cyan-300/[.08] px-3 py-2 font-display text-[11px] font-black uppercase tracking-[.08em] text-cyan-100 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {!economyWriteEnabled
+                  ? 'Property actions locked'
+                  : selectedProperty.affordableToAcquire
+                    ? `Acquire · ${selectedProperty.acquisitionCost.credits} CR · ${selectedProperty.acquisitionCost.commandPoints} CP`
+                    : 'Resources required'}
+              </button>
+            ) : null}
+            {selectedProperty?.ownership === 'you' && onDevelopProperty
+              ? selectedProperty.developmentOptions.map((option) => {
+                  const actionKey = `property-develop:${selectedProperty.slug}:${option.branch}`;
+                  return (
+                    <button
+                      key={option.branch}
+                      type="button"
+                      disabled={!economyWriteEnabled || !option.affordable || busyPropertyAction !== null}
+                      onClick={() => onDevelopProperty(selectedProperty.slug, option.branch)}
+                      className="min-h-9 rounded-lg border border-cyan-300/20 bg-cyan-300/[.055] px-3 py-2 text-left font-display text-[11px] font-black uppercase tracking-[.05em] text-cyan-100 disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      {busyPropertyAction === actionKey
+                        ? 'Developing…'
+                        : `${option.branch} · L${option.level} · ${option.cost.credits} CR · ${option.cost.commandPoints} CP`}
+                    </button>
+                  );
+                })
+              : null}
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="min-h-9 rounded-lg border border-white/15 px-3 py-2 font-mono text-[10px] font-black uppercase tracking-[.1em] text-stone-300 hover:border-white/30 hover:text-white focus-visible:outline-none"
+            >
+              Clear selection
+            </button>
+          </div>
         </div>
-      )}
+      ) : selectedTarget ? (
+        <div
+          className="rounded-xl border border-amber-300/20 bg-amber-300/[.05] px-4 py-3 text-sm text-amber-100"
+          aria-live="polite"
+        >
+          That map target is no longer available in this world update.
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="ml-2 underline underline-offset-2 hover:text-white focus-visible:outline-none"
+          >
+            Clear selection
+          </button>
+        </div>
+      ) : packet.interactionTargets.length === 0 ? (
+        <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-stone-500" aria-live="polite">
+          No map targets are available at this zoom level.
+        </div>
+      ) : null}
 
       {/* Accessible text/list fallback — all map information without relying on SVG */}
       <details className="rounded-xl border border-white/[.06] bg-black/20">
@@ -413,7 +563,7 @@ export function GridCityMap({ projection }: GridCityMapProps) {
           className="max-h-64 overflow-y-auto px-4 pb-3 pt-1 text-xs text-stone-400"
           aria-label="Map interaction targets list"
         >
-          {packet.interactionTargets.map((target) => {
+          {packet.interactionTargets.length > 0 ? packet.interactionTargets.map((target) => {
             const details = resolveGridMapSelection(packet, target);
             if (!details) return null;
             const label =
@@ -454,7 +604,9 @@ export function GridCityMap({ projection }: GridCityMapProps) {
                 )}
               </li>
             );
-          })}
+          }) : (
+            <li className="px-4 pb-3 pt-1 text-xs text-stone-600">No targets available.</li>
+          )}
         </ul>
       </details>
     </div>
