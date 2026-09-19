@@ -17,6 +17,9 @@ import {
   writeGridBuilderRunState,
 } from '../lib/grid/ops/grid-builder-os';
 
+const builderClientSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder-client.tsx'), 'utf8');
+const builderStylesSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder.css'), 'utf8');
+
 const tempDirs: string[] = [];
 
 function makeRepo(): string {
@@ -39,6 +42,17 @@ afterEach(() => {
 });
 
 describe('Grid Builder OS helpers', () => {
+  it('keeps the Empire Panel command-center semantics visible without changing its live wiring', () => {
+    expect(builderClientSource).toContain('cq-builder-command-center');
+    expect(builderClientSource).toContain('THE GRID / EMPIRE PANEL');
+    expect(builderClientSource).toContain('aria-label="Build the Grid"');
+    expect(builderClientSource).toContain("'/api/admin/grid-builder/status'");
+    expect(builderClientSource).toContain("'/api/admin/grid-builder/action'");
+    expect(builderClientSource).toContain('cq-builder-ledger-section');
+    expect(builderStylesSource).toContain('.cq-builder-command-center');
+    expect(builderStylesSource).toContain('.cq-builder-ledger-section');
+  });
+
   it('counts only integrated milestones as completed progress', () => {
     expect(summarizeMilestoneProgress([
       'INTEGRATED',
@@ -144,4 +158,3 @@ describe('Grid Builder OS helpers', () => {
     expect(resolveGridBuilderIntegrationRef(cwd)).toBe('grid-canonical-integration-20260919');
   });
 });
-

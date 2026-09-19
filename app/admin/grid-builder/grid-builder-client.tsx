@@ -128,7 +128,7 @@ export default function GridBuilderClient() {
   const buttonDisabled = starting || runWorking || !snapshot.controls.canStartCycle;
 
   return (
-    <main className="cq-builder-shell">
+    <main className="cq-builder-shell cq-builder-command-center">
       <header className="cq-builder-topbar">
         <div>
           <span className="cq-builder-kicker">THE GRID / EMPIRE PANEL</span>
@@ -156,7 +156,7 @@ export default function GridBuilderClient() {
           <p>{snapshot.overall.readyToCombine > 0
             ? `${snapshot.overall.readyToCombine} more ${snapshot.overall.readyToCombine === 1 ? 'system is' : 'systems are'} ready to combine.`
             : 'Builders are moving the next systems toward safe checkpoints.'}</p>
-          <button className="cq-builder-button cq-builder-button--primary" disabled={buttonDisabled} onClick={() => void startCycle()}>
+          <button aria-label="Build the Grid" className="cq-builder-button cq-builder-button--primary" disabled={buttonDisabled} onClick={() => void startCycle()}>
             {starting ? 'STARTING CREW…' : runWorking ? 'CREW IS BUILDING…' : 'BUILD THE GRID'}
           </button>
           {!snapshot.controls.canStartCycle && snapshot.controls.reasons.length > 0 && (
@@ -205,7 +205,7 @@ export default function GridBuilderClient() {
         </div>
       </section>
 
-      <section className="cq-builder-section">
+      <section className="cq-builder-section cq-builder-ledger-section">
         <div className="cq-builder-section-heading">
           <div>
             <span className="cq-builder-eyebrow">THE CREW</span>
@@ -301,4 +301,3 @@ export default function GridBuilderClient() {
     </main>
   );
 }
-
