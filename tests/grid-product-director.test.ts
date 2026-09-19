@@ -119,6 +119,25 @@ describe('Grid product director', () => {
     expect(result.recommendations.map((item) => item.id)).toEqual(['safe']);
   });
 
+  it('does not misclassify a lightweight milestone board as a full Master Board', () => {
+    const result = recommendGridProductWork(input({
+      playableLoopScore: { ...loopScore(), highestValueBrokenLink: null, status: 'GREEN', score: 100 },
+      masterBoard: {
+        milestones: [
+          {
+            id: 'contest-system',
+            title: 'Contest Core',
+            phase: 'gameplay',
+            status: 'SAFE_NEXT_WORK',
+            detail: 'synthetic lightweight evidence',
+          },
+        ],
+      },
+    }));
+
+    expect(result.recommendations).toEqual([]);
+  });
+
   it('returns fewer than the limit when fewer safe candidates exist', () => {
     const result = recommendGridProductWork(input({
       limit: 3,
