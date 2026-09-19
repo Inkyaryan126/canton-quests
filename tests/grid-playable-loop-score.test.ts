@@ -175,6 +175,70 @@ describe('Grid playable loop score', () => {
     });
   });
 
+  it('recognizes canonical world/map evidence only with the implementation and focused tests', () => {
+    const board = {
+      version: 1,
+      health: {
+        generatedAt: '2026-09-19T06:00:00.000Z',
+        integrationRef: 'grid-canonical-integration-20260918',
+        integrationCommit: '6343e94',
+        localMainAvailable: false,
+        originMainAvailable: false,
+        boardroomAutonomousRunActive: false,
+        liveClaimCount: 0,
+        staleClaimCount: 0,
+        coordinationWarnings: [],
+      },
+      milestones: [],
+    } satisfies GridMasterBoard;
+
+    const result = collectPlayableLoopScore({ cwd: process.cwd(), board });
+    const mapWorld = result.stages.find((stage) => stage.id === 'mapWorld');
+
+    expect(mapWorld).toMatchObject({
+      status: 'GREEN',
+      contribution: 10,
+      source: 'repo-probe',
+      verification: 'browser/runtime not yet verified',
+    });
+    expect(mapWorld?.evidence.join(' ')).toContain(
+      'Canonical world/map projection implemented/integrated',
+    );
+  });
+
+  it('keeps world/map evidence red when either the canonical implementation or focused tests are absent', () => {
+    const board = {
+      version: 1,
+      health: {
+        generatedAt: '2026-09-19T06:00:00.000Z',
+        integrationRef: null,
+        integrationCommit: null,
+        localMainAvailable: false,
+        originMainAvailable: false,
+        boardroomAutonomousRunActive: false,
+        liveClaimCount: 0,
+        staleClaimCount: 0,
+        coordinationWarnings: [],
+      },
+      milestones: [],
+    } satisfies GridMasterBoard;
+
+    const result = collectPlayableLoopScore({
+      cwd: '/private/tmp/grid-loop-evidence-calibration-absent',
+      board,
+    });
+    const mapWorld = result.stages.find((stage) => stage.id === 'mapWorld');
+
+    expect(mapWorld).toMatchObject({
+      status: 'RED',
+      contribution: 0,
+      source: 'repo-probe',
+    });
+    expect(mapWorld?.evidence.join(' ')).toContain(
+      'Canonical world/map projection missing',
+    );
+  });
+
   it('keeps absent canonical entry and onboarding evidence RED', () => {
     const board = {
       version: 1,
