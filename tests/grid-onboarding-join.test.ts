@@ -108,6 +108,67 @@ describe('Grid onboarding season join', () => {
     expect(economy.joinSeason).not.toHaveBeenCalled();
   });
 
+  it('preserves a persisted repeat join without granting another starting wallet', async () => {
+    const seasonPort: GridOnboardingSeasonPort = {
+      getCurrentSeason: vi.fn().mockResolvedValue({
+        seasonId: joinedState.seasonId,
+        status: 'active',
+      }),
+    };
+    const economy = economyPort();
+    vi.mocked(economy.joinSeason)
+      .mockResolvedValueOnce(joinedState)
+      .mockResolvedValueOnce({ ...joinedState, joined: false, eventId: null });
+
+    await expect(
+      joinGridOnboardingSeason(homeCityPort(), seasonPort, economy, request),
+    ).resolves.toMatchObject({ joined: true, credits: 5000 });
+    await expect(
+      joinGridOnboardingSeason(homeCityPort(), seasonPort, economy, {
+        ...request,
+        idempotencyKey: 'onboarding:join:retry',
+      }),
+    ).resolves.toMatchObject({ joined: false, credits: 5000 });
+
+    expect(economy.joinSeason).toHaveBeenCalledTimes(2);
+  });
+
+  it('fails closed when persistence cannot complete the atomic join', async () => {
+    const seasonPort: GridOnboardingSeasonPort = {
+      getCurrentSeason: vi.fn().mockResolvedValue({
+        seasonId: joinedState.seasonId,
+        status: 'active',
+      }),
+    };
+    const economy = economyPort();
+    vi.mocked(economy.joinSeason).mockRejectedValue(
+      new Error('Failed to join Grid season: ECONOMY_NOT_CONFIGURED'),
+    );
+
+    await expect(
+      joinGridOnboardingSeason(homeCityPort(), seasonPort, economy, request),
+    ).rejects.toThrow('ECONOMY_NOT_CONFIGURED');
+    expect(economy.settleResources).not.toHaveBeenCalled();
+  });
+
+  it('rejects persisted state that does not match the authenticated request', async () => {
+    const seasonPort: GridOnboardingSeasonPort = {
+      getCurrentSeason: vi.fn().mockResolvedValue({
+        seasonId: joinedState.seasonId,
+        status: 'active',
+      }),
+    };
+    const economy = economyPort();
+    vi.mocked(economy.joinSeason).mockResolvedValue({
+      ...joinedState,
+      playerId: '70000000-0000-4000-8000-000000000099',
+    });
+
+    await expect(
+      joinGridOnboardingSeason(homeCityPort(), seasonPort, economy, request),
+    ).rejects.toThrow('returned state for a different player');
+  });
+
   it('validates player, idempotency, and time before touching persistence', async () => {
     const seasonPort: GridOnboardingSeasonPort = {
       getCurrentSeason: vi.fn(),
