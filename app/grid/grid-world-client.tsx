@@ -740,7 +740,17 @@ export default function GridWorldClient({
             </div>
 
             <div className="w-full p-2">
-              <GridCityMap projection={projection} />
+              <GridCityMap
+                projection={projection}
+                economyWriteEnabled={economyWriteEnabled}
+                busyClaim={busyClaim}
+                busyPropertyAction={busyPropertyAction}
+                onClaimTerritory={(territorySlug) => void claimTerritory(territorySlug)}
+                onAcquireProperty={(propertySlug) => void acquireProperty(propertySlug)}
+                onDevelopProperty={(propertySlug, branch) =>
+                  void developProperty(propertySlug, branch)
+                }
+              />
             </div>
           </div>
 
