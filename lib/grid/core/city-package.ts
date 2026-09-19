@@ -154,6 +154,21 @@ function validateGridEconomyConfig(
     validateEconomyCost(cost, `economy.propertyAcquisition.costByPropertySlug.${slug}`, errors);
   }
 
+  if (economy.takeover) {
+    const takeoverValues = [
+      ['developmentRetentionBps', economy.takeover.developmentRetentionBps],
+      ['conditionDamageBps', economy.takeover.conditionDamageBps],
+      ['conditionFloorBps', economy.takeover.conditionFloorBps],
+    ] as const;
+    for (const [key, value] of takeoverValues) {
+      if (!Number.isInteger(value) || value < 0 || value > 10_000) {
+        errors.push(
+          `economy.takeover.${key} must be an integer from 0..10000 basis points`,
+        );
+      }
+    }
+  }
+
   for (const branch of GRID_DEVELOPMENT_BRANCHES) {
     const branchConfig = economy.development[branch];
     if (!branchConfig || !Array.isArray(branchConfig.levels) || branchConfig.levels.length === 0) {

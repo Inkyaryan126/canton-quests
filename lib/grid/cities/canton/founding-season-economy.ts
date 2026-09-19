@@ -46,6 +46,13 @@ export const cantonFoundingSeasonEconomy: GridEconomyConfig = {
     requireTerritoryControl: true,
     defaultCost: cost(1500, 2),
   },
+  // Neutral launch policy: persist capture ownership/cooldowns now without
+  // inventing punitive balance. Damage can be tuned later through config only.
+  takeover: {
+    developmentRetentionBps: 10_000,
+    conditionDamageBps: 0,
+    conditionFloorBps: 0,
+  },
   development: {
     commerce: {
       levels: [
