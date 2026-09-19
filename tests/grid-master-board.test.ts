@@ -365,6 +365,53 @@ describe('Grid Master Board runtime collection', () => {
   });
 });
 
+function makeCanonicalDriftRepo(): string {
+  const repo = mkdtempSync(path.join(tmpdir(), 'grid-master-board-canonical-'));
+  git(repo, 'init', '-b', 'main');
+  git(repo, 'config', 'user.email', 'grid-board@test.local');
+  git(repo, 'config', 'user.name', 'Grid Board Test');
+  commitFile(repo, 'base.txt', 'base\n', 'base');
+
+  // A legacy grid-integration-* branch that predates City Compiler work and never
+  // picked up the completion commit.
+  git(repo, 'checkout', '-b', 'grid-integration-20260916');
+  commitFile(repo, 'legacy.txt', 'legacy\n', 'chore: legacy integration lane');
+  git(repo, 'checkout', 'main');
+
+  // A stale side branch matching city-compiler's branchPatterns that only carries
+  // unrelated work, which is exactly what a broken resolver would fall back to.
+  git(repo, 'checkout', '-b', 'grid-city-power-live-20260918');
+  commitFile(repo, 'city-power.txt', 'city power\n', 'GRID City Power: publish live seasonal ranking');
+  git(repo, 'checkout', 'main');
+
+  // The newer canonical integration branch that actually contains the real
+  // City Compiler completion commit.
+  git(repo, 'checkout', '-b', 'grid-canonical-integration-20260918');
+  commitFile(repo, 'compiler.txt', 'compiler\n', 'GRID Compiler 9: add CLI tooling and acceptance gate');
+  git(repo, 'checkout', 'main');
+
+  return repo;
+}
+
+describe('Grid Master Board canonical integration evidence', () => {
+  it('resolveIntegrationRef prefers a newer canonical branch over the legacy naming convention', () => {
+    const repo = makeCanonicalDriftRepo();
+    expect(resolveIntegrationRef(repo)).toBe('grid-canonical-integration-20260918');
+  });
+
+  it('classifies City Compiler as INTEGRATED from canonical history instead of stale side-branch evidence', () => {
+    const repo = makeCanonicalDriftRepo();
+    const board = collectGridMasterBoard({ cwd: repo });
+    const byId = new Map(board.milestones.map((item) => [item.id, item]));
+
+    expect(board.health.integrationRef).toBe('grid-canonical-integration-20260918');
+    const compiler = byId.get('city-compiler');
+    expect(compiler?.status).toBe('INTEGRATED');
+    expect(compiler?.evidenceSubject).toBe('GRID Compiler 9: add CLI tooling and acceptance gate');
+    expect(compiler?.detail).not.toMatch(/grid-city-power-live/);
+  });
+});
+
 describe('Grid Master Board completion evidence specificity', () => {
   it('does not let partial return/takeover core commits stand in for the active completion milestone', () => {
     const catalog = new Map(GRID_MILESTONES.map((item) => [item.id, item]));
