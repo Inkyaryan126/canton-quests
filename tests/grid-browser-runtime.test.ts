@@ -7,6 +7,7 @@ import {
   type GridBrowserRuntimeCase,
   type GridBrowserRuntimePage,
   type GridBrowserRuntimeReport,
+  type GridRuntimeProcessLike,
 } from '@/lib/grid/ops/browser-runtime-verification';
 
 function fakeLocator(count: number, text: string | null = null) {
@@ -188,7 +189,7 @@ describe('Grid browser runtime verification', () => {
   it('falls back to SIGKILL when a local server ignores SIGTERM', async () => {
     const signals: NodeJS.Signals[] = [];
     let listener: (() => void) | undefined;
-    const processLike = {
+    const processLike: GridRuntimeProcessLike = {
       exitCode: null,
       signalCode: null,
       kill: (signal: NodeJS.Signals) => {
