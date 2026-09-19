@@ -1,18 +1,29 @@
 import { collectGridMasterBoard } from '../lib/grid/master-board/collect';
-import { collectPlayableLoopScore } from '../lib/grid/ops/playable-loop-score';
+import {
+  collectPlayableLoopScore,
+  type PlayableLoopStageEvidence,
+} from '../lib/grid/ops/playable-loop-score';
+import {
+  runtimeEvidenceFromGridPlayerEntryReport,
+  verifyGridPlayerEntryRuntime,
+} from '../lib/grid/ops/player-entry-runtime';
 
 interface Options {
   json: boolean;
+  verifyEntryRuntime: boolean;
   integrationRef?: string;
 }
 
 function parseArgs(args: string[]): Options {
   let json = false;
+  let verifyEntryRuntime = false;
   let integrationRef: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === '--json') {
       json = true;
+    } else if (arg === '--verify-entry-runtime') {
+      verifyEntryRuntime = true;
     } else if (arg === '--integration-ref') {
       integrationRef = args[index + 1];
       if (!integrationRef) throw new Error('--integration-ref requires a ref value');
@@ -21,7 +32,7 @@ function parseArgs(args: string[]): Options {
       throw new Error(`Unknown Grid Playable Loop Score option: ${arg}`);
     }
   }
-  return { json, integrationRef };
+  return { json, verifyEntryRuntime, integrationRef };
 }
 
 function renderText(score: ReturnType<typeof collectPlayableLoopScore>): string {
@@ -45,15 +56,32 @@ function renderText(score: ReturnType<typeof collectPlayableLoopScore>): string 
   return `${lines.join('\n')}\n`;
 }
 
-try {
+async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const board = collectGridMasterBoard({
     cwd: process.cwd(),
     integrationRef: options.integrationRef,
   });
-  const score = collectPlayableLoopScore({ cwd: process.cwd(), board });
-  process.stdout.write(options.json ? `${JSON.stringify(score, null, 2)}\n` : renderText(score));
-} catch (error) {
+
+  let entryRuntimeEvidence: PlayableLoopStageEvidence | undefined;
+  if (options.verifyEntryRuntime) {
+    const report = await verifyGridPlayerEntryRuntime({ cwd: process.cwd() });
+    entryRuntimeEvidence = runtimeEvidenceFromGridPlayerEntryReport(report);
+  }
+
+  const score = collectPlayableLoopScore({
+    cwd: process.cwd(),
+    board,
+    runtimeEvidence: entryRuntimeEvidence
+      ? { entry: entryRuntimeEvidence }
+      : undefined,
+  });
+  process.stdout.write(
+    options.json ? `${JSON.stringify(score, null, 2)}\n` : renderText(score),
+  );
+}
+
+main().catch((error) => {
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
-}
+});

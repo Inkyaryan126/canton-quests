@@ -17,6 +17,8 @@
     "grid:agents": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-agent-control.ts",
     "grid:board": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-master-board.ts",
     "grid:watch": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-master-board.ts --watch",
+    "grid:score-playable-loop": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-playable-loop-score.ts",
+    "grid:verify-entry-runtime": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-player-entry-runtime.ts",
     "boardroom:start": "node --env-file=.env.local ./node_modules/vite-node/vite-node.mjs scripts/boardroom-start.ts",
     "boardroom:lock": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-lock.ts",
     "boardroom:task": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-task.ts",
