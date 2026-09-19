@@ -7,6 +7,7 @@ import {
   Building2,
   Compass,
   Crown,
+  History,
   Medal,
   Radio,
   Shield,
@@ -145,13 +146,22 @@ export default function GridRankingsClient() {
 
       <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <Link
-            href="/grid"
-            className="inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[.18em] text-stone-400 transition hover:text-cyan-300"
-          >
-            <ArrowLeft size={15} aria-hidden="true" />
-            City Board
-          </Link>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link
+              href="/grid"
+              className="inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[.18em] text-stone-400 transition hover:text-cyan-300"
+            >
+              <ArrowLeft size={15} aria-hidden="true" />
+              City Board
+            </Link>
+            <Link
+              href="/grid/history"
+              className="inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[.18em] text-stone-500 transition hover:text-amber-200"
+            >
+              <History size={15} aria-hidden="true" />
+              Season History
+            </Link>
+          </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1.5 font-mono text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">
             <Radio size={12} className="animate-pulse" aria-hidden="true" />
             Canton // City 001
