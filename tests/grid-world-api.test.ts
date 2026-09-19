@@ -9,6 +9,7 @@ describe('Grid world API Surge timing boundary', () => {
       'utf8',
     );
 
-    expect(route).toContain('now: new Date().toISOString()');
+    expect(route).toContain('const now = new Date().toISOString()');
+    expect(route).toContain('generatedAt: now');
   });
 });
