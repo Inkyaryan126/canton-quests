@@ -71,8 +71,15 @@ describe('Grid return briefing player UI contract', () => {
 
   it('re-enters the private City Board after the recap without exposing it publicly', () => {
     expect(client).toContain('href="/grid/preview"');
-    expect(client).toContain('Re-enter City Board');
+    expect(client).toContain('Open City Board');
     expect(publicGrid).not.toContain('href="/grid/preview"');
+  });
+
+  it('makes the existing City Board destination the explicit next action', () => {
+    expect(client).toContain('NEXT ACTION');
+    expect(client).toContain('Open City Board');
+    expect(client).toContain('Use the City Board to continue with your projected wallet and');
+    expect(client).toContain('Command Points.');
   });
 
   it('surfaces the private Strongholds battle screen from the authenticated return tools only', () => {
