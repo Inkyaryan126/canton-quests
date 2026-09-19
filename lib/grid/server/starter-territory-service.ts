@@ -27,6 +27,33 @@ export interface GridStarterTerritoryProjection {
   }>;
 }
 
+export async function isGridStarterTerritoryEligible(
+  port: GridStarterTerritoryPort,
+  pkg: GridCityPackage,
+  playerId: string,
+  territoryId: string,
+): Promise<boolean> {
+  if (!playerId.trim() || !territoryId.trim()) return false;
+
+  const economy = pkg.seasonTemplate.economy;
+  if (!economy) return false;
+
+  const context = await port.getContext(playerId);
+  if (!context.seasonPlayable || !context.joined) return false;
+
+  const configured = new Set(economy.neutralClaims.starterTerritorySlugs);
+  const buildableConfigured = new Set(
+    pkg.properties
+      .map((property) => property.territorySlug)
+      .filter((territorySlug) => configured.has(territorySlug)),
+  );
+
+  const territory = context.territories.find(
+    (candidate) => candidate.territoryId === territoryId,
+  );
+  return territory ? buildableConfigured.has(territory.territorySlug) : false;
+}
+
 export async function readGridStarterTerritories(
   port: GridStarterTerritoryPort,
   pkg: GridCityPackage,

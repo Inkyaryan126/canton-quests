@@ -34,6 +34,12 @@ describe('Grid onboarding starter claim API contract', () => {
     expect(route).not.toMatch(/body\.playerId|body\.seasonId|body\.now/);
   });
 
+  it('checks the submitted territory against server-resolved starter eligibility before claiming', () => {
+    expect(route).toContain('isGridStarterTerritoryEligible');
+    expect(route).toContain('Selected territory is not an eligible starter territory.');
+    expect(route).toMatch(/409/);
+  });
+
   it('calls only the starter-specific RPC instead of generic neutral claims', () => {
     expect(adapter).toContain("'grid_claim_onboarding_starter_territory'");
     expect(adapter).not.toContain("'grid_claim_neutral_territory'");

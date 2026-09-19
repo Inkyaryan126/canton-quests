@@ -108,16 +108,6 @@ export function createSupabaseGridStarterTerritoryPort(
       }
 
       const ownsAnyTerritory = (ownedResult.data ?? []).length > 0;
-      if (ownsAnyTerritory) {
-        return {
-          seasonPlayable,
-          joined: true,
-          credits: Number(wallet.credits),
-          commandPoints: Number(wallet.command_points),
-          ownsAnyTerritory: true,
-          territories: [],
-        };
-      }
 
       const starterSlugs =
         pkg.seasonTemplate.economy?.neutralClaims.starterTerritorySlugs ?? [];
@@ -127,7 +117,7 @@ export function createSupabaseGridStarterTerritoryPort(
           joined: true,
           credits: Number(wallet.credits),
           commandPoints: Number(wallet.command_points),
-          ownsAnyTerritory: false,
+          ownsAnyTerritory,
           territories: [],
         };
       }
@@ -178,7 +168,7 @@ export function createSupabaseGridStarterTerritoryPort(
         joined: true,
         credits: Number(wallet.credits),
         commandPoints: Number(wallet.command_points),
-        ownsAnyTerritory: false,
+        ownsAnyTerritory,
         territories: territoryRows.map((row) => ({
           territoryId: row.id,
           territorySlug: row.slug,
