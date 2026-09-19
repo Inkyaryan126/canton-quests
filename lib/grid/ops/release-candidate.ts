@@ -10,6 +10,7 @@ import {
   resolveIntegrationBranch,
   staleClaim,
   type AgentClaim,
+  type BoardroomTaskSummary,
   type CoordinationIssue,
   type WorktreeState,
 } from '../../agent-control';
@@ -575,8 +576,14 @@ export function collectGridReleaseCandidate(
   // 2. Control Tower Coordination
   const claims = options.claims ?? readClaims(cwd);
   const worktrees = options.worktrees ?? (options.claims !== undefined ? [] : listWorktreeStates(cwd, { fast: true }));
-  const boardroom = options.boardroomActive !== undefined
-    ? { autonomousRunActive: options.boardroomActive }
+  const boardroom: BoardroomTaskSummary = options.boardroomActive !== undefined
+    ? {
+        counts: {},
+        queued: [],
+        blocked: [],
+        rejected: [],
+        autonomousRunActive: options.boardroomActive,
+      }
     : boardroomSummary(cwd);
   const issues = options.coordinationIssues ?? (options.claims !== undefined && options.worktrees === undefined
     ? []
