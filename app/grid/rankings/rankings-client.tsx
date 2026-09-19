@@ -264,7 +264,9 @@ export default function GridRankingsClient() {
                         <img
                           src={entry.avatarUrl}
                           alt=""
-                          className="h-9 w-9 rounded-full border border-white/10 object-cover"
+                          width={36}
+                          height={36}
+                          className="cq-rank-row-avatar"
                         />
                       ) : (
                         <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 font-display text-sm font-black text-stone-400">

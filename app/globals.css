@@ -5756,6 +5756,16 @@ code, pre, .font-mono {
   font-size: 1.1rem;
   overflow: hidden;
   flex-shrink: 0;
+  object-fit: cover;
+}
+
+.cq-grid-history-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.12);
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .cq-rank-row-name {

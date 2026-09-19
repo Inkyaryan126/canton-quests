@@ -241,7 +241,9 @@ export default function GridSeasonHistoryClient() {
                           <img
                             src={entry.avatarUrl}
                             alt=""
-                            className="h-10 w-10 rounded-full border border-white/10 object-cover"
+                            width={40}
+                            height={40}
+                            className="cq-grid-history-avatar"
                           />
                         ) : (
                           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 font-display text-sm font-black text-stone-400">
