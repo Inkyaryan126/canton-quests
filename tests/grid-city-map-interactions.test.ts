@@ -56,6 +56,17 @@ describe('Grid city map interaction state', () => {
     expect(source).toContain('onDevelopProperty');
     expect(source).toContain('Clear selection');
   });
+
+  it('passes the authoritative economy action handlers from the world client into the map', () => {
+    const source = readFileSync(join(ROOT, 'app/grid/grid-world-client.tsx'), 'utf8');
+
+    expect(source).toContain('economyWriteEnabled={economyWriteEnabled}');
+    expect(source).toContain('busyClaim={busyClaim}');
+    expect(source).toContain('busyPropertyAction={busyPropertyAction}');
+    expect(source).toContain('onClaimTerritory={(territorySlug) => void claimTerritory(territorySlug)}');
+    expect(source).toContain('onAcquireProperty={(propertySlug) => void acquireProperty(propertySlug)}');
+    expect(source).toContain('void developProperty(propertySlug, branch)');
+  });
 });
 
 // ── Rendered map: visible labels, valid SVG tooltips, touch-friendly hit areas ─
