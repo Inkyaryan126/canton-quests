@@ -12,7 +12,14 @@ function git(cwd: string, ...args: string[]): string {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 }
 
-function repo(): { root: string; target: string; source: string } {
+function repo(
+  integrationRef = 'grid-integration-20260919',
+): {
+  root: string;
+  target: string;
+  source: string;
+  integrationRef: string;
+} {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'grid-merge-conveyor-'));
   roots.push(root);
   git(root, 'init', '-q');
@@ -21,12 +28,12 @@ function repo(): { root: string; target: string; source: string } {
   fs.writeFileSync(path.join(root, 'README.md'), 'base\n');
   git(root, 'add', 'README.md');
   git(root, 'commit', '-q', '-m', 'base');
-  git(root, 'branch', 'grid-integration-20260919');
+  git(root, 'branch', integrationRef);
   const target = path.join(root, 'integration');
   const source = path.join(root, 'source');
-  git(root, 'worktree', 'add', '-q', target, 'grid-integration-20260919');
+  git(root, 'worktree', 'add', '-q', target, integrationRef);
   git(root, 'worktree', 'add', '-q', '-b', 'feature-ready', source, 'HEAD');
-  return { root, target, source };
+  return { root, target, source, integrationRef };
 }
 
 function sourceChange(context: ReturnType<typeof repo>, file = 'lib/grid/example.ts', content = 'ready\n'): void {
@@ -45,6 +52,27 @@ describe('Grid merge conveyor', () => {
     const context = repo();
     expect(() => planMergeConveyor({ cwd: context.root, integrationRef: 'grid-integration-20260919' })).toThrow(/--branch|source branch/i);
     expect(git(context.root, 'rev-parse', 'grid-integration-20260919')).toBe(git(context.root, 'rev-parse', 'HEAD'));
+  });
+
+  it('accepts the canonical integration naming convention without accepting arbitrary targets', () => {
+    const context = repo('grid-canonical-integration-20260919');
+    sourceChange(context);
+
+    const result = planMergeConveyor({
+      cwd: context.root,
+      branch: 'feature-ready',
+      integrationRef: context.integrationRef,
+    });
+
+    expect(result.canExecute).toBe(true);
+    expect(result.integrationRef).toBe('grid-canonical-integration-20260919');
+    expect(() =>
+      planMergeConveyor({
+        cwd: context.root,
+        branch: 'feature-ready',
+        integrationRef: 'grid-canonical-integration-latest',
+      }),
+    ).toThrow(/dedicated integration/i);
   });
 
   it('refuses main and a source branch that is already integrated', () => {

@@ -137,7 +137,7 @@ function assertConflictFree(cwd: string, target: string, source: string): void {
 function resolveTarget(cwd: string, explicit?: string): { ref: string; worktree: WorktreeEntry } {
   const ref = explicit ?? resolveIntegrationBranch(cwd) ?? '';
   if (!ref) throw new Error('integration ref could not be resolved; pass --integration-ref');
-  if (!/^grid-integration-\d{8}$/.test(ref)) {
+  if (!/^grid-(?:canonical-)?integration-\d{8}$/.test(ref)) {
     throw new Error(`refuses non-dedicated integration target: ${ref}`);
   }
   if (!gitSucceeds(cwd, ['show-ref', '--verify', '--quiet', `refs/heads/${ref}`])) {
