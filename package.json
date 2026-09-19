@@ -22,7 +22,8 @@
     "boardroom:task": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-task.ts",
     "boardroom:budget": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-budget.ts",
     "boardroom:report": "node ./node_modules/vite-node/vite-node.mjs scripts/boardroom-report.ts",
-    "grid:release-gate": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-release-gate.ts"
+    "grid:release-gate": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-release-gate.ts",
+    "grid:production-activation": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-production-activation.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.1",
