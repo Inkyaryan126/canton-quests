@@ -116,7 +116,7 @@ describe('Grid Builder OS helpers', () => {
     expect(resolvePreferredCliBinary('codex', {
       homeDir: home,
       pathEnv: oldBin,
-      env: {},
+      env: { NODE_ENV: 'test' },
     })).toBe(preferred);
   });
 
