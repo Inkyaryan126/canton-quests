@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { GridMasterBoard } from '../lib/grid/master-board/types';
 import {
   PLAYABLE_LOOP_STAGES,
+  collectPlayableLoopScore,
   scorePlayableLoop,
   type PlayableLoopStageEvidence,
   type PlayableLoopStageId,
@@ -79,6 +81,46 @@ describe('Grid playable loop score', () => {
     expect(action?.contribution).toBe(8);
     expect(action?.verification).toBe('missing evidence');
     expect(result.highestValueBrokenLink?.stageId).toBe('action');
+  });
+
+
+  it('lets concrete runtime entry evidence upgrade the collected entry stage to GREEN', () => {
+    const board = {
+      version: 1,
+      health: {
+        generatedAt: '2026-09-19T06:00:00.000Z',
+        integrationRef: 'grid-integration-test',
+        integrationCommit: 'abc123',
+        localMainAvailable: false,
+        originMainAvailable: false,
+        boardroomAutonomousRunActive: false,
+        liveClaimCount: 0,
+        staleClaimCount: 0,
+        coordinationWarnings: [],
+      },
+      milestones: [],
+    } satisfies GridMasterBoard;
+
+    const result = collectPlayableLoopScore({
+      cwd: process.cwd(),
+      board,
+      runtimeEvidence: {
+        entry: {
+          status: 'GREEN',
+          evidence: ['real Next runtime redirect verified'],
+          source: 'runtime',
+          runtimeVerified: true,
+        },
+      },
+    });
+
+    const entry = result.stages.find((stage) => stage.id === 'entry');
+    expect(entry).toMatchObject({
+      status: 'GREEN',
+      contribution: 16,
+      source: 'runtime',
+      verification: 'browser/runtime verified',
+    });
   });
 
   it('labels implementation evidence as not browser/runtime verified unless stated', () => {

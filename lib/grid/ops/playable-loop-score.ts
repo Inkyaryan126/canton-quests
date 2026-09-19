@@ -180,6 +180,7 @@ export function scorePlayableLoop(input: PlayableLoopScoreInput): PlayableLoopSc
 export interface CollectPlayableLoopScoreOptions {
   cwd?: string;
   board: GridMasterBoard;
+  runtimeEvidence?: Partial<Record<PlayableLoopStageId, PlayableLoopStageEvidence>>;
 }
 
 function repoProbe(cwd: string, relativePaths: string[], label: string): PlayableLoopStageEvidence {
@@ -198,7 +199,10 @@ export function collectPlayableLoopScore(options: CollectPlayableLoopScoreOption
   const board = options.board;
   const milestone = (id: string) => milestoneEvidence(findMilestone(board, id));
   const stages: Partial<Record<PlayableLoopStageId, PlayableLoopStageEvidence>> = {
-    entry: repoProbe(cwd, ['app/grid/play/route.ts'], 'Grid player entry route'),
+    entry: combineEvidence([
+      options.runtimeEvidence?.entry,
+      repoProbe(cwd, ['app/grid/play/route.ts'], 'Grid player entry route'),
+    ]),
     identity: combineEvidence([milestone('onboarding'), repoProbe(cwd, ['app/grid/onboarding/page.tsx', 'app/api/grid/onboarding/home-city/route.ts'], 'Home City onboarding')]),
     seasonJoin: milestone('onboarding'),
     starterTerritory: combineEvidence([milestone('onboarding'), repoProbe(cwd, ['app/api/grid/onboarding/starter-territories/route.ts', 'app/api/grid/onboarding/starter-territories/claim/route.ts'], 'Starter territory flow')]),
