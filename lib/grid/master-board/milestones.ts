@@ -32,6 +32,6 @@ GRID_MILESTONES.push(
 );
 GRID_MILESTONES.push(
   { id: 'anti-cheat', title: 'Anti-Cheat & Fraud Controls', phase: 'operations', dependsOn: ['market', 'contest-system'], lanePatterns: ['anti-cheat', 'fraud'], branchPatterns: ['grid-anti-cheat', 'grid-fraud'], integrationCommitSignals: ['anti-cheat', 'fraud controls'] },
-  { id: 'season-archive', title: 'Season Conclusion & Archive', phase: 'season', dependsOn: ['surge', 'passport'], lanePatterns: ['season-archive', 'season-conclusion'], branchPatterns: ['grid-season-archive'], integrationCommitSignals: ['GRID Season: archive final standings and Passport history'] },
+  { id: 'season-archive', title: 'Season Conclusion & Archive', phase: 'season', dependsOn: ['surge', 'passport'], lanePatterns: ['season-archive', 'season-conclusion'], branchPatterns: ['grid-season-archive'], integrationCommitSignals: ['GRID Season: archive final standings and Passport history', 'GRID player loop: integrate archive power and offline defense'] },
   { id: 'production-activation', title: 'Canton Production Activation', phase: 'launch', dependsOn: ['launch-readiness', 'season-archive'], lanePatterns: ['production-activation'], branchPatterns: ['grid-production'], integrationCommitSignals: ['GRID Production: add activation preflight'] },
 );
