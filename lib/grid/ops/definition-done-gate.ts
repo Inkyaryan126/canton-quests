@@ -121,8 +121,17 @@ function git(cwd: string, args: string[], allowFailure = false): string {
   }
 }
 
+function gitSucceeds(cwd: string, args: string[]): boolean {
+  try {
+    execFileSync('git', args, { cwd, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function branchExists(cwd: string, branch: string): boolean {
-  return Boolean(git(cwd, ['show-ref', '--verify', '--quiet', 'refs/heads/' + branch], true));
+  return gitSucceeds(cwd, ['show-ref', '--verify', '--quiet', 'refs/heads/' + branch]);
 }
 
 function claimForBranch(cwd: string, branch: string, lane?: string): AgentClaim | undefined {
@@ -205,7 +214,7 @@ export function inspectDefinitionDoneGate(options: InspectDefinitionDoneGateOpti
   });
 
   const originRef = 'origin/' + options.branch;
-  const pushed = Boolean(git(root, ['rev-parse', '--verify', '--quiet', originRef], true))
+  const pushed = gitSucceeds(root, ['show-ref', '--verify', '--quiet', 'refs/remotes/' + originRef])
     && isAncestor(sourceCommit, originRef, root);
   const sourceIsAncestorOfIntegration = isAncestor(sourceCommit, integrationRef, root);
 
