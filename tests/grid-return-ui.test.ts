@@ -87,4 +87,10 @@ describe('Grid return briefing player UI contract', () => {
     expect(client).toContain('DEFENSE');
     expect(publicGrid).not.toContain('href="/grid/defense"');
   });
+
+  it('surfaces Dominance Heat from authenticated return tools only', () => {
+    expect(client).toContain('href="/grid/heat"');
+    expect(client).toContain('HEAT');
+    expect(publicGrid).not.toContain('href="/grid/heat"');
+  });
 });
