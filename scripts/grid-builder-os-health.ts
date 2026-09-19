@@ -59,7 +59,7 @@ function probeArgs(name: GridBuilderCliName, cwd: string): string[] {
   if (name === 'claude') {
     return ['-p', '--permission-mode', 'manual', '--output-format', 'text', HEALTH_PROMPT];
   }
-  return ['--skip-trust', '--approval-mode', 'plan', '-o', 'text', '-p', HEALTH_PROMPT];
+  return ['--mode', 'plan', '--output-format', 'text', '--print-timeout', '30s', `--print=${HEALTH_PROMPT}`];
 }
 
 async function probe(name: GridBuilderCliName, cwd: string): Promise<ProbeResult> {
@@ -126,7 +126,7 @@ async function main(): Promise<void> {
   const json = args.includes('--json');
   const results: ProbeResult[] = [];
 
-  for (const name of ['codex', 'claude', 'gemini'] as const) {
+  for (const name of ['codex', 'claude', 'agy'] as const) {
     const result = await probe(name, cwd);
     results.push(result);
     if (!json) {

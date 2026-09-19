@@ -128,12 +128,12 @@ describe('Grid Builder OS helpers', () => {
       entries: {
         codex: { status: 'ready', version: '0.154.0', detail: 'Live model probe passed.' },
         claude: { status: 'ready', version: '2.1.240', detail: 'Live model probe passed.' },
-        gemini: { status: 'needs_attention', version: '0.57.0', detail: 'Live health probe timed out after 30s.' },
+        agy: { status: 'ready', version: '1.2.7', detail: 'Live model probe passed.' },
       },
     }, cwd);
 
     const health = collectGridBuilderCliHealth(cwd);
-    expect(health.map((item) => item.status)).toEqual(['ready', 'ready', 'needs_attention']);
+    expect(health.map((item) => item.status)).toEqual(['ready', 'ready', 'ready']);
     expect(JSON.stringify(health)).not.toContain('/Users/');
   });
 

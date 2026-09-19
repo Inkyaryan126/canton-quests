@@ -45,7 +45,7 @@ These are follow-ups, not prerequisites for the first safe visual control plane.
 
 - Apply the black-glass / champagne-gold Empire Panel theme while preserving the existing responsive layout.
 - Present the operator-facing title as THE GRID / EMPIRE PANEL and keep BUILD THE GRID as the primary action.
-- Add three truthful crew-health cards for Codex, Claude, and Gemini.
+- Add three truthful crew-health cards for Codex, Claude, and Antigravity.
 - Prefer the newest local NVM binaries over stale PATH copies.
 - Add a bounded live health script with read-only prompts and process-group timeout cleanup.
 - Route the Builder OS runner through preferred Codex and Claude binaries.

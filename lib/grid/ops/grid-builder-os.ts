@@ -20,7 +20,7 @@ import { recommendGridProductWork } from './product-director';
 
 export type GridBuilderRunStatus = 'idle' | 'working' | 'finished' | 'needs_attention';
 export type GridBuilderWorkerState = 'working' | 'checkpoint' | 'needs_attention';
-export type GridBuilderCliName = 'codex' | 'claude' | 'gemini';
+export type GridBuilderCliName = 'codex' | 'claude' | 'agy';
 export type GridBuilderCliHealthStatus = 'ready' | 'installed' | 'needs_attention' | 'unavailable';
 
 export interface GridBuilderCliHealth {
@@ -148,6 +148,8 @@ export function resolvePreferredCliBinary(
   const candidates: string[] = [];
   if (override) candidates.push(override);
 
+  if (name === 'agy') candidates.push(path.join(homeDir, '.local', 'bin', 'agy'));
+
   const nvmVersions = path.join(homeDir, '.nvm', 'versions', 'node');
   try {
     for (const version of fs.readdirSync(nvmVersions).sort(compareNodeVersionsDesc)) {
@@ -209,7 +211,7 @@ export function collectGridBuilderCliHealth(cwd = process.cwd()): GridBuilderCli
   const definitions: Array<{ name: GridBuilderCliName; label: string; role: string }> = [
     { name: 'codex', label: 'Codex', role: 'Lead Builder' },
     { name: 'claude', label: 'Claude', role: 'Backup Engineer' },
-    { name: 'gemini', label: 'Gemini', role: 'Fast Builder' },
+    { name: 'agy', label: 'Antigravity', role: 'Fast Builder' },
   ];
 
   return definitions.map((definition) => {
@@ -313,7 +315,7 @@ export function humanizeBuilderOwner(owner: string): string {
   const value = owner.toLowerCase();
   if (value.includes('codex') || value.includes('astra')) return 'Lead Builder';
   if (value.includes('claude')) return 'Engineer';
-  if (value.includes('agy') || value.includes('gemini')) return 'Fast Builder';
+  if (value.includes('agy') || value.includes('antigravity')) return 'Fast Builder';
   return 'Builder';
 }
 

@@ -110,10 +110,10 @@ The initial implementation uses a bounded lead-process timeout and command failu
 
 The visual control plane presents the product name **THE GRID / EMPIRE PANEL** while retaining Builder OS as the underlying orchestration system.
 
-Crew health is evidence-based. A cached live probe records the last successful or failed model-level check for Codex, Claude, and Gemini. The status API exposes only the builder name, role, version, status, detail, and check time; it never exposes the local executable path.
+Crew health is evidence-based. A cached live probe records the last successful or failed model-level check for Codex, Claude, and Antigravity. The status API exposes only the builder name, role, version, status, detail, and check time; it never exposes the local executable path.
 
-CLI resolution intentionally prefers the newest executable under the operator's local NVM installation before falling back to PATH. This prevents automation shells from silently using stale system-wide copies when the interactive Terminal has a newer working CLI.
+CLI resolution intentionally prefers the operator's modern local toolchain before falling back to PATH: the newest NVM-installed binaries for Codex/Claude and `~/.local/bin/agy` for Antigravity. This prevents automation shells from silently using stale system-wide copies when the interactive Terminal has newer working CLIs.
 
-The one-shot runner uses the same preferred resolver for its Codex lead and Claude fallback and prepends that preferred binary directory to the supervisor PATH. Gemini health can fail without blocking a build cycle; the supervisor must route around an unhealthy worker instead of repeatedly retrying it.
+The one-shot runner uses the same preferred resolver for its Codex lead and Claude fallback and prepends that preferred binary directory to the supervisor PATH. Antigravity health can fail without blocking a build cycle; the supervisor must route around an unhealthy worker instead of repeatedly retrying it.
 
 A health probe is bounded. Each live model check runs with non-destructive/read-only permissions and a hard timeout. On Unix, the probe owns a process group so timeout cleanup terminates wrapper and descendant processes together.
