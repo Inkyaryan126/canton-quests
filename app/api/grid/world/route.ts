@@ -31,20 +31,54 @@ export async function GET(request: Request) {
   const economyWriteEnabled = isGridEconomyWriteEnabled();
   const contestWriteEnabled = isGridContestWriteEnabled();
 
+  const respond = (body: unknown, init?: ResponseInit) => {
+    const response = NextResponse.json(body, init);
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+    response.headers.set('Vary', 'Cookie');
+    setAuthCookies(response, session.refreshedSession, viewerPlayerId ?? undefined);
+    return response;
+  };
+
+  if (!runtimeEnabled) {
+    return respond(
+      { success: false, error: 'Grid runtime is not enabled.' },
+      { status: 404 },
+    );
+  }
+
+  if (!session.player) {
+    return respond(
+      { success: false, error: 'Authentication required.' },
+      { status: 401 },
+    );
+  }
+
   const now = new Date().toISOString();
   let runtime = null;
   let runtimeWarning: string | null = null;
 
-  if (runtimeEnabled) {
-    try {
-      runtime = await readSupabaseGridWorldRuntime(
-        cantonFoundingSeasonPackage,
-        viewerPlayerId,
-      );
-    } catch (error) {
-      runtimeWarning =
-        error instanceof Error ? error.message : 'Grid runtime read failed';
-    }
+  try {
+    runtime = await readSupabaseGridWorldRuntime(
+      cantonFoundingSeasonPackage,
+      viewerPlayerId,
+    );
+  } catch (error) {
+    return respond(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Grid runtime read failed.',
+      },
+      { status: 503 },
+    );
+  }
+  if (!runtime) {
+    return respond(
+      { success: false, error: 'Grid runtime data is unavailable.' },
+      { status: 503 },
+    );
   }
   const projection = buildGridWorldProjection(cantonFoundingSeasonPackage, {
     viewerPlayerId,
@@ -53,61 +87,54 @@ export async function GET(request: Request) {
     generatedAt: now,
   });
   let strongholds: GridNpcStrongholdWorldProjection[] = [];
-  if (runtimeEnabled) {
-    try {
-      const strongholdRuntime = await listGridNpcStrongholdLiveWorld(
-        createSupabaseGridNpcStrongholdRegistryPort(),
-        createSupabaseGridNpcStrongholdRuntimeEvidencePort(),
-        cantonFoundingSeasonPackage,
-        now,
-      );
-      if (strongholdRuntime.status === 'ready') {
-        strongholds = strongholdRuntime.strongholds;
-      } else {
-        const strongholdWarning = 'Grid stronghold runtime incomplete';
-        runtimeWarning = runtimeWarning
-          ? runtimeWarning + '; ' + strongholdWarning
-          : strongholdWarning;
-      }
-    } catch (error) {
-      const strongholdWarning =
-        error instanceof Error
-          ? 'Grid stronghold runtime read failed'
-          : 'Grid stronghold runtime read failed';
+  try {
+    const strongholdRuntime = await listGridNpcStrongholdLiveWorld(
+      createSupabaseGridNpcStrongholdRegistryPort(),
+      createSupabaseGridNpcStrongholdRuntimeEvidencePort(),
+      cantonFoundingSeasonPackage,
+      now,
+    );
+    if (strongholdRuntime.status === 'ready') {
+      strongholds = strongholdRuntime.strongholds;
+    } else {
+      const strongholdWarning = 'Grid stronghold runtime incomplete';
       runtimeWarning = runtimeWarning
         ? runtimeWarning + '; ' + strongholdWarning
         : strongholdWarning;
     }
+  } catch {
+    const strongholdWarning = 'Grid stronghold runtime read failed';
+    runtimeWarning = runtimeWarning
+      ? runtimeWarning + '; ' + strongholdWarning
+      : strongholdWarning;
   }
 
   let dynamicEvents: GridDynamicEventWorldProjection[] = [];
-  if (runtimeEnabled) {
-    try {
-      const eventInstances = await listActiveGridDynamicEvents(
-        createSupabaseGridDynamicEventPort(),
-        {
-          citySlug: cantonFoundingSeasonPackage.city.slug,
-          seasonSlug: cantonFoundingSeasonPackage.seasonTemplate.slug,
-          now,
-        },
-      );
-      dynamicEvents = buildGridDynamicEventWorldProjection(
-        cantonFoundingSeasonPackage,
-        eventInstances,
+  try {
+    const eventInstances = await listActiveGridDynamicEvents(
+      createSupabaseGridDynamicEventPort(),
+      {
+        citySlug: cantonFoundingSeasonPackage.city.slug,
+        seasonSlug: cantonFoundingSeasonPackage.seasonTemplate.slug,
         now,
-      );
-    } catch (error) {
-      const eventWarning =
-        error instanceof Error
-          ? error.message
-          : 'Grid dynamic event read failed';
-      runtimeWarning = runtimeWarning
-        ? runtimeWarning + '; ' + eventWarning
-        : eventWarning;
-    }
+      },
+    );
+    dynamicEvents = buildGridDynamicEventWorldProjection(
+      cantonFoundingSeasonPackage,
+      eventInstances,
+      now,
+    );
+  } catch (error) {
+    const eventWarning =
+      error instanceof Error
+        ? error.message
+        : 'Grid dynamic event read failed';
+    runtimeWarning = runtimeWarning
+      ? runtimeWarning + '; ' + eventWarning
+      : eventWarning;
   }
 
-  const response = NextResponse.json({
+  return respond({
     projection,
     strongholds,
     dynamicEvents,
@@ -116,7 +143,4 @@ export async function GET(request: Request) {
     contestWriteEnabled,
     runtimeWarning,
   });
-
-  setAuthCookies(response, session.refreshedSession, viewerPlayerId ?? undefined);
-  return response;
 }
