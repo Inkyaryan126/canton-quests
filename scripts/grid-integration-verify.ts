@@ -772,8 +772,10 @@ export async function runGridContractDiagnostics(
       const mockRevisionPort: GridWorldRevisionPort = {
         async readRevisionState() {
           return {
+            seasonId: pkg.seasonTemplate.slug,
             seasonStatus: 'active',
             seasonUpdatedAt: '2026-09-17T12:00:00.000Z',
+            latestEventId: 'diag-event-1',
             latestEventAt: '2026-09-17T12:05:00.000Z',
           };
         },
