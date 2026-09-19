@@ -75,10 +75,7 @@ export async function GET(request: Request) {
     );
   }
   if (!runtime) {
-    return respond(
-      { success: false, error: 'Grid runtime data is unavailable.' },
-      { status: 503 },
-    );
+    runtimeWarning = 'Grid world runtime is not activated for this environment yet';
   }
   const projection = buildGridWorldProjection(cantonFoundingSeasonPackage, {
     viewerPlayerId,
