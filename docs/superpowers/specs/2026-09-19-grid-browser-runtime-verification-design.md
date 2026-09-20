@@ -25,9 +25,9 @@ The cases are:
 
 1. `/grid/play` must resolve through the real signed-out entry route to `/grid`, with a successful final response and `THE GRID` heading.
 2. `/grid` must render the public entry/navigation shell with a successful response and `THE GRID` heading.
-3. `/grid/contracts` must render the protected contracts shell without fabricated auth, with a successful response, `CONTRACTS` heading, and the server-derived `PLAYER AUTHENTICATION REQUIRED` state.
+3. `/grid/contracts` must render the protected contracts shell without fabricated auth while world reads remain deliberately disabled, with a successful page response, `CONTRACTS` heading, and the server-derived `CONTRACT SIGNAL STAGED` state. The expected contract API `404` is part of that staged local contract and is allowed only for `/api/grid/contracts`.
 
-Each case records requested and final URL/path, final HTTP status, title, first heading, console errors, page errors, Next error-overlay count, viewport, and timestamps. A browser/page failure is `FAILED`; missing browser prerequisites are `SKIPPED`, never green.
+Each case records requested and final URL/path, final HTTP status, title, first heading, console errors, page errors, HTTP error URL/status evidence, Next error-overlay count, viewport, and timestamps. Browser-generated “failed resource” console messages are correlated through response evidence instead of being discarded blindly: only explicitly declared route/status pairs may be accepted, while missing chunks, bad assets, unexpected API errors, page errors, or overlays fail the report. A browser/page failure is `FAILED`; missing browser prerequisites are `SKIPPED`, never green.
 
 ## Safety and cleanup
 
@@ -35,4 +35,4 @@ The only process started is the child local Next dev server. It is terminated in
 
 ## Evaluation contract
 
-`evaluateGridBrowserRuntimeReport` returns `VERIFIED` only when every required case is present and has a successful status, expected final path/heading, zero console/page errors, and zero Next overlay elements. It returns `SKIPPED` only when a prerequisite was unavailable, and `FAILED` for actual runtime/page evidence failures.
+`evaluateGridBrowserRuntimeReport` returns `VERIFIED` only when every required case is present and has a successful page status, expected final path/heading/state, zero unexpected console/page errors, no unexpected HTTP error responses, and zero Next overlay elements. A route/status error is acceptable only when that exact pair is declared by the target as part of the intentionally staged local behavior. It returns `SKIPPED` only when a prerequisite was unavailable, and `FAILED` for actual runtime/page evidence failures.

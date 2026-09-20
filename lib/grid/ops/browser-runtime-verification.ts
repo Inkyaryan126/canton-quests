@@ -24,6 +24,7 @@ export interface GridBrowserRuntimeCase {
   authState: string | null;
   consoleErrors: string[];
   pageErrors: string[];
+  httpErrors: Array<{ url: string; status: number }>;
   overlayCount: number;
   viewport: GridBrowserRuntimeViewport;
   startedAt: string;
@@ -117,12 +118,14 @@ export interface GridBrowserRuntimeTarget {
   expectedPath: string;
   expectedHeading: string;
   expectedAuthState?: string;
+  allowedHttpErrors?: Array<{ pathname: string; status: number }>;
 }
 
 export interface GridBrowserRuntimeCollectionContext {
   httpStatus: number | null;
   consoleErrors: string[];
   pageErrors: string[];
+  httpErrors: Array<{ url: string; status: number }>;
   timestamps: { startedAt: string; finishedAt: string };
   viewport: GridBrowserRuntimeViewport;
   error?: string;
@@ -160,7 +163,8 @@ const REQUIRED_CASES: GridBrowserRuntimeTarget[] = [
     requestedPath: '/grid/contracts',
     expectedPath: '/grid/contracts',
     expectedHeading: 'CONTRACTS',
-    expectedAuthState: 'PLAYER AUTHENTICATION REQUIRED',
+    expectedAuthState: 'CONTRACT SIGNAL STAGED',
+    allowedHttpErrors: [{ pathname: '/api/grid/contracts', status: 404 }],
   },
 ];
 
@@ -172,7 +176,9 @@ export async function collectGridBrowserRuntimeEvidence(
   const finalUrl = page.url();
   const parsedUrl = new URL(finalUrl);
   const heading = (await page.locator('h1').first().textContent())?.trim() || null;
-  const authState = (await page.locator('h2').first().textContent())?.trim() || null;
+  const authState = target.expectedAuthState
+    ? (await page.locator('h2').first().textContent())?.trim() || null
+    : null;
   const overlayCount = await page
     .locator('[data-nextjs-dialog-overlay], [data-nextjs-toast]')
     .count();
@@ -189,6 +195,7 @@ export async function collectGridBrowserRuntimeEvidence(
     authState,
     consoleErrors: [...context.consoleErrors],
     pageErrors: [...context.pageErrors],
+    httpErrors: context.httpErrors.map((item) => ({ ...item })),
     overlayCount,
     viewport: { ...context.viewport },
     startedAt: context.timestamps.startedAt,
@@ -225,10 +232,20 @@ export function evaluateGridBrowserRuntimeReport(report: GridBrowserRuntimeRepor
       reasons.push(`${target.name}: heading did not contain ${target.expectedHeading}`);
     }
     if (target.expectedAuthState && !evidence.authState?.toUpperCase().includes(target.expectedAuthState)) {
-      reasons.push(`${target.name}: signed-out auth state did not contain ${target.expectedAuthState}`);
+      reasons.push(`${target.name}: protected state did not contain ${target.expectedAuthState}`);
     }
     if (evidence.consoleErrors.length > 0) {
       reasons.push(`${target.name}: browser console errors were captured`);
+    }
+    for (const httpError of evidence.httpErrors) {
+      let pathname = httpError.url;
+      try { pathname = new URL(httpError.url).pathname; } catch { /* Keep raw URL for diagnostics. */ }
+      const allowed = target.allowedHttpErrors?.some(
+        (rule) => rule.status === httpError.status && rule.pathname === pathname,
+      ) ?? false;
+      if (!allowed) {
+        reasons.push(`${target.name}: unexpected HTTP ${httpError.status} from ${pathname}`);
+      }
     }
     if (evidence.pageErrors.length > 0) {
       reasons.push(`${target.name}: page errors were captured`);
@@ -306,6 +323,24 @@ function appendLog(current: string, chunk: Buffer | string): string {
   return next.length > 16_000 ? next.slice(-16_000) : next;
 }
 
+export async function fetchGridRuntimeProbe(
+  url: string,
+  timeoutMs: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetchImpl(url, {
+      redirect: 'manual',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function waitForServer(origin: string, child: ChildProcess, deadline: number, logs: () => string): Promise<void> {
   let lastError = 'no response';
   while (Date.now() < deadline) {
@@ -313,7 +348,11 @@ async function waitForServer(origin: string, child: ChildProcess, deadline: numb
       throw new Error(`local Next server exited before browser verification (${String(child.exitCode ?? child.signalCode)}).\n${logs()}`);
     }
     try {
-      const response = await fetch(`${origin}/grid/play`, { redirect: 'manual', cache: 'no-store' });
+      const remainingMs = Math.max(1, deadline - Date.now());
+      const response = await fetchGridRuntimeProbe(
+        `${origin}/grid/play`,
+        Math.min(5_000, remainingMs),
+      );
       if (response.status >= 200 && response.status < 400) return;
       lastError = `status ${response.status}`;
     } catch (error) {
@@ -349,8 +388,16 @@ async function runBrowserCase(
   const startedAt = new Date().toISOString();
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
+  const httpErrors: Array<{ url: string; status: number }> = [];
   page.on?.('console', (message: { type(): string; text(): string }) => {
-    if (message.type() === 'error') consoleErrors.push(message.text());
+    if (message.type() !== 'error') return;
+    const text = message.text();
+    if (/^Failed to load resource: the server responded with a status of \d+/i.test(text)) return;
+    consoleErrors.push(text);
+  });
+  page.on?.('response', (response: { status(): number; url(): string }) => {
+    const status = response.status();
+    if (status >= 400) httpErrors.push({ url: response.url(), status });
   });
   page.on?.('pageerror', (error: Error) => pageErrors.push(error.message));
   try {
@@ -363,6 +410,7 @@ async function runBrowserCase(
       httpStatus: response?.status() ?? null,
       consoleErrors,
       pageErrors,
+      httpErrors,
       timestamps: { startedAt, finishedAt: new Date().toISOString() },
       viewport,
     });
@@ -381,6 +429,7 @@ async function runBrowserCase(
       authState: null,
       consoleErrors,
       pageErrors,
+      httpErrors,
       overlayCount: 0,
       viewport,
       startedAt,
@@ -465,7 +514,7 @@ export async function verifyGridBrowserRuntime(
   if (failure) {
     cases.push({
       name: 'harness', requestedPath: '', expectedPath: '', finalUrl: null, finalPath: null,
-      httpStatus: null, title: null, heading: null, authState: null, consoleErrors: [], pageErrors: [], overlayCount: 0,
+      httpStatus: null, title: null, heading: null, authState: null, consoleErrors: [], pageErrors: [], httpErrors: [], overlayCount: 0,
       viewport, startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), error: `${failure.message}\n${logs}`,
     });
   }
