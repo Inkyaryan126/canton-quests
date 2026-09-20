@@ -23,6 +23,7 @@ import {
   writeGridBuilderCliHealthRunState,
   writeGridBuilderRunState,
 } from '../lib/grid/ops/grid-builder-os';
+import { resolvePreferredLocalNodeBinary } from '../lib/grid/ops/local-toolchain';
 
 const builderClientSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder-client.tsx'), 'utf8');
 const builderStylesSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder.css'), 'utf8');
@@ -259,6 +260,28 @@ describe('Grid Builder OS helpers', () => {
       homeDir: home,
       pathEnv: oldBin,
       env: { NODE_ENV: 'test' },
+    })).toBe(preferred);
+  });
+
+  it('prefers the newest NVM Node over stale PATH and current-process Node', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'grid-runtime-home-'));
+    tempDirs.push(home);
+    const oldBin = path.join(home, 'old-bin');
+    const newBin = path.join(home, '.nvm', 'versions', 'node', 'v24.19.0', 'bin');
+    fs.mkdirSync(oldBin, { recursive: true });
+    fs.mkdirSync(newBin, { recursive: true });
+    const stale = path.join(oldBin, 'node');
+    const preferred = path.join(newBin, 'node');
+    fs.writeFileSync(stale, '#!/bin/sh\necho stale\n');
+    fs.writeFileSync(preferred, '#!/bin/sh\necho preferred\n');
+    fs.chmodSync(stale, 0o755);
+    fs.chmodSync(preferred, 0o755);
+
+    expect(resolvePreferredLocalNodeBinary({
+      homeDir: home,
+      pathEnv: oldBin,
+      env: { PATH: oldBin, NODE_ENV: 'test' },
+      currentExecPath: stale,
     })).toBe(preferred);
   });
 

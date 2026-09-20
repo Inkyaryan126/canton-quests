@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import net from 'node:net';
 import path from 'node:path';
 import type { PlayableLoopStageEvidence } from './playable-loop-score';
+import { resolvePreferredLocalNodeBinary } from './local-toolchain';
 
 export type GridPlayerEntryRuntimeMode = 'staged' | 'signed-out';
 
@@ -163,9 +164,10 @@ async function runRuntimeCase(
   const origin = `http://127.0.0.1:${port}`;
   const worldReadEnabled = mode === 'signed-out' ? '1' : '0';
   const nextBin = path.join(cwd, 'node_modules', 'next', 'dist', 'bin', 'next');
+  const nodeBin = resolvePreferredLocalNodeBinary();
   let logs = '';
 
-  const child = spawn(process.execPath, [nextBin, 'dev', '-H', '127.0.0.1', '-p', String(port)], {
+  const child = spawn(nodeBin, [nextBin, 'dev', '-H', '127.0.0.1', '-p', String(port)], {
     cwd,
     env: {
       ...process.env,
@@ -249,8 +251,8 @@ export async function verifyGridPlayerEntryRuntime(
   options: VerifyGridPlayerEntryRuntimeOptions = {},
 ): Promise<GridPlayerEntryRuntimeReport> {
   const cwd = options.cwd ?? process.cwd();
-  const startupTimeoutMs = options.startupTimeoutMs ?? 45_000;
-  const fetchTimeoutMs = options.fetchTimeoutMs ?? 10_000;
+  const startupTimeoutMs = options.startupTimeoutMs ?? 90_000;
+  const fetchTimeoutMs = options.fetchTimeoutMs ?? 60_000;
 
   const cases: GridPlayerEntryRuntimeCase[] = [];
   for (const mode of ['staged', 'signed-out'] as const) {

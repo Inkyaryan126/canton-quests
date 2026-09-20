@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   classifyGridPlayerEntryRedirect,
@@ -5,7 +7,19 @@ import {
   type GridPlayerEntryRuntimeReport,
 } from '../lib/grid/ops/player-entry-runtime';
 
+const playerEntryRuntimeSource = fs.readFileSync(
+  path.join(process.cwd(), 'lib/grid/ops/player-entry-runtime.ts'),
+  'utf8',
+);
+
 describe('Grid player-entry runtime verification', () => {
+  it('launches local Next with the preferred local Node toolchain', () => {
+    expect(playerEntryRuntimeSource).toContain('resolvePreferredLocalNodeBinary');
+    expect(playerEntryRuntimeSource).toContain('spawn(nodeBin');
+    expect(playerEntryRuntimeSource).toContain('options.startupTimeoutMs ?? 90_000');
+    expect(playerEntryRuntimeSource).toContain('options.fetchTimeoutMs ?? 60_000');
+    expect(playerEntryRuntimeSource).not.toContain('spawn(process.execPath');
+  });
   it('accepts only the staged public-shell redirect while world reads are disabled', () => {
     expect(
       classifyGridPlayerEntryRedirect({

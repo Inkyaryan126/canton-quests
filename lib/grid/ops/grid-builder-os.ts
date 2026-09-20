@@ -1,7 +1,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import {
   boardroomSummary,
@@ -18,6 +17,7 @@ import { collectGridMasterBoard } from '../master-board/collect';
 import type { GridMilestoneStatus } from '../master-board/types';
 import { collectPlayableLoopScore } from './playable-loop-score';
 import { recommendGridProductWork } from './product-director';
+import { resolvePreferredLocalBinary } from './local-toolchain';
 
 export type GridBuilderRunStatus = 'idle' | 'working' | 'finished' | 'needs_attention';
 export type GridBuilderHealthRunStatus = 'idle' | 'working' | 'finished' | 'needs_attention';
@@ -220,57 +220,16 @@ export function consumeGridBuilderLaunchToken(
   }
 }
 
-function nodeVersionParts(value: string): number[] {
-  const match = value.match(/^v?(\d+)\.(\d+)\.(\d+)/);
-  return match ? match.slice(1).map(Number) : [0, 0, 0];
-}
-
-function compareNodeVersionsDesc(a: string, b: string): number {
-  const av = nodeVersionParts(a);
-  const bv = nodeVersionParts(b);
-  for (let index = 0; index < 3; index += 1) {
-    if (av[index] !== bv[index]) return bv[index] - av[index];
-  }
-  return b.localeCompare(a);
-}
-
-function executable(filename: string): boolean {
-  try {
-    fs.accessSync(filename, fs.constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function resolvePreferredCliBinary(
   name: GridBuilderCliName,
   options: { homeDir?: string; pathEnv?: string; env?: NodeJS.ProcessEnv } = {},
 ): string | null {
   const env = options.env ?? process.env;
-  const homeDir = options.homeDir ?? os.homedir();
-  const pathEnv = options.pathEnv ?? env.PATH ?? '';
-  const override = env[`GRID_BUILDER_${name.toUpperCase()}_BIN`];
-  const candidates: string[] = [];
-  if (override) candidates.push(override);
-
-  const nvmVersions = path.join(homeDir, '.nvm', 'versions', 'node');
-  try {
-    for (const version of fs.readdirSync(nvmVersions).sort(compareNodeVersionsDesc)) {
-      candidates.push(path.join(nvmVersions, version, 'bin', name));
-    }
-  } catch {
-    // NVM is optional. PATH fallback below remains authoritative when absent.
-  }
-
-  for (const directory of pathEnv.split(path.delimiter).filter(Boolean)) {
-    candidates.push(path.join(directory, name));
-  }
-
-  for (const candidate of Array.from(new Set(candidates))) {
-    if (executable(candidate)) return candidate;
-  }
-  return null;
+  return resolvePreferredLocalBinary(name, {
+    homeDir: options.homeDir,
+    pathEnv: options.pathEnv ?? env.PATH,
+    override: env[`GRID_BUILDER_${name.toUpperCase()}_BIN`],
+  });
 }
 
 export function readGridBuilderCliHealthCache(cwd = process.cwd()): GridBuilderCliHealthCache | null {
