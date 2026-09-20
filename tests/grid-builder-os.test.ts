@@ -26,6 +26,7 @@ import {
 const builderClientSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder-client.tsx'), 'utf8');
 const builderStylesSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder.css'), 'utf8');
 const dockLaunchRouteSource = fs.readFileSync(path.join(process.cwd(), 'app/api/admin/grid-builder/launch/route.ts'), 'utf8');
+const builderRunnerSource = fs.readFileSync(path.join(process.cwd(), 'scripts/grid-builder-os-runner.ts'), 'utf8');
 
 const tempDirs: string[] = [];
 
@@ -104,6 +105,15 @@ describe('Grid Builder OS helpers', () => {
     expect(builderClientSource).not.toContain('{{');
     expect(builderStylesSource).toContain('.cq-artboard');
     expect(builderStylesSource).toContain('.cq-art-build-hotspot');
+  });
+
+  it('blocks false-success no-op cycles and falls back beyond Product Director', () => {
+    expect(builderRunnerSource).toContain('Master Board prioritizer');
+    expect(builderRunnerSource).toContain('canonical Grid specs, CURRENT_MISSION, and ROADMAP');
+    expect(builderRunnerSource).toContain('NO-OP BLOCKED');
+    expect(builderRunnerSource).toContain('progressFingerprint');
+    expect(builderRunnerSource).toContain('archiveBuilderLog');
+    expect(builderRunnerSource).toContain('Build cycle made no observable repo or claim progress');
   });
 
   it('counts only integrated milestones as completed progress', () => {

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
+import { readClaims } from '../lib/agent-control';
 import {
   gridBuilderLogFile,
   readGridBuilderRunState,
@@ -22,6 +23,39 @@ function appendLog(cwd: string, message: string): void {
   const filename = gridBuilderLogFile(cwd);
   fs.mkdirSync(path.dirname(filename), { recursive: true });
   fs.appendFileSync(filename, `[${new Date().toISOString()}] ${message}\n`);
+}
+
+function archiveBuilderLog(cwd: string, runId: string): void {
+  const latest = gridBuilderLogFile(cwd);
+  if (!runId || !fs.existsSync(latest) || fs.statSync(latest).size === 0) return;
+  fs.copyFileSync(latest, path.join(path.dirname(latest), `run-${runId}.log`));
+}
+
+function revParse(cwd: string, ref: string): string {
+  try {
+    return execFileSync('git', ['rev-parse', '--verify', ref], {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function progressFingerprint(cwd: string): string {
+  const integrationRef = resolveGridBuilderIntegrationRef(cwd) ?? '';
+  const integrationSha = integrationRef ? revParse(cwd, integrationRef) : '';
+  const claims = readClaims(cwd)
+    .filter((claim) => claim.lane !== 'grid-builder-os')
+    .map((claim) => [
+      claim.lane,
+      claim.branch,
+      revParse(cwd, claim.branch),
+      claim.goal,
+    ].join('|'))
+    .sort();
+  return [integrationRef, integrationSha, ...claims].join('\n');
 }
 
 function prepareSupervisorWorktree(cwd: string, runId: string): string {
@@ -84,10 +118,12 @@ function supervisorPrompt(): string {
     '- Use focused verification; never launch duplicate full typecheck/build jobs.',
     '- When a lane is complete, use the Definition-of-Done Gate, release it, then plan/execute the Merge Conveyor only when safe.',
     '- Keep up to three useful development lanes active when safe.',
-    '- Use Product Director recommendations as the shortlist, but derive exact file scope before claiming. Never invent filler work.',
+    '- Use Product Director recommendations as the first shortlist, but derive exact file scope before claiming. Never invent filler work.',
+    '- If Product Director returns zero recommendations, run the Master Board prioritizer. If that also returns zero, inspect live Boardroom/Control Tower state and canonical Grid specs, CURRENT_MISSION, and ROADMAP for explicitly documented unfinished work. Only claim work whose requirements already exist in repository source-of-truth documents; never invent undefined mechanics.',
     '- Every new worker gets an isolated worktree, explicit Control Tower claim, exact scope, and clear acceptance criteria.',
     '- Prefer the installed Claude and Gemini CLIs as worker agents when their specialization fits. Use Codex where higher-level architecture or difficult integration is justified.',
-    '- If a worker CLI is unavailable, stalled, or errors, record that and route to a healthy fallback instead of retrying the same failure repeatedly.',
+    '- If a worker CLI is unavailable, stalled, or errors, record that and route to a healthy fallback instead of retrying the same failure repeatedly. If all worker CLIs fail but one safe documented task is executable by the lead, the lead must complete that bounded task itself rather than ending the cycle empty.',
+    '- A successful cycle must produce observable progress: integrate a commit, advance a claimed branch, release/replace a completed claim, or create a new valid claim for documented work. Exiting cleanly with no repo/claim progress is NOT success.',
     '- Stop this cycle after existing ready work is harvested and safe replacement work is assigned or after a real blocker requires Dustin.',
     '',
     'At the end, print a concise operator summary: what was integrated, what remains active, what is blocked, and whether Dustin must do anything.',
@@ -175,11 +211,13 @@ async function main(): Promise<void> {
   const cwd = path.resolve(value(args, '--cwd') ?? process.cwd());
   const runId = value(args, '--run-id') ?? crypto.randomBytes(5).toString('hex');
   fs.mkdirSync(path.dirname(gridBuilderLogFile(cwd)), { recursive: true });
-  fs.writeFileSync(gridBuilderLogFile(cwd), '');
   const previous = readGridBuilderRunState(cwd);
   if (previous.status === 'working' && previous.pid !== process.pid) {
     throw new Error('Builder OS refused to start because another build cycle is already running.');
   }
+  archiveBuilderLog(cwd, previous.runId);
+  fs.writeFileSync(gridBuilderLogFile(cwd), '');
+  const beforeProgress = progressFingerprint(cwd);
 
   let state: GridBuilderRunState = {
     version: 1,
@@ -245,7 +283,12 @@ async function main(): Promise<void> {
 
   const cleanup = cleanupSupervisorWorktree(cwd, supervisorPath);
   if (!cleanup.clean) appendLog(cwd, cleanup.message ?? 'Supervisor worktree cleanup was refused.');
-  const ok = result.code === 0 && cleanup.clean;
+  const progressChanged = progressFingerprint(cwd) !== beforeProgress;
+  const leadSucceeded = result.code === 0 && cleanup.clean;
+  const ok = leadSucceeded && progressChanged;
+  if (leadSucceeded && !progressChanged) {
+    appendLog(cwd, 'NO-OP BLOCKED: lead exited successfully but canonical and claimed branch state did not advance.');
+  }
   const finalState: GridBuilderRunState = {
     ...readGridBuilderRunState(cwd),
     status: ok ? 'finished' : 'needs_attention',
@@ -253,15 +296,18 @@ async function main(): Promise<void> {
     exitCode: result.code,
     leadPid: undefined,
     message: ok
-      ? 'Build cycle finished. Refresh to see the new checkpoints and next work.'
-      : !cleanup.clean
-        ? cleanup.message ?? 'The supervisor worktree needs inspection before restarting.'
-        : result.timedOut
-        ? 'The build lead stopped after reaching the cycle time limit. Review before restarting.'
-        : 'The build crew could not finish this cycle. Review the needs-you panel before restarting.',
+      ? 'Build cycle finished with observable repo or claim progress.'
+      : leadSucceeded && !progressChanged
+        ? 'Build cycle made no observable repo or claim progress. It was blocked as a no-op instead of being reported as finished.'
+        : !cleanup.clean
+          ? cleanup.message ?? 'The supervisor worktree needs inspection before restarting.'
+          : result.timedOut
+            ? 'The build lead stopped after reaching the cycle time limit. Review before restarting.'
+            : 'The build crew could not finish this cycle. Review the needs-you panel before restarting.',
   };
   writeGridBuilderRunState(finalState, cwd);
-  appendLog(cwd, `Build cycle ${runId} finished status=${finalState.status} exit=${String(result.code)}`);
+  appendLog(cwd, `Build cycle ${runId} finished status=${finalState.status} exit=${String(result.code)} progress=${progressChanged ? 'changed' : 'unchanged'}`);
+  archiveBuilderLog(cwd, runId);
   process.exitCode = ok ? 0 : 1;
 }
 
