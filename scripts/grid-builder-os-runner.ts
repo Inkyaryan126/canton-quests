@@ -52,6 +52,27 @@ function resolveGitCommonDir(cwd: string): string {
   return path.resolve(cwd, common);
 }
 
+function evidenceFingerprint(cwd: string): string[] {
+  const evidenceDir = path.join(
+    resolveGitCommonDir(cwd),
+    'grid-agent-control',
+    'evidence',
+  );
+  if (!fs.existsSync(evidenceDir)) return [];
+
+  return fs.readdirSync(evidenceDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const filename = path.join(evidenceDir, entry.name);
+      const digest = crypto
+        .createHash('sha256')
+        .update(fs.readFileSync(filename))
+        .digest('hex');
+      return `evidence|${entry.name}|${digest}`;
+    })
+    .sort();
+}
+
 function progressFingerprint(cwd: string): string {
   const integrationRef = resolveGridBuilderIntegrationRef(cwd) ?? '';
   const integrationSha = integrationRef ? revParse(cwd, integrationRef) : '';
@@ -64,7 +85,12 @@ function progressFingerprint(cwd: string): string {
       claim.goal,
     ].join('|'))
     .sort();
-  return [integrationRef, integrationSha, ...claims].join('\n');
+  return [
+    integrationRef,
+    integrationSha,
+    ...claims,
+    ...evidenceFingerprint(cwd),
+  ].join('\n');
 }
 
 function prepareSupervisorWorktree(cwd: string, runId: string): string {
@@ -142,10 +168,15 @@ function supervisorPrompt(): string {
     '- Keep up to three useful development lanes active when safe.',
     '- Use Product Director recommendations as the first shortlist, but derive exact file scope before claiming. Never invent filler work.',
     '- If Product Director returns zero recommendations, run the Master Board prioritizer. If that also returns zero, inspect live Boardroom/Control Tower state and canonical Grid specs, CURRENT_MISSION, and ROADMAP for explicitly documented unfinished work. Only claim work whose requirements already exist in repository source-of-truth documents; never invent undefined mechanics.',
-    '- Every new worker gets an isolated worktree, explicit Control Tower claim, exact scope, and clear acceptance criteria.',
-    '- Prefer the installed Claude and Gemini CLIs as worker agents when their specialization fits. Use Codex where higher-level architecture or difficult integration is justified.',
-    '- If a worker CLI is unavailable, stalled, or errors, record that and route to a healthy fallback instead of retrying the same failure repeatedly. If all worker CLIs fail but one safe documented task is executable by the lead, the lead must complete that bounded task itself rather than ending the cycle empty.',
-    '- A successful cycle must produce observable progress: integrate a commit, advance a claimed branch, release/replace a completed claim, or create a new valid claim for documented work. Exiting cleanly with no repo/claim progress is NOT success.',
+    '- Before creating an implementation lane for a verification/readiness task, search the repo for the harness and current shared evidence. If the harness already exists and the only need is stale/missing evidence, run the existing local-only verifier directly with its `--record --json` mode instead of reimplementing it.',
+    '- Verification-only evidence refreshes do not require a product-code worker branch when no source edits are needed. They may update only shared git-common coordination evidence and must remain local-only with no production access.',
+    '- Every new implementation worker gets an isolated worktree, explicit Control Tower claim, exact scope, and clear acceptance criteria.',
+    '- Claude and Gemini are optional accelerators, not prerequisites. Prefer them only when their non-interactive CLI is already authenticated and healthy.',
+    '- When the current lead is Codex, NEVER launch nested `codex exec` as a worker. Nested Codex app-server startup can fail under the lead sandbox. The current lead is the Codex fallback.',
+    '- If Claude or Gemini is unavailable, not authenticated, missing a key, stalled, or errors, record that once and do not retry it this cycle.',
+    '- If worker CLIs are unavailable but one safe documented task remains, the current lead MUST execute that bounded task directly: create/claim an isolated worker worktree, edit only its claimed scope, run focused verification, commit the worker branch, then continue Definition-of-Done and Merge Conveyor. Missing worker authentication alone is NOT a Dustin blocker.',
+    '- Lead self-execution must happen in the claimed worker worktree under /private/tmp; never edit the supervisor worktree or canonical checkout to implement product code.',
+    '- A successful cycle must produce observable progress: integrate a commit, advance a claimed branch, release/replace a completed claim, create a new valid claim for documented work, or refresh commit-bound shared verification evidence. Exiting cleanly with no repo/claim/evidence progress is NOT success.',
     '- Stop this cycle after existing ready work is harvested and safe replacement work is assigned or after a real blocker requires Dustin.',
     '',
     'At the end, print a concise operator summary: what was integrated, what remains active, what is blocked, and whether Dustin must do anything.',
@@ -310,7 +341,7 @@ async function main(): Promise<void> {
   const leadSucceeded = result.code === 0 && cleanup.clean;
   const ok = leadSucceeded && progressChanged;
   if (leadSucceeded && !progressChanged) {
-    appendLog(cwd, 'NO-OP BLOCKED: lead exited successfully but canonical and claimed branch state did not advance.');
+    appendLog(cwd, 'NO-OP BLOCKED: lead exited successfully but canonical, claimed branch, and shared evidence state did not advance.');
   }
   const finalState: GridBuilderRunState = {
     ...readGridBuilderRunState(cwd),
@@ -319,9 +350,9 @@ async function main(): Promise<void> {
     exitCode: result.code,
     leadPid: undefined,
     message: ok
-      ? 'Build cycle finished with observable repo or claim progress.'
+      ? 'Build cycle finished with observable repo, claim, or verification-evidence progress.'
       : leadSucceeded && !progressChanged
-        ? 'Build cycle made no observable repo or claim progress. It was blocked as a no-op instead of being reported as finished.'
+        ? 'Build cycle made no observable repo, claim, or verification-evidence progress. It was blocked as a no-op instead of being reported as finished.'
         : !cleanup.clean
           ? cleanup.message ?? 'The supervisor worktree needs inspection before restarting.'
           : result.timedOut

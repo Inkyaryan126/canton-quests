@@ -120,11 +120,13 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('canonical Grid specs, CURRENT_MISSION, and ROADMAP');
     expect(builderRunnerSource).toContain('NO-OP BLOCKED');
     expect(builderRunnerSource).toContain('progressFingerprint');
+    expect(builderRunnerSource).toContain('evidenceFingerprint');
+    expect(builderRunnerSource).toContain("'grid-agent-control',\n    'evidence'");
     expect(builderRunnerSource).toContain('archiveBuilderLog');
     expect(builderRunnerSource).toContain('resolveGitCommonDir');
     expect(builderRunnerSource).toContain("'--add-dir', gitCommonDir");
     expect(builderRunnerSource).not.toContain("'--add-dir', cwd");
-    expect(builderRunnerSource).toContain('Build cycle made no observable repo or claim progress');
+    expect(builderRunnerSource).toContain('Build cycle made no observable repo, claim, or verification-evidence progress');
   });
 
   it('pins exact supervisor control-plane commands and keeps live health out of the sandbox', () => {
@@ -138,6 +140,15 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('Cached crew health is advisory only');
     expect(builderRunnerSource).not.toContain('npm run grid:product-director');
     expect(builderRunnerSource).not.toContain('scripts/grid-task-prioritizer.ts');
+  });
+
+  it('lets the lead finish bounded work without external worker authentication', () => {
+    expect(builderRunnerSource).toContain('Claude and Gemini are optional accelerators, not prerequisites');
+    expect(builderRunnerSource).toContain('NEVER launch nested `codex exec` as a worker');
+    expect(builderRunnerSource).toContain('the current lead MUST execute that bounded task directly');
+    expect(builderRunnerSource).toContain('Missing worker authentication alone is NOT a Dustin blocker');
+    expect(builderRunnerSource).toContain('run the existing local-only verifier directly with its `--record --json` mode');
+    expect(builderRunnerSource).toContain('refresh commit-bound shared verification evidence');
   });
 
   it('counts only integrated milestones as completed progress', () => {
