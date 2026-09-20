@@ -11,6 +11,7 @@ import {
   writeGridBuilderRunState,
   type GridBuilderRunState,
 } from '../lib/grid/ops/grid-builder-os';
+import { resolvePreferredLocalNodeBinary } from '../lib/grid/ops/local-toolchain';
 
 const MAX_LEAD_RUNTIME_MS = 30 * 60 * 1000;
 
@@ -93,6 +94,124 @@ function progressFingerprint(cwd: string): string {
   ].join('\n');
 }
 
+interface SharedEvidenceRecord {
+  status?: string;
+  integrationCommit?: string;
+  summary?: string;
+}
+
+interface EvidenceRefreshOutcome {
+  attempted: string[];
+  failures: string[];
+}
+
+function readSharedEvidence(cwd: string, filename: string): SharedEvidenceRecord | null {
+  const evidencePath = path.join(
+    resolveGitCommonDir(cwd),
+    'grid-agent-control',
+    'evidence',
+    filename,
+  );
+  if (!fs.existsSync(evidencePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(evidencePath, 'utf8')) as SharedEvidenceRecord;
+  } catch {
+    return null;
+  }
+}
+
+function refreshRequiredEvidence(
+  cwd: string,
+  supervisorPath: string,
+): EvidenceRefreshOutcome {
+  const integrationRef = resolveGridBuilderIntegrationRef(cwd);
+  const integrationCommit = integrationRef ? revParse(cwd, integrationRef) : '';
+  if (!integrationCommit) {
+    return {
+      attempted: [],
+      failures: ['Could not resolve the canonical integration commit for evidence refresh.'],
+    };
+  }
+
+  const nodeBin = resolvePreferredLocalNodeBinary();
+  const viteNode = path.join(
+    supervisorPath,
+    'node_modules',
+    'vite-node',
+    'vite-node.mjs',
+  );
+  const specs = [
+    {
+      id: 'browser-runtime',
+      filename: 'browser-runtime.json',
+      script: 'scripts/grid-browser-runtime.ts',
+      timeoutMs: 8 * 60 * 1000,
+    },
+    {
+      id: 'migration-safety',
+      filename: 'migration-safety.json',
+      script: 'scripts/grid-migration-safety.ts',
+      timeoutMs: 2 * 60 * 1000,
+    },
+  ];
+
+  const outcome: EvidenceRefreshOutcome = { attempted: [], failures: [] };
+  for (const spec of specs) {
+    const current = readSharedEvidence(cwd, spec.filename);
+    if (
+      current?.status === 'PASS'
+      && current.integrationCommit === integrationCommit
+    ) {
+      appendLog(cwd, `Evidence already current: ${spec.id} PASS @ ${integrationCommit.slice(0, 8)}`);
+      continue;
+    }
+
+    outcome.attempted.push(spec.id);
+    appendLog(cwd, `Refreshing parent-runner evidence: ${spec.id} @ ${integrationCommit.slice(0, 8)}`);
+    try {
+      execFileSync(
+        nodeBin,
+        [viteNode, spec.script, '--record', '--json'],
+        {
+          cwd: supervisorPath,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: spec.timeoutMs,
+          maxBuffer: 10 * 1024 * 1024,
+          env: {
+            ...process.env,
+            GRID_RUNTIME_NODE_BIN: nodeBin,
+            PATH: [
+              path.dirname(nodeBin),
+              process.env.PATH ?? '',
+            ].filter(Boolean).join(path.delimiter),
+          },
+        },
+      );
+    } catch (error) {
+      appendLog(
+        cwd,
+        `Parent evidence command failed for ${spec.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    const refreshed = readSharedEvidence(cwd, spec.filename);
+    if (
+      refreshed?.status !== 'PASS'
+      || refreshed.integrationCommit !== integrationCommit
+    ) {
+      outcome.failures.push(
+        `${spec.id}: ${refreshed?.summary ?? refreshed?.status ?? 'no valid evidence recorded'}`,
+      );
+      continue;
+    }
+
+    appendLog(cwd, `Parent evidence refresh passed: ${spec.id} @ ${integrationCommit.slice(0, 8)}`);
+  }
+
+  return outcome;
+}
+
 function prepareSupervisorWorktree(cwd: string, runId: string): string {
   const integrationRef = resolveGridBuilderIntegrationRef(cwd);
   if (!integrationRef) throw new Error('Builder OS could not find the canonical Grid integration branch.');
@@ -154,8 +273,8 @@ function supervisorPrompt(): string {
     '- Playable Loop: node ./node_modules/vite-node/vite-node.mjs scripts/grid-playable-loop-score.ts --json',
     '- Prioritizer: node ./node_modules/vite-node/vite-node.mjs scripts/grid-prioritize.ts --json',
     '- Builder snapshot: node ./node_modules/vite-node/vite-node.mjs scripts/grid-builder-os.ts status --json',
-    '- Browser evidence refresh: node ./node_modules/vite-node/vite-node.mjs scripts/grid-browser-runtime.ts --record --json',
-    '- Migration safety refresh: node ./node_modules/vite-node/vite-node.mjs scripts/grid-migration-safety.ts --record --json',
+    '- Browser evidence refresh is parent-runner owned. Do NOT run `scripts/grid-browser-runtime.ts --record` inside the supervisor sandbox; read the release candidate evidence instead.',
+    '- Migration safety refresh is parent-runner owned. Do NOT run `scripts/grid-migration-safety.ts --record` inside the supervisor sandbox; read the release candidate evidence instead.',
     '- Release candidate read: node ./node_modules/vite-node/vite-node.mjs scripts/grid-release-candidate.ts --json',
     '- Definition-of-Done: only after a named worker branch exists; call scripts/grid-definition-done-gate.ts with explicit --branch, --lane, and --integration-ref arguments.',
     '- Merge Conveyor: call scripts/grid-merge-conveyor.ts directly; planning is default and --execute is only for an already verified, released lane.',
@@ -289,6 +408,13 @@ async function main(): Promise<void> {
 
   const supervisorPath = prepareSupervisorWorktree(cwd, runId);
   appendLog(cwd, `Created isolated supervisor worktree ${supervisorPath}`);
+  const evidenceRefresh = refreshRequiredEvidence(cwd, supervisorPath);
+  if (evidenceRefresh.attempted.length > 0) {
+    appendLog(cwd, `Parent evidence refresh attempted: ${evidenceRefresh.attempted.join(', ')}`);
+  }
+  if (evidenceRefresh.failures.length > 0) {
+    appendLog(cwd, `Parent evidence refresh failures: ${evidenceRefresh.failures.join(' | ')}`);
+  }
   const prompt = supervisorPrompt();
   const codexBinary = resolvePreferredCliBinary('codex');
   const claudeBinary = resolvePreferredCliBinary('claude');
@@ -343,7 +469,8 @@ async function main(): Promise<void> {
   if (!cleanup.clean) appendLog(cwd, cleanup.message ?? 'Supervisor worktree cleanup was refused.');
   const progressChanged = progressFingerprint(cwd) !== beforeProgress;
   const leadSucceeded = result.code === 0 && cleanup.clean;
-  const ok = leadSucceeded && progressChanged;
+  const evidenceHealthy = evidenceRefresh.failures.length === 0;
+  const ok = leadSucceeded && progressChanged && evidenceHealthy;
   if (leadSucceeded && !progressChanged) {
     appendLog(cwd, 'NO-OP BLOCKED: lead exited successfully but canonical, claimed branch, and shared evidence state did not advance.');
   }
@@ -353,9 +480,11 @@ async function main(): Promise<void> {
     endedAt: new Date().toISOString(),
     exitCode: result.code,
     leadPid: undefined,
-    message: ok
-      ? 'Build cycle finished with observable repo, claim, or verification-evidence progress.'
-      : leadSucceeded && !progressChanged
+    message: !evidenceHealthy
+      ? `Required local verification evidence failed: ${evidenceRefresh.failures.join(' | ')}`
+      : ok
+        ? 'Build cycle finished with observable repo, claim, or verification-evidence progress.'
+        : leadSucceeded && !progressChanged
         ? 'Build cycle made no observable repo, claim, or verification-evidence progress. It was blocked as a no-op instead of being reported as finished.'
         : !cleanup.clean
           ? cleanup.message ?? 'The supervisor worktree needs inspection before restarting.'
@@ -364,7 +493,7 @@ async function main(): Promise<void> {
             : 'The build crew could not finish this cycle. Review the needs-you panel before restarting.',
   };
   writeGridBuilderRunState(finalState, cwd);
-  appendLog(cwd, `Build cycle ${runId} finished status=${finalState.status} exit=${String(result.code)} progress=${progressChanged ? 'changed' : 'unchanged'}`);
+  appendLog(cwd, `Build cycle ${runId} finished status=${finalState.status} exit=${String(result.code)} progress=${progressChanged ? 'changed' : 'unchanged'} evidence=${evidenceHealthy ? 'pass' : 'failed'}`);
   archiveBuilderLog(cwd, runId);
   process.exitCode = ok ? 0 : 1;
 }

@@ -136,8 +136,8 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('scripts/grid-playable-loop-score.ts --json');
     expect(builderRunnerSource).toContain('scripts/grid-prioritize.ts --json');
     expect(builderRunnerSource).toContain('scripts/grid-builder-os.ts status --json');
-    expect(builderRunnerSource).toContain('scripts/grid-browser-runtime.ts --record --json');
-    expect(builderRunnerSource).toContain('scripts/grid-migration-safety.ts --record --json');
+    expect(builderRunnerSource).toContain('Browser evidence refresh is parent-runner owned');
+    expect(builderRunnerSource).toContain('Migration safety refresh is parent-runner owned');
     expect(builderRunnerSource).toContain('scripts/grid-release-candidate.ts --json');
     expect(builderRunnerSource).toContain('Do NOT run scripts/grid-builder-os-health.ts from the supervisor sandbox');
     expect(builderRunnerSource).toContain('Do NOT use raw `kill -0`, sandbox-local `ps`');
@@ -145,6 +145,21 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('Cached crew health is advisory only');
     expect(builderRunnerSource).not.toContain('npm run grid:product-director');
     expect(builderRunnerSource).not.toContain('scripts/grid-task-prioritizer.ts');
+  });
+
+  it('refreshes required release evidence in the parent runner and fails closed', () => {
+    expect(builderRunnerSource).toContain('function refreshRequiredEvidence');
+    expect(builderRunnerSource).toContain('resolvePreferredLocalNodeBinary');
+    expect(builderRunnerSource).toContain("id: 'browser-runtime'");
+    expect(builderRunnerSource).toContain("id: 'migration-safety'");
+    expect(builderRunnerSource).toContain('Parent evidence refresh passed');
+    expect(builderRunnerSource).toContain('Browser evidence refresh is parent-runner owned');
+    expect(builderRunnerSource).toContain('Migration safety refresh is parent-runner owned');
+    expect(builderRunnerSource).toContain('const evidenceHealthy = evidenceRefresh.failures.length === 0');
+    expect(builderRunnerSource).toContain('Required local verification evidence failed');
+    expect(builderRunnerSource).not.toContain(
+      '- Browser evidence refresh: node ./node_modules/vite-node/vite-node.mjs scripts/grid-browser-runtime.ts --record --json',
+    );
   });
 
   it('lets the lead finish bounded work without external worker authentication', () => {
