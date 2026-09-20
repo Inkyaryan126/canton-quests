@@ -211,10 +211,11 @@ export default function GridBuilderClient() {
         <section className="cq-artboard" style={progressStyle} aria-label="The Grid Empire Panel">
           <Image
             className="cq-artboard-image"
-            src="/grid/boss-panel/empire-panel-approved.webp"
+            src="/grid/boss-panel/empire-panel-approved.png"
             alt=""
             width="1536"
             height="1024"
+            unoptimized
             draggable={false}
           />
 

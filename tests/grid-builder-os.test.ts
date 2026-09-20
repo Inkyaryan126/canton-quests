@@ -91,9 +91,10 @@ describe('Grid Builder OS helpers', () => {
 
   it('uses the approved Empire Panel art as a live-data shell without fake placeholder values', () => {
     expect(builderClientSource).toContain('cq-builder-command-center');
-    expect(builderClientSource).toContain('/grid/boss-panel/empire-panel-approved.webp');
+    expect(builderClientSource).toContain('/grid/boss-panel/empire-panel-approved.png');
     expect(builderClientSource).toContain("import Image from 'next/image'");
     expect(builderClientSource).toContain('<Image');
+    expect(builderClientSource).toContain('unoptimized');
     expect(builderClientSource).toContain('aria-label="Build the Grid"');
     expect(builderClientSource).toContain("'/api/admin/grid-builder/status'");
     expect(builderClientSource).toContain("'/api/admin/grid-builder/action'");
