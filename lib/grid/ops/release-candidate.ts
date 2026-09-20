@@ -337,12 +337,14 @@ function readCommitBoundVerificationEvidence(input: {
   expectedKind: string;
   integrationCommit: string | null;
   missingDetail: string;
+  missingStatus?: Extract<VerificationEvidenceStatus, 'MISSING' | 'PENDING'>;
+  requireBuildIncluded?: boolean;
 }): VerificationEvidenceItem {
   if (!fs.existsSync(input.filename)) {
     return {
       id: input.id,
       name: input.name,
-      status: 'MISSING',
+      status: input.missingStatus ?? 'MISSING',
       detail: input.missingDetail,
     };
   }
@@ -355,6 +357,7 @@ function readCommitBoundVerificationEvidence(input: {
       summary?: unknown;
       recordedAt?: unknown;
       integrationCommit?: unknown;
+      buildIncluded?: unknown;
     };
 
     if (parsed.version !== 1 || parsed.kind !== input.expectedKind) {
@@ -381,6 +384,17 @@ function readCommitBoundVerificationEvidence(input: {
         name: input.name,
         status: 'MISSING',
         detail: `Evidence is stale for the current candidate commit (recorded ${recordedCommit}; current ${currentCommit}). Re-run this verification on the current canonical commit.`,
+        recordedAt: typeof parsed.recordedAt === 'string' ? parsed.recordedAt : undefined,
+        source: 'evidence-file',
+      };
+    }
+
+    if (input.requireBuildIncluded && parsed.status === 'PASS' && parsed.buildIncluded !== true) {
+      return {
+        id: input.id,
+        name: input.name,
+        status: 'FAILED',
+        detail: 'Release-gate PASS evidence is invalid because the production build was not included.',
         recordedAt: typeof parsed.recordedAt === 'string' ? parsed.recordedAt : undefined,
         source: 'evidence-file',
       };
@@ -419,6 +433,7 @@ export function collectDefaultVerificationEvidence(context: {
   const evidenceDir = path.join(coordinationRoot(context.cwd), 'evidence');
   const browserModule = path.resolve(context.cwd, 'lib/grid/ops/browser-runtime-verification.ts');
   const migrationModule = path.resolve(context.cwd, 'lib/grid/ops/migration-safety.ts');
+  const releaseGateEvidenceModule = path.resolve(context.cwd, 'lib/grid/ops/release-gate-evidence.ts');
 
   const items: VerificationEvidenceItem[] = [
     readCommitBoundVerificationEvidence({
@@ -443,12 +458,18 @@ export function collectDefaultVerificationEvidence(context: {
     }),
   ];
 
-  items.push({
+  items.push(readCommitBoundVerificationEvidence({
+    filename: path.join(evidenceDir, 'release-gate.json'),
     id: 'release-gate',
     name: 'Full Grid Release Gate',
-    status: 'PENDING',
-    detail: 'Full release gate verification (tests, typecheck, lint, build) has not yet been executed for this candidate commit.',
-  });
+    expectedKind: 'release-gate',
+    integrationCommit: context.integrationCommit,
+    missingStatus: 'PENDING',
+    requireBuildIncluded: true,
+    missingDetail: fs.existsSync(releaseGateEvidenceModule)
+      ? 'Full release gate evidence has not yet been recorded for this candidate commit.'
+      : 'Full release gate evidence support is not yet integrated.',
+  }));
 
   return items;
 }

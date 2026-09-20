@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -386,6 +386,82 @@ describe('Grid Release Candidate Manifest', () => {
         expect(browserEvidence?.status).toBe('MISSING');
         expect(migrationEvidence?.status).toBe('MISSING');
         expect(releaseGateEvidence?.status).toBe('PENDING');
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('reads commit-bound full release-gate evidence from git-common bookkeeping', () => {
+      const tempDir = mkdtempSync(path.join(tmpdir(), 'grid-rc-release-gate-evidence-'));
+      try {
+        execFileSync('git', ['init', '-b', 'grid-canonical-integration-20260918'], { cwd: tempDir });
+        execFileSync('git', ['config', 'user.name', 'Test Operator'], { cwd: tempDir });
+        execFileSync('git', ['config', 'user.email', 'operator@test.local'], { cwd: tempDir });
+        writeFileSync(path.join(tempDir, 'README.md'), '# Test Grid\n');
+        execFileSync('git', ['add', 'README.md'], { cwd: tempDir });
+        execFileSync('git', ['commit', '-m', 'GRID Canonical: release gate proof'], { cwd: tempDir });
+        const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: tempDir, encoding: 'utf8' }).trim();
+        const evidenceDir = path.join(tempDir, '.git', 'grid-agent-control', 'evidence');
+        mkdirSync(evidenceDir, { recursive: true });
+        writeFileSync(path.join(evidenceDir, 'release-gate.json'), JSON.stringify({
+          version: 1,
+          kind: 'release-gate',
+          status: 'PASS',
+          integrationCommit: head,
+          recordedAt: '2026-09-20T03:10:00.000Z',
+          summary: 'Full release gate PASS: all verification steps passed, including the production build.',
+          buildIncluded: true,
+        }));
+
+        const manifest = collectGridReleaseCandidate({
+          cwd: tempDir,
+          cleanWorktree: true,
+          masterBoard: mockBoard(),
+          playableLoopScore: mockPlayableLoop(),
+          productionActivation: mockActivationReport(),
+          claims: [],
+        });
+        const releaseGateEvidence = manifest.verificationEvidence.find((e) => e.id === 'release-gate');
+        expect(releaseGateEvidence?.status).toBe('VERIFIED');
+        expect(releaseGateEvidence?.metadata?.integrationCommit).toBe(head);
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('rejects forged release-gate PASS evidence that did not include a production build', () => {
+      const tempDir = mkdtempSync(path.join(tmpdir(), 'grid-rc-release-gate-no-build-'));
+      try {
+        execFileSync('git', ['init', '-b', 'grid-canonical-integration-20260918'], { cwd: tempDir });
+        execFileSync('git', ['config', 'user.name', 'Test Operator'], { cwd: tempDir });
+        execFileSync('git', ['config', 'user.email', 'operator@test.local'], { cwd: tempDir });
+        writeFileSync(path.join(tempDir, 'README.md'), '# Test Grid\n');
+        execFileSync('git', ['add', 'README.md'], { cwd: tempDir });
+        execFileSync('git', ['commit', '-m', 'GRID Canonical: invalid gate proof'], { cwd: tempDir });
+        const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: tempDir, encoding: 'utf8' }).trim();
+        const evidenceDir = path.join(tempDir, '.git', 'grid-agent-control', 'evidence');
+        mkdirSync(evidenceDir, { recursive: true });
+        writeFileSync(path.join(evidenceDir, 'release-gate.json'), JSON.stringify({
+          version: 1,
+          kind: 'release-gate',
+          status: 'PASS',
+          integrationCommit: head,
+          recordedAt: '2026-09-20T03:10:00.000Z',
+          summary: 'PASS without a build.',
+          buildIncluded: false,
+        }));
+
+        const manifest = collectGridReleaseCandidate({
+          cwd: tempDir,
+          cleanWorktree: true,
+          masterBoard: mockBoard(),
+          playableLoopScore: mockPlayableLoop(),
+          productionActivation: mockActivationReport(),
+          claims: [],
+        });
+        const releaseGateEvidence = manifest.verificationEvidence.find((e) => e.id === 'release-gate');
+        expect(releaseGateEvidence?.status).toBe('FAILED');
+        expect(releaseGateEvidence?.detail).toContain('production build was not included');
       } finally {
         rmSync(tempDir, { recursive: true, force: true });
       }
