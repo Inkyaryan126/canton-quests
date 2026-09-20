@@ -131,6 +131,7 @@ function supervisorPrompt(): string {
     '- Definition-of-Done: only after a named worker branch exists; call scripts/grid-definition-done-gate.ts with explicit --branch, --lane, and --integration-ref arguments.',
     '- Merge Conveyor: call scripts/grid-merge-conveyor.ts directly; planning is default and --execute is only for an already verified, released lane.',
     '- Do NOT run scripts/grid-builder-os-health.ts from the supervisor sandbox. It writes shared health state; use cached crew health from the Builder snapshot. Live health refresh belongs to the Boss Panel.',
+    '- Cached crew health is advisory only. Do not block a cycle because cached health is stale or red when the current lead/worker process itself is running successfully; live worker launch results are stronger evidence.',
     '',
     'OPERATING RULES:',
     '- Do not edit the current canonical/integration checkout directly.',

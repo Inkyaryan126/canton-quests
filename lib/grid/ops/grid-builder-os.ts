@@ -373,13 +373,22 @@ export function writeGridBuilderRunState(state: GridBuilderRunState, cwd = proce
   fs.writeFileSync(gridBuilderStateFile(cwd), `${JSON.stringify(state, null, 2)}\n`);
 }
 
+export function gridBuilderProcessProbeErrorMeansAlive(error: unknown): boolean {
+  return Boolean(
+    error
+    && typeof error === 'object'
+    && 'code' in error
+    && (error as NodeJS.ErrnoException).code === 'EPERM',
+  );
+}
+
 function processAlive(pid?: number): boolean {
   if (!pid || !Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    return gridBuilderProcessProbeErrorMeansAlive(error);
   }
 }
 

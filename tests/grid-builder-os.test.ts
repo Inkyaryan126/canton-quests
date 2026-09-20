@@ -9,6 +9,7 @@ import {
   evaluateBuilderStartGuard,
   formatGridBuilderCliFailureDetail,
   gridBuilderLaunchTokenFile,
+  gridBuilderProcessProbeErrorMeansAlive,
   humanizeBuilderOwner,
   isLocalBuilderHostname,
   issueGridBuilderLaunchToken,
@@ -59,6 +60,12 @@ describe('Grid Builder OS helpers', () => {
         1,
       )).toBe('Claude sign-in expired. Run claude auth login in Terminal.');
     }
+  });
+
+  it('treats EPERM process probes as evidence that the process still exists', () => {
+    expect(gridBuilderProcessProbeErrorMeansAlive(Object.assign(new Error('not permitted'), { code: 'EPERM' }))).toBe(true);
+    expect(gridBuilderProcessProbeErrorMeansAlive(Object.assign(new Error('missing'), { code: 'ESRCH' }))).toBe(false);
+    expect(gridBuilderProcessProbeErrorMeansAlive(new Error('unknown'))).toBe(false);
   });
 
   it('maps Codex version failures to an upgrade action', () => {
@@ -127,6 +134,7 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('scripts/grid-prioritize.ts --json');
     expect(builderRunnerSource).toContain('scripts/grid-builder-os.ts status --json');
     expect(builderRunnerSource).toContain('Do NOT run scripts/grid-builder-os-health.ts from the supervisor sandbox');
+    expect(builderRunnerSource).toContain('Cached crew health is advisory only');
     expect(builderRunnerSource).not.toContain('npm run grid:product-director');
     expect(builderRunnerSource).not.toContain('scripts/grid-task-prioritizer.ts');
   });
