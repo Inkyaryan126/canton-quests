@@ -5,12 +5,14 @@ import {
   coordinationIssues,
   createClaim,
   heartbeatClaim,
+  listLiveWorktreeStates,
   listWorktreeStates,
   pruneSafeWorktrees,
   readClaims,
   releaseClaim,
   repoRoot,
   staleClaim,
+  worktreeCount,
 } from '../lib/agent-control';
 import { runGridMasterBoardCli } from '../lib/grid/master-board/cli';
 
@@ -34,10 +36,16 @@ function formatAge(iso: string): string {
   return `${hours}h${minutes % 60}m`;
 }
 
-function status(args: string[] = []): void {
-  const deep = args.includes('--deep');
+async function status(args: string[] = []): Promise<void> {
   const claims = readClaims();
-  const worktrees = listWorktreeStates(process.cwd(), { deep, fast: !deep });
+  const deep = args.includes('--deep');
+  const totalWorktrees = worktreeCount();
+  console.log(deep
+    ? `Control Tower: deep-scanning ${totalWorktrees} worktrees...`
+    : 'Control Tower: scanning live work only...');
+  const worktrees = deep
+    ? listWorktreeStates(process.cwd(), { deep: true })
+    : await listLiveWorktreeStates(claims);
   const boardroom = boardroomSummary();
   const claimByWorktree = new Map(claims.map((claim) => [claim.worktree, claim]));
 
@@ -51,7 +59,7 @@ function status(args: string[] = []): void {
     console.log(`    goal=${claim.goal}`);
     console.log(`    scope=${claim.scope.join(', ') || '(unspecified)'}`);
   }
-  console.log('\nWorktrees:');
+  console.log(`\nWorktrees (${deep ? 'deep' : 'live'} view):`);
   for (const worktree of worktrees) {
     const claim = claimByWorktree.get(worktree.path);
     const dirty = worktree.dirtyPaths.length;
@@ -67,6 +75,10 @@ function status(args: string[] = []): void {
     console.log(`    dirty=${dirty} activeProcesses=${worktree.activeProcessCount} last=${worktree.lastCommitSubject}`);
     for (const dirtyPath of worktree.dirtyPaths.slice(0, 8)) console.log(`      ${dirtyPath}`);
     if (worktree.dirtyPaths.length > 8) console.log(`      … ${worktree.dirtyPaths.length - 8} more`);
+  }
+  const omitted = totalWorktrees - worktrees.length;
+  if (!deep && omitted > 0) {
+    console.log(`  ... ${omitted} dormant worktrees skipped (use status --deep for a full audit)`);
   }
 
   console.log('\nBoardroom ledger:');
@@ -91,13 +103,21 @@ function status(args: string[] = []): void {
   else for (const issue of issues) console.log(`  ${issue.code}: ${issue.message}`);
 }
 
-function check(): void {
+async function check(args: string[]): Promise<void> {
   const claims = readClaims();
-  const worktrees = listWorktreeStates();
+  const deep = args.includes('--deep');
+  const totalWorktrees = worktreeCount();
+  console.log(deep
+    ? `GRID AGENT PREFLIGHT: deep-scanning ${totalWorktrees} worktrees...`
+    : 'GRID AGENT PREFLIGHT: scanning live work only...');
+  const worktrees = deep ? listWorktreeStates() : await listLiveWorktreeStates(claims);
   const boardroom = boardroomSummary();
   const issues = coordinationIssues(claims, worktrees, boardroom);
   if (issues.length === 0) {
-    console.log('GRID AGENT PREFLIGHT OK');
+    const omitted = totalWorktrees - worktrees.length;
+    console.log(deep
+      ? 'GRID AGENT PREFLIGHT OK (deep audit)'
+      : `GRID AGENT PREFLIGHT OK (live scan; ${omitted} dormant worktrees skipped)`);
     return;
   }
   console.error('GRID AGENT PREFLIGHT BLOCKED');
@@ -199,10 +219,10 @@ function watch(args: string[]): void {
   if (code !== 0) process.exit(code);
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const [command = 'status', ...args] = process.argv.slice(2);
   if (command === 'status') return status(args);
-  if (command === 'check') return check();
+  if (command === 'check') return check(args);
   if (command === 'claim') return claim(args);
   if (command === 'heartbeat') return heartbeat(args);
   if (command === 'release') return release(args);
@@ -213,9 +233,7 @@ function main(): void {
   process.exit(2);
 }
 
-try {
-  main();
-} catch (error) {
+main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
-}
+});

@@ -14,7 +14,7 @@
     "grid:compile-city": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-compile-city.ts",
     "grid:inspect-city": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-inspect-city.ts",
     "grid:simulate-economy": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-economy-sim.ts",
-    "grid:agents": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-agent-control.ts",
+    "grid:agents": "jiti scripts/grid-agent-control.ts",
     "grid:board": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-master-board.ts",
     "grid:watch": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-master-board.ts --watch",
     "grid:score-playable-loop": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-playable-loop-score.ts",
@@ -62,6 +62,7 @@
     "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.5.3",
-    "vitest": "^2.0.3"
+    "vitest": "^2.0.3",
+    "jiti": "^2.7.0"
   }
 }
