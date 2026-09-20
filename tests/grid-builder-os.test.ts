@@ -136,7 +136,12 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('scripts/grid-playable-loop-score.ts --json');
     expect(builderRunnerSource).toContain('scripts/grid-prioritize.ts --json');
     expect(builderRunnerSource).toContain('scripts/grid-builder-os.ts status --json');
+    expect(builderRunnerSource).toContain('scripts/grid-browser-runtime.ts --record --json');
+    expect(builderRunnerSource).toContain('scripts/grid-migration-safety.ts --record --json');
+    expect(builderRunnerSource).toContain('scripts/grid-release-candidate.ts --json');
     expect(builderRunnerSource).toContain('Do NOT run scripts/grid-builder-os-health.ts from the supervisor sandbox');
+    expect(builderRunnerSource).toContain('Do NOT use raw `kill -0`, sandbox-local `ps`');
+    expect(builderRunnerSource).toContain('Sandbox EPERM can mean the process exists but cannot be signaled');
     expect(builderRunnerSource).toContain('Cached crew health is advisory only');
     expect(builderRunnerSource).not.toContain('npm run grid:product-director');
     expect(builderRunnerSource).not.toContain('scripts/grid-task-prioritizer.ts');
