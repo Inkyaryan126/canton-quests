@@ -119,6 +119,18 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('Build cycle made no observable repo or claim progress');
   });
 
+  it('pins exact supervisor control-plane commands and keeps live health out of the sandbox', () => {
+    expect(builderRunnerSource).toContain('CONTROL PLANE COMMANDS — use these exact commands');
+    expect(builderRunnerSource).toContain('scripts/grid-master-board.ts --json');
+    expect(builderRunnerSource).toContain('scripts/grid-product-director.ts --json');
+    expect(builderRunnerSource).toContain('scripts/grid-playable-loop-score.ts --json');
+    expect(builderRunnerSource).toContain('scripts/grid-prioritize.ts --json');
+    expect(builderRunnerSource).toContain('scripts/grid-builder-os.ts status --json');
+    expect(builderRunnerSource).toContain('Do NOT run scripts/grid-builder-os-health.ts from the supervisor sandbox');
+    expect(builderRunnerSource).not.toContain('npm run grid:product-director');
+    expect(builderRunnerSource).not.toContain('scripts/grid-task-prioritizer.ts');
+  });
+
   it('counts only integrated milestones as completed progress', () => {
     expect(summarizeMilestoneProgress([
       'INTEGRATED',
