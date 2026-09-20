@@ -3,6 +3,7 @@ import {
   buildGridBrowserRuntimeEvidenceRecord,
   collectGridBrowserRuntimeEvidence,
   evaluateGridBrowserRuntimeReport,
+  fetchGridRuntimeProbe,
   stopGridRuntimeProcess,
   type GridBrowserRuntimeCase,
   type GridBrowserRuntimePage,
@@ -39,6 +40,7 @@ function baseCase(overrides: Partial<GridBrowserRuntimeCase> = {}): GridBrowserR
     authState: null,
     consoleErrors: [],
     pageErrors: [],
+    httpErrors: [],
     overlayCount: 0,
     viewport: { width: 390, height: 844 },
     startedAt: '2026-09-19T15:00:00.000Z',
@@ -66,6 +68,7 @@ function report(overrides: Partial<GridBrowserRuntimeReport> = {}): GridBrowserR
         finalUrl: 'http://127.0.0.1:43121/grid/contracts',
         finalPath: '/grid/contracts',
         heading: 'CONTRACTS MOVE THE CITY.',
+        authState: 'CONTRACT SIGNAL STAGED',
       }),
     ],
     skippedReasons: [],
@@ -88,6 +91,7 @@ describe('Grid browser runtime verification', () => {
         httpStatus: 200,
         consoleErrors: ['ignored info is not an error'],
         pageErrors: [],
+        httpErrors: [],
         timestamps: {
           startedAt: '2026-09-19T15:00:00.000Z',
           finishedAt: '2026-09-19T15:00:01.000Z',
@@ -102,6 +106,7 @@ describe('Grid browser runtime verification', () => {
       heading: 'THE GRID',
       authState: null,
       consoleErrors: ['ignored info is not an error'],
+      httpErrors: [],
       overlayCount: 0,
       viewport: { width: 390, height: 844 },
     });
@@ -120,7 +125,7 @@ describe('Grid browser runtime verification', () => {
             finalUrl: 'http://127.0.0.1:43121/grid/contracts',
             finalPath: '/grid/contracts',
             heading: 'CONTRACTS MOVE THE CITY.',
-            authState: 'PLAYER AUTHENTICATION REQUIRED',
+            authState: 'CONTRACT SIGNAL STAGED',
           }),
         ],
       }),
@@ -133,7 +138,43 @@ describe('Grid browser runtime verification', () => {
     ]);
   });
 
-  it('fails closed when the protected contracts shell loses its signed-out auth state', () => {
+  it('allows only the declared staged-contract 404 and fails unrelated HTTP errors', () => {
+    const contractCase = baseCase({
+      name: 'grid-protected-contracts-shell',
+      requestedPath: '/grid/contracts',
+      expectedPath: '/grid/contracts',
+      finalUrl: 'http://127.0.0.1:43121/grid/contracts',
+      finalPath: '/grid/contracts',
+      heading: 'CONTRACTS MOVE THE CITY.',
+      authState: 'CONTRACT SIGNAL STAGED',
+      httpErrors: [{
+        url: 'http://127.0.0.1:43121/api/grid/contracts?cityId=canton-oh&seasonId=founding-season',
+        status: 404,
+      }],
+    });
+    const allowed = evaluateGridBrowserRuntimeReport(report({
+      cases: [
+        baseCase(),
+        baseCase({ name: 'grid-public-shell', requestedPath: '/grid' }),
+        contractCase,
+      ],
+    }));
+    expect(allowed.status).toBe('VERIFIED');
+
+    const unexpected = evaluateGridBrowserRuntimeReport(report({
+      cases: [
+        baseCase(),
+        baseCase({ name: 'grid-public-shell', requestedPath: '/grid' }),
+        { ...contractCase, httpErrors: [{ url: 'http://127.0.0.1:43121/_next/missing.js', status: 404 }] },
+      ],
+    }));
+    expect(unexpected.status).toBe('FAILED');
+    expect(unexpected.reasons).toContain(
+      'grid-protected-contracts-shell: unexpected HTTP 404 from /_next/missing.js',
+    );
+  });
+
+  it('fails closed when the protected contracts shell loses its staged state', () => {
     const result = evaluateGridBrowserRuntimeReport(
       report({
         cases: [
@@ -146,7 +187,7 @@ describe('Grid browser runtime verification', () => {
             finalUrl: 'http://127.0.0.1:43121/grid/contracts',
             finalPath: '/grid/contracts',
             heading: 'CONTRACTS MOVE THE CITY.',
-            authState: 'CONTRACT SIGNAL STAGED',
+            authState: 'PLAYER AUTHENTICATION REQUIRED',
           }),
         ],
       }),
@@ -154,7 +195,7 @@ describe('Grid browser runtime verification', () => {
 
     expect(result.status).toBe('FAILED');
     expect(result.reasons).toContain(
-      'grid-protected-contracts-shell: signed-out auth state did not contain PLAYER AUTHENTICATION REQUIRED',
+      'grid-protected-contracts-shell: protected state did not contain CONTRACT SIGNAL STAGED',
     );
   });
 
@@ -164,6 +205,21 @@ describe('Grid browser runtime verification', () => {
     );
 
     expect(result).toEqual({ status: 'SKIPPED', reasons: ['No local browser executable found'] });
+  });
+
+  it('aborts a startup probe that accepts a socket but never responds', async () => {
+    const stalledFetch = ((_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        if (!signal) {
+          reject(new Error('missing abort signal'));
+          return;
+        }
+        signal.addEventListener('abort', () => reject(new Error('probe aborted')), { once: true });
+      })) as typeof fetch;
+
+    await expect(fetchGridRuntimeProbe('http://127.0.0.1:65535/grid/play', 20, stalledFetch))
+      .rejects.toThrow('probe aborted');
   });
 
   it('binds recorded browser evidence to the exact verified commit', () => {

@@ -331,6 +331,26 @@ describe('Grid Release Candidate Manifest', () => {
         playableLoopScore: mockPlayableLoop(),
         productionActivation: mockActivationReport(),
         claims: [],
+        verificationEvidence: [
+          {
+            id: 'browser-runtime',
+            name: 'Browser Runtime Verification',
+            status: 'MISSING',
+            detail: 'No browser runtime evidence for this candidate.',
+          },
+          {
+            id: 'migration-safety',
+            name: 'Database Migration Safety Gate',
+            status: 'MISSING',
+            detail: 'No migration safety evidence for this candidate.',
+          },
+          {
+            id: 'release-gate',
+            name: 'Full Grid Release Gate',
+            status: 'PENDING',
+            detail: 'Release gate has not run for this candidate.',
+          },
+        ],
       });
 
       // Even with 100% integrated milestones, status is not PRODUCTION_READY
@@ -341,24 +361,34 @@ describe('Grid Release Candidate Manifest', () => {
 
   describe('Missing evidence handling & extensibility', () => {
     it('honestly represents missing browser runtime and migration safety evidence in canonical', () => {
-      const manifest = collectGridReleaseCandidate({
-        cleanWorktree: true,
-        masterBoard: mockBoard(),
-        playableLoopScore: mockPlayableLoop(),
-        productionActivation: mockActivationReport(),
-        claims: [],
-      });
+      const tempDir = mkdtempSync(path.join(tmpdir(), 'grid-rc-missing-evidence-'));
+      try {
+        execFileSync('git', ['init', '-b', 'grid-canonical-integration-20260918'], { cwd: tempDir });
+        execFileSync('git', ['config', 'user.name', 'Test Operator'], { cwd: tempDir });
+        execFileSync('git', ['config', 'user.email', 'operator@test.local'], { cwd: tempDir });
+        writeFileSync(path.join(tempDir, 'README.md'), '# Test Grid\n');
+        execFileSync('git', ['add', 'README.md'], { cwd: tempDir });
+        execFileSync('git', ['commit', '-m', 'GRID Canonical: no evidence yet'], { cwd: tempDir });
 
-      const browserEvidence = manifest.verificationEvidence.find((e) => e.id === 'browser-runtime');
-      const migrationEvidence = manifest.verificationEvidence.find((e) => e.id === 'migration-safety');
-      const releaseGateEvidence = manifest.verificationEvidence.find((e) => e.id === 'release-gate');
+        const manifest = collectGridReleaseCandidate({
+          cwd: tempDir,
+          cleanWorktree: true,
+          masterBoard: mockBoard(),
+          playableLoopScore: mockPlayableLoop(),
+          productionActivation: mockActivationReport(),
+          claims: [],
+        });
 
-      expect(browserEvidence).toBeDefined();
-      expect(browserEvidence?.status).toBe('MISSING');
-      expect(migrationEvidence).toBeDefined();
-      expect(migrationEvidence?.status).toBe('MISSING');
-      expect(releaseGateEvidence).toBeDefined();
-      expect(releaseGateEvidence?.status).toBe('PENDING');
+        const browserEvidence = manifest.verificationEvidence.find((e) => e.id === 'browser-runtime');
+        const migrationEvidence = manifest.verificationEvidence.find((e) => e.id === 'migration-safety');
+        const releaseGateEvidence = manifest.verificationEvidence.find((e) => e.id === 'release-gate');
+
+        expect(browserEvidence?.status).toBe('MISSING');
+        expect(migrationEvidence?.status).toBe('MISSING');
+        expect(releaseGateEvidence?.status).toBe('PENDING');
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
     });
 
     it('accepts pluggable evidence providers without breaking the output schema', () => {
