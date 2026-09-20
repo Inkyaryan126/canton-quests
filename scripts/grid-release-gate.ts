@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { writeGridReleaseGateEvidence } from '../lib/grid/ops/release-gate-evidence';
 
 interface CommandStep {
   id: string;
@@ -171,7 +172,15 @@ async function runPlayableLoopCheck(): Promise<void> {
 async function main(): Promise<void> {
   const skipBuild = hasFlag('--skip-build');
   const planOnly = hasFlag('--plan');
+  const shouldRecord = hasFlag('--record');
   const steps = releaseGateSteps(skipBuild);
+
+  if (shouldRecord && skipBuild) {
+    throw new Error('Release-gate evidence requires the production build. Remove --skip-build before using --record.');
+  }
+  if (shouldRecord && planOnly) {
+    throw new Error('Release-gate evidence cannot be recorded from --plan output.');
+  }
 
   if (planOnly) {
     console.log(
@@ -192,21 +201,50 @@ async function main(): Promise<void> {
   console.log('Worktree: ' + process.cwd());
   console.log('Production build: ' + (skipBuild ? 'SKIPPED BY FLAG' : 'REQUIRED'));
 
-  assertCleanWorktree();
+  const completedSteps: string[] = [];
+  let currentStep: string | undefined;
 
-  for (const [index, step] of steps.entries()) {
-    console.log('\n[' + String(index + 1) + '/' + String(steps.length) + '] ' + step.label);
-    if (step.kind === 'diagnostics') {
-      await runDiagnostics();
-    } else if (step.kind === 'playable-loop') {
-      await runPlayableLoopCheck();
-    } else {
-      runCommand(step.command, step.env ? { ...process.env, ...step.env } : process.env);
+  try {
+    assertCleanWorktree();
+
+    for (const [index, step] of steps.entries()) {
+      currentStep = step.id;
+      console.log('\n[' + String(index + 1) + '/' + String(steps.length) + '] ' + step.label);
+      if (step.kind === 'diagnostics') {
+        await runDiagnostics();
+      } else if (step.kind === 'playable-loop') {
+        await runPlayableLoopCheck();
+      } else {
+        runCommand(step.command, step.env ? { ...process.env, ...step.env } : process.env);
+      }
+      completedSteps.push(step.id);
     }
-  }
 
-  assertCleanWorktree();
-  console.log('\nGRID RELEASE GATE: PASS');
+    assertCleanWorktree();
+    if (shouldRecord) {
+      const evidence = writeGridReleaseGateEvidence({
+        passed: true,
+        buildIncluded: !skipBuild,
+        completedSteps,
+      });
+      console.log('Release-gate evidence recorded for commit: ' + evidence.integrationCommit.slice(0, 12));
+    }
+    console.log('\nGRID RELEASE GATE: PASS');
+  } catch (error) {
+    if (shouldRecord) {
+      try {
+        writeGridReleaseGateEvidence({
+          passed: false,
+          buildIncluded: !skipBuild,
+          completedSteps,
+          failedStep: currentStep,
+        });
+      } catch {
+        console.error('Release-gate failure evidence could not be recorded.');
+      }
+    }
+    throw error;
+  }
 }
 
 main().catch((error) => {
