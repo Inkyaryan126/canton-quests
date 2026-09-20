@@ -43,6 +43,15 @@ function revParse(cwd: string, ref: string): string {
   }
 }
 
+function resolveGitCommonDir(cwd: string): string {
+  const common = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim();
+  return path.resolve(cwd, common);
+}
+
 function progressFingerprint(cwd: string): string {
   const integrationRef = resolveGridBuilderIntegrationRef(cwd) ?? '';
   const integrationSha = integrationRef ? revParse(cwd, integrationRef) : '';
@@ -236,6 +245,7 @@ async function main(): Promise<void> {
   const codexBinary = resolvePreferredCliBinary('codex');
   const claudeBinary = resolvePreferredCliBinary('claude');
   const geminiBinary = resolvePreferredCliBinary('gemini');
+  const gitCommonDir = resolveGitCommonDir(cwd);
   const pathPrefix = Array.from(new Set(
     [codexBinary, claudeBinary, geminiBinary]
       .filter((binary): binary is string => Boolean(binary))
@@ -250,7 +260,7 @@ async function main(): Promise<void> {
     result = await runLead({
       cwd: supervisorPath,
       command: codexBinary,
-      args: ['exec', '-C', supervisorPath, '-s', 'workspace-write', '--add-dir', '/private/tmp', '--color', 'never', '-'],
+      args: ['exec', '-C', supervisorPath, '-s', 'workspace-write', '--add-dir', '/private/tmp', '--add-dir', gitCommonDir, '--color', 'never', '-'],
       input: prompt,
       lead: 'codex',
       runState: state,

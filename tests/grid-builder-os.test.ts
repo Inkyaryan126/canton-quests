@@ -113,6 +113,9 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('NO-OP BLOCKED');
     expect(builderRunnerSource).toContain('progressFingerprint');
     expect(builderRunnerSource).toContain('archiveBuilderLog');
+    expect(builderRunnerSource).toContain('resolveGitCommonDir');
+    expect(builderRunnerSource).toContain("'--add-dir', gitCommonDir");
+    expect(builderRunnerSource).not.toContain("'--add-dir', cwd");
     expect(builderRunnerSource).toContain('Build cycle made no observable repo or claim progress');
   });
 
