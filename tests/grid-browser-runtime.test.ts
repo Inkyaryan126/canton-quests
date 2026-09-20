@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   buildGridBrowserRuntimeEvidenceRecord,
@@ -10,6 +12,11 @@ import {
   type GridBrowserRuntimeReport,
   type GridRuntimeProcessLike,
 } from '@/lib/grid/ops/browser-runtime-verification';
+
+const browserRuntimeSource = fs.readFileSync(
+  path.join(process.cwd(), 'lib/grid/ops/browser-runtime-verification.ts'),
+  'utf8',
+);
 
 function fakeLocator(count: number, text: string | null = null) {
   return {
@@ -78,6 +85,12 @@ function report(overrides: Partial<GridBrowserRuntimeReport> = {}): GridBrowserR
 }
 
 describe('Grid browser runtime verification', () => {
+  it('launches local Next with the preferred local Node toolchain', () => {
+    expect(browserRuntimeSource).toContain('resolvePreferredLocalNodeBinary');
+    expect(browserRuntimeSource).toContain('spawn(nodeBin');
+    expect(browserRuntimeSource).not.toContain('spawn(process.execPath');
+  });
+
   it('collects deterministic route, heading, viewport, and overlay evidence', async () => {
     const evidence = await collectGridBrowserRuntimeEvidence(
       fakePage(),

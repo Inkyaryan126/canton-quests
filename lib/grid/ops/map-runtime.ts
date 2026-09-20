@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import net from 'node:net';
 import path from 'node:path';
+import { resolvePreferredLocalNodeBinary } from './local-toolchain';
 
 export type GridMapRuntimeCase = 'disabled' | 'unauthenticated';
 
@@ -43,15 +44,60 @@ async function stopServer(child: ChildProcess): Promise<void> {
   if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
 }
 
+export async function fetchGridMapRuntimeProbe(
+  url: string,
+  timeoutMs: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetchImpl(url, {
+      cache: 'no-store',
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: { 'user-agent': 'grid-map-runtime-check/1.0' },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function waitForRuntime(
+  origin: string,
+  child: ChildProcess,
+  label: string,
+  startupTimeoutMs = 90_000,
+): Promise<void> {
+  const deadline = Date.now() + startupTimeoutMs;
+  let lastError = 'no response';
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`${label} exited before verification (${String(child.exitCode ?? child.signalCode)})`);
+    }
+    try {
+      const remainingMs = Math.max(1, deadline - Date.now());
+      await fetchGridMapRuntimeProbe(
+        `${origin}/api/grid/world`,
+        Math.min(5_000, remainingMs),
+      );
+      return;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`${label} did not start before timeout: ${lastError}`);
+}
+
 async function readCase(
   origin: string,
   mode: GridMapRuntimeCase,
 ): Promise<GridMapRuntimeObservation> {
-  const response = await fetch(`${origin}/api/grid/world`, {
-    cache: 'no-store',
-    redirect: 'manual',
-    headers: { 'user-agent': 'grid-map-runtime-check/1.0' },
-  });
+  const response = await fetchGridMapRuntimeProbe(
+    `${origin}/api/grid/world`,
+    60_000,
+  );
   const body = (await response.json()) as GridMapRuntimeObservation['body'];
   return { case: mode, status: response.status, body };
 }
@@ -62,7 +108,8 @@ export async function verifyGridMapRuntime(
   const port = await reservePort();
   const origin = `http://127.0.0.1:${port}`;
   const nextBin = path.join(cwd, 'node_modules', 'next', 'dist', 'bin', 'next');
-  const child = spawn(process.execPath, [nextBin, 'dev', '-H', '127.0.0.1', '-p', String(port)], {
+  const nodeBin = resolvePreferredLocalNodeBinary();
+  const child = spawn(nodeBin, [nextBin, 'dev', '-H', '127.0.0.1', '-p', String(port)], {
     cwd,
     env: {
       ...process.env,
@@ -75,25 +122,10 @@ export async function verifyGridMapRuntime(
   });
 
   try {
-    await new Promise<void>((resolve, reject) => {
-      const deadline = Date.now() + 30_000;
-      const poll = () => {
-        if (child.exitCode !== null) {
-          reject(new Error(`Local Next runtime exited with code ${child.exitCode}`));
-          return;
-        }
-        fetch(`${origin}/api/grid/world`, { cache: 'no-store' })
-          .then(() => resolve())
-          .catch(() => {
-            if (Date.now() >= deadline) reject(new Error('Local Next runtime did not start'));
-            else setTimeout(poll, 250);
-          });
-      };
-      poll();
-    });
+    await waitForRuntime(origin, child, 'Local Next runtime');
 
     const disabled = await readCase(origin, 'disabled');
-    const enabledChild = spawn(process.execPath, [nextBin, 'dev', '-H', '127.0.0.1', '-p', String(port + 1)], {
+    const enabledChild = spawn(nodeBin, [nextBin, 'dev', '-H', '127.0.0.1', '-p', String(port + 1)], {
       cwd,
       env: {
         ...process.env,
@@ -106,22 +138,7 @@ export async function verifyGridMapRuntime(
     });
     try {
       const enabledOrigin = `http://127.0.0.1:${port + 1}`;
-      await new Promise<void>((resolve, reject) => {
-        const deadline = Date.now() + 30_000;
-        const poll = () => {
-          if (enabledChild.exitCode !== null) {
-            reject(new Error(`Enabled local Next runtime exited with code ${enabledChild.exitCode}`));
-            return;
-          }
-          fetch(`${enabledOrigin}/api/grid/world`, { cache: 'no-store' })
-            .then(() => resolve())
-            .catch(() => {
-              if (Date.now() >= deadline) reject(new Error('Enabled local Next runtime did not start'));
-              else setTimeout(poll, 250);
-            });
-        };
-        poll();
-      });
+      await waitForRuntime(enabledOrigin, enabledChild, 'Enabled local Next runtime');
       const unauthenticated = await readCase(enabledOrigin, 'unauthenticated');
       return { verifiedAt: new Date().toISOString(), cases: [disabled, unauthenticated] };
     } finally {

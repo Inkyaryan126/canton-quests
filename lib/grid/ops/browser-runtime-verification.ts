@@ -4,6 +4,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { chromium, type Page } from 'playwright';
 import { coordinationRoot } from '../../agent-control';
+import { resolvePreferredLocalNodeBinary } from './local-toolchain';
 
 export type GridBrowserRuntimeStatus = 'PENDING' | 'VERIFIED' | 'FAILED' | 'SKIPPED';
 
@@ -471,8 +472,9 @@ export async function verifyGridBrowserRuntime(
   }
   const origin = `http://127.0.0.1:${port}`;
   const nextBin = path.join(cwd, 'node_modules', 'next', 'dist', 'bin', 'next');
+  const nodeBin = resolvePreferredLocalNodeBinary();
   let logs = '';
-  const child = spawn(process.execPath, [nextBin, 'dev', '-H', '127.0.0.1', '-p', String(port)], {
+  const child = spawn(nodeBin, [nextBin, 'dev', '-H', '127.0.0.1', '-p', String(port)], {
     cwd,
     env: localOnlyEnvironment(),
     stdio: ['ignore', 'pipe', 'pipe'],
