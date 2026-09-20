@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -154,6 +155,69 @@ export function gridBuilderCliHealthFile(cwd = process.cwd()): string {
 
 export function gridBuilderCliHealthStateFile(cwd = process.cwd()): string {
   return path.join(gridBuilderStateDir(cwd), 'cli-health-state.json');
+}
+
+export function gridBuilderLaunchTokenFile(cwd = process.cwd()): string {
+  return path.join(gridBuilderStateDir(cwd), 'launch-token.json');
+}
+
+export function issueGridBuilderLaunchToken(
+  cwd = process.cwd(),
+  options: { ttlMs?: number; token?: string; now?: Date } = {},
+): string {
+  const token = options.token ?? crypto.randomBytes(32).toString('hex');
+  const now = options.now ?? new Date();
+  const ttlMs = options.ttlMs ?? 2 * 60 * 1000;
+  const payload = {
+    version: 1,
+    tokenHash: crypto.createHash('sha256').update(token).digest('hex'),
+    expiresAt: new Date(now.getTime() + ttlMs).toISOString(),
+  };
+  fs.mkdirSync(gridBuilderStateDir(cwd), { recursive: true });
+  fs.writeFileSync(gridBuilderLaunchTokenFile(cwd), `${JSON.stringify(payload, null, 2)}\n`, { mode: 0o600 });
+  return token;
+}
+
+export function consumeGridBuilderLaunchToken(
+  token: string,
+  cwd = process.cwd(),
+  now = new Date(),
+): boolean {
+  if (!token) return false;
+  const filename = gridBuilderLaunchTokenFile(cwd);
+  if (!fs.existsSync(filename)) return false;
+
+  try {
+    const payload = JSON.parse(fs.readFileSync(filename, 'utf8')) as {
+      version?: number;
+      tokenHash?: string;
+      expiresAt?: string;
+    };
+    const expiresAt = payload.expiresAt ? new Date(payload.expiresAt) : null;
+    if (
+      payload.version !== 1
+      || !payload.tokenHash
+      || !expiresAt
+      || !Number.isFinite(expiresAt.getTime())
+      || expiresAt.getTime() < now.getTime()
+    ) {
+      fs.rmSync(filename, { force: true });
+      return false;
+    }
+
+    const suppliedHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expected = Buffer.from(payload.tokenHash);
+    const supplied = Buffer.from(suppliedHash);
+    if (expected.length !== supplied.length || !crypto.timingSafeEqual(expected, supplied)) {
+      return false;
+    }
+
+    fs.rmSync(filename, { force: true });
+    return true;
+  } catch {
+    fs.rmSync(filename, { force: true });
+    return false;
+  }
 }
 
 function nodeVersionParts(value: string): number[] {

@@ -8,8 +8,11 @@ import {
   deriveBuilderWorkerState,
   evaluateBuilderStartGuard,
   formatGridBuilderCliFailureDetail,
+  gridBuilderLaunchTokenFile,
   humanizeBuilderOwner,
   isLocalBuilderHostname,
+  issueGridBuilderLaunchToken,
+  consumeGridBuilderLaunchToken,
   readGridBuilderCliHealthRunState,
   readGridBuilderRunState,
   resolveGridBuilderIntegrationRef,
@@ -22,6 +25,7 @@ import {
 
 const builderClientSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder-client.tsx'), 'utf8');
 const builderStylesSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder.css'), 'utf8');
+const dockLaunchRouteSource = fs.readFileSync(path.join(process.cwd(), 'app/api/admin/grid-builder/launch/route.ts'), 'utf8');
 
 const tempDirs: string[] = [];
 
@@ -144,6 +148,30 @@ describe('Grid Builder OS helpers', () => {
       issues: [{ code: 'STALE_CLAIM', message: 'stale' }],
       run: { ...idle, status: 'working' },
     }).reasons).toHaveLength(4);
+  });
+
+  it('issues a short-lived single-use Dock launch token without storing the raw token', () => {
+    const cwd = makeRepo();
+    const token = issueGridBuilderLaunchToken(cwd, {
+      token: 'dock-token-1234567890',
+      now: new Date('2026-09-20T04:00:00.000Z'),
+      ttlMs: 120_000,
+    });
+    const tokenFile = fs.readFileSync(gridBuilderLaunchTokenFile(cwd), 'utf8');
+
+    expect(token).toBe('dock-token-1234567890');
+    expect(tokenFile).not.toContain(token);
+    expect(consumeGridBuilderLaunchToken('wrong-token', cwd, new Date('2026-09-20T04:00:30.000Z'))).toBe(false);
+    expect(consumeGridBuilderLaunchToken(token, cwd, new Date('2026-09-20T04:00:30.000Z'))).toBe(true);
+    expect(consumeGridBuilderLaunchToken(token, cwd, new Date('2026-09-20T04:00:31.000Z'))).toBe(false);
+  });
+
+  it('keeps Dock auto-auth local, development-only, and one-time-token gated', () => {
+    expect(dockLaunchRouteSource).toContain("process.env.NODE_ENV === 'production'");
+    expect(dockLaunchRouteSource).toContain('isLocalBuilderHostname');
+    expect(dockLaunchRouteSource).toContain('consumeGridBuilderLaunchToken');
+    expect(dockLaunchRouteSource).toContain("url.searchParams.get('token')");
+    expect(dockLaunchRouteSource).not.toContain("url.searchParams.get('passphrase')");
   });
 
   it('stores runner state in git-common coordination storage', () => {
