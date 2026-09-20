@@ -1,9 +1,38 @@
+import { execFileSync } from 'node:child_process';
 import { NextResponse } from 'next/server';
 import { resolveAdminSessionFromRequest } from '@/lib/admin-auth';
+import {
+  boardroomSummary,
+  coordinationIssues,
+  listWorktreeStates,
+  readClaims,
+} from '@/lib/agent-control';
 import { collectGridBuilderOsSnapshot } from '@/lib/grid/ops/grid-builder-os';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+function git(cwd: string, args: string[]): string {
+  return execFileSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim();
+}
+
+function recentCommits(cwd: string) {
+  try {
+    return git(cwd, ['log', '-6', '--format=%h%x09%cI%x09%an%x09%s'])
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const [sha, at, author, ...summary] = line.split('\t');
+        return { sha, at, author, summary: summary.join('\t') };
+      });
+  } catch {
+    return [];
+  }
+}
 
 export async function GET(request: Request) {
   const session = resolveAdminSessionFromRequest(request);
@@ -13,12 +42,51 @@ export async function GET(request: Request) {
 
   try {
     const hostname = new URL(request.url).hostname;
+    const cwd = process.cwd();
     const snapshot = collectGridBuilderOsSnapshot({
-      cwd: process.cwd(),
+      cwd,
       hostname,
       nodeEnv: process.env.NODE_ENV,
     });
-    return NextResponse.json({ snapshot }, { headers: { 'Cache-Control': 'no-store' } });
+    const claims = readClaims(cwd).filter((claim) => claim.lane !== 'grid-builder-os');
+    const boardroom = boardroomSummary(cwd);
+    const worktrees = listWorktreeStates(cwd, { fast: true });
+    const warnings = coordinationIssues(claims, worktrees, boardroom);
+    const workerByLane = new Map(snapshot.workers.map((worker) => [worker.lane, worker]));
+    const branch = git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+    const dirtyFiles = git(cwd, ['status', '--porcelain'])
+      .split('\n')
+      .filter(Boolean)
+      .length;
+    const commits = recentCommits(cwd);
+
+    const meta = {
+      branch,
+      environment: process.env.NODE_ENV ?? 'development',
+      dirtyFiles,
+      coordinationWarnings: warnings.length,
+      boardroom: {
+        counts: boardroom.counts,
+        active: boardroom.queued.length,
+        blocked: boardroom.blocked.length,
+        rejected: boardroom.rejected.length,
+      },
+      lanes: claims.map((claim) => ({
+        lane: claim.lane,
+        owner: claim.owner,
+        task: claim.goal,
+        branch: claim.branch,
+        claimedAt: claim.claimedAt,
+        heartbeatAt: claim.heartbeatAt,
+        state: workerByLane.get(claim.lane)?.state ?? 'checkpoint',
+      })),
+      commits,
+    };
+
+    return NextResponse.json(
+      { snapshot, meta },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unable to read Builder OS status.' },
@@ -26,4 +94,3 @@ export async function GET(request: Request) {
     );
   }
 }
-

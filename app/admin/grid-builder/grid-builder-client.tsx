@@ -2,37 +2,79 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { CSSProperties } from 'react';
 import type { GridBuilderOsSnapshot } from '@/lib/grid/ops/grid-builder-os';
 
 type LoadState = 'loading' | 'ready' | 'locked' | 'error';
 
+type BossMeta = {
+  branch: string;
+  environment: string;
+  dirtyFiles: number;
+  coordinationWarnings: number;
+  boardroom: {
+    counts: Record<string, number>;
+    active: number;
+    blocked: number;
+    rejected: number;
+  };
+  lanes: Array<{
+    lane: string;
+    owner: string;
+    task: string;
+    branch: string;
+    claimedAt: string;
+    heartbeatAt: string;
+    state: GridBuilderOsSnapshot['workers'][number]['state'];
+  }>;
+  commits: Array<{
+    sha: string;
+    at: string;
+    author: string;
+    summary: string;
+  }>;
+};
+
 function ageLabel(iso: string): string {
   const ageMs = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(ageMs) || ageMs < 0) return 'just now';
+  if (!Number.isFinite(ageMs) || ageMs < 0) return 'now';
   const minutes = Math.floor(ageMs / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
 }
 
-function stateLabel(state: GridBuilderOsSnapshot['workers'][number]['state']): string {
-  if (state === 'working') return 'Working';
-  if (state === 'checkpoint') return 'At checkpoint';
-  return 'Needs attention';
+function timeLabel(iso: string): string {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return '';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function runLabel(status: GridBuilderOsSnapshot['run']['status']): string {
+  if (status === 'working') return 'BUILDING';
+  if (status === 'finished') return 'COMPLETE';
+  if (status === 'needs_attention') return 'CHECK';
+  return 'IDLE';
+}
 function healthLabel(status: GridBuilderOsSnapshot['crewHealth'][number]['status']): string {
-  if (status === 'ready') return 'Ready';
-  if (status === 'installed') return 'Installed';
-  if (status === 'unavailable') return 'Unavailable';
-  return 'Needs attention';
+  if (status === 'ready') return 'READY';
+  if (status === 'installed') return 'CHECK';
+  if (status === 'unavailable') return 'OFFLINE';
+  return 'ATTN';
+}
+
+function laneLabel(state: GridBuilderOsSnapshot['workers'][number]['state']): string {
+  if (state === 'working') return 'ACTIVE';
+  if (state === 'checkpoint') return 'CHECKPOINT';
+  return 'ATTN';
 }
 
 export default function GridBuilderClient() {
   const [snapshot, setSnapshot] = useState<GridBuilderOsSnapshot | null>(null);
+  const [meta, setMeta] = useState<BossMeta | null>(null);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
@@ -48,6 +90,7 @@ export default function GridBuilderClient() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Unable to read Builder OS.');
       setSnapshot(body.snapshot);
+      setMeta(body.meta ?? null);
       setLoadState('ready');
       setError('');
     } catch (reason) {
@@ -112,34 +155,24 @@ export default function GridBuilderClient() {
   }, [load]);
 
   const progressStyle = useMemo(() => ({
-    '--cq-builder-progress': `${snapshot?.overall.percent ?? 0}%`,
+    '--cq-progress': `${snapshot?.overall.percent ?? 0}%`,
   } as CSSProperties), [snapshot?.overall.percent]);
 
   if (loadState === 'locked') {
     return (
-      <main className="cq-builder-shell cq-builder-shell--center">
-        <section className="cq-builder-lock">
-          <span className="cq-builder-kicker">THE GRID / EMPIRE PANEL</span>
-          <h1>Command access required</h1>
-          <p>Unlock the Game Master area first, then return here.</p>
-          <Link className="cq-builder-button cq-builder-button--secondary" href="/admin">Open Game Master</Link>
-        </section>
+      <main className="cq-art-state">
+        <h1>Empire Panel locked</h1>
+        <p>Unlock Game Master access, then return to the command center.</p>
+        <Link href="/admin">Open Game Master</Link>
       </main>
     );
   }
-
-  if (loadState === 'loading' && !snapshot) {
-    return <main className="cq-builder-shell cq-builder-shell--center"><p className="cq-builder-loading">Opening the Empire Panel…</p></main>;
-  }
-
   if (!snapshot) {
     return (
-      <main className="cq-builder-shell cq-builder-shell--center">
-        <section className="cq-builder-lock">
-          <h1>Empire Panel is offline</h1>
-          <p>{error || 'No build state is available yet.'}</p>
-          <button className="cq-builder-button cq-builder-button--secondary" onClick={() => void load()}>Try again</button>
-        </section>
+      <main className="cq-art-state">
+        <h1>{loadState === 'loading' ? 'Opening the Empire Panel…' : 'Empire Panel offline'}</h1>
+        {error && <p>{error}</p>}
+        {loadState === 'error' && <button onClick={() => void load()}>Try again</button>}
       </main>
     );
   }
@@ -147,184 +180,182 @@ export default function GridBuilderClient() {
   const runWorking = snapshot.run.status === 'working';
   const healthWorking = snapshot.crewHealthRun.status === 'working';
   const buttonDisabled = starting || runWorking || !snapshot.controls.canStartCycle;
+  const doneCount = meta?.boardroom.counts.DONE;
+  const activeCount = meta?.boardroom.active;
+  const blockedCount = meta?.boardroom.blocked;
+  const rejectedCount = meta?.boardroom.rejected;
+  const readyCrew = snapshot.crewHealth.filter((item) => item.status === 'ready').length;
+  const nextTask = snapshot.recommendations[0]?.title ?? '';
+  const lanes = meta?.lanes.slice(0, 3) ?? [];
+  const commits = meta?.commits.slice(0, 5) ?? [];
 
+  const healthValues = [
+    `${readyCrew}/${snapshot.crewHealth.length} READY`,
+    runLabel(snapshot.run.status),
+    '',
+    meta ? (meta.dirtyFiles === 0 ? 'CLEAN' : `${meta.dirtyFiles} CHANGES`) : '',
+    meta ? (meta.coordinationWarnings === 0 ? 'CLEAR' : `${meta.coordinationWarnings} WARN`) : '',
+  ];
+
+  const loopValues = [
+    snapshot.recommendations.length ? 'READY' : 'CLEAR',
+    runLabel(snapshot.run.status),
+    '',
+    snapshot.overall.readyToCombine ? `${snapshot.overall.readyToCombine} READY` : 'CLEAR',
+    nextTask,
+  ];
   return (
-    <main className="cq-builder-shell cq-builder-command-center">
-      <header className="cq-builder-topbar">
-        <div>
-          <span className="cq-builder-kicker">THE GRID / EMPIRE PANEL</span>
-          <h1>Build the empire. Command the crew.</h1>
-          <p>One gold command panel controls the builders, shows what is proven, and interrupts you only when a real decision is needed.</p>
-        </div>
-        <div className="cq-builder-live">
-          <span className={`cq-builder-live-dot ${runWorking ? 'is-working' : ''}`} />
-          {runWorking ? 'Crew working' : 'System ready'}
-        </div>
-      </header>
+    <main className="cq-builder-shell cq-builder-command-center cq-art-shell">
+      {error && <div className="cq-art-error">{error}</div>}
+      <div className="cq-art-scroll">
+        <section className="cq-artboard" style={progressStyle} aria-label="The Grid Empire Panel">
+          <Image
+            className="cq-artboard-image"
+            src="/grid/boss-panel/empire-panel-approved.webp"
+            alt=""
+            width="1536"
+            height="1024"
+            draggable={false}
+          />
 
-      {error && <div className="cq-builder-alert cq-builder-alert--error">{error}</div>}
-
-      <section className="cq-builder-hero">
-        <div className="cq-builder-progress-ring" style={progressStyle}>
-          <div className="cq-builder-progress-core">
-            <strong>{snapshot.overall.percent}%</strong>
-            <span>built</span>
+          <nav className="cq-art-hotnav" aria-label="Empire Panel navigation">
+            <a className="cq-hot cq-hot-command" href="#command-center" aria-label="Command Center" />
+            <Link className="cq-hot cq-hot-live" href="/admin/live" aria-label="Live Operations" />
+            <a className="cq-hot cq-hot-crew" href="#agent-crew" aria-label="Agent Crew" />
+            <Link className="cq-hot cq-hot-board" href="/admin/grid" aria-label="Grid Board" />
+            <a className="cq-hot cq-hot-worktrees" href="#active-lanes" aria-label="Worktrees" />
+            <a className="cq-hot cq-hot-commits" href="#latest-commits" aria-label="Commits" />
+            <a className="cq-hot cq-hot-tests" href="#test-build" aria-label="Tests and Build" />
+            <a className="cq-hot cq-hot-health" href="#system-health" aria-label="System Health" />
+            <Link className="cq-hot cq-hot-settings" href="/admin" aria-label="Settings" />
+          </nav>
+          <div id="command-center" className="cq-art-top-field cq-art-grid-status">
+            <span>{snapshot.overall.percent}% · {runLabel(snapshot.run.status)}</span>
+            {snapshot.needsYou.length > 0 && <i>{snapshot.needsYou.length}</i>}
           </div>
-        </div>
-        <div className="cq-builder-hero-copy">
-          <span className="cq-builder-eyebrow">GRID CREATION</span>
-          <h2>{snapshot.overall.completed} of {snapshot.overall.total} major systems combined</h2>
-          <p>{snapshot.overall.readyToCombine > 0
-            ? `${snapshot.overall.readyToCombine} more ${snapshot.overall.readyToCombine === 1 ? 'system is' : 'systems are'} ready to combine.`
-            : 'Builders are moving the next systems toward safe checkpoints.'}</p>
-          <button aria-label="Build the Grid" className="cq-builder-button cq-builder-button--primary" disabled={buttonDisabled} onClick={() => void startCycle()}>
-            {starting ? 'STARTING CREW…' : runWorking ? 'CREW IS BUILDING…' : 'BUILD THE GRID'}
+          <div className="cq-art-top-field cq-art-branch" title={meta?.branch ?? ''}>
+            {meta?.branch ?? ''}
+          </div>
+          <div className="cq-art-top-field cq-art-environment">
+            {meta?.environment?.toUpperCase() ?? ''}
+          </div>
+          <div className="cq-art-top-field cq-art-updated">
+            {timeLabel(snapshot.generatedAt)}
+          </div>
+          <button
+            className="cq-art-build-hotspot"
+            aria-label="Build the Grid"
+            disabled={buttonDisabled}
+            onClick={() => void startCycle()}
+          >
+            <span>{starting ? 'STARTING…' : runWorking ? 'BUILDING…' : ''}</span>
           </button>
-          {!snapshot.controls.canStartCycle && snapshot.controls.reasons.length > 0 && (
-            <p className="cq-builder-button-note">{snapshot.controls.reasons[0]}</p>
-          )}
-        </div>
-        <aside className="cq-builder-loop-card">
-          <span>Playable loop</span>
-          <strong>{snapshot.playableLoop.score}/100</strong>
-          <em>{snapshot.playableLoop.status}</em>
-          <p>{snapshot.playableLoop.brokenLink
-            ? `Weakest link: ${snapshot.playableLoop.brokenLink}`
-            : 'The full player loop has no detected broken link.'}</p>
-        </aside>
-      </section>
 
-      <section className="cq-builder-health-section">
-        <div className="cq-builder-health-heading">
-          <div>
-            <span className="cq-builder-eyebrow">CREW HEALTH</span>
-            <h2>Three builders. One command chain.</h2>
-          </div>
-          <div className="cq-builder-health-actions">
-            <p>Empire Panel checks your newest local NVM copies of Codex, Claude, and Gemini instead of stale system-wide binaries.</p>
-            <button className="cq-builder-text-button" disabled={healthStarting || healthWorking} onClick={() => void refreshHealth()}>
-              {healthStarting || healthWorking ? 'CHECKING CREW…' : 'CHECK CREW NOW'}
-            </button>
-            <span className={`cq-builder-health-run is-${snapshot.crewHealthRun.status}`}>{snapshot.crewHealthRun.message}</span>
-          </div>
-        </div>
-        <div className="cq-builder-health-grid">
-          {snapshot.crewHealth.map((agent) => (
-            <article className={`cq-builder-health-card is-${agent.status}`} key={agent.name}>
-              <div className="cq-builder-health-topline">
-                <div>
-                  <strong>{agent.label}</strong>
-                  <span>{agent.role}</span>
-                </div>
-                <span className="cq-builder-health-status">
-                  <i />
-                  {healthLabel(agent.status)}
-                </span>
+          <section className="cq-art-overview" aria-label="Grid Overview">
+            <strong>{doneCount ?? ''}</strong>
+            <strong>{activeCount ?? ''}</strong>
+            <strong>{blockedCount ?? ''}</strong>
+            <strong>{rejectedCount ?? ''}</strong>
+          </section>
+          <section id="agent-crew" className="cq-art-agent-layer" aria-label="Agent Crew">
+            {snapshot.crewHealth.map((agent) => (
+              <article
+                key={agent.name}
+                className={`cq-art-agent cq-art-agent--${agent.name} is-${agent.status}`}
+                title={`${agent.label}: ${agent.detail}`}
+              >
+                <span className="cq-art-agent-dot" />
+                <b>{healthLabel(agent.status)}</b>
+                <em>{agent.version ?? ''}</em>
+              </article>
+            ))}
+          </section>
+          <button
+            className="cq-art-crew-check"
+            onClick={() => void refreshHealth()}
+            disabled={healthStarting || healthWorking}
+            aria-label="Check crew health now"
+          >
+            {healthStarting || healthWorking ? 'CHECKING' : 'CHECK CREW'}
+          </button>
+
+          <section id="system-health" className="cq-art-health-values" aria-label="System Health">
+            {healthValues.map((value, index) => (
+              <span key={index} className={value ? 'has-value' : ''}>{value}</span>
+            ))}
+          </section>
+          <section className="cq-art-loop-values" aria-label="Playable Loop">
+            {loopValues.map((value, index) => (
+              <span key={index} title={value}>{value}</span>
+            ))}
+          </section>
+
+          <section id="active-lanes" className="cq-art-lanes" aria-label="Active Lanes">
+            {lanes.map((lane) => (
+              <div className="cq-art-lane-row" key={lane.lane}>
+                <span title={lane.lane}>{lane.lane}</span>
+                <span title={lane.owner}>{lane.owner}</span>
+                <span title={lane.task}>{lane.task}</span>
+                <span className={`is-${lane.state}`}>{laneLabel(lane.state)}</span>
+                <span>{ageLabel(lane.claimedAt)}</span>
               </div>
-              <div className="cq-builder-health-version">
-                <span>Version</span>
-                <b>{agent.version ?? (agent.status === 'installed' ? 'Check required' : 'Not found')}</b>
+            ))}
+          </section>
+          <section className="cq-art-activity" aria-label="Recent Activity">
+            {commits.slice(0, 3).map((commit) => (
+              <div className="cq-art-activity-row" key={commit.sha}>
+                <span>{timeLabel(commit.at)}</span>
+                <span title={commit.author}>{commit.author}</span>
+                <span title={commit.summary}>{commit.summary}</span>
               </div>
-              <p>{agent.detail}</p>
-              <footer>{agent.checkedAt ? `Live checked ${ageLabel(agent.checkedAt)}` : 'Awaiting live model check'}</footer>
-            </article>
-          ))}
-        </div>
-      </section>
+            ))}
+          </section>
 
-      <section className="cq-builder-section cq-builder-ledger-section">
-        <div className="cq-builder-section-heading">
-          <div>
-            <span className="cq-builder-eyebrow">THE CREW</span>
-            <h2>Who is building what</h2>
-          </div>
-          <button className="cq-builder-text-button" onClick={() => void load()}>Refresh now</button>
-        </div>
-        <div className="cq-builder-workers">
-          {snapshot.workers.length === 0 ? (
-            <div className="cq-builder-empty">No development lanes are active. Press BUILD THE GRID when the system is ready.</div>
-          ) : snapshot.workers.map((worker) => (
-            <article className={`cq-builder-worker is-${worker.state}`} key={worker.lane}>
-              <div className="cq-builder-worker-head">
-                <div className="cq-builder-avatar">{worker.role.slice(0, 1)}</div>
-                <div>
-                  <strong>{worker.role}</strong>
-                  <span>{stateLabel(worker.state)}</span>
-                </div>
+          <section id="latest-commits" className="cq-art-commits" aria-label="Latest Commits">
+            {commits.slice(0, 4).map((commit) => (
+              <div className="cq-art-commit-row" key={commit.sha}>
+                <span>{commit.sha}</span>
+                <span title={commit.author}>{commit.author}</span>
+                <span title={commit.summary}>{commit.summary}</span>
+                <span>{ageLabel(commit.at)}</span>
               </div>
-              <p>{worker.task}</p>
-              <footer>
-                <span>Updated {ageLabel(worker.lastUpdate)}</span>
-                <span>{worker.dirtyFiles > 0 ? `${worker.dirtyFiles} files in motion` : 'Clean checkpoint'}</span>
-              </footer>
-            </article>
-          ))}
-        </div>
-      </section>
+            ))}
+          </section>
+          <section id="test-build" className="cq-art-test-build" aria-label="Test and Build">
+            <button
+              className="cq-art-disabled-hotspot"
+              type="button"
+              disabled
+              aria-label="Run checks unavailable"
+            />
+          </section>
 
-      <div className="cq-builder-two-column">
-        <section className="cq-builder-panel">
-          <span className="cq-builder-eyebrow">NEXT UP</span>
-          <h2>Best work to do next</h2>
-          {snapshot.recommendations.length === 0 ? (
-            <p className="cq-builder-muted">No safe new work is recommended right now. The crew should finish or combine what is already moving.</p>
-          ) : (
-            <div className="cq-builder-stack">
-              {snapshot.recommendations.map((item, index) => (
-                <article className="cq-builder-next" key={item.id}>
-                  <span className="cq-builder-number">{index + 1}</span>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <em>{item.action}</em>
-                    <p>{item.whyNow}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className={`cq-builder-panel ${snapshot.needsYou.length ? 'cq-builder-panel--attention' : 'cq-builder-panel--clear'}`}>
-          <span className="cq-builder-eyebrow">NEEDS YOU</span>
-          <h2>{snapshot.needsYou.length ? 'A human decision is needed' : 'Nothing needed from you'}</h2>
-          {snapshot.needsYou.length ? (
-            <div className="cq-builder-stack">
-              {snapshot.needsYou.map((item) => <p className="cq-builder-need" key={item}>{item}</p>)}
-            </div>
-          ) : (
-            <p className="cq-builder-clear-message">The builders can continue safely without interrupting you.</p>
-          )}
+          <section className="cq-art-tower-values" aria-label="Control Tower">
+            <span>{snapshot.controls.canStartCycle ? 'CLEAR' : 'CHECK'}</span>
+            <span>{meta ? String(meta.lanes.length) : ''}</span>
+            <span>{String(snapshot.overall.readyToCombine)}</span>
+            <span>{meta ? (meta.coordinationWarnings === 0 ? 'CLEAR' : 'WARN') : ''}</span>
+            <span>{meta ? (meta.coordinationWarnings === 0 ? 'CLEAR' : 'ATTN') : ''}</span>
+          </section>
         </section>
       </div>
-
-      <section className="cq-builder-section">
-        <span className="cq-builder-eyebrow">WHAT THE BUTTON DOES</span>
-        <h2>One click, three simple steps</h2>
-        <div className="cq-builder-steps">
-          <article><b>1</b><strong>Check everything</strong><p>Builder OS checks current work, conflicts, progress, and what matters most next.</p></article>
-          <article><b>2</b><strong>Put the crew to work</strong><p>A lead coordinates safe isolated builders and replaces a failed CLI with a healthy backup.</p></article>
-          <article><b>3</b><strong>Combine only proven work</strong><p>Finished work must pass its checkpoint before it can be combined. Production stays protected.</p></article>
+      <section className="cq-art-mobile-summary" aria-label="Live Empire Panel summary">
+        <div>
+          <strong>{snapshot.overall.percent}%</strong>
+          <span>Grid built</span>
         </div>
-      </section>
-
-      <section className="cq-builder-section">
-        <span className="cq-builder-eyebrow">RECENT PROGRESS</span>
-        <h2>What changed lately</h2>
-        <div className="cq-builder-activity">
-          {snapshot.recentActivity.map((item) => (
-            <article key={item.commit}>
-              <span>{item.commit}</span>
-              <strong>{item.summary}</strong>
-              <time>{new Date(item.at).toLocaleString()}</time>
-            </article>
-          ))}
+        <div>
+          <strong>{snapshot.playableLoop.score}/100</strong>
+          <span>Playable loop</span>
         </div>
+        <div>
+          <strong>{meta?.lanes.length ?? ''}</strong>
+          <span>Live lanes</span>
+        </div>
+        <button disabled={buttonDisabled} onClick={() => void startCycle()}>
+          {runWorking ? 'Crew building…' : 'Build the Grid'}
+        </button>
       </section>
-
-      <footer className="cq-builder-footer">
-        <span>Last checked {new Date(snapshot.generatedAt).toLocaleTimeString()}</span>
-        <span>Builder OS never promotes directly to production.</span>
-      </footer>
     </main>
   );
 }

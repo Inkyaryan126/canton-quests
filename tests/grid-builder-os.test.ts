@@ -85,17 +85,20 @@ describe('Grid Builder OS helpers', () => {
     expect(detail).not.toContain('request-id-123');
   });
 
-  it('keeps the Empire Panel command-center semantics visible without changing its live wiring', () => {
+  it('uses the approved Empire Panel art as a live-data shell without fake placeholder values', () => {
     expect(builderClientSource).toContain('cq-builder-command-center');
-    expect(builderClientSource).toContain('THE GRID / EMPIRE PANEL');
+    expect(builderClientSource).toContain('/grid/boss-panel/empire-panel-approved.webp');
+    expect(builderClientSource).toContain("import Image from 'next/image'");
+    expect(builderClientSource).toContain('<Image');
     expect(builderClientSource).toContain('aria-label="Build the Grid"');
     expect(builderClientSource).toContain("'/api/admin/grid-builder/status'");
     expect(builderClientSource).toContain("'/api/admin/grid-builder/action'");
     expect(builderClientSource).toContain("action: 'refresh-health'");
-    expect(builderClientSource).toContain('Codex, Claude, and Gemini');
-    expect(builderClientSource).toContain('cq-builder-ledger-section');
-    expect(builderStylesSource).toContain('.cq-builder-command-center');
-    expect(builderStylesSource).toContain('.cq-builder-ledger-section');
+    expect(builderClientSource).toContain('cq-art-grid-status');
+    expect(builderClientSource).toContain('cq-art-lanes');
+    expect(builderClientSource).not.toContain('{{');
+    expect(builderStylesSource).toContain('.cq-artboard');
+    expect(builderStylesSource).toContain('.cq-art-build-hotspot');
   });
 
   it('counts only integrated milestones as completed progress', () => {
