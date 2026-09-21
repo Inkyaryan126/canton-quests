@@ -231,7 +231,7 @@ export default function GridBuilderClient() {
             <Link className="cq-hot cq-hot-settings" href="/admin" aria-label="Settings" />
           </nav>
           <div id="command-center" className="cq-art-top-field cq-art-grid-status">
-            <span>{snapshot.overall.percent}% · {runLabel(snapshot.run.status)}</span>
+            <span>{snapshot.overall.percent}% · {snapshot.overall.remaining} LEFT · {runLabel(snapshot.run.status)}</span>
             {snapshot.needsYou.length > 0 && <i>{snapshot.needsYou.length}</i>}
           </div>
           <div className="cq-art-top-field cq-art-branch" title={meta?.branch ?? ''}>
@@ -343,7 +343,7 @@ export default function GridBuilderClient() {
       <section className="cq-art-mobile-summary" aria-label="Live Empire Panel summary">
         <div>
           <strong>{snapshot.overall.percent}%</strong>
-          <span>Grid built</span>
+          <span>{snapshot.overall.remaining} V1 features remaining</span>
         </div>
         <div>
           <strong>{snapshot.playableLoop.score}/100</strong>

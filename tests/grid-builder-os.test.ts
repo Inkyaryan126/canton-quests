@@ -19,6 +19,7 @@ import {
   readGridBuilderRunState,
   resolveGridBuilderIntegrationRef,
   resolvePreferredCliBinary,
+  summarizeGridV1Progress,
   summarizeMilestoneProgress,
   writeGridBuilderCliHealthCache,
   writeGridBuilderCliHealthRunState,
@@ -110,6 +111,8 @@ describe('Grid Builder OS helpers', () => {
     expect(builderClientSource).toContain("'/api/admin/grid-builder/action'");
     expect(builderClientSource).toContain("action: 'refresh-health'");
     expect(builderClientSource).toContain('cq-art-grid-status');
+    expect(builderClientSource).toContain('snapshot.overall.remaining');
+    expect(builderClientSource).toContain('V1 features remaining');
     expect(builderClientSource).toContain('cq-art-lanes');
     expect(builderClientSource).not.toContain('{{');
     expect(builderStylesSource).toContain('.cq-artboard');
@@ -117,7 +120,8 @@ describe('Grid Builder OS helpers', () => {
   });
 
   it('blocks false-success no-op cycles and falls back beyond Product Director', () => {
-    expect(builderRunnerSource).toContain('Master Board prioritizer');
+    expect(builderRunnerSource).toContain('incomplete Canonical V1 Completion Board features');
+    expect(builderRunnerSource).toContain('Master Board only for integration cleanup');
     expect(builderRunnerSource).toContain('explicitly documented unfinished work');
     expect(builderRunnerSource).toContain('NO-OP BLOCKED');
     expect(builderRunnerSource).toContain('progressFingerprint');
@@ -132,6 +136,8 @@ describe('Grid Builder OS helpers', () => {
 
   it('pins exact supervisor control-plane commands and keeps live health out of the sandbox', () => {
     expect(builderRunnerSource).toContain('CONTROL PLANE COMMANDS — use these exact commands');
+    expect(builderRunnerSource).toContain('scripts/grid-completion-board.ts --json');
+    expect(builderRunnerSource).toContain('Master Board (integration/history only)');
     expect(builderRunnerSource).toContain('scripts/grid-master-board.ts --json');
     expect(builderRunnerSource).toContain('scripts/grid-product-director.ts --json');
     expect(builderRunnerSource).toContain('scripts/grid-playable-loop-score.ts --json');
@@ -151,6 +157,11 @@ describe('Grid Builder OS helpers', () => {
   it('refreshes required release evidence in the parent runner and fails closed', () => {
     expect(builderRunnerSource).toContain('function refreshRequiredEvidence');
     expect(builderRunnerSource).toContain('resolvePreferredLocalNodeBinary');
+    expect(builderRunnerSource).toContain("id: 'completion-board-tests'");
+    expect(builderRunnerSource).toContain("filename: 'completion-board-tests.json'");
+    expect(builderRunnerSource).toContain("args: ['--verify-tests', '--json']");
+    expect(builderRunnerSource).toContain('blocking: false');
+    expect(builderRunnerSource).toContain('Non-blocking product evidence is not green yet');
     expect(builderRunnerSource).toContain("id: 'browser-runtime'");
     expect(builderRunnerSource).toContain("id: 'migration-safety'");
     expect(builderRunnerSource).toContain('Parent evidence refresh passed');
@@ -195,7 +206,18 @@ describe('Grid Builder OS helpers', () => {
 
   it('recognizes only a fully complete, action-free Grid snapshot as steady state', () => {
     const base: Parameters<typeof isGridBuilderSteadyState>[0] = {
-      overall: { completed: 27, readyToCombine: 0, total: 27, percent: 100 },
+      overall: {
+        completed: 53,
+        remaining: 0,
+        inProgress: 0,
+        needsVerification: 0,
+        partial: 0,
+        missing: 0,
+        blocked: 0,
+        readyToCombine: 0,
+        total: 53,
+        percent: 100,
+      },
       playableLoop: { score: 100, status: 'GREEN', brokenLink: null, nextRepair: null },
       workers: [],
       recommendations: [],
@@ -234,7 +256,32 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain("steady=${steadyStateHealthy ? 'yes' : 'no'}");
   });
 
-  it('counts only integrated milestones as completed progress', () => {
+  it('uses canonical V1 feature completion for Boss Panel progress', () => {
+    expect(summarizeGridV1Progress({
+      complete: 40,
+      remaining: 13,
+      inProgress: 2,
+      needsVerification: 4,
+      partial: 3,
+      missing: 1,
+      blocked: 3,
+      total: 53,
+      percent: 75,
+    }, 2)).toEqual({
+      completed: 40,
+      remaining: 13,
+      inProgress: 2,
+      needsVerification: 4,
+      partial: 3,
+      missing: 1,
+      blocked: 3,
+      readyToCombine: 2,
+      total: 53,
+      percent: 75,
+    });
+  });
+
+  it('counts only integrated milestones as integration progress', () => {
     expect(summarizeMilestoneProgress([
       'INTEGRATED',
       'INTEGRATED',

@@ -1,4 +1,5 @@
 import { readClaims } from '../lib/agent-control';
+import { collectGridV1CompletionBoard } from '../lib/grid/completion-board/collect';
 import { collectGridMasterBoard } from '../lib/grid/master-board/collect';
 import { collectPlayableLoopScore } from '../lib/grid/ops/playable-loop-score';
 import { recommendGridProductWork } from '../lib/grid/ops/product-director';
@@ -15,8 +16,10 @@ function run(args: string[]): void {
   if (!Number.isInteger(limit) || limit < 1) throw new Error('--limit requires a positive integer');
   const integrationRef = value(args, '--integration-ref');
   const board = collectGridMasterBoard({ integrationRef });
+  const completionBoard = collectGridV1CompletionBoard({ integrationRef });
   const result = recommendGridProductWork({
     masterBoard: board,
+    completionBoard,
     claims: readClaims(),
     limit,
     playableLoopScore: collectPlayableLoopScore({ cwd: process.cwd(), board }),
