@@ -1,14 +1,17 @@
 import { execFileSync } from 'node:child_process';
 import {
+  activateClaim,
   auditWorkspaceHygiene,
   boardroomSummary,
   coordinationIssues,
   createClaim,
+  claimLifecycleState,
   heartbeatClaim,
   listLiveWorktreeStates,
   listWorktreeStates,
   pruneSafeWorktrees,
   readClaims,
+  reapAbandonedReservations,
   releaseClaim,
   repoRoot,
   staleClaim,
@@ -36,7 +39,18 @@ function formatAge(iso: string): string {
   return `${hours}h${minutes % 60}m`;
 }
 
+function reapGhostReservations(): void {
+  const result = reapAbandonedReservations();
+  for (const claim of result.released) {
+    console.log(`REAPED abandoned reservation ${claim.lane} (${claim.owner})`);
+  }
+  for (const item of result.preserved) {
+    console.error(`PRESERVED expired reservation ${item.claim.lane}: ${item.reason}`);
+  }
+}
+
 async function status(args: string[] = []): Promise<void> {
+  reapGhostReservations();
   const claims = readClaims();
   const deep = args.includes('--deep');
   const totalWorktrees = worktreeCount();
@@ -54,8 +68,10 @@ async function status(args: string[] = []): Promise<void> {
   console.log(`Live lane claims: ${claims.length}`);
   if (claims.length === 0) console.log('  (none)');
   for (const claim of claims) {
-    console.log(`  ${staleClaim(claim) ? 'STALE' : 'CLAIMED'} ${claim.lane} — ${claim.owner}`);
-    console.log(`    branch=${claim.branch} worktree=${claim.worktree} heartbeat=${formatAge(claim.heartbeatAt)} ago`);
+    const lifecycle = claimLifecycleState(claim);
+    const label = staleClaim(claim) ? 'STALE' : lifecycle === 'reserved' ? 'RESERVED' : 'CLAIMED';
+    console.log(`  ${label} ${claim.lane} — ${claim.owner}`);
+    console.log(`    branch=${claim.branch} worktree=${claim.worktree} heartbeat=${formatAge(claim.heartbeatAt)} ago${claim.workerPid ? ` pid=${claim.workerPid}` : ''}`);
     console.log(`    goal=${claim.goal}`);
     console.log(`    scope=${claim.scope.join(', ') || '(unspecified)'}`);
   }
@@ -104,6 +120,7 @@ async function status(args: string[] = []): Promise<void> {
 }
 
 async function check(args: string[]): Promise<void> {
+  reapGhostReservations();
   const claims = readClaims();
   const deep = args.includes('--deep');
   const totalWorktrees = worktreeCount();
@@ -126,6 +143,7 @@ async function check(args: string[]): Promise<void> {
 }
 
 function claim(args: string[]): void {
+  reapGhostReservations();
   const lane = flag(args, 'lane');
   const owner = flag(args, 'owner');
   const goal = flag(args, 'goal');
@@ -137,11 +155,24 @@ function claim(args: string[]): void {
       'Usage: grid:agents claim --lane NAME --owner NAME --goal "..." --scope "path/**,other/path" [--worktree PATH] [--branch NAME]',
     );
   }
-  const created = createClaim({ lane, owner, goal, scope, worktree, branch });
-  console.log(`CLAIMED ${created.lane} for ${created.owner}`);
+  const created = createClaim({ lane, owner, goal, scope, worktree, branch }, process.cwd(), { state: 'reserved' });
+  console.log(`RESERVED ${created.lane} for ${created.owner}`);
   console.log(`  branch=${created.branch}`);
   console.log(`  worktree=${created.worktree}`);
   console.log(`  scope=${created.scope.join(', ')}`);
+  console.log(`  activationDeadline=${created.activationDeadline}`);
+  console.log('  worker must be activated with: grid:agents activate --lane NAME --pid PID');
+}
+
+function activate(args: string[]): void {
+  const lane = flag(args, 'lane') ?? args[0];
+  const pidRaw = flag(args, 'pid');
+  const pid = Number(pidRaw);
+  if (!lane || !pidRaw || !Number.isInteger(pid) || pid <= 0) {
+    throw new Error('Usage: grid:agents activate --lane NAME --pid PID');
+  }
+  const updated = activateClaim(lane, pid);
+  console.log(`ACTIVATED ${updated.lane} (${updated.owner}) pid=${updated.workerPid}`);
 }
 
 function heartbeat(args: string[]): void {
@@ -224,12 +255,13 @@ async function main(): Promise<void> {
   if (command === 'status') return status(args);
   if (command === 'check') return check(args);
   if (command === 'claim') return claim(args);
+  if (command === 'activate') return activate(args);
   if (command === 'heartbeat') return heartbeat(args);
   if (command === 'release') return release(args);
   if (command === 'hygiene') return hygiene(args);
   if (command === 'prune') return prune(args);
   if (command === 'watch') return watch(args);
-  console.error('Usage: grid:agents <status|check|claim|heartbeat|release|hygiene|prune|watch> [options]');
+  console.error('Usage: grid:agents <status|check|claim|activate|heartbeat|release|hygiene|prune|watch> [options]');
   process.exit(2);
 }
 

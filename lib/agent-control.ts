@@ -6,6 +6,8 @@ import { isBoardroomBookkeepingPath } from './boardroom/commitGate';
 
 const execFileAsync = promisify(execFile);
 
+export type AgentClaimState = 'reserved' | 'active';
+
 export interface AgentClaim {
   version: 1;
   lane: string;
@@ -16,6 +18,11 @@ export interface AgentClaim {
   branch: string;
   claimedAt: string;
   heartbeatAt: string;
+  state?: AgentClaimState;
+  activationDeadline?: string;
+  reservedHead?: string;
+  activatedAt?: string;
+  workerPid?: number;
 }
 
 export interface WorktreeState {
@@ -131,17 +138,54 @@ export function readClaims(cwd = process.cwd()): AgentClaim[] {
     .sort()
     .map((name) => JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')) as AgentClaim);
 }
+export interface CreateClaimOptions {
+  state?: AgentClaimState;
+  activationTtlMs?: number;
+  now?: Date;
+}
+
+export function claimLifecycleState(claim: AgentClaim): AgentClaimState {
+  return claim.state ?? 'active';
+}
+
+function processExists(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'EPERM');
+  }
+}
+
 export function createClaim(
-  input: Omit<AgentClaim, 'version' | 'claimedAt' | 'heartbeatAt'>,
+  input: Pick<AgentClaim, 'lane' | 'owner' | 'goal' | 'scope' | 'worktree' | 'branch'>,
   cwd = process.cwd(),
+  options: CreateClaimOptions = {},
 ): AgentClaim {
   fs.mkdirSync(claimsDir(cwd), { recursive: true });
   const existing = readClaims(cwd);
+  const now = options.now ?? new Date();
+  const state = options.state ?? 'active';
+  const activationTtlMs = options.activationTtlMs ?? 2 * 60_000;
+  let reservedHead: string | undefined;
+  if (state === 'reserved') {
+    try {
+      reservedHead = runGit(['rev-parse', 'HEAD'], input.worktree);
+    } catch {
+      reservedHead = undefined;
+    }
+  }
   const candidate: AgentClaim = {
     ...input,
     version: 1,
-    claimedAt: new Date().toISOString(),
-    heartbeatAt: new Date().toISOString(),
+    claimedAt: now.toISOString(),
+    heartbeatAt: now.toISOString(),
+    state,
+    ...(state === 'reserved' ? {
+      activationDeadline: new Date(now.getTime() + activationTtlMs).toISOString(),
+      reservedHead,
+    } : {}),
   };
   if (existing.some((claim) => claim.lane === candidate.lane)) {
     throw new Error(`lane already claimed: ${candidate.lane}`);
@@ -156,13 +200,79 @@ export function createClaim(
   return candidate;
 }
 
+export function activateClaim(
+  lane: string,
+  workerPid: number,
+  cwd = process.cwd(),
+  now = new Date(),
+): AgentClaim {
+  const filename = claimPath(lane, cwd);
+  if (!fs.existsSync(filename)) throw new Error(`lane not claimed: ${lane}`);
+  if (!processExists(workerPid)) throw new Error(`worker process is not running: pid ${workerPid}`);
+  const claim = JSON.parse(fs.readFileSync(filename, 'utf8')) as AgentClaim;
+  claim.state = 'active';
+  claim.workerPid = workerPid;
+  claim.activatedAt = now.toISOString();
+  claim.heartbeatAt = now.toISOString();
+  delete claim.activationDeadline;
+  fs.writeFileSync(filename, `${JSON.stringify(claim, null, 2)}\n`);
+  return claim;
+}
+
 export function heartbeatClaim(lane: string, cwd = process.cwd()): AgentClaim {
   const filename = claimPath(lane, cwd);
   if (!fs.existsSync(filename)) throw new Error(`lane not claimed: ${lane}`);
   const claim = JSON.parse(fs.readFileSync(filename, 'utf8')) as AgentClaim;
+  if (claimLifecycleState(claim) === 'reserved') {
+    throw new Error(`lane is reserved but no worker is active: ${lane}; activate it with a live worker PID first`);
+  }
   claim.heartbeatAt = new Date().toISOString();
   fs.writeFileSync(filename, `${JSON.stringify(claim, null, 2)}\n`);
   return claim;
+}
+
+export interface ReapReservationResult {
+  released: AgentClaim[];
+  preserved: Array<{ claim: AgentClaim; reason: string }>;
+}
+
+export function reapAbandonedReservations(
+  cwd = process.cwd(),
+  options: { now?: Date } = {},
+): ReapReservationResult {
+  const now = options.now ?? new Date();
+  const released: AgentClaim[] = [];
+  const preserved: Array<{ claim: AgentClaim; reason: string }> = [];
+  for (const claim of readClaims(cwd)) {
+    if (claimLifecycleState(claim) !== 'reserved') continue;
+    const deadline = claim.activationDeadline ? new Date(claim.activationDeadline) : null;
+    if (deadline && Number.isFinite(deadline.getTime()) && deadline.getTime() > now.getTime()) continue;
+
+    if (!fs.existsSync(claim.worktree)) {
+      preserved.push({ claim, reason: 'reserved worktree no longer exists; manual review required' });
+      continue;
+    }
+    let head = '';
+    let dirty = '';
+    try {
+      head = runGit(['rev-parse', 'HEAD'], claim.worktree);
+      dirty = runGit(['status', '--short'], claim.worktree);
+    } catch {
+      preserved.push({ claim, reason: 'unable to inspect reserved worktree safely' });
+      continue;
+    }
+    if (dirty.trim()) {
+      preserved.push({ claim, reason: 'reserved worktree has uncommitted changes' });
+      continue;
+    }
+    if (claim.reservedHead && head !== claim.reservedHead) {
+      preserved.push({ claim, reason: 'reserved worktree advanced after reservation' });
+      continue;
+    }
+    fs.unlinkSync(claimPath(claim.lane, cwd));
+    released.push(claim);
+  }
+  return { released, preserved };
 }
 
 export function releaseClaim(lane: string, cwd = process.cwd()): AgentClaim {
@@ -412,6 +522,10 @@ export function boardroomSummary(cwd = process.cwd()): BoardroomTaskSummary {
 }
 
 export function staleClaim(claim: AgentClaim, staleMinutes = 360): boolean {
+  if (claimLifecycleState(claim) === 'reserved') {
+    const deadline = claim.activationDeadline ? new Date(claim.activationDeadline).getTime() : NaN;
+    return !Number.isFinite(deadline) || Date.now() > deadline;
+  }
   const age = Date.now() - new Date(claim.heartbeatAt).getTime();
   return !Number.isFinite(age) || age > staleMinutes * 60_000;
 }

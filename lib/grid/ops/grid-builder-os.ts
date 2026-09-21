@@ -5,10 +5,12 @@ import { execFileSync } from 'node:child_process';
 import {
   boardroomSummary,
   canonicalPath,
+  claimLifecycleState,
   coordinationIssues,
   coordinationRoot,
   listWorktreeStates,
   readClaims,
+  reapAbandonedReservations,
   resolveIntegrationBranch,
   staleClaim,
   type CoordinationIssue,
@@ -510,6 +512,7 @@ export function collectGridBuilderOsSnapshot(options: {
 } = {}): GridBuilderOsSnapshot {
   const cwd = options.cwd ?? process.cwd();
   const integrationRef = resolveGridBuilderIntegrationRef(cwd);
+  reapAbandonedReservations(cwd);
   const claims = readClaims(cwd);
   const worktrees = listWorktreeStates(cwd, { fast: true });
   const boardroom = boardroomSummary(cwd);
@@ -526,7 +529,7 @@ export function collectGridBuilderOsSnapshot(options: {
   });
   const worktreeByPath = new Map(worktrees.map((item) => [canonicalPath(item.path), item]));
   const workers = claims
-    .filter((claim) => claim.lane !== 'grid-builder-os')
+    .filter((claim) => claim.lane !== 'grid-builder-os' && claimLifecycleState(claim) === 'active')
     .map((claim) => {
       const worktree = worktreeByPath.get(canonicalPath(claim.worktree));
       const dirtyFiles = worktree?.dirtyPaths.length ?? 0;

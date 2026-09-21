@@ -31,6 +31,7 @@ const builderClientSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/
 const builderStylesSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder.css'), 'utf8');
 const dockLaunchRouteSource = fs.readFileSync(path.join(process.cwd(), 'app/api/admin/grid-builder/launch/route.ts'), 'utf8');
 const builderRunnerSource = fs.readFileSync(path.join(process.cwd(), 'scripts/grid-builder-os-runner.ts'), 'utf8');
+const builderOsSource = fs.readFileSync(path.join(process.cwd(), 'lib/grid/ops/grid-builder-os.ts'), 'utf8');
 
 const tempDirs: string[] = [];
 
@@ -188,7 +189,10 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('They are NOT fallback workers for the same task');
     expect(builderRunnerSource).toContain('Select up to three DISTINCT tasks at a time');
     expect(builderRunnerSource).toContain('overlapping file scope to more than one worker slot');
-    expect(builderRunnerSource).toContain('Control Tower claims and isolated worktrees sequentially BEFORE starting concurrent worker execution');
+    expect(builderRunnerSource).toContain('Control Tower startup reservations and isolated worktrees sequentially BEFORE starting concurrent worker execution');
+    expect(builderRunnerSource).toContain('A reservation is NOT an active worker');
+    expect(builderRunnerSource).toContain('automatically reaped after two minutes');
+    expect(builderRunnerSource).toContain('activate each reservation with that live PID');
     expect(builderRunnerSource).toContain('Codex slot: the current Codex lead works one claimed task itself');
     expect(builderRunnerSource).toContain('Claude slot: launch Claude non-interactively in its own claimed worktree on a different task');
     expect(builderRunnerSource).toContain('Claude implementation launch template');
@@ -202,6 +206,8 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('Do NOT collapse its task onto Codex just to simulate three workers');
     expect(builderRunnerSource).toContain('run the existing local-only verifier directly with its `--record --json` mode');
     expect(builderRunnerSource).toContain('refresh commit-bound shared verification evidence');
+    expect(builderOsSource).toContain("claimLifecycleState(claim) === 'active'");
+    expect(builderOsSource).toContain('reapAbandonedReservations(cwd)');
   });
 
   it('recognizes only a fully complete, action-free Grid snapshot as steady state', () => {
