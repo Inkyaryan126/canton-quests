@@ -11,11 +11,43 @@ import {
   resolveGridBuilderIntegrationRef,
   resolvePreferredCliBinary,
   writeGridBuilderRunState,
+  type GridBuilderOsSnapshot,
   type GridBuilderRunState,
 } from '../lib/grid/ops/grid-builder-os';
 import { resolvePreferredLocalNodeBinary } from '../lib/grid/ops/local-toolchain';
 
 const MAX_LEAD_RUNTIME_MS = 30 * 60 * 1000;
+
+type CrewSlot = 'codex' | 'claude' | 'gemini';
+
+export interface CrewDispatchAssignment {
+  slot: CrewSlot;
+  taskId: string;
+  title: string;
+  action: string;
+  specialization: string;
+  whyNow: string;
+}
+
+export function buildCrewDispatchAssignments(
+  recommendations: GridBuilderOsSnapshot['recommendations'],
+): CrewDispatchAssignment[] {
+  const slots: CrewSlot[] = ['codex', 'claude', 'gemini'];
+  const seen = new Set<string>();
+  const distinct = recommendations.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+  return distinct.slice(0, slots.length).map((item, index) => ({
+    slot: slots[index],
+    taskId: item.id,
+    title: item.title,
+    action: item.action,
+    specialization: item.specialization,
+    whyNow: item.whyNow,
+  }));
+}
 
 function value(args: string[], flag: string): string | undefined {
   const index = args.indexOf(flag);
@@ -272,10 +304,21 @@ function cleanupSupervisorWorktree(cwd: string, supervisorPath: string): { clean
   }
 }
 
-function supervisorPrompt(): string {
+function supervisorPrompt(assignments: CrewDispatchAssignment[]): string {
+  const firstWave = assignments.length
+    ? [
+        'PARENT PREASSIGNED FIRST WAVE — preserve these worker/task identities unless a fresh Control Tower conflict makes one unsafe:',
+        ...assignments.map((assignment) =>
+          `- ${assignment.slot.toUpperCase()} -> ${assignment.taskId}: ${assignment.title} [${assignment.action}; ${assignment.specialization}] — ${assignment.whyNow}`),
+        '- These are distinct task identities selected before the supervisor started. Derive exact non-overlapping file scopes and claims before launching them.',
+      ]
+    : [
+        'PARENT PREASSIGNED FIRST WAVE: none. The parent found no current Product Director recommendations; do not invent work just to fill worker slots.',
+      ];
+
   return [
-    'You are the lead supervisor for The Grid local Builder OS.',
-    'This is one bounded orchestration cycle, not an endless daemon.',
+    'You are the crew scheduler AND the Codex worker slot for The Grid local Builder OS.',
+    'This is one bounded orchestration cycle made of repeated worker waves, not a single-task handoff and not an endless daemon.',
     '',
     'FIRST: read AGENTS.md, PROJECT-BRAIN.md, docs/GRID_AGENT_CONTROL.md, and current canonical Grid specs.',
     'Inspect current Control Tower claims, active worktrees, recent canonical commits, Product Director, Playable Loop Score, and Definition-of-Done state before assigning anything.',
@@ -303,21 +346,34 @@ function supervisorPrompt(): string {
     '- Continue and harvest existing claimed lanes before creating new ones.',
     '- Use focused verification; never launch duplicate full typecheck/build jobs.',
     '- When a lane is complete, use the Definition-of-Done Gate, release it, then plan/execute the Merge Conveyor only when safe.',
-    '- Keep up to three useful development lanes active when safe.',
-    '- Use Product Director recommendations as the first shortlist, but derive exact file scope before claiming. Never invent filler work.',
-    '- If Product Director returns zero recommendations, run the Master Board prioritizer. If that also returns zero, inspect live Boardroom/Control Tower state and canonical Grid specs, CURRENT_MISSION, and ROADMAP for explicitly documented unfinished work. Only claim work whose requirements already exist in repository source-of-truth documents; never invent undefined mechanics.',
+    '',
+    ...firstWave,
+    '',
+    'THREE-SLOT CREW SCHEDULER — this is the primary execution model:',
+    '- Codex, Claude, and Gemini are three independent worker slots. They are NOT fallback workers for the same task.',
+    '- Before launching implementation work, build an ordered queue from Product Director, then Master Board prioritizer, then explicitly documented unfinished work. Never invent filler work.',
+    '- Select up to three DISTINCT tasks at a time. Never assign the same candidate, lane, branch, worktree, goal, or overlapping file scope to more than one worker slot.',
+    '- Derive exact file scope for each selected task first. Create all safe non-overlapping Control Tower claims and isolated worktrees sequentially BEFORE starting concurrent worker execution. If scopes cannot be proven non-overlapping, do not parallelize those tasks.',
+    '- Codex slot: the current Codex lead works one claimed task itself in that task worktree. NEVER launch nested `codex exec`.',
+    '- Claude slot: launch Claude non-interactively in its own claimed worktree on a different task.',
+    '- Claude implementation launch template (run from its claimed worktree): claude -p --permission-mode acceptEdits --output-format text "<task prompt>".',
+    '- Gemini slot: launch Gemini non-interactively in its own claimed worktree on a third different task.',
+    '- Gemini implementation launch template (run from its claimed worktree): gemini --skip-trust --approval-mode yolo --output-format text --prompt "<task prompt>".',
+    '- Worker prompts must repeat the lane, exact allowed scope, acceptance criteria, required focused tests, no-production rule, and commit/handoff requirement.',
+    '- Launch Claude and Gemini as background processes after their claims exist, capture each PID/log separately, then immediately begin the Codex slot task. Do not wait for one worker to finish before starting the others.',
+    '- Continuously heartbeat and harvest all active slots. When ANY slot finishes, verify/commit/Definition-of-Done/release/integrate it when safe, re-scan canonical + claims + Product Director, and IMMEDIATELY refill that same CLI slot with the next safe distinct task.',
+    '- Repeat worker waves until there is no safe documented work left, a genuine operator blocker exists, or the Builder cycle time limit is reached.',
+    '- If fewer than three safe non-overlapping tasks exist, run only the available distinct tasks. Never duplicate one task merely to keep all slots busy.',
+    '- If Claude or Gemini is unavailable, unauthenticated, missing credentials, stalled, or errors, mark THAT slot unavailable once and keep the other slots running. Release/requeue its unstarted claim safely. Do NOT collapse its task onto Codex just to simulate three workers.',
+    '- Missing Claude/Gemini authentication is a crew-capacity problem that should be surfaced to Dustin, but it must not stop healthy independent slots from continuing.',
     '- Before creating an implementation lane for a verification/readiness task, search the repo for the harness and current shared evidence. If the harness already exists and the only need is stale/missing evidence, run the existing local-only verifier directly with its `--record --json` mode instead of reimplementing it.',
     '- Verification-only evidence refreshes do not require a product-code worker branch when no source edits are needed. They may update only shared git-common coordination evidence and must remain local-only with no production access.',
     '- Every new implementation worker gets an isolated worktree, explicit Control Tower claim, exact scope, and clear acceptance criteria.',
-    '- Claude and Gemini are optional accelerators, not prerequisites. Prefer them only when their non-interactive CLI is already authenticated and healthy.',
-    '- When the current lead is Codex, NEVER launch nested `codex exec` as a worker. Nested Codex app-server startup can fail under the lead sandbox. The current lead is the Codex fallback.',
-    '- If Claude or Gemini is unavailable, not authenticated, missing a key, stalled, or errors, record that once and do not retry it this cycle.',
-    '- If worker CLIs are unavailable but one safe documented task remains, the current lead MUST execute that bounded task directly: create/claim an isolated worker worktree, edit only its claimed scope, run focused verification, commit the worker branch, then continue Definition-of-Done and Merge Conveyor. Missing worker authentication alone is NOT a Dustin blocker.',
-    '- Lead self-execution must happen in the claimed worker worktree under /private/tmp; never edit the supervisor worktree or canonical checkout to implement product code.',
+    '- Lead self-execution must happen only in the Codex slot claimed worker worktree under /private/tmp; never edit the supervisor worktree or canonical checkout to implement product code.',
     '- A successful cycle must produce observable progress: integrate a commit, advance a claimed branch, release/replace a completed claim, create a new valid claim for documented work, or refresh commit-bound shared verification evidence. Exiting cleanly with no repo/claim/evidence progress is NOT success.',
-    '- Stop this cycle after existing ready work is harvested and safe replacement work is assigned or after a real blocker requires Dustin.',
+    '- Stop only when the safe queue is exhausted, the cycle time limit is reached, or a real blocker requires Dustin.',
     '',
-    'At the end, print a concise operator summary: what was integrated, what remains active, what is blocked, and whether Dustin must do anything.',
+    'At the end, print a concise operator summary by worker slot (Codex / Claude / Gemini): tasks completed, current lane, next refill or unavailable reason, what was integrated, what remains active, and whether Dustin must do anything.',
   ].join('\n');
 }
 
@@ -430,7 +486,19 @@ async function main(): Promise<void> {
   if (evidenceRefresh.failures.length > 0) {
     appendLog(cwd, `Parent evidence refresh failures: ${evidenceRefresh.failures.join(' | ')}`);
   }
-  const prompt = supervisorPrompt();
+  const dispatchSnapshot = collectGridBuilderOsSnapshot({
+    cwd,
+    hostname: 'localhost',
+    nodeEnv: process.env.NODE_ENV,
+  });
+  const crewAssignments = buildCrewDispatchAssignments(dispatchSnapshot.recommendations);
+  appendLog(
+    cwd,
+    crewAssignments.length
+      ? `Parent crew wave: ${crewAssignments.map((item) => `${item.slot}=${item.taskId}`).join(', ')}`
+      : 'Parent crew wave: no Product Director tasks available.',
+  );
+  const prompt = supervisorPrompt(crewAssignments);
   const codexBinary = resolvePreferredCliBinary('codex');
   const claudeBinary = resolvePreferredCliBinary('claude');
   const geminiBinary = resolvePreferredCliBinary('gemini');

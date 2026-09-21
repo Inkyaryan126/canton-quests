@@ -118,7 +118,7 @@ describe('Grid Builder OS helpers', () => {
 
   it('blocks false-success no-op cycles and falls back beyond Product Director', () => {
     expect(builderRunnerSource).toContain('Master Board prioritizer');
-    expect(builderRunnerSource).toContain('canonical Grid specs, CURRENT_MISSION, and ROADMAP');
+    expect(builderRunnerSource).toContain('explicitly documented unfinished work');
     expect(builderRunnerSource).toContain('NO-OP BLOCKED');
     expect(builderRunnerSource).toContain('progressFingerprint');
     expect(builderRunnerSource).toContain('evidenceFingerprint');
@@ -163,11 +163,32 @@ describe('Grid Builder OS helpers', () => {
     );
   });
 
-  it('lets the lead finish bounded work without external worker authentication', () => {
-    expect(builderRunnerSource).toContain('Claude and Gemini are optional accelerators, not prerequisites');
-    expect(builderRunnerSource).toContain('NEVER launch nested `codex exec` as a worker');
-    expect(builderRunnerSource).toContain('the current lead MUST execute that bounded task directly');
-    expect(builderRunnerSource).toContain('Missing worker authentication alone is NOT a Dustin blocker');
+  it('runs Codex, Claude, and Gemini as distinct refillable worker slots', () => {
+    expect(builderRunnerSource).toContain('You are the crew scheduler AND the Codex worker slot');
+    expect(builderRunnerSource).toContain('repeated worker waves, not a single-task handoff');
+    expect(builderRunnerSource).toContain("const slots: CrewSlot[] = ['codex', 'claude', 'gemini']");
+    expect(builderRunnerSource).toContain('seen.has(item.id)');
+    expect(builderRunnerSource).toContain('distinct.slice(0, slots.length)');
+    expect(builderRunnerSource).toContain('Parent crew wave:');
+    expect(builderRunnerSource).toContain('supervisorPrompt(crewAssignments)');
+    expect(builderRunnerSource).toContain('PARENT PREASSIGNED FIRST WAVE');
+    expect(builderRunnerSource).toContain('THREE-SLOT CREW SCHEDULER — this is the primary execution model');
+    expect(builderRunnerSource).toContain('Codex, Claude, and Gemini are three independent worker slots');
+    expect(builderRunnerSource).toContain('They are NOT fallback workers for the same task');
+    expect(builderRunnerSource).toContain('Select up to three DISTINCT tasks at a time');
+    expect(builderRunnerSource).toContain('overlapping file scope to more than one worker slot');
+    expect(builderRunnerSource).toContain('Control Tower claims and isolated worktrees sequentially BEFORE starting concurrent worker execution');
+    expect(builderRunnerSource).toContain('Codex slot: the current Codex lead works one claimed task itself');
+    expect(builderRunnerSource).toContain('Claude slot: launch Claude non-interactively in its own claimed worktree on a different task');
+    expect(builderRunnerSource).toContain('Claude implementation launch template');
+    expect(builderRunnerSource).toContain('claude -p --permission-mode acceptEdits --output-format text');
+    expect(builderRunnerSource).toContain('Gemini slot: launch Gemini non-interactively in its own claimed worktree on a third different task');
+    expect(builderRunnerSource).toContain('gemini --skip-trust --approval-mode yolo --output-format text --prompt');
+    expect(builderRunnerSource).toContain('capture each PID/log separately');
+    expect(builderRunnerSource).toContain('Do not wait for one worker to finish before starting the others');
+    expect(builderRunnerSource).toContain('IMMEDIATELY refill that same CLI slot');
+    expect(builderRunnerSource).toContain('Repeat worker waves until there is no safe documented work left');
+    expect(builderRunnerSource).toContain('Do NOT collapse its task onto Codex just to simulate three workers');
     expect(builderRunnerSource).toContain('run the existing local-only verifier directly with its `--record --json` mode');
     expect(builderRunnerSource).toContain('refresh commit-bound shared verification evidence');
   });
