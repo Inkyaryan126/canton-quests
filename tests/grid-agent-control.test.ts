@@ -4,9 +4,11 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  activateClaim,
   auditWorkspaceHygiene,
   batchCommitHeaders,
   canonicalPath,
+  claimLifecycleState,
   claimScopesOverlap,
   coordinationIssues,
   createClaim,
@@ -15,6 +17,7 @@ import {
   listWorktreeStates,
   pruneSafeWorktrees,
   readClaims,
+  reapAbandonedReservations,
   releaseClaim,
   scopesOverlap,
 } from '../lib/agent-control';
@@ -56,6 +59,58 @@ describe('GRID agent control', () => {
     expect(new Date(beat.heartbeatAt).getTime()).toBeGreaterThanOrEqual(new Date(claim.heartbeatAt).getTime());
     expect(releaseClaim('roads', repo).lane).toBe('roads');
     expect(readClaims(repo)).toEqual([]);
+  });
+
+  it('keeps startup reservations separate from active workers and requires live PID activation', () => {
+    const repo = tempRepo();
+    fs.writeFileSync(path.join(repo, 'base.txt'), 'base\n');
+    execFileSync('git', ['add', '.'], { cwd: repo });
+    execFileSync('git', ['commit', '-m', 'base'], { cwd: repo });
+
+    const reserved = createClaim({
+      lane: 'reserved-worker', owner: 'stream-1', goal: 'Start worker',
+      scope: ['lib/grid/start.ts'], worktree: repo, branch: 'main',
+    }, repo, { state: 'reserved' });
+
+    expect(claimLifecycleState(reserved)).toBe('reserved');
+    expect(reserved.activationDeadline).toBeTruthy();
+    expect(reserved.reservedHead).toBe(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim());
+    expect(() => heartbeatClaim('reserved-worker', repo)).toThrow(/activate it with a live worker PID/i);
+    expect(() => activateClaim('reserved-worker', 99999999, repo)).toThrow(/worker process is not running/i);
+
+    const active = activateClaim('reserved-worker', process.pid, repo);
+    expect(claimLifecycleState(active)).toBe('active');
+    expect(active.workerPid).toBe(process.pid);
+    expect(active.activatedAt).toBeTruthy();
+    expect(active.activationDeadline).toBeUndefined();
+    expect(() => heartbeatClaim('reserved-worker', repo)).not.toThrow();
+  });
+
+  it('automatically reaps an expired untouched reservation but preserves one with work', () => {
+    const repo = tempRepo();
+    fs.writeFileSync(path.join(repo, 'base.txt'), 'base\n');
+    execFileSync('git', ['add', '.'], { cwd: repo });
+    execFileSync('git', ['commit', '-m', 'base'], { cwd: repo });
+    const old = new Date('2026-09-21T00:00:00.000Z');
+
+    createClaim({
+      lane: 'ghost-clean', owner: 'stream-1', goal: 'Never launched',
+      scope: ['lib/grid/ghost.ts'], worktree: repo, branch: 'main',
+    }, repo, { state: 'reserved', activationTtlMs: 1_000, now: old });
+    const reaped = reapAbandonedReservations(repo, { now: new Date('2026-09-21T00:00:02.000Z') });
+    expect(reaped.released.map((claim) => claim.lane)).toEqual(['ghost-clean']);
+    expect(readClaims(repo)).toEqual([]);
+
+    createClaim({
+      lane: 'ghost-dirty', owner: 'stream-2', goal: 'Unexpected work appeared',
+      scope: ['dirty.txt'], worktree: repo, branch: 'main',
+    }, repo, { state: 'reserved', activationTtlMs: 1_000, now: old });
+    fs.writeFileSync(path.join(repo, 'dirty.txt'), 'preserve me\n');
+    const preserved = reapAbandonedReservations(repo, { now: new Date('2026-09-21T00:00:02.000Z') });
+    expect(preserved.released).toEqual([]);
+    expect(preserved.preserved[0]?.claim.lane).toBe('ghost-dirty');
+    expect(preserved.preserved[0]?.reason).toMatch(/uncommitted changes/i);
+    expect(readClaims(repo).map((claim) => claim.lane)).toEqual(['ghost-dirty']);
   });
 
   it('refuses a second lane whose scope overlaps an active claim', () => {
