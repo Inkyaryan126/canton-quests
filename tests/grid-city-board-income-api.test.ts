@@ -40,7 +40,7 @@ describe('Grid City Board income API contract', () => {
   it('projects real accrual remainders and renders live production/countdown', () => {
     expect(worldAdapter).toContain('credits_accrual_remainder');
     expect(worldAdapter).toContain('influence_accrual_remainder');
-    expect(worldRoute).toContain('generatedAt: new Date().toISOString()');
+    expect(worldRoute).toContain('generatedAt: now');
     expect(client).toContain("fetch('/api/grid/income/collect'");
     expect(client).toContain('income.pendingCredits');
     expect(client).toContain('income.pendingInfluence');
