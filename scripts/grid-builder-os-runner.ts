@@ -189,15 +189,27 @@ function refreshRequiredEvidence(
   );
   const specs = [
     {
+      id: 'completion-board-tests',
+      filename: 'completion-board-tests.json',
+      script: 'scripts/grid-completion-board.ts',
+      args: ['--verify-tests', '--json'],
+      blocking: false,
+      timeoutMs: 30 * 60 * 1000,
+    },
+    {
       id: 'browser-runtime',
       filename: 'browser-runtime.json',
       script: 'scripts/grid-browser-runtime.ts',
+      args: ['--record', '--json'],
+      blocking: true,
       timeoutMs: 8 * 60 * 1000,
     },
     {
       id: 'migration-safety',
       filename: 'migration-safety.json',
       script: 'scripts/grid-migration-safety.ts',
+      args: ['--record', '--json'],
+      blocking: true,
       timeoutMs: 2 * 60 * 1000,
     },
   ];
@@ -218,7 +230,7 @@ function refreshRequiredEvidence(
     try {
       execFileSync(
         nodeBin,
-        [viteNode, spec.script, '--record', '--json'],
+        [viteNode, spec.script, ...spec.args],
         {
           cwd: supervisorPath,
           encoding: 'utf8',
@@ -247,9 +259,9 @@ function refreshRequiredEvidence(
       refreshed?.status !== 'PASS'
       || refreshed.integrationCommit !== integrationCommit
     ) {
-      outcome.failures.push(
-        `${spec.id}: ${refreshed?.summary ?? refreshed?.status ?? 'no valid evidence recorded'}`,
-      );
+      const detail = `${spec.id}: ${refreshed?.summary ?? refreshed?.status ?? 'no valid evidence recorded'}`;
+      if (spec.blocking) outcome.failures.push(detail);
+      else appendLog(cwd, `Non-blocking product evidence is not green yet: ${detail}`);
       continue;
     }
 
@@ -321,16 +333,18 @@ function supervisorPrompt(assignments: CrewDispatchAssignment[]): string {
     'This is one bounded orchestration cycle made of repeated worker waves, not a single-task handoff and not an endless daemon.',
     '',
     'FIRST: read AGENTS.md, PROJECT-BRAIN.md, docs/GRID_AGENT_CONTROL.md, and current canonical Grid specs.',
-    'Inspect current Control Tower claims, active worktrees, recent canonical commits, Product Director, Playable Loop Score, and Definition-of-Done state before assigning anything.',
+    'Inspect current Control Tower claims, active worktrees, recent canonical commits, the Canonical V1 Completion Board, Product Director, Playable Loop Score, and Definition-of-Done state before assigning anything.',
     '',
     'CONTROL PLANE COMMANDS — use these exact commands; do not guess npm aliases:',
     '- Control Tower: npm run grid:agents -- status',
     '- Preflight: npm run grid:agents -- check',
-    '- Master Board: node ./node_modules/vite-node/vite-node.mjs scripts/grid-master-board.ts --json',
+    '- Canonical V1 Completion Board: node ./node_modules/vite-node/vite-node.mjs scripts/grid-completion-board.ts --json',
+    '- Master Board (integration/history only): node ./node_modules/vite-node/vite-node.mjs scripts/grid-master-board.ts --json',
     '- Product Director: node ./node_modules/vite-node/vite-node.mjs scripts/grid-product-director.ts --json',
     '- Playable Loop: node ./node_modules/vite-node/vite-node.mjs scripts/grid-playable-loop-score.ts --json',
     '- Prioritizer: node ./node_modules/vite-node/vite-node.mjs scripts/grid-prioritize.ts --json',
     '- Builder snapshot: node ./node_modules/vite-node/vite-node.mjs scripts/grid-builder-os.ts status --json',
+    '- Completion Board focused-test evidence refresh is parent-runner owned. Read `completion-board-tests.json`; do not launch duplicate board-wide test runs from worker slots.',
     '- Browser evidence refresh is parent-runner owned. Do NOT run `scripts/grid-browser-runtime.ts --record` inside the supervisor sandbox; read the release candidate evidence instead.',
     '- Migration safety refresh is parent-runner owned. Do NOT run `scripts/grid-migration-safety.ts --record` inside the supervisor sandbox; read the release candidate evidence instead.',
     '- Release candidate read: node ./node_modules/vite-node/vite-node.mjs scripts/grid-release-candidate.ts --json',
@@ -351,7 +365,7 @@ function supervisorPrompt(assignments: CrewDispatchAssignment[]): string {
     '',
     'THREE-SLOT CREW SCHEDULER — this is the primary execution model:',
     '- Codex, Claude, and Gemini are three independent worker slots. They are NOT fallback workers for the same task.',
-    '- Before launching implementation work, build an ordered queue from Product Director, then Master Board prioritizer, then explicitly documented unfinished work. Never invent filler work.',
+    '- Before launching implementation work, build an ordered queue from Product Director, then incomplete Canonical V1 Completion Board features, then Master Board only for integration cleanup, then explicitly documented unfinished work. Never treat all milestones merged as game complete and never invent filler work.',
     '- Select up to three DISTINCT tasks at a time. Never assign the same candidate, lane, branch, worktree, goal, or overlapping file scope to more than one worker slot.',
     '- Derive exact file scope for each selected task first. Create all safe non-overlapping Control Tower claims and isolated worktrees sequentially BEFORE starting concurrent worker execution. If scopes cannot be proven non-overlapping, do not parallelize those tasks.',
     '- Codex slot: the current Codex lead works one claimed task itself in that task worktree. NEVER launch nested `codex exec`.',
@@ -361,7 +375,7 @@ function supervisorPrompt(assignments: CrewDispatchAssignment[]): string {
     '- Gemini implementation launch template (run from its claimed worktree): gemini --skip-trust --approval-mode yolo --output-format text --prompt "<task prompt>".',
     '- Worker prompts must repeat the lane, exact allowed scope, acceptance criteria, required focused tests, no-production rule, and commit/handoff requirement.',
     '- Launch Claude and Gemini as background processes after their claims exist, capture each PID/log separately, then immediately begin the Codex slot task. Do not wait for one worker to finish before starting the others.',
-    '- Continuously heartbeat and harvest all active slots. When ANY slot finishes, verify/commit/Definition-of-Done/release/integrate it when safe, re-scan canonical + claims + Product Director, and IMMEDIATELY refill that same CLI slot with the next safe distinct task.',
+    '- Continuously heartbeat and harvest all active slots. When ANY slot finishes, verify/commit/Definition-of-Done/release/integrate it when safe, re-scan canonical + claims + Completion Board + Product Director, and IMMEDIATELY refill that same CLI slot with the next safe distinct task.',
     '- Repeat worker waves until there is no safe documented work left, a genuine operator blocker exists, or the Builder cycle time limit is reached.',
     '- If fewer than three safe non-overlapping tasks exist, run only the available distinct tasks. Never duplicate one task merely to keep all slots busy.',
     '- If Claude or Gemini is unavailable, unauthenticated, missing credentials, stalled, or errors, mark THAT slot unavailable once and keep the other slots running. Release/requeue its unstarted claim safely. Do NOT collapse its task onto Codex just to simulate three workers.',

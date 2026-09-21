@@ -10,6 +10,7 @@ import {
   type GridProductCandidate,
   type GridProductDirectorInput,
 } from '../lib/grid/ops/product-director';
+import type { GridV1CompletionBoard, GridV1FeatureState } from '../lib/grid/completion-board/types';
 import type { PlayableLoopScore } from '../lib/grid/ops/playable-loop-score';
 
 const loopScore = (stageId: PlayableLoopScore['highestValueBrokenLink'] extends infer _T ? 'action' : never = 'action'): PlayableLoopScore => ({
@@ -52,7 +53,78 @@ const input = (overrides: Partial<GridProductDirectorInput> = {}): GridProductDi
   ...overrides,
 });
 
+const completionFeature = (overrides: Partial<GridV1FeatureState> = {}): GridV1FeatureState => ({
+  id: 'feature.one',
+  title: 'Feature One',
+  area: 'Gameplay',
+  phase: 'gameplay',
+  priority: 50,
+  dependsOn: [],
+  codePaths: ['lib/feature.ts'],
+  testPaths: ['tests/feature.test.ts'],
+  scopeHints: ['lib/feature.ts', 'tests/feature.test.ts'],
+  acceptanceCriteria: ['feature is verified'],
+  status: 'PARTIAL',
+  missingCode: [],
+  missingTests: ['tests/feature.test.ts'],
+  testEvidence: [],
+  runtime: [],
+  blockedBy: [],
+  evidence: ['tests 0/1'],
+  ...overrides,
+});
+
+const completionBoard = (features: GridV1FeatureState[]): GridV1CompletionBoard => ({
+  version: 1,
+  generatedAt: '2026-09-21T07:00:00.000Z',
+  canonicalRef: 'grid-canonical-integration-20260918',
+  canonicalCommit: 'abc123',
+  testEvidenceCommit: 'abc123',
+  summary: {
+    complete: features.filter((item) => item.status === 'COMPLETE').length,
+    inProgress: features.filter((item) => item.status === 'IN_PROGRESS').length,
+    needsVerification: features.filter((item) => item.status === 'NEEDS_VERIFICATION').length,
+    partial: features.filter((item) => item.status === 'PARTIAL').length,
+    missing: features.filter((item) => item.status === 'MISSING').length,
+    blocked: features.filter((item) => item.status === 'BLOCKED').length,
+    remaining: features.filter((item) => item.status !== 'COMPLETE').length,
+    total: features.length,
+    percent: features.length === 0 ? 0 : Math.round((features.filter((item) => item.status === 'COMPLETE').length / features.length) * 100),
+  },
+  features,
+  warnings: [],
+});
+
 describe('Grid product director', () => {
+  it('draws implementation and verification work from the canonical V1 Completion Board', () => {
+    const board = completionBoard([
+      completionFeature({ id: 'done', title: 'Done', status: 'COMPLETE', missingTests: [] }),
+      completionFeature({ id: 'partial', title: 'Partial', priority: 80, status: 'PARTIAL' }),
+      completionFeature({
+        id: 'verify',
+        title: 'Verify',
+        priority: 70,
+        status: 'NEEDS_VERIFICATION',
+        missingTests: [],
+        testEvidence: [{ path: 'tests/feature.test.ts', status: 'FAIL', current: true, satisfied: false }],
+      }),
+    ]);
+    const result = recommendGridProductWork({
+      masterBoard: { milestones: [], candidates: [candidate({ id: 'legacy' })] },
+      completionBoard: board,
+      claims: [],
+      playableLoopScore: { ...loopScore(), highestValueBrokenLink: null, status: 'GREEN', score: 100 },
+      limit: 3,
+    });
+
+    expect(result.recommendations.map((item) => [item.id, item.actionType])).toEqual([
+      ['partial', 'IMPLEMENT'],
+      ['verify', 'VERIFY'],
+    ]);
+    expect(result.recommendations.map((item) => item.id)).not.toContain('legacy');
+    expect(result.directorSummary).toContain('Grid V1: 1/3 verified complete; 2 remain');
+  });
+
   it('prioritizes a safe candidate matching the highest-value playable-loop break', () => {
     const result = recommendGridProductWork(input({
       masterBoard: {

@@ -16,6 +16,7 @@
     "grid:simulate-economy": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-economy-sim.ts",
     "grid:agents": "jiti scripts/grid-agent-control.ts",
     "grid:board": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-master-board.ts",
+    "grid:completion": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-completion-board.ts",
     "grid:watch": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-master-board.ts --watch",
     "grid:score-playable-loop": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-playable-loop-score.ts",
     "grid:verify-entry-runtime": "node ./node_modules/vite-node/vite-node.mjs scripts/grid-player-entry-runtime.ts",

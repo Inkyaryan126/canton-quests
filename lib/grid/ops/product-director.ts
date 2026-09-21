@@ -7,6 +7,7 @@ import type {
   GridMilestoneStatus,
   GridPromotionStatus,
 } from '../master-board/types';
+import type { GridV1CompletionBoard, GridV1FeatureState } from '../completion-board/types';
 import type { PlayableLoopScore, PlayableLoopStageId } from './playable-loop-score';
 
 export type ProductDirectorActionType = 'IMPLEMENT' | 'INTEGRATE' | 'VERIFY' | 'INVESTIGATE';
@@ -23,7 +24,7 @@ export interface GridProductCandidate {
   safe: boolean;
   actionable: boolean;
   dependencies: string[];
-  dependencyStatuses?: Record<string, GridMilestoneStatus | 'UNKNOWN'>;
+  dependencyStatuses?: Record<string, string>;
   evidence: string[];
   specialization?: ProductDirectorSpecialization;
   acceptanceCriteria: string[];
@@ -59,6 +60,7 @@ export interface GridProductDirectorClaim {
 
 export interface GridProductDirectorInput {
   masterBoard: GridProductDirectorBoard;
+  completionBoard?: GridV1CompletionBoard;
   claims: Array<GridProductDirectorClaim | AgentClaim>;
   limit?: number;
   playableLoopScore?: PlayableLoopScore;
@@ -163,7 +165,44 @@ function derivedCandidate(item: GridPriorityRecommendation): GridProductCandidat
   };
 }
 
+function completionCandidate(item: GridV1FeatureState, board: GridV1CompletionBoard): GridProductCandidate {
+  const actionType: ProductDirectorActionType = item.status === 'NEEDS_VERIFICATION' ? 'VERIFY' : 'IMPLEMENT';
+  const statusById = new Map(board.features.map((feature) => [feature.id, feature.status]));
+  const priorityBoost =
+    item.status === 'PARTIAL' ? 20
+      : item.status === 'MISSING' ? 15
+        : item.status === 'NEEDS_VERIFICATION' ? 10
+          : 0;
+  return {
+    id: item.id,
+    title: item.title,
+    phase: item.phase,
+    stage: item.stage as PlayableLoopStageId | undefined,
+    status: item.status,
+    actionType,
+    priority: item.priority + priorityBoost,
+    safe: true,
+    actionable: item.status !== 'COMPLETE' && item.status !== 'IN_PROGRESS' && item.status !== 'BLOCKED',
+    dependencies: item.dependsOn,
+    dependencyStatuses: Object.fromEntries(
+      item.dependsOn.map((id) => [id, statusById.get(id) ?? 'UNKNOWN']),
+    ),
+    evidence: [
+      ...item.evidence,
+      ...(item.missingCode.length ? ['missing code: ' + item.missingCode.join(', ')] : []),
+      ...(item.missingTests.length ? ['missing tests: ' + item.missingTests.join(', ')] : []),
+    ],
+    specialization: specializationFor(item.phase, actionType),
+    acceptanceCriteria: item.acceptanceCriteria,
+    scopeHints: item.scopeHints,
+    claimPatterns: [item.id],
+  };
+}
+
 function candidatesFor(input: GridProductDirectorInput): GridProductCandidate[] {
+  if (input.completionBoard) {
+    return input.completionBoard.features.map((item) => completionCandidate(item, input.completionBoard!));
+  }
   if (input.masterBoard.candidates) return input.masterBoard.candidates.map((candidate) => ({ ...candidate }));
   if (!isMasterBoard(input.masterBoard)) return [];
   return prioritizeGridMasterBoard(
@@ -197,7 +236,10 @@ function hasOverlappingClaim(candidate: GridProductCandidate, claims: GridProduc
 function dependencyBlocked(candidate: GridProductCandidate, board: GridProductDirectorBoard): boolean {
   if (candidate.dependencies.length === 0) return false;
   if (candidate.dependencyStatuses) {
-    return candidate.dependencies.some((id) => candidate.dependencyStatuses?.[id] !== 'INTEGRATED');
+    return candidate.dependencies.some((id) => {
+      const status = candidate.dependencyStatuses?.[id];
+      return status !== 'INTEGRATED' && status !== 'COMPLETE';
+    });
   }
   const statusById = new Map(board.milestones.map((item) => [item.id, item.status]));
   return candidate.dependencies.some((id) => statusById.get(id) !== 'INTEGRATED');
@@ -215,8 +257,10 @@ function whyNow(candidate: GridProductCandidate, matchesBottleneck: boolean, sco
     return 'Repairs the highest-value playable-loop break: ' + score.highestValueBrokenLink.title + '.';
   }
   if (candidate.actionType === 'INTEGRATE') return 'Verified work is ready to integrate; finishing it reduces merge inventory.';
-  if (candidate.dependencies.length > 0) return 'Safe actionable work builds on integrated prerequisites and advances downstream value.';
-  return 'Highest-leverage safe unclaimed work from the existing prioritizer.';
+  if (candidate.status === 'NEEDS_VERIFICATION') return 'The canonical V1 Completion Board has implementation artifacts but current acceptance evidence is not passing.';
+  if (candidate.status === 'PARTIAL' || candidate.status === 'MISSING') return 'The canonical V1 Completion Board shows a concrete feature evidence gap.';
+  if (candidate.dependencies.length > 0) return 'Safe actionable work builds on satisfied prerequisites and advances downstream value.';
+  return 'Highest-leverage safe unclaimed work from the canonical V1 Completion Board.';
 }
 
 export function recommendGridProductWork(input: GridProductDirectorInput): GridProductDirectorResult {
@@ -237,7 +281,7 @@ export function recommendGridProductWork(input: GridProductDirectorInput): GridP
         matchesPlayableBottleneck,
         whyNow: whyNow(candidate, matchesPlayableBottleneck, input.playableLoopScore),
         dependencyContext: candidate.dependencies.length
-          ? candidate.dependencies.map((dependency) => dependency + ': integrated')
+          ? candidate.dependencies.map((dependency) => dependency + ': satisfied')
           : ['none'],
       } satisfies GridProductRecommendation;
     })
@@ -251,9 +295,15 @@ export function recommendGridProductWork(input: GridProductDirectorInput): GridP
     .slice(0, limit);
 
   const bottleneck = input.playableLoopScore?.highestValueBrokenLink ?? null;
+  const completion = input.completionBoard?.summary;
+  const completionPrefix = completion
+    ? 'Grid V1: ' + completion.complete + '/' + completion.total + ' verified complete; ' + completion.remaining + ' remain. '
+    : '';
   const directorSummary = bottleneck
-    ? 'Current bottleneck: ' + bottleneck.title + '. Optimize the team for this break first, then integrate ready work and dependency-unlocking tasks.'
-    : 'No playable-loop bottleneck is identified; prioritize ready-to-integrate work and the highest-leverage safe unclaimed milestones.';
+    ? completionPrefix + 'Current bottleneck: ' + bottleneck.title + '. Optimize the team for this break first, then dependency-unlocking Completion Board work.'
+    : completion
+      ? completionPrefix + 'Draw next work from incomplete canonical Completion Board features; milestone integration is not game completion.'
+      : 'No playable-loop bottleneck is identified; prioritize ready-to-integrate work and the highest-leverage safe unclaimed milestones.';
 
   return { limit, directorSummary, bottleneck, recommendations };
 }

@@ -13,6 +13,8 @@ import {
   staleClaim,
   type CoordinationIssue,
 } from '../../agent-control';
+import { collectGridV1CompletionBoard } from '../completion-board/collect';
+import type { GridV1CompletionSummary } from '../completion-board/types';
 import { collectGridMasterBoard } from '../master-board/collect';
 import type { GridMilestoneStatus } from '../master-board/types';
 import { collectPlayableLoopScore } from './playable-loop-score';
@@ -108,6 +110,12 @@ export interface GridBuilderOsSnapshot {
   generatedAt: string;
   overall: {
     completed: number;
+    remaining: number;
+    inProgress: number;
+    needsVerification: number;
+    partial: number;
+    missing: number;
+    blocked: number;
     readyToCombine: number;
     total: number;
     percent: number;
@@ -412,6 +420,24 @@ export function summarizeMilestoneProgress(statuses: GridMilestoneStatus[]): {
   };
 }
 
+export function summarizeGridV1Progress(
+  summary: GridV1CompletionSummary,
+  readyToCombine: number,
+): GridBuilderOsSnapshot['overall'] {
+  return {
+    completed: summary.complete,
+    remaining: summary.remaining,
+    inProgress: summary.inProgress,
+    needsVerification: summary.needsVerification,
+    partial: summary.partial,
+    missing: summary.missing,
+    blocked: summary.blocked,
+    readyToCombine,
+    total: summary.total,
+    percent: summary.percent,
+  };
+}
+
 export function humanizeBuilderOwner(owner: string): string {
   const value = owner.toLowerCase();
   if (value.includes('codex') || value.includes('astra')) return 'Lead Builder';
@@ -489,9 +515,11 @@ export function collectGridBuilderOsSnapshot(options: {
   const boardroom = boardroomSummary(cwd);
   const issues = coordinationIssues(claims, worktrees, boardroom);
   const board = collectGridMasterBoard({ cwd, integrationRef: integrationRef ?? undefined });
+  const completionBoard = collectGridV1CompletionBoard({ cwd, integrationRef: integrationRef ?? undefined });
   const playable = collectPlayableLoopScore({ cwd, board });
   const director = recommendGridProductWork({
     masterBoard: board,
+    completionBoard,
     claims,
     limit: 3,
     playableLoopScore: playable,
@@ -538,7 +566,10 @@ export function collectGridBuilderOsSnapshot(options: {
 
   return {
     generatedAt: new Date().toISOString(),
-    overall: summarizeMilestoneProgress(board.milestones.map((item) => item.status)),
+    overall: summarizeGridV1Progress(
+      completionBoard.summary,
+      summarizeMilestoneProgress(board.milestones.map((item) => item.status)).readyToCombine,
+    ),
     playableLoop: {
       score: playable.score,
       status: playable.status,
