@@ -137,6 +137,19 @@ export interface GridBuilderOsSnapshot {
   };
 }
 
+export function isGridBuilderSteadyState(
+  snapshot: Pick<GridBuilderOsSnapshot, 'overall' | 'playableLoop' | 'workers' | 'recommendations'>,
+): boolean {
+  return (
+    snapshot.overall.total > 0
+    && snapshot.overall.completed === snapshot.overall.total
+    && snapshot.overall.readyToCombine === 0
+    && snapshot.playableLoop.status === 'GREEN'
+    && snapshot.workers.length === 0
+    && snapshot.recommendations.length === 0
+  );
+}
+
 export function gridBuilderStateDir(cwd = process.cwd()): string {
   return path.join(coordinationRoot(cwd), 'builder-os');
 }

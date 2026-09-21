@@ -14,6 +14,7 @@ import {
   isLocalBuilderHostname,
   issueGridBuilderLaunchToken,
   consumeGridBuilderLaunchToken,
+  isGridBuilderSteadyState,
   readGridBuilderCliHealthRunState,
   readGridBuilderRunState,
   resolveGridBuilderIntegrationRef,
@@ -169,6 +170,47 @@ describe('Grid Builder OS helpers', () => {
     expect(builderRunnerSource).toContain('Missing worker authentication alone is NOT a Dustin blocker');
     expect(builderRunnerSource).toContain('run the existing local-only verifier directly with its `--record --json` mode');
     expect(builderRunnerSource).toContain('refresh commit-bound shared verification evidence');
+  });
+
+  it('recognizes only a fully complete, action-free Grid snapshot as steady state', () => {
+    const base: Parameters<typeof isGridBuilderSteadyState>[0] = {
+      overall: { completed: 27, readyToCombine: 0, total: 27, percent: 100 },
+      playableLoop: { score: 100, status: 'GREEN', brokenLink: null, nextRepair: null },
+      workers: [],
+      recommendations: [],
+    };
+
+    expect(isGridBuilderSteadyState(base)).toBe(true);
+    expect(isGridBuilderSteadyState({
+      ...base,
+      overall: { ...base.overall, readyToCombine: 1 },
+    })).toBe(false);
+    expect(isGridBuilderSteadyState({
+      ...base,
+      recommendations: [{ id: 'next', title: 'Next', action: 'Build next', whyNow: 'needed', specialization: 'general' }],
+    })).toBe(false);
+    expect(isGridBuilderSteadyState({
+      ...base,
+      workers: [{ lane: 'lane', role: 'Lead Builder', state: 'working', task: 'task', lastUpdate: 'now', dirtyFiles: 0, activeProcesses: 1 }],
+    })).toBe(false);
+    expect(isGridBuilderSteadyState({
+      ...base,
+      playableLoop: { ...base.playableLoop, status: 'YELLOW' },
+    })).toBe(false);
+    expect(isGridBuilderSteadyState({
+      ...base,
+      overall: { ...base.overall, completed: 26, percent: 96 },
+    })).toBe(false);
+  });
+
+  it('requires current full release-gate proof before a no-change cycle can finish steady', () => {
+    expect(builderRunnerSource).toContain('currentFullReleaseGatePass');
+    expect(builderRunnerSource).toContain("readSharedEvidence(cwd, 'release-gate.json')");
+    expect(builderRunnerSource).toContain("evidence.buildIncluded === true");
+    expect(builderRunnerSource).toContain('STEADY STATE: canonical Grid work and current-commit local release evidence are already complete');
+    expect(builderRunnerSource).toContain('steadyStateHealthy');
+    expect(builderRunnerSource).toContain('progressChanged || steadyStateHealthy');
+    expect(builderRunnerSource).toContain("steady=${steadyStateHealthy ? 'yes' : 'no'}");
   });
 
   it('counts only integrated milestones as completed progress', () => {

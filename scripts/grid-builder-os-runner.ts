@@ -4,7 +4,9 @@ import crypto from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
 import { readClaims } from '../lib/agent-control';
 import {
+  collectGridBuilderOsSnapshot,
   gridBuilderLogFile,
+  isGridBuilderSteadyState,
   readGridBuilderRunState,
   resolveGridBuilderIntegrationRef,
   resolvePreferredCliBinary,
@@ -98,6 +100,7 @@ interface SharedEvidenceRecord {
   status?: string;
   integrationCommit?: string;
   summary?: string;
+  buildIncluded?: boolean;
 }
 
 interface EvidenceRefreshOutcome {
@@ -118,6 +121,18 @@ function readSharedEvidence(cwd: string, filename: string): SharedEvidenceRecord
   } catch {
     return null;
   }
+}
+
+function currentFullReleaseGatePass(cwd: string): boolean {
+  const integrationRef = resolveGridBuilderIntegrationRef(cwd);
+  const integrationCommit = integrationRef ? revParse(cwd, integrationRef) : '';
+  const evidence = readSharedEvidence(cwd, 'release-gate.json');
+  return Boolean(
+    integrationCommit
+    && evidence?.status === 'PASS'
+    && evidence.integrationCommit === integrationCommit
+    && evidence.buildIncluded === true
+  );
 }
 
 function refreshRequiredEvidence(
@@ -470,9 +485,24 @@ async function main(): Promise<void> {
   const progressChanged = progressFingerprint(cwd) !== beforeProgress;
   const leadSucceeded = result.code === 0 && cleanup.clean;
   const evidenceHealthy = evidenceRefresh.failures.length === 0;
-  const ok = leadSucceeded && progressChanged && evidenceHealthy;
+  const steadySnapshot = collectGridBuilderOsSnapshot({
+    cwd,
+    hostname: 'localhost',
+    nodeEnv: process.env.NODE_ENV,
+  });
+  const steadyStateHealthy = Boolean(
+    evidenceHealthy
+    && currentFullReleaseGatePass(cwd)
+    && isGridBuilderSteadyState(steadySnapshot)
+  );
+  const ok = leadSucceeded && evidenceHealthy && (progressChanged || steadyStateHealthy);
   if (leadSucceeded && !progressChanged) {
-    appendLog(cwd, 'NO-OP BLOCKED: lead exited successfully but canonical, claimed branch, and shared evidence state did not advance.');
+    appendLog(
+      cwd,
+      steadyStateHealthy
+        ? 'STEADY STATE: canonical Grid work and current-commit local release evidence are already complete; no new lane is required.'
+        : 'NO-OP BLOCKED: lead exited successfully but canonical, claimed branch, and shared evidence state did not advance.',
+    );
   }
   const finalState: GridBuilderRunState = {
     ...readGridBuilderRunState(cwd),
@@ -482,18 +512,23 @@ async function main(): Promise<void> {
     leadPid: undefined,
     message: !evidenceHealthy
       ? `Required local verification evidence failed: ${evidenceRefresh.failures.join(' | ')}`
-      : ok
+      : ok && progressChanged
         ? 'Build cycle finished with observable repo, claim, or verification-evidence progress.'
-        : leadSucceeded && !progressChanged
-        ? 'Build cycle made no observable repo, claim, or verification-evidence progress. It was blocked as a no-op instead of being reported as finished.'
-        : !cleanup.clean
-          ? cleanup.message ?? 'The supervisor worktree needs inspection before restarting.'
-          : result.timedOut
-            ? 'The build lead stopped after reaching the cycle time limit. Review before restarting.'
-            : 'The build crew could not finish this cycle. Review the needs-you panel before restarting.',
+        : ok && steadyStateHealthy
+          ? 'Build cycle finished: the current Grid milestone set and local release evidence are already up to date.'
+          : leadSucceeded && !progressChanged
+            ? 'Build cycle made no observable repo, claim, or verification-evidence progress. It was blocked as a no-op instead of being reported as finished.'
+            : !cleanup.clean
+              ? cleanup.message ?? 'The supervisor worktree needs inspection before restarting.'
+              : result.timedOut
+                ? 'The build lead stopped after reaching the cycle time limit. Review before restarting.'
+                : 'The build crew could not finish this cycle. Review the needs-you panel before restarting.',
   };
   writeGridBuilderRunState(finalState, cwd);
-  appendLog(cwd, `Build cycle ${runId} finished status=${finalState.status} exit=${String(result.code)} progress=${progressChanged ? 'changed' : 'unchanged'} evidence=${evidenceHealthy ? 'pass' : 'failed'}`);
+  appendLog(
+    cwd,
+    `Build cycle ${runId} finished status=${finalState.status} exit=${String(result.code)} progress=${progressChanged ? 'changed' : 'unchanged'} evidence=${evidenceHealthy ? 'pass' : 'failed'} steady=${steadyStateHealthy ? 'yes' : 'no'}`,
+  );
   archiveBuilderLog(cwd, runId);
   process.exitCode = ok ? 0 : 1;
 }
