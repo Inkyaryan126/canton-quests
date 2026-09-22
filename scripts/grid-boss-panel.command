@@ -43,7 +43,7 @@ STATE_DIR="$(git rev-parse --git-common-dir)/grid-agent-control/builder-os"
 mkdir -p "$STATE_DIR"
 
 port_in_use() {
-  curl -fsS --max-time 1 "http://127.0.0.1:$1/" >/dev/null 2>&1
+  lsof -tiTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
 }
 
 server_cwd() {
