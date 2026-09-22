@@ -3,11 +3,12 @@ import { NextResponse } from 'next/server';
 import { resolveAdminSessionFromRequest } from '@/lib/admin-auth';
 import {
   boardroomSummary,
+  claimLifecycleState,
   coordinationIssues,
   listWorktreeStates,
   readClaims,
 } from '@/lib/agent-control';
-import { collectGridBuilderOsSnapshot } from '@/lib/grid/ops/grid-builder-os';
+import { collectGridBuilderOsSnapshot, resolveGridBuilderIntegrationRef } from '@/lib/grid/ops/grid-builder-os';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -20,9 +21,10 @@ function git(cwd: string, args: string[]): string {
   }).trim();
 }
 
-function recentCommits(cwd: string) {
+function recentCommits(cwd: string, ref: string | null) {
   try {
-    return git(cwd, ['log', '-6', '--format=%h%x09%cI%x09%an%x09%s'])
+    if (!ref) return [];
+    return git(cwd, ['log', '-6', '--format=%h%x09%cI%x09%an%x09%s', ref])
       .split('\n')
       .filter(Boolean)
       .map((line) => {
@@ -48,17 +50,18 @@ export async function GET(request: Request) {
       hostname,
       nodeEnv: process.env.NODE_ENV,
     });
-    const claims = readClaims(cwd).filter((claim) => claim.lane !== 'grid-builder-os');
+    const allClaims = readClaims(cwd);
+    const claims = allClaims.filter((claim) => claim.lane !== 'grid-builder-os' && claimLifecycleState(claim) === 'active');
     const boardroom = boardroomSummary(cwd);
     const worktrees = listWorktreeStates(cwd, { fast: true });
-    const warnings = coordinationIssues(claims, worktrees, boardroom);
+    const warnings = coordinationIssues(allClaims, worktrees, boardroom);
     const workerByLane = new Map(snapshot.workers.map((worker) => [worker.lane, worker]));
-    const branch = git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+    const branch = resolveGridBuilderIntegrationRef(cwd) ?? git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
     const dirtyFiles = git(cwd, ['status', '--porcelain'])
       .split('\n')
       .filter(Boolean)
       .length;
-    const commits = recentCommits(cwd);
+    const commits = recentCommits(cwd, branch);
 
     const meta = {
       branch,

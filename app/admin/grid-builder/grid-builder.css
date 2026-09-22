@@ -406,10 +406,10 @@
   left: 55.05%;
   width: 20.65%;
   height: 18.2%;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
-.cq-art-disabled-hotspot {
+.cq-art-checks-hotspot {
   position: absolute;
   top: 0;
   right: 3.8%;
@@ -417,9 +417,49 @@
   height: 17%;
   border: 1px solid rgba(208, 165, 74, 0.18);
   border-radius: 5px;
-  background: rgba(2, 6, 8, 0.42);
-  cursor: not-allowed;
+  background: rgba(2, 6, 8, 0.72);
+  color: #f3d47f;
+  font: inherit;
+  font-size: 0.66em;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  cursor: pointer;
 }
+
+.cq-art-checks-hotspot:hover:not(:disabled),
+.cq-art-checks-hotspot:focus-visible {
+  border-color: rgba(239, 195, 91, 0.8);
+  box-shadow: 0 0 18px rgba(220, 169, 59, 0.24);
+  outline: none;
+}
+
+.cq-art-checks-hotspot:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cq-art-verification-status {
+  position: absolute;
+  right: 3.8%;
+  bottom: 2%;
+  width: 58%;
+  display: grid;
+  grid-template-columns: 22% 78%;
+  align-items: center;
+  gap: 2%;
+  padding: 0.35em 0.5em;
+  border-radius: 3px;
+  background: rgba(2, 7, 9, 0.84);
+  color: #cfd9d7;
+  font-size: 0.62em;
+}
+
+.cq-art-verification-status strong { color: #edc866; }
+.cq-art-verification-status.is-verified strong { color: #54e69a; }
+.cq-art-verification-status.is-failed strong { color: #ef7269; }
+.cq-art-verification-status.is-stale strong { color: #efbd5e; }
+.cq-art-verification-status span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .cq-art-hotnav {
   position: absolute;
   inset: 0;
