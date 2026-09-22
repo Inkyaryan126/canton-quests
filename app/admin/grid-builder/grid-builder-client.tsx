@@ -72,6 +72,13 @@ function laneLabel(state: GridBuilderOsSnapshot['workers'][number]['state']): st
   return 'ATTN';
 }
 
+function releaseGateLabel(status: GridBuilderOsSnapshot['releaseGate']['status']): string {
+  if (status === 'verified') return 'PASS';
+  if (status === 'failed') return 'FAIL';
+  if (status === 'stale') return 'STALE';
+  return 'PENDING';
+}
+
 export default function GridBuilderClient() {
   const [snapshot, setSnapshot] = useState<GridBuilderOsSnapshot | null>(null);
   const [meta, setMeta] = useState<BossMeta | null>(null);
@@ -79,6 +86,7 @@ export default function GridBuilderClient() {
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
   const [healthStarting, setHealthStarting] = useState(false);
+  const [verificationStarting, setVerificationStarting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -154,6 +162,28 @@ export default function GridBuilderClient() {
     }
   }, [load]);
 
+  const runVerification = useCallback(async () => {
+    setVerificationStarting(true);
+    setError('');
+    try {
+      const response = await fetch('/api/admin/grid-builder/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'run-verification' }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        const details = Array.isArray(body.reasons) ? ` ${body.reasons.join(' ')}` : '';
+        throw new Error((body.error || 'Unable to run Test & Build.') + details);
+      }
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to run Test & Build.');
+    } finally {
+      setVerificationStarting(false);
+    }
+  }, [load]);
+
   const progressStyle = useMemo(() => ({
     '--cq-progress': `${snapshot?.overall.percent ?? 0}%`,
   } as CSSProperties), [snapshot?.overall.percent]);
@@ -179,6 +209,8 @@ export default function GridBuilderClient() {
 
   const runWorking = snapshot.run.status === 'working';
   const healthWorking = snapshot.crewHealthRun.status === 'working';
+  const verificationWorking = snapshot.verificationRun.status === 'working';
+  const verificationDisabled = verificationStarting || verificationWorking || !snapshot.controls.canRunVerification;
   const buttonDisabled = starting || runWorking || !snapshot.controls.canStartCycle;
   const doneCount = meta?.boardroom.counts.DONE;
   const activeCount = meta?.boardroom.active;
@@ -192,7 +224,7 @@ export default function GridBuilderClient() {
   const healthValues = [
     `${readyCrew}/${snapshot.crewHealth.length} READY`,
     runLabel(snapshot.run.status),
-    '',
+    `GATE ${releaseGateLabel(snapshot.releaseGate.status)}`,
     meta ? (meta.dirtyFiles === 0 ? 'CLEAN' : `${meta.dirtyFiles} CHANGES`) : '',
     meta ? (meta.coordinationWarnings === 0 ? 'CLEAR' : `${meta.coordinationWarnings} WARN`) : '',
   ];
@@ -324,11 +356,19 @@ export default function GridBuilderClient() {
           </section>
           <section id="test-build" className="cq-art-test-build" aria-label="Test and Build">
             <button
-              className="cq-art-disabled-hotspot"
+              className="cq-art-checks-hotspot"
               type="button"
-              disabled
-              aria-label="Run checks unavailable"
-            />
+              disabled={verificationDisabled}
+              onClick={() => void runVerification()}
+              aria-label="Run full Test and Build checks"
+              title={snapshot.controls.verificationReasons.join(' ') || snapshot.releaseGate.summary}
+            >
+              {verificationStarting || verificationWorking ? 'RUNNING…' : 'RUN CHECKS'}
+            </button>
+            <div className={`cq-art-verification-status is-${snapshot.releaseGate.status}`}>
+              <strong>{releaseGateLabel(snapshot.releaseGate.status)}</strong>
+              <span title={snapshot.verificationRun.message}>{snapshot.verificationRun.message}</span>
+            </div>
           </section>
 
           <section className="cq-art-tower-values" aria-label="Control Tower">

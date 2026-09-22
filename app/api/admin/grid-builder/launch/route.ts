@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ADMIN_COOKIE_NAME } from '@/lib/admin-auth';
+import { ADMIN_COOKIE_NAME, createLocalGameMasterSessionToken } from '@/lib/admin-auth';
 import {
   consumeGridBuilderLaunchToken,
   isLocalBuilderHostname,
@@ -31,10 +31,15 @@ export async function GET(request: Request) {
     );
   }
 
+  const sessionToken = createLocalGameMasterSessionToken();
+  if (!sessionToken) {
+    return NextResponse.json({ error: 'Local Boss Panel session could not be created.' }, { status: 403 });
+  }
+
   const response = NextResponse.redirect(new URL('/admin/grid-builder', request.url));
   response.cookies.set({
     name: ADMIN_COOKIE_NAME,
-    value: process.env.ADMIN_SECRET_KEY || 'canton-gm-2026',
+    value: sessionToken,
     httpOnly: true,
     secure: false,
     sameSite: 'lax',

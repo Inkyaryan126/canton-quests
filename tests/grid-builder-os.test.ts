@@ -17,6 +17,7 @@ import {
   isGridBuilderSteadyState,
   readGridBuilderCliHealthRunState,
   readGridBuilderRunState,
+  readGridBuilderVerificationRunState,
   resolveGridBuilderIntegrationRef,
   resolvePreferredCliBinary,
   summarizeGridV1Progress,
@@ -24,12 +25,18 @@ import {
   writeGridBuilderCliHealthCache,
   writeGridBuilderCliHealthRunState,
   writeGridBuilderRunState,
+  writeGridBuilderVerificationRunState,
 } from '../lib/grid/ops/grid-builder-os';
 import { resolvePreferredLocalNodeBinary } from '../lib/grid/ops/local-toolchain';
 
 const builderClientSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder-client.tsx'), 'utf8');
 const builderStylesSource = fs.readFileSync(path.join(process.cwd(), 'app/admin/grid-builder/grid-builder.css'), 'utf8');
 const dockLaunchRouteSource = fs.readFileSync(path.join(process.cwd(), 'app/api/admin/grid-builder/launch/route.ts'), 'utf8');
+const builderActionRouteSource = fs.readFileSync(path.join(process.cwd(), 'app/api/admin/grid-builder/action/route.ts'), 'utf8');
+const builderStatusRouteSource = fs.readFileSync(path.join(process.cwd(), 'app/api/admin/grid-builder/status/route.ts'), 'utf8');
+const bossPanelCommandSource = fs.readFileSync(path.join(process.cwd(), 'scripts/grid-boss-panel.command'), 'utf8');
+const builderVerificationSource = fs.readFileSync(path.join(process.cwd(), 'scripts/grid-builder-os-verification.ts'), 'utf8');
+const builderLaunchTokenSource = fs.readFileSync(path.join(process.cwd(), 'scripts/grid-builder-launch-token.ts'), 'utf8');
 const builderRunnerSource = fs.readFileSync(path.join(process.cwd(), 'scripts/grid-builder-os-runner.ts'), 'utf8');
 const builderOsSource = fs.readFileSync(path.join(process.cwd(), 'lib/grid/ops/grid-builder-os.ts'), 'utf8');
 
@@ -111,6 +118,11 @@ describe('Grid Builder OS helpers', () => {
     expect(builderClientSource).toContain("'/api/admin/grid-builder/status'");
     expect(builderClientSource).toContain("'/api/admin/grid-builder/action'");
     expect(builderClientSource).toContain("action: 'refresh-health'");
+    expect(builderClientSource).toContain("action: 'run-verification'");
+    expect(builderClientSource).toContain('snapshot.verificationRun');
+    expect(builderClientSource).toContain('snapshot.releaseGate');
+    expect(builderClientSource).toContain('RUN CHECKS');
+    expect(builderClientSource).not.toContain('Run checks unavailable');
     expect(builderClientSource).toContain('cq-art-grid-status');
     expect(builderClientSource).toContain('snapshot.overall.remaining');
     expect(builderClientSource).toContain('V1 features remaining');
@@ -118,6 +130,27 @@ describe('Grid Builder OS helpers', () => {
     expect(builderClientSource).not.toContain('{{');
     expect(builderStylesSource).toContain('.cq-artboard');
     expect(builderStylesSource).toContain('.cq-art-build-hotspot');
+    expect(builderStylesSource).toContain('.cq-art-checks-hotspot');
+    expect(builderStylesSource).toContain('.cq-art-verification-status');
+  });
+
+  it('keeps the Boss Panel canonical, hides startup reservations, and runs the guarded release gate', () => {
+    expect(builderStatusRouteSource).toContain("claimLifecycleState(claim) === 'active'");
+    expect(builderStatusRouteSource).toContain('resolveGridBuilderIntegrationRef(cwd)');
+    expect(builderStatusRouteSource).toContain("recentCommits(cwd, branch)");
+    expect(builderActionRouteSource).toContain("body?.action === 'run-verification'");
+    expect(builderActionRouteSource).toContain('snapshot.controls.canRunVerification');
+    expect(builderActionRouteSource).toContain('writeGridBuilderVerificationRunState');
+    expect(builderVerificationSource).toContain("scripts', 'grid-release-gate.ts");
+    expect(builderVerificationSource).toContain("'--record'");
+    expect(builderOsSource).toContain('readGridBuilderReleaseGateSummary');
+    expect(builderOsSource).toContain('verification-state.json');
+    expect(bossPanelCommandSource).toContain("grid-canonical-integration-*");
+    expect(bossPanelCommandSource).toContain('git worktree prune');
+    expect(bossPanelCommandSource).toContain('git worktree add');
+    expect(bossPanelCommandSource).toContain('grid-builder-launch-token.ts');
+    expect(bossPanelCommandSource).toContain('/api/admin/grid-builder/launch?token=');
+    expect(builderLaunchTokenSource).toContain('issueGridBuilderLaunchToken');
   });
 
   it('blocks false-success no-op cycles and falls back beyond Product Director', () => {
@@ -352,8 +385,30 @@ describe('Grid Builder OS helpers', () => {
     expect(dockLaunchRouteSource).toContain("process.env.NODE_ENV === 'production'");
     expect(dockLaunchRouteSource).toContain('isLocalBuilderHostname');
     expect(dockLaunchRouteSource).toContain('consumeGridBuilderLaunchToken');
+    expect(dockLaunchRouteSource).toContain('createLocalGameMasterSessionToken');
+    expect(dockLaunchRouteSource).toContain('value: sessionToken');
     expect(dockLaunchRouteSource).toContain("url.searchParams.get('token')");
     expect(dockLaunchRouteSource).not.toContain("url.searchParams.get('passphrase')");
+    expect(dockLaunchRouteSource).not.toContain('process.env.ADMIN_SECRET_KEY');
+    expect(dockLaunchRouteSource).not.toContain('canton-gm-2026');
+  });
+
+  it('stores full verification run state in git-common coordination storage', () => {
+    const cwd = makeRepo();
+    writeGridBuilderVerificationRunState({
+      version: 1,
+      runId: 'verify123',
+      status: 'finished',
+      endedAt: '2026-09-21T12:00:00.000Z',
+      exitCode: 0,
+      message: 'verification passed',
+    }, cwd);
+    expect(readGridBuilderVerificationRunState(cwd)).toMatchObject({
+      runId: 'verify123',
+      status: 'finished',
+      exitCode: 0,
+      message: 'verification passed',
+    });
   });
 
   it('stores runner state in git-common coordination storage', () => {

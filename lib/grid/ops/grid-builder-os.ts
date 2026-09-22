@@ -25,6 +25,8 @@ import { resolvePreferredLocalBinary } from './local-toolchain';
 
 export type GridBuilderRunStatus = 'idle' | 'working' | 'finished' | 'needs_attention';
 export type GridBuilderHealthRunStatus = 'idle' | 'working' | 'finished' | 'needs_attention';
+export type GridBuilderVerificationRunStatus = 'idle' | 'working' | 'finished' | 'needs_attention';
+export type GridBuilderReleaseGateStatus = 'verified' | 'failed' | 'stale' | 'missing';
 export type GridBuilderWorkerState = 'working' | 'checkpoint' | 'needs_attention';
 export type GridBuilderCliName = 'codex' | 'claude' | 'gemini';
 export type GridBuilderCliHealthStatus = 'ready' | 'installed' | 'needs_attention' | 'unavailable';
@@ -85,6 +87,24 @@ export interface GridBuilderHealthRunState {
   message: string;
 }
 
+export interface GridBuilderVerificationRunState {
+  version: 1;
+  runId: string;
+  status: GridBuilderVerificationRunStatus;
+  pid?: number;
+  startedAt?: string;
+  endedAt?: string;
+  exitCode?: number | null;
+  message: string;
+}
+
+export interface GridBuilderReleaseGateSummary {
+  status: GridBuilderReleaseGateStatus;
+  integrationCommit: string | null;
+  recordedAt: string | null;
+  summary: string;
+}
+
 export interface GridBuilderRunState {
   version: 1;
   runId: string;
@@ -130,6 +150,8 @@ export interface GridBuilderOsSnapshot {
   };
   crewHealth: GridBuilderCliHealth[];
   crewHealthRun: GridBuilderHealthRunState;
+  verificationRun: GridBuilderVerificationRunState;
+  releaseGate: GridBuilderReleaseGateSummary;
   workers: GridBuilderWorker[];
   recommendations: Array<{
     id: string;
@@ -144,6 +166,8 @@ export interface GridBuilderOsSnapshot {
   controls: {
     canStartCycle: boolean;
     reasons: string[];
+    canRunVerification: boolean;
+    verificationReasons: string[];
   };
 }
 
@@ -178,6 +202,10 @@ export function gridBuilderCliHealthFile(cwd = process.cwd()): string {
 
 export function gridBuilderCliHealthStateFile(cwd = process.cwd()): string {
   return path.join(gridBuilderStateDir(cwd), 'cli-health-state.json');
+}
+
+export function gridBuilderVerificationStateFile(cwd = process.cwd()): string {
+  return path.join(gridBuilderStateDir(cwd), 'verification-state.json');
 }
 
 export function gridBuilderLaunchTokenFile(cwd = process.cwd()): string {
@@ -350,6 +378,14 @@ export function readGridBuilderCliHealthRunState(cwd = process.cwd()): GridBuild
   }
 }
 
+export function writeGridBuilderVerificationRunState(
+  state: GridBuilderVerificationRunState,
+  cwd = process.cwd(),
+): void {
+  fs.mkdirSync(gridBuilderStateDir(cwd), { recursive: true });
+  fs.writeFileSync(gridBuilderVerificationStateFile(cwd), `${JSON.stringify(state, null, 2)}\n`);
+}
+
 export function writeGridBuilderRunState(state: GridBuilderRunState, cwd = process.cwd()): void {
   fs.mkdirSync(gridBuilderStateDir(cwd), { recursive: true });
   fs.writeFileSync(gridBuilderStateFile(cwd), `${JSON.stringify(state, null, 2)}\n`);
@@ -371,6 +407,32 @@ function processAlive(pid?: number): boolean {
     return true;
   } catch (error) {
     return gridBuilderProcessProbeErrorMeansAlive(error);
+  }
+}
+
+export function readGridBuilderVerificationRunState(cwd = process.cwd()): GridBuilderVerificationRunState {
+  const filename = gridBuilderVerificationStateFile(cwd);
+  if (!fs.existsSync(filename)) {
+    return { version: 1, runId: 'none', status: 'idle', message: 'Full verification has not been run from the panel yet.' };
+  }
+  try {
+    const state = JSON.parse(fs.readFileSync(filename, 'utf8')) as GridBuilderVerificationRunState;
+    if (state.status === 'working' && !processAlive(state.pid)) {
+      return {
+        ...state,
+        status: 'needs_attention',
+        endedAt: state.endedAt ?? new Date().toISOString(),
+        message: 'The last full verification stopped unexpectedly. It is safe to run it again.',
+      };
+    }
+    return state;
+  } catch {
+    return {
+      version: 1,
+      runId: 'unknown',
+      status: 'needs_attention',
+      message: 'Builder OS could not read the last full-verification state.',
+    };
   }
 }
 
@@ -490,6 +552,49 @@ export function resolveGridBuilderIntegrationRef(cwd = process.cwd()): string | 
   return resolveIntegrationBranch(cwd);
 }
 
+export function readGridBuilderReleaseGateSummary(
+  cwd = process.cwd(),
+  integrationRef: string | null = resolveGridBuilderIntegrationRef(cwd),
+): GridBuilderReleaseGateSummary {
+  const evidenceFile = path.join(coordinationRoot(cwd), 'evidence', 'release-gate.json');
+  let integrationCommit: string | null = null;
+  try {
+    integrationCommit = integrationRef ? git(cwd, ['rev-parse', integrationRef]) : null;
+  } catch {
+    integrationCommit = null;
+  }
+  if (!fs.existsSync(evidenceFile)) {
+    return {
+      status: 'missing',
+      integrationCommit,
+      recordedAt: null,
+      summary: 'Full release-gate evidence has not been recorded for the canonical Grid commit.',
+    };
+  }
+  try {
+    const evidence = JSON.parse(fs.readFileSync(evidenceFile, 'utf8')) as {
+      status?: string; integrationCommit?: string; recordedAt?: string; summary?: string; buildIncluded?: boolean;
+    };
+    if (!integrationCommit || evidence.integrationCommit !== integrationCommit) {
+      return {
+        status: 'stale',
+        integrationCommit,
+        recordedAt: evidence.recordedAt ?? null,
+        summary: evidence.summary ?? 'Release-gate evidence belongs to an older canonical commit.',
+      };
+    }
+    const verified = evidence.status === 'PASS' && evidence.buildIncluded === true;
+    return {
+      status: verified ? 'verified' : 'failed',
+      integrationCommit,
+      recordedAt: evidence.recordedAt ?? null,
+      summary: evidence.summary ?? (verified ? 'Full release gate passed.' : 'Full release gate did not pass.'),
+    };
+  } catch {
+    return { status: 'failed', integrationCommit, recordedAt: null, summary: 'Release-gate evidence is unreadable.' };
+  }
+}
+
 function recentActivity(cwd: string, ref: string | null): GridBuilderOsSnapshot['recentActivity'] {
   if (!ref) return [];
   try {
@@ -550,6 +655,8 @@ export function collectGridBuilderOsSnapshot(options: {
     });
   const run = readGridBuilderRunState(cwd);
   const crewHealthRun = readGridBuilderCliHealthRunState(cwd);
+  const verificationRun = readGridBuilderVerificationRunState(cwd);
+  const releaseGate = readGridBuilderReleaseGateSummary(cwd, integrationRef);
   const crewHealth = collectGridBuilderCliHealth(cwd);
   const guard = evaluateBuilderStartGuard({
     hostname: options.hostname ?? 'localhost',
@@ -560,12 +667,22 @@ export function collectGridBuilderOsSnapshot(options: {
   const needsYou = issues.map((issue) => issue.message);
   if (run.status === 'needs_attention') needsYou.push(run.message);
   if (crewHealthRun.status === 'needs_attention') needsYou.push(crewHealthRun.message);
+  if (verificationRun.status === 'needs_attention') needsYou.push(verificationRun.message);
   for (const agent of crewHealth.filter((item) => item.status === 'needs_attention' || item.status === 'unavailable')) {
     needsYou.push(`${agent.label}: ${agent.detail}`);
   }
   for (const worker of workers.filter((item) => item.state === 'needs_attention')) {
     needsYou.push(`${worker.role} has not checked in recently: ${worker.task}`);
   }
+  const verificationReasons: string[] = [];
+  const hostname = options.hostname ?? 'localhost';
+  const nodeEnv = options.nodeEnv ?? process.env.NODE_ENV;
+  if (!isLocalBuilderHostname(hostname)) verificationReasons.push('Open the Boss Panel on this Mac using localhost.');
+  if (nodeEnv === 'production') verificationReasons.push('Full verification cannot start from production.');
+  if (issues.length > 0) verificationReasons.push('Control Tower has a coordination warning that must be cleared first.');
+  if (run.status === 'working') verificationReasons.push('Wait for the current build cycle to finish.');
+  if (verificationRun.status === 'working') verificationReasons.push('Full verification is already running.');
+  if (workers.length > 0) verificationReasons.push('Wait for active builder lanes to reach a checkpoint before running the full release gate.');
 
   return {
     generatedAt: new Date().toISOString(),
@@ -581,6 +698,8 @@ export function collectGridBuilderOsSnapshot(options: {
     },
     crewHealth,
     crewHealthRun,
+    verificationRun,
+    releaseGate,
     workers,
     recommendations: director.recommendations.map((item) => ({
       id: item.id,
@@ -595,6 +714,8 @@ export function collectGridBuilderOsSnapshot(options: {
     controls: {
       canStartCycle: guard.canStart,
       reasons: guard.reasons,
+      canRunVerification: verificationReasons.length === 0,
+      verificationReasons,
     },
   };
 }

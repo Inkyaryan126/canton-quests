@@ -8,6 +8,7 @@ import {
   isLocalBuilderHostname,
   writeGridBuilderCliHealthRunState,
   writeGridBuilderRunState,
+  writeGridBuilderVerificationRunState,
 } from '@/lib/grid/ops/grid-builder-os';
 
 export const runtime = 'nodejs';
@@ -64,6 +65,43 @@ export async function POST(request: Request) {
     } catch (error) {
       return NextResponse.json(
         { error: error instanceof Error ? error.message : 'Unable to start crew health.' },
+        { status: 500 },
+      );
+    }
+  }
+
+  if (body?.action === 'run-verification') {
+    if (!isLocalBuilderHostname(hostname) || process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { error: 'Test & Build can only run from the local development Boss Panel.' },
+        { status: 403 },
+      );
+    }
+
+    const snapshot = collectGridBuilderOsSnapshot({ cwd, hostname, nodeEnv: process.env.NODE_ENV });
+    if (!snapshot.controls.canRunVerification) {
+      return NextResponse.json(
+        { error: 'Test & Build is not ready to run.', reasons: snapshot.controls.verificationReasons },
+        { status: 409 },
+      );
+    }
+
+    const runId = crypto.randomBytes(5).toString('hex');
+    const verificationScript = path.join(cwd, 'scripts', 'grid-builder-os-verification.ts');
+    try {
+      const child = startDetachedNodeScript(cwd, verificationScript, ['--cwd', cwd, '--run-id', runId]);
+      writeGridBuilderVerificationRunState({
+        version: 1,
+        runId,
+        status: 'working',
+        pid: child.pid,
+        startedAt: new Date().toISOString(),
+        message: 'Running the full Grid Test & Build release gate.',
+      }, cwd);
+      return NextResponse.json({ ok: true, message: 'Full Test & Build started.', runId }, { status: 202 });
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Unable to start Test & Build.' },
         { status: 500 },
       );
     }
