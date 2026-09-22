@@ -141,8 +141,12 @@ describe('Grid Builder OS helpers', () => {
     expect(builderActionRouteSource).toContain("body?.action === 'run-verification'");
     expect(builderActionRouteSource).toContain('snapshot.controls.canRunVerification');
     expect(builderActionRouteSource).toContain('writeGridBuilderVerificationRunState');
-    expect(builderVerificationSource).toContain("scripts', 'grid-release-gate.ts");
-    expect(builderVerificationSource).toContain("'--record'");
+    expect(builderVerificationSource).toContain("script: 'grid-completion-board.ts'");
+    expect(builderVerificationSource).toContain("args: ['--verify-tests', '--json']");
+    expect(builderVerificationSource).toContain("script: 'grid-browser-runtime.ts'");
+    expect(builderVerificationSource).toContain("script: 'grid-migration-safety.ts'");
+    expect(builderVerificationSource).toContain("script: 'grid-release-gate.ts'");
+    expect(builderVerificationSource).toContain("args: ['--record']");
     expect(builderOsSource).toContain('readGridBuilderReleaseGateSummary');
     expect(builderOsSource).toContain('verification-state.json');
     expect(bossPanelCommandSource).toContain("grid-canonical-integration-*");
@@ -150,6 +154,8 @@ describe('Grid Builder OS helpers', () => {
     expect(bossPanelCommandSource).toContain('git worktree add');
     expect(bossPanelCommandSource).toContain('grid-builder-launch-token.ts');
     expect(bossPanelCommandSource).toContain('/api/admin/grid-builder/launch?token=');
+    expect(bossPanelCommandSource).toContain('http://localhost:${PORT}/admin/grid-builder');
+    expect(bossPanelCommandSource).toContain('http://localhost:${PORT}/api/admin/grid-builder/launch?token=${TOKEN}');
     expect(builderLaunchTokenSource).toContain('issueGridBuilderLaunchToken');
   });
 
