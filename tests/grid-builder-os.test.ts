@@ -152,6 +152,10 @@ describe('Grid Builder OS helpers', () => {
     expect(bossPanelCommandSource).toContain("grid-canonical-integration-*");
     expect(bossPanelCommandSource).toContain('git worktree prune');
     expect(bossPanelCommandSource).toContain('git worktree add');
+    expect(bossPanelCommandSource).toContain('CANONICAL_COMMIT=');
+    expect(bossPanelCommandSource).toContain('server_commit()');
+    expect(bossPanelCommandSource).toContain('CURRENT_COMMIT=');
+    expect(bossPanelCommandSource).toContain('CURRENT_COMMIT" != "$CANONICAL_COMMIT');
     expect(bossPanelCommandSource).toContain('grid-builder-launch-token.ts');
     expect(bossPanelCommandSource).toContain('/api/admin/grid-builder/launch?token=');
     expect(bossPanelCommandSource).toContain('http://localhost:${PORT}/admin/grid-builder');

@@ -13,6 +13,8 @@ if [[ -z "$CANONICAL_BRANCH" ]]; then
   exit 1
 fi
 
+CANONICAL_COMMIT="$(git rev-parse "$CANONICAL_BRANCH")"
+
 PRIMARY_REPO="$(git worktree list --porcelain | awk '/^worktree / { print substr($0, 10); exit }')"
 if [[ ! -d "$PRIMARY_REPO/node_modules" ]]; then
   echo "Boss Panel needs this repo's dependencies installed first."
@@ -51,10 +53,17 @@ server_cwd() {
   lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1
 }
 
+server_commit() {
+  local cwd
+  cwd="$(server_cwd "$1" || true)"
+  [[ -n "$cwd" ]] || return 1
+  git -C "$cwd" rev-parse HEAD 2>/dev/null || true
+}
+
 PORT="$REQUESTED_PORT"
 if port_in_use "$PORT"; then
-  CURRENT_CWD="$(server_cwd "$PORT" || true)"
-  if [[ "$CURRENT_CWD" != "$CANONICAL_WORKTREE" ]]; then
+  CURRENT_COMMIT="$(server_commit "$PORT" || true)"
+  if [[ "$CURRENT_COMMIT" != "$CANONICAL_COMMIT" ]]; then
     for ((candidate = REQUESTED_PORT + 1; candidate <= REQUESTED_PORT + 10; candidate++)); do
       if ! port_in_use "$candidate"; then
         PORT="$candidate"
