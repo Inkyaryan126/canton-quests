@@ -161,6 +161,9 @@ describe('Grid Builder OS helpers', () => {
     expect(bossPanelCommandSource).toContain('grid-builder-launch-token.ts');
     expect(bossPanelCommandSource).toContain('/api/admin/grid-builder/launch?token=');
     expect(bossPanelCommandSource).toContain('http://localhost:${PORT}/admin/grid-builder');
+    expect(bossPanelCommandSource).toContain('READY_URL="http://localhost:${PORT}/grid/boss-panel/empire-panel-approved.png"');
+    expect(bossPanelCommandSource).toContain('curl -fsS --max-time 10 "$READY_URL"');
+    expect(bossPanelCommandSource).not.toContain('curl -fsS --max-time 2 "$URL"');
     expect(bossPanelCommandSource).toContain('http://localhost:${PORT}/api/admin/grid-builder/launch?token=${TOKEN}');
     expect(builderLaunchTokenSource).toContain('issueGridBuilderLaunchToken');
   });
