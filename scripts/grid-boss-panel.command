@@ -74,8 +74,9 @@ if port_in_use "$PORT"; then
 fi
 
 URL="http://localhost:${PORT}/admin/grid-builder"
+READY_URL="http://localhost:${PORT}/grid/boss-panel/empire-panel-approved.png"
 panel_ready() {
-  curl -fsS --max-time 2 "$URL" >/dev/null 2>&1
+  curl -fsS --max-time 10 "$READY_URL" >/dev/null 2>&1
 }
 
 if ! panel_ready; then
