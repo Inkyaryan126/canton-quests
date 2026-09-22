@@ -64,7 +64,7 @@ if port_in_use "$PORT"; then
   fi
 fi
 
-URL="http://127.0.0.1:${PORT}/admin/grid-builder"
+URL="http://localhost:${PORT}/admin/grid-builder"
 panel_ready() {
   curl -fsS --max-time 2 "$URL" >/dev/null 2>&1
 }
@@ -93,5 +93,5 @@ if [[ -z "$TOKEN" ]]; then
   exit 1
 fi
 
-open "http://127.0.0.1:${PORT}/api/admin/grid-builder/launch?token=${TOKEN}"
+open "http://localhost:${PORT}/api/admin/grid-builder/launch?token=${TOKEN}"
 echo "Boss Panel opened from $CANONICAL_BRANCH on port $PORT."
