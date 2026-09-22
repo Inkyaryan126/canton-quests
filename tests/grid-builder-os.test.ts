@@ -154,6 +154,8 @@ describe('Grid Builder OS helpers', () => {
     expect(bossPanelCommandSource).toContain('git worktree add');
     expect(bossPanelCommandSource).toContain('CANONICAL_COMMIT=');
     expect(bossPanelCommandSource).toContain('server_commit()');
+    expect(bossPanelCommandSource).toContain('lsof -tiTCP:"$1" -sTCP:LISTEN');
+    expect(bossPanelCommandSource).not.toContain('curl -fsS --max-time 1 "http://127.0.0.1:$1/"');
     expect(bossPanelCommandSource).toContain('CURRENT_COMMIT=');
     expect(bossPanelCommandSource).toContain('CURRENT_COMMIT" != "$CANONICAL_COMMIT');
     expect(bossPanelCommandSource).toContain('grid-builder-launch-token.ts');
