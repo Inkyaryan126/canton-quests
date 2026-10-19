@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Create Your Player Account',
   description:
-    'Sign up for Canton Quests, choose your starting path — Family, Challenge, or Secret — and start earning XP on real-world missions around Canton, Ohio. Free to join.',
+    'Sign up for Canton Quests with one account. Explore real-world missions and play The Grid in Canton, Ohio. Free to join.',
   alternates: { canonical: '/register' },
 };
 
