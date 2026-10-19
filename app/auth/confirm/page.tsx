@@ -202,7 +202,7 @@ function ConfirmEmailContent() {
           ? (isRecovery ? 'RECOVERY VERIFIED!' : 'EMAIL CONFIRMED!')
           : awaitingCallsign
           ? 'CHOOSE YOUR CALLSIGN'
-          : (isRecovery ? 'RESTORE PLAYER ACCESS' : 'CONFIRM YOUR EMAIL')}
+          : (isRecovery ? 'RESTORE PLAYER ACCESS' : 'CONFIRM OR ACCESS YOUR ACCOUNT')}
       </h1>
 
       <p className="cq-confirm-desc">
@@ -214,7 +214,7 @@ function ConfirmEmailContent() {
           ? 'Your email is verified. Pick the public callsign other players will see — or skip and set it later in Profile Settings.'
           : (isRecovery
               ? 'Click below to securely verify your recovery link and choose a new password.'
-              : 'Click below to verify your email address and activate your player identity for Canton Quests.')}
+              : 'New accounts need an email verification link. Already registered? Sign in with your password instead; a repeated signup cannot create a new confirmation for an already verified account.')}
       </p>
 
       {errorMessage && (
@@ -244,7 +244,7 @@ function ConfirmEmailContent() {
                   href="/auth/login"
                   style={{ color: '#fbbf24', fontFamily: 'var(--font-mono)', fontSize: '11px', textDecoration: 'underline' }}
                 >
-                  Log In / Resend Confirmation Email →
+                  Log In to Your Existing Account →
                 </Link>
               </div>
             )}
@@ -346,7 +346,7 @@ function ConfirmEmailContent() {
           <p className="font-mono text-xs text-stone-300 mb-3">
             {isRecovery
               ? 'No recovery token was detected, or this password reset link has expired.'
-              : 'No verification token was detected, or this confirmation link has expired.'}
+              : 'No verification token was detected. If you already registered, log in instead of requesting another signup confirmation.'}
           </p>
           <p className="font-mono text-[11px] text-stone-400 mb-4">
             If you need a new link, check your Spam or Junk folder after requesting it if it does not arrive promptly.
@@ -358,7 +358,7 @@ function ConfirmEmailContent() {
               </Link>
             ) : (
               <Link href="/auth/login" className="cq-confirm-home-btn">
-                Log In / Resend Confirmation Link
+                Log In to Your Existing Account
               </Link>
             )}
             <Link href="/" style={{ color: '#a8a29e', fontFamily: 'var(--font-mono)', fontSize: '12px', textDecoration: 'underline' }}>

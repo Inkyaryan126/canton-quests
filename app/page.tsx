@@ -269,12 +269,12 @@ export default function HomePage() {
           );
         })()}
 
-        {/* THE GRID — FEATURED COMING SOON */}
+        {/* THE GRID — LIVE GAME ENTRY */}
         <section className="cq-section pt-2 pb-12" aria-labelledby="grid-feature-heading">
           <div className="cq-section-shell">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <span className="cq-kicker">COMING SOON // NEXT FROM CANTON QUESTS</span>
+                <span className="cq-kicker">NOW PLAYABLE // THE GRID FOUNDING SEASON</span>
                 <h2 id="grid-feature-heading" className="mt-1 font-display text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">
                   The City Is Becoming Something Bigger
                 </h2>
@@ -288,12 +288,12 @@ export default function HomePage() {
             <Link
               href="/grid"
               className="group block overflow-hidden rounded-[2rem] border border-cyan-400/30 bg-stone-950 shadow-[0_30px_80px_rgba(0,0,0,.45)] transition duration-300 hover:-translate-y-1 hover:border-cyan-300/60 hover:shadow-[0_32px_95px_rgba(34,211,238,.12)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-              aria-label="Enter The Grid coming soon experience"
+              aria-label="Enter The Grid playable Canton strategy game"
             >
               <div className="relative aspect-[16/9] overflow-hidden bg-black">
                 <Image
                   src="/canton-quests/grid/canton-grid-hero.jpg"
-                  alt="The Grid coming soon over a cinematic view of downtown Canton with Centennial Plaza, the Palace Theatre, the Onesto, Arts District, and glowing game routes"
+                  alt="The Grid playable Canton city world over a cinematic view of downtown Canton with Centennial Plaza, the Palace Theatre, the Onesto, Arts District, and glowing game routes"
                   fill
                   priority
                   sizes="(max-width: 1280px) 100vw, 1200px"
@@ -322,7 +322,7 @@ export default function HomePage() {
                     <div className="mt-5 flex flex-wrap gap-2 font-mono text-[10px] font-bold uppercase tracking-wider">
                       <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-emerald-300">REAL CANTON</span>
                       <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1.5 text-cyan-300">CITY-SCALE STRATEGY</span>
-                      <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-amber-300">BUILDING NOW</span>
+                      <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 text-amber-300">PLAYABLE NOW</span>
                     </div>
                   </div>
                   <div className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/60 bg-amber-300 px-5 py-3 font-mono text-xs font-black uppercase tracking-wider text-black transition group-hover:bg-amber-200">

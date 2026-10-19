@@ -405,15 +405,17 @@ export default function FastPlayerOnboardForm({
           <div className="p-4 rounded-xl bg-stone-950 border border-amber-500/30">
             <Mail size={32} className="mx-auto text-amber-400 mb-2 animate-bounce" />
             <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-400 text-[11px] font-mono font-bold uppercase mb-2">
-              CONFIRMATION EMAIL SENT
+              CHECK YOUR ACCOUNT STATUS
             </div>
             <h3 className="font-display font-black text-base text-white uppercase mb-1">
               Check Your Inbox
             </h3>
             <p className="text-xs text-stone-300 font-body leading-relaxed">
-              We sent an account confirmation email to <strong className="text-amber-300">{email}</strong>. Click the confirmation link to activate your Player File and enter Canton Quests.
+              If this is a new account, check <strong className="text-amber-300">{email}</strong> for a confirmation link. If you have registered here before, your email may already be verified. Try logging in instead of repeatedly requesting another email.
             </p>
           </div>
+
+          <p className="text-xs leading-relaxed text-stone-300 text-center">Forgot your password? <Link href="/auth/forgot-password" className="text-cyan-300 underline font-bold">Reset it here</Link> instead of starting a new account.</p>
 
           <SpamJunkNotice
             type="signup_confirmation"
@@ -435,7 +437,7 @@ export default function FastPlayerOnboardForm({
             }}
             className="text-xs font-mono text-amber-400 hover:text-amber-300 underline block mx-auto pt-1"
           >
-            Already confirmed? Enter via Log In →
+            Already registered? Log In with your password →
           </button>
         </div>
       ) : mode === 'signup' ? (
