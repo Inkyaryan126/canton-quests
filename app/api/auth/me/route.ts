@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { resolveAuthenticatedSession, setAuthCookies, logAuthDiagnostic } from '@/lib/supabase-auth';
+import { resolveAuthenticatedSession, extractAuthTokens, setAuthCookies, logAuthDiagnostic } from '@/lib/supabase-auth';
 import { getAchievementsForPlayer } from '@/lib/game-engine';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +30,13 @@ export async function GET(request: Request) {
     });
 
     // Persist refreshed Supabase tokens and overwrite stale legacy player-id cookies from canonical identity.
-    setAuthCookies(response, sessionResult.refreshedSession, player.id);
+    // Migrate existing authenticated sessions to a shared subdomain cookie
+    // without exposing token values to the client-side response body.
+    const existing = extractAuthTokens(request);
+    setAuthCookies(response, sessionResult.refreshedSession ?? {
+      access_token: existing.accessToken,
+      refresh_token: existing.refreshToken,
+    }, player.id);
 
     logAuthDiagnostic('GET /api/auth/me:authenticated', {
       isAuthenticated: true,

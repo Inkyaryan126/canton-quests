@@ -61,6 +61,8 @@ export interface PasswordSignInResult {
 export const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days in seconds (2,592,000s)
 export const AUTH_ACCESS_COOKIE = 'sb-access-token';
 export const AUTH_REFRESH_COOKIE = 'sb-refresh-token';
+export const GRID_SHARED_ACCESS_COOKIE = 'cq-shared-access';
+export const GRID_SHARED_REFRESH_COOKIE = 'cq-shared-refresh';
 export const AUTH_PLAYER_COOKIE = 'canton_player_id';
 export const LEGACY_AUTH_COOKIE = 'supabase-auth-token';
 export const CANONICAL_AUTH_HOST = 'www.cantonquests.com';
@@ -83,6 +85,10 @@ function persistentCookieOptions(httpOnly: boolean) {
     maxAge: AUTH_COOKIE_MAX_AGE,
     sameSite: 'lax' as const,
   };
+}
+
+function sharedCookieOptions() {
+  return { ...persistentCookieOptions(true), domain: '.cantonquests.com', secure: true };
 }
 
 function expiredCookieOptions() {
@@ -121,6 +127,11 @@ export function setAuthCookies(
     response.cookies.set(AUTH_REFRESH_COOKIE, session.refresh_token, persistentCookieOptions(true));
   }
 
+  // Share only within Canton Quests-owned subdomains, never with vercel.app.
+  if (isProductionRuntime() && process.env.CQ_SHARED_DOMAIN_ENABLED === '1') {
+    if (session?.access_token) response.cookies.set(GRID_SHARED_ACCESS_COOKIE, session.access_token, sharedCookieOptions());
+    if (session?.refresh_token) response.cookies.set(GRID_SHARED_REFRESH_COOKIE, session.refresh_token, sharedCookieOptions());
+  }
   if (playerId) {
     response.cookies.set(AUTH_PLAYER_COOKIE, playerId, persistentCookieOptions(false));
   }
@@ -138,6 +149,11 @@ export function clearAuthCookies(
   response.cookies.set(AUTH_REFRESH_COOKIE, '', clearOptions);
   response.cookies.set(AUTH_PLAYER_COOKIE, '', clearOptions);
   response.cookies.set(LEGACY_AUTH_COOKIE, '', clearOptions);
+  if (isProductionRuntime() && process.env.CQ_SHARED_DOMAIN_ENABLED === '1') {
+    const sharedExpiry = { ...sharedCookieOptions(), maxAge: 0 };
+    response.cookies.set(GRID_SHARED_ACCESS_COOKIE, '', sharedExpiry);
+    response.cookies.set(GRID_SHARED_REFRESH_COOKIE, '', sharedExpiry);
+  }
 }
 
 // In-memory dev/test OTP store when Supabase is not configured (e.g. unit testing / offline dev)
@@ -1160,14 +1176,15 @@ export function extractAuthTokens(
 
     const cookieHeader = req.headers.get('cookie') || '';
     if (cookieHeader) {
-      // 1. Check sb-access-token
-      const accessMatch = cookieHeader.match(/(?:^|;\s*)sb-access-token=([^;]+)/);
+      // Prefer the shared, rotating CQ session, then legacy host-only cookies.
+      const accessMatch = cookieHeader.match(/(?:^|;\s*)cq-shared-access=([^;]+)/) ||
+        cookieHeader.match(/(?:^|;\s*)sb-access-token=([^;]+)/);
       if (accessMatch && !accessToken) {
         accessToken = decodeURIComponent(accessMatch[1].trim()).replace(/^"|"$/g, '');
       }
 
-      // 2. Check sb-refresh-token
-      const refreshMatch = cookieHeader.match(/(?:^|;\s*)sb-refresh-token=([^;]+)/);
+      const refreshMatch = cookieHeader.match(/(?:^|;\s*)cq-shared-refresh=([^;]+)/) ||
+        cookieHeader.match(/(?:^|;\s*)sb-refresh-token=([^;]+)/);
       if (refreshMatch && !refreshToken) {
         refreshToken = decodeURIComponent(refreshMatch[1].trim()).replace(/^"|"$/g, '');
       }
