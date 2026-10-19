@@ -286,7 +286,7 @@ export default function HomePage() {
             </div>
 
             <Link
-              href="/grid"
+              href="https://the-grid-mocha.vercel.app/grid"
               className="group block overflow-hidden rounded-[2rem] border border-cyan-400/30 bg-stone-950 shadow-[0_30px_80px_rgba(0,0,0,.45)] transition duration-300 hover:-translate-y-1 hover:border-cyan-300/60 hover:shadow-[0_32px_95px_rgba(34,211,238,.12)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
               aria-label="Enter The Grid playable Canton strategy game"
             >
