@@ -37,6 +37,13 @@ export async function GET(
 
     const event = await getEventBySlugDB(slug);
 
+    if (event?.status === 'draft') {
+      return withCookies({ error: 'Event not found' }, {
+        status: 404,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    }
+
     if (!event) {
       if (isKnownCantonLaunchSlug(slug)) {
         return withCookies({
