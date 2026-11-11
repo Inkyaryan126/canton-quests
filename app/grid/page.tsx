@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
-/** The standalone Grid game is live at its own verified production origin. */
+/** Legacy Canton Quests entry stays as a direct redirect so old bookmarks still work. */
 export default function GridEntryPage() {
-  redirect('/api/grid/enter');
+  redirect('https://dominatethegrid.com');
 }
