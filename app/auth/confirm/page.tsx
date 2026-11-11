@@ -68,7 +68,11 @@ function ConfirmEmailContent() {
         clearTimeout(fallbackTimer);
         fallbackTimer = null;
       }
-      if (router && router.push) {
+      // Grid registration finishes on a separate domain. Use a full navigation
+      // instead of leaving players on a legacy Canton Quests client route.
+      if (targetDestination === '/grid' || targetDestination.startsWith('/grid/')) {
+        window.location.assign('https://dominatethegrid.com/login?next=%2Fgrid%2Fonboarding');
+      } else if (router && router.push) {
         router.push(targetDestination);
       } else if (typeof window !== 'undefined') {
         window.location.href = targetDestination;
