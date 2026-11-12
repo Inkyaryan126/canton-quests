@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, KeyRound, Mail, RefreshCw, ShieldCheck, Sparkles, UserCheck, Zap, Eye, EyeOff, AlertCircle } from 'lucide-react';
@@ -33,6 +33,36 @@ export default function FastPlayerOnboardForm({
   themeAccent = '#f59e0b',
 }: FastPlayerOnboardFormProps) {
   const router = useRouter();
+  const turnstileContainer = useRef<HTMLDivElement>(null);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  useEffect(() => {
+    if (!turnstileSiteKey || !turnstileContainer.current) return;
+    let cancelled = false;
+    let widgetId: string | undefined;
+    const win = window as typeof window & { turnstile?: { render: (el: HTMLElement, opts: Record<string, unknown>) => string; remove: (id: string) => void } };
+    const render = () => {
+      if (cancelled || !turnstileContainer.current || !win.turnstile || widgetId) return;
+      widgetId = win.turnstile.render(turnstileContainer.current, {
+        sitekey: turnstileSiteKey,
+        callback: (token: string) => setTurnstileToken(token),
+        'expired-callback': () => setTurnstileToken(''),
+        'error-callback': () => setTurnstileToken(''),
+      });
+    };
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.onload = render;
+    document.head.appendChild(script);
+    if (win.turnstile) render();
+    return () => {
+      cancelled = true;
+      if (widgetId && win.turnstile) win.turnstile.remove(widgetId);
+      script.remove();
+    };
+  }, [turnstileSiteKey]);
   const [mode, setMode] = useState<'signup' | 'login' | 'forgot_password'>('signup');
   const [callsign, setCallsign] = useState('');
   const [email, setEmail] = useState('');
@@ -80,6 +110,11 @@ export default function FastPlayerOnboardForm({
       return;
     }
 
+    if (turnstileSiteKey && !turnstileToken) {
+      setErrorMessage('Complete the security check before creating an account.');
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage('');
     setInfoMessage('');
@@ -96,6 +131,7 @@ export default function FastPlayerOnboardForm({
           acquisitionSource,
           avatarUrl: selectedAvatar,
           redirectTo,
+          turnstileToken,
         }),
       });
 
@@ -343,6 +379,10 @@ export default function FastPlayerOnboardForm({
         <p className="text-[11px] font-mono text-stone-400 mb-3 -mt-1">
           Join the Canton Quests player roster. Complete your player identity after signup to earn <span className="text-amber-400 font-bold">+100 XP</span>.
         </p>
+      )}
+
+      {mode === 'signup' && !isVerificationPending && turnstileSiteKey && (
+        <div className="mb-3" aria-label="Security verification" ref={turnstileContainer} />
       )}
 
       {/* Mode Selector Tabs */}
