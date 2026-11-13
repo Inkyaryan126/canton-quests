@@ -36,9 +36,10 @@ export default function FastPlayerOnboardForm({
   const turnstileContainer = useRef<HTMLDivElement>(null);
   const [turnstileToken, setTurnstileToken] = useState('');
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const turnstileRequired = process.env.NEXT_PUBLIC_REQUIRE_SIGNUP_TURNSTILE === '1';
 
   useEffect(() => {
-    if (!turnstileSiteKey || mode !== 'signup' || !turnstileContainer.current) return;
+    if (!turnstileRequired || !turnstileSiteKey || mode !== 'signup' || !turnstileContainer.current) return;
     let cancelled = false;
     let widgetId: string | undefined;
     const win = window as typeof window & { turnstile?: { render: (el: HTMLElement, opts: Record<string, unknown>) => string; remove: (id: string) => void } };
@@ -62,7 +63,7 @@ export default function FastPlayerOnboardForm({
       if (widgetId && win.turnstile) win.turnstile.remove(widgetId);
       script.remove();
     };
-  }, [turnstileSiteKey, mode]);
+  }, [turnstileSiteKey, turnstileRequired, mode]);
   const [mode, setMode] = useState<'signup' | 'login' | 'forgot_password'>('signup');
   const [callsign, setCallsign] = useState('');
   const [email, setEmail] = useState('');
@@ -110,7 +111,7 @@ export default function FastPlayerOnboardForm({
       return;
     }
 
-    if (turnstileSiteKey && !turnstileToken) {
+    if (turnstileRequired && !turnstileToken) {
       setErrorMessage('Complete the security check before creating an account.');
       return;
     }
@@ -381,7 +382,7 @@ export default function FastPlayerOnboardForm({
         </p>
       )}
 
-      {mode === 'signup' && !isVerificationPending && turnstileSiteKey && (
+      {mode === 'signup' && !isVerificationPending && turnstileRequired && turnstileSiteKey && (
         <div className="mb-3" aria-label="Security verification" ref={turnstileContainer} />
       )}
 
