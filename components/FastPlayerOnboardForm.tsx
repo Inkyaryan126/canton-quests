@@ -378,7 +378,7 @@ export default function FastPlayerOnboardForm({
           imply a free drawing entry here. */}
       {!isVerificationPending && mode === 'signup' && (
         <p className="text-[11px] font-mono text-stone-400 mb-3 -mt-1">
-          Join the Canton Quests player roster. Complete your player identity after signup to earn <span className="text-amber-400 font-bold">+100 XP</span>.
+          Join the Canton Quests and THE GRID player roster. Complete your player identity after signup to earn <span className="text-amber-400 font-bold">+100 XP</span>.
         </p>
       )}
 
