@@ -38,7 +38,7 @@ export default function FastPlayerOnboardForm({
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   useEffect(() => {
-    if (!turnstileSiteKey || !turnstileContainer.current) return;
+    if (!turnstileSiteKey || mode !== 'signup' || !turnstileContainer.current) return;
     let cancelled = false;
     let widgetId: string | undefined;
     const win = window as typeof window & { turnstile?: { render: (el: HTMLElement, opts: Record<string, unknown>) => string; remove: (id: string) => void } };
@@ -62,7 +62,7 @@ export default function FastPlayerOnboardForm({
       if (widgetId && win.turnstile) win.turnstile.remove(widgetId);
       script.remove();
     };
-  }, [turnstileSiteKey]);
+  }, [turnstileSiteKey, mode]);
   const [mode, setMode] = useState<'signup' | 'login' | 'forgot_password'>('signup');
   const [callsign, setCallsign] = useState('');
   const [email, setEmail] = useState('');
