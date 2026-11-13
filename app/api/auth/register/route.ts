@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifySignupTurnstile } from '@/lib/signup-turnstile';
 import {
   signUpWithPassword,
   resolveAuthenticatedSupabaseUser,
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
       favoriteStyle,
       selectedFlair,
       redirectTo,
+      turnstileToken,
     } = body;
 
     if (!displayName || typeof displayName !== 'string' || displayName.trim().length < 2) {
@@ -44,6 +46,14 @@ export async function POST(request: Request) {
 
     // 1. Password Signup Flow
     if (password) {
+      // Feature-gated until the client widget and secret are configured.
+      // Never create an auth user when verification is enabled but fails.
+      if (process.env.REQUIRE_SIGNUP_TURNSTILE === '1' && !(await verifySignupTurnstile(turnstileToken))) {
+        return NextResponse.json(
+          { success: false, error: 'Security verification failed. Please retry the signup challenge.' },
+          { status: 403 }
+        );
+      }
       if (!email || typeof email !== 'string' || !email.includes('@')) {
         return NextResponse.json(
           { success: false, error: 'Valid email address is required.' },
