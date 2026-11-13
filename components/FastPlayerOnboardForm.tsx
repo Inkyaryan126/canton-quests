@@ -33,6 +33,7 @@ export default function FastPlayerOnboardForm({
   themeAccent = '#f59e0b',
 }: FastPlayerOnboardFormProps) {
   const router = useRouter();
+  const [mode, setMode] = useState<'signup' | 'login' | 'forgot_password'>('signup');
   const turnstileContainer = useRef<HTMLDivElement>(null);
   const [turnstileToken, setTurnstileToken] = useState('');
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -64,7 +65,6 @@ export default function FastPlayerOnboardForm({
       script.remove();
     };
   }, [turnstileSiteKey, turnstileRequired, mode]);
-  const [mode, setMode] = useState<'signup' | 'login' | 'forgot_password'>('signup');
   const [callsign, setCallsign] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
