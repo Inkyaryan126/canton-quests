@@ -93,7 +93,15 @@ export async function POST(request: Request) {
       typeof verifyRes.user.user_metadata?.pending_redirect === 'string'
         ? verifyRes.user.user_metadata.pending_redirect
         : undefined;
-    const safeRedirect = sanitizeRedirectUrl(pendingRedirect || next, '/profile');
+    // Supabase's shared confirmation email template can hardcode the Canton
+    // Quests confirm URL, losing the original destination. The account's
+    // verified signup metadata is authoritative for which game's onboarding
+    // should resume. This does not change authorization or session handling.
+    const gridSignup = verifyRes.user.user_metadata?.acquisition_source === 'the_grid';
+    const safeRedirect = sanitizeRedirectUrl(
+      gridSignup ? '/grid/onboarding' : pendingRedirect || next,
+      '/profile',
+    );
 
     // Whether the client should offer a one-time callsign prompt AFTER this
     // verification succeeds — derived from reliable server-side state
